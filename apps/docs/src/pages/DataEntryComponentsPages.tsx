@@ -1,0 +1,471 @@
+import { useMemo, useState } from "react";
+import {
+  Button,
+  Checkbox,
+  ColorPicker,
+  DatePicker,
+  Divider,
+  Form,
+  Input,
+  Radio,
+  Slider,
+  Space,
+  TimePicker,
+  TreeSelect,
+  Upload,
+  message,
+} from "@sia-ui/react";
+import type { CheckboxValue, FormRule, SliderValue, TreeSelectNode } from "@sia-ui/react";
+import { ApiTable } from "./ApiTable";
+import { DemoCard } from "./DemoCard";
+import { DocsTabs } from "./DocsTabs";
+import { PageHeader } from "./PageHeader";
+
+type DocPageProps = {
+  eyebrow: string;
+  title: string;
+  description: string;
+  name: string;
+  apiRows: readonly { property: string; description: string; type: string; defaultValue: string }[];
+  children: React.ReactNode;
+};
+
+function DocPage({ eyebrow, title, description, name, apiRows, children }: DocPageProps) {
+  const [tab, setTab] = useState<"examples" | "api">("examples");
+  return <>
+    <PageHeader eyebrow={eyebrow} title={title} description={description} />
+    <DocsTabs activeKey={tab} onChange={setTab} />
+    {tab === "examples" ? <div className="demo-stack">{children}</div> : <ApiTable name={name} rows={apiRows} />}
+  </>;
+}
+
+const checkboxCode = `import { useState } from "react";
+import { Checkbox, Space } from "@sia-ui/react";
+
+export default function Demo() {
+  const options = ["查看", "编辑", "管理"];
+  const [selected, setSelected] = useState(["查看"]);
+  const allChecked = selected.length === options.length;
+
+  return (
+    <Space direction="vertical" align="start">
+      <Checkbox
+        checked={allChecked}
+        indeterminate={selected.length > 0 && !allChecked}
+        onChange={(checked) => setSelected(checked ? options : [])}
+      >
+        全选
+      </Checkbox>
+      <Checkbox.Group value={selected} options={options} onChange={setSelected} />
+      <Checkbox disabled>禁用选项</Checkbox>
+    </Space>
+  );
+}`;
+
+export function CheckboxPage() {
+  const allOptions = ["查看", "编辑", "管理"];
+  const [selected, setSelected] = useState<readonly CheckboxValue[]>(["查看"]);
+  const allChecked = selected.length === allOptions.length;
+  return <DocPage eyebrow="组件 / 数据录入 / Checkbox" title="Checkbox 多选框" description="在一组独立选项中选择零项、多项或全部。" name="Checkbox" apiRows={[
+    { property: "checked / defaultChecked", description: "受控或默认选中状态", type: "boolean", defaultValue: "false" },
+    { property: "indeterminate", description: "半选状态", type: "boolean", defaultValue: "false" },
+    { property: "onChange", description: "选中状态变化", type: "(checked, event) => void", defaultValue: "-" },
+    { property: "Checkbox.Group", description: "成组管理值和禁用状态", type: "value / options / onChange", defaultValue: "-" },
+  ]}>
+    <DemoCard title="分组与全选" description={`已选择 ${selected.length} 项`} code={checkboxCode}>
+      <Space direction="vertical" align="start">
+        <Checkbox checked={allChecked} indeterminate={selected.length > 0 && !allChecked} onChange={(checked) => setSelected(checked ? allOptions : [])}>全选</Checkbox>
+        <Checkbox.Group value={selected} options={allOptions} onChange={setSelected} />
+        <Checkbox disabled>禁用选项</Checkbox>
+      </Space>
+    </DemoCard>
+  </DocPage>;
+}
+
+const colorCode = `import { ColorPicker } from "@sia-ui/react";
+
+export default function Demo() {
+  return (
+    <ColorPicker
+      defaultValue="#1677FF"
+      showText
+      showAlpha
+      allowClear
+      presets={[{ label: "品牌色", colors: ["#1677FF", "#52C41A", "#FA8C16"] }]}
+    />
+  );
+}`;
+
+export function ColorPickerPage() {
+  const [color, setColor] = useState("#1677FF");
+  return <DocPage eyebrow="组件 / 数据录入 / ColorPicker" title="ColorPicker 颜色选择器" description="选择单色、渐变色、透明度或无色，并输出可直接使用的 CSS 颜色值。" name="ColorPicker" apiRows={[
+    { property: "value / defaultValue", description: "颜色值", type: "HEX | linear-gradient | ''", defaultValue: "'#1677FF'" },
+    { property: "mode / defaultMode", description: "当前或默认颜色模式", type: "'solid' | 'gradient'", defaultValue: "'solid'" },
+    { property: "modes", description: "允许切换的颜色模式", type: "ColorPickerMode[]", defaultValue: "['solid', 'gradient']" },
+    { property: "showText / showAlpha", description: "显示色值与透明度", type: "boolean | formatter", defaultValue: "false" },
+    { property: "presets", description: "预设色组", type: "ColorPickerPreset[]", defaultValue: "-" },
+    { property: "allowClear", description: "允许选择无色", type: "boolean", defaultValue: "false" },
+  ]}>
+    <DemoCard title="单色、渐变色、透明度与预设" description={`当前颜色：${color || "无色"}`} code={colorCode}>
+      <ColorPicker value={color} onChange={setColor} showText showAlpha allowClear presets={[
+        { label: "品牌色", colors: ["#1677FF", "#4096FF", "#0958D9"] },
+        { label: "状态色", colors: ["#52C41A", "#FAAD14", "#FF4D4F"] },
+      ]} />
+    </DemoCard>
+  </DocPage>;
+}
+
+const dateBasicCode = `import { DatePicker, Space } from "@sia-ui/react";
+
+export default function Demo() {
+  return (
+    <Space wrap>
+      <DatePicker allowClear />
+      <DatePicker needConfirm />
+      <DatePicker showTime={{ showSecond: true }} needConfirm />
+    </Space>
+  );
+}`;
+
+const dateSelectionCode = `import { DatePicker, Space } from "@sia-ui/react";
+
+export default function Demo() {
+  return (
+    <Space direction="vertical">
+      <DatePicker multiple defaultValue={["2026-07-01", "2026-07-05"]} />
+      <DatePicker.RangePicker defaultValue={["2026-07-01", "2026-07-18"]} />
+    </Space>
+  );
+}`;
+
+const dateAdvancedCode = `import { DatePicker, Space } from "@sia-ui/react";
+
+const presets = [
+  { label: "最近 7 天", value: ["2026-07-14 00:00", "2026-07-20 23:59"] },
+  { label: "最近 30 天", value: ["2026-06-21 00:00", "2026-07-20 23:59"] },
+];
+
+export default function Demo() {
+  return (
+    <Space direction="vertical">
+      <DatePicker.RangePicker showTime needConfirm presets={presets} />
+      <DatePicker.RangePicker maxRangeDays={7} />
+    </Space>
+  );
+}`;
+
+export function DatePickerPage() {
+  const [range, setRange] = useState<readonly [string, string]>(["", ""]);
+  const [multipleDates, setMultipleDates] = useState<readonly string[]>(["2026-07-01", "2026-07-05", "2026-07-14"]);
+  const [dateTimeRange, setDateTimeRange] = useState<readonly [string, string]>(["", ""]);
+  return <DocPage eyebrow="组件 / 数据录入 / DatePicker" title="DatePicker 日期选择器" description="选择日期、多个日期、日期时间或受约束的日期范围。" name="DatePicker" apiRows={[
+    { property: "value / defaultValue", description: "单值或多选日期值", type: "string | readonly string[]", defaultValue: "''" },
+    { property: "picker", description: "日期粒度", type: "date | week | month | year | quarter", defaultValue: "'date'" },
+    { property: "multiple", description: "在同一面板内选择多个日期", type: "boolean", defaultValue: "false" },
+    { property: "needConfirm", description: "选择后需要点击确定才提交", type: "boolean", defaultValue: "showTime 时为 true" },
+    { property: "showTime", description: "组合时间面板，可显示秒", type: "boolean | { showSecond, defaultValue }", defaultValue: "false" },
+    { property: "presets", description: "预设日期或预设范围", type: "DatePickerPreset[]", defaultValue: "-" },
+    { property: "disabledDate / minDate / maxDate", description: "禁用或限制可选日期", type: "function / string", defaultValue: "-" },
+    { property: "RangePicker.maxRangeDays", description: "限制一次最多可选择的天数", type: "number", defaultValue: "-" },
+  ]}>
+    <DemoCard title="基础日期与手动确认" description="面板使用统一的圆角日期单元格；手动确认模式不会在点选日期后立即关闭。" code={dateBasicCode}>
+      <Space wrap>
+        <DatePicker aria-label="选择日期" />
+        <DatePicker needConfirm aria-label="手动确认日期" />
+        <DatePicker showTime={{ showSecond: true }} needConfirm aria-label="选择日期时间" />
+      </Space>
+    </DemoCard>
+    <DemoCard title="范围选择与多日期选择" description={`范围：${range[0] || "未选择"} 至 ${range[1] || "未选择"}；多选：${multipleDates.join("、") || "未选择"}`} code={dateSelectionCode}>
+      <Space direction="vertical" size={16}>
+        <DatePicker multiple value={multipleDates} onChange={(next) => setMultipleDates(Array.isArray(next) ? next : [])} />
+        <DatePicker.RangePicker value={range} onChange={setRange} />
+      </Space>
+    </DemoCard>
+    <DemoCard title="日期时间、快捷范围与选择限制" description={`当前日期时间范围：${dateTimeRange[0] || "未选择"} 至 ${dateTimeRange[1] || "未选择"}`} code={dateAdvancedCode}>
+      <Space direction="vertical" size={16}>
+        <DatePicker.RangePicker
+          value={dateTimeRange}
+          onChange={setDateTimeRange}
+          showTime
+          needConfirm
+          presets={[
+            { label: "今天", value: ["2026-07-20 00:00", "2026-07-20 23:59"] },
+            { label: "最近 7 天", value: ["2026-07-14 00:00", "2026-07-20 23:59"] },
+            { label: "最近 14 天", value: ["2026-07-07 00:00", "2026-07-20 23:59"] },
+            { label: "最近 30 天", value: ["2026-06-21 00:00", "2026-07-20 23:59"] },
+          ]}
+        />
+        <DatePicker.RangePicker maxRangeDays={7} placeholder={["开始日期", "最多选择 7 天"]} />
+      </Space>
+    </DemoCard>
+  </DocPage>;
+}
+
+const USERNAME_RULES: readonly FormRule[] = [{ required: true, message: "请输入用户名" }, { min: 3, message: "至少输入 3 个字符" }];
+const EMAIL_RULES: readonly FormRule[] = [{ required: true, message: "请输入邮箱" }, { type: "email", message: "邮箱格式不正确" }];
+
+const formCode = `import { Button, Checkbox, Form, Input, Space } from "@sia-ui/react";
+
+export default function Demo() {
+  const [form] = Form.useForm();
+  return (
+    <Form
+      form={form}
+      layout="vertical"
+      initialValues={{ username: "", email: "", remember: true }}
+      onFinish={console.log}
+    >
+      <Form.Item name="username" label="用户名" rules={[
+        { required: true, message: "请输入用户名" },
+        { min: 3, message: "至少输入 3 个字符" },
+      ]}>
+        <Input allowClear placeholder="至少 3 个字符" />
+      </Form.Item>
+      <Form.Item name="email" label="邮箱" rules={[
+        { required: true, message: "请输入邮箱" },
+        { type: "email", message: "邮箱格式不正确" },
+      ]}>
+        <Input allowClear placeholder="name@example.com" />
+      </Form.Item>
+      <Form.Item name="remember" valuePropName="checked">
+        <Checkbox>记住当前设置</Checkbox>
+      </Form.Item>
+      <Space>
+        <Button type="submit" variant="primary">提交</Button>
+        <Button onClick={() => form.resetFields()}>重置</Button>
+      </Space>
+    </Form>
+  );
+}`;
+
+export function FormPage() {
+  const [form] = Form.useForm();
+  const [result, setResult] = useState("尚未提交");
+  return <DocPage eyebrow="组件 / 数据录入 / Form" title="Form 表单" description="统一管理字段值、校验、气泡错误提示、提交和动态字段。" name="Form" apiRows={[
+    { property: "form / Form.useForm", description: "表单实例与命令式 API", type: "FormInstance", defaultValue: "自动创建" },
+    { property: "initialValues", description: "表单初始值", type: "FormValues", defaultValue: "{}" },
+    { property: "onFinish / onFinishFailed", description: "提交成功和失败回调", type: "function", defaultValue: "-" },
+    { property: "submit", description: "提交失败时自动滚动并聚焦首个错误字段", type: "() => void", defaultValue: "-" },
+    { property: "Form.Item", description: "字段绑定、标签、校验规则和非占位错误气泡", type: "name / rules / valuePropName", defaultValue: "-" },
+    { property: "Form.List", description: "动态数组字段", type: "render function", defaultValue: "-" },
+  ]}>
+    <DemoCard title="字段绑定与实时校验" description={`${result}；提交失败会自动定位到首个错误字段。`} code={formCode}>
+      <Form form={form} layout="vertical" initialValues={{ username: "", email: "", remember: true }} onFinish={(values) => {
+        setResult(`提交成功：${JSON.stringify(values)}`);
+        message.success("表单校验通过");
+      }} onFinishFailed={() => setResult("请修正表单中的错误")}>
+        <Form.Item name="username" label="用户名" rules={USERNAME_RULES}><Input allowClear placeholder="至少 3 个字符" /></Form.Item>
+        <Form.Item name="email" label="邮箱" rules={EMAIL_RULES}><Input allowClear placeholder="name@example.com" /></Form.Item>
+        <Form.Item name="remember" valuePropName="checked"><Checkbox>记住当前设置</Checkbox></Form.Item>
+        <Space>
+          <Button type="submit" variant="primary">提交</Button>
+          <Button onClick={() => form.resetFields()}>重置</Button>
+        </Space>
+      </Form>
+    </DemoCard>
+  </DocPage>;
+}
+
+const radioCode = `import { useState } from "react";
+import { Divider, Radio } from "@sia-ui/react";
+
+export default function Demo() {
+  const [value, setValue] = useState("daily");
+  const options = [
+    { label: "每天", value: "daily" },
+    { label: "每周", value: "weekly" },
+    { label: "每月", value: "monthly" },
+  ];
+  return <>
+    <Radio.Group value={value} onChange={setValue} options={options} />
+    <Divider />
+    <Radio.Group
+      value={value}
+      onChange={setValue}
+      optionType="button"
+      buttonStyle="solid"
+      options={options}
+    />
+  </>;
+}`;
+
+export function RadioPage() {
+  const [value, setValue] = useState("daily");
+  return <DocPage eyebrow="组件 / 数据录入 / Radio" title="Radio 单选框" description="在一组互斥选项中选择一个值，支持按钮形态。" name="Radio" apiRows={[
+    { property: "value / checked", description: "选项值与选中状态", type: "string | number / boolean", defaultValue: "-" },
+    { property: "Radio.Group", description: "统一管理互斥值", type: "value / options / onChange", defaultValue: "-" },
+    { property: "optionType", description: "普通或按钮形态", type: "'default' | 'button'", defaultValue: "'default'" },
+    { property: "buttonStyle", description: "按钮选中样式", type: "'outline' | 'solid'", defaultValue: "'outline'" },
+  ]}>
+    <DemoCard title="普通与按钮单选" description={`当前周期：${value}`} code={radioCode}>
+      <Radio.Group value={value} onChange={(next) => setValue(String(next))}>
+        <Radio value="daily">每天</Radio><Radio value="weekly">每周</Radio><Radio value="monthly">每月</Radio>
+      </Radio.Group>
+      <Divider />
+      <Radio.Group value={value} onChange={(next) => setValue(String(next))} optionType="button" buttonStyle="solid" options={[
+        { label: "每天", value: "daily" }, { label: "每周", value: "weekly" }, { label: "每月", value: "monthly" },
+      ]} />
+    </DemoCard>
+  </DocPage>;
+}
+
+const sliderCode = `import { Divider, Slider } from "@sia-ui/react";
+
+export default function Demo() {
+  return <>
+    <Slider
+      range
+      defaultValue={[20, 70]}
+      marks={{ 0: "0", 25: "25", 50: "50", 75: "75", 100: "100" }}
+      tooltip={{ formatter: (value) => value + "%" }}
+    />
+    <Divider />
+    <Slider defaultValue={35} step={5} />
+  </>;
+}`;
+
+export function SliderPage() {
+  const [value, setValue] = useState<SliderValue>([20, 70]);
+  return <DocPage eyebrow="组件 / 数据录入 / Slider" title="Slider 滑动输入条" description="在连续或离散范围中选择单值或区间。" name="Slider" apiRows={[
+    { property: "value / defaultValue", description: "单值或范围值", type: "number | [number, number]", defaultValue: "min" },
+    { property: "min / max / step", description: "范围和步长", type: "number", defaultValue: "0 / 100 / 1" },
+    { property: "range / vertical / reverse", description: "范围、垂直和反向模式", type: "boolean", defaultValue: "false" },
+    { property: "marks", description: "刻度标记", type: "Record<number, ReactNode | SliderMark>", defaultValue: "-" },
+    { property: "onChangeComplete", description: "拖动完成回调", type: "(value) => void", defaultValue: "-" },
+  ]}>
+    <DemoCard title="范围、刻度与提示" description={`当前值：${Array.isArray(value) ? value.join(" - ") : value}`} code={sliderCode}>
+      <Slider value={value} range onChange={setValue} marks={{ 0: "0", 25: "25", 50: "50", 75: "75", 100: "100" }} tooltip={{ formatter: (item) => `${item}%` }} />
+      <Divider />
+      <Slider defaultValue={35} step={5} />
+    </DemoCard>
+  </DocPage>;
+}
+
+const timeCode = `import { TimePicker } from "@sia-ui/react";
+
+export default function Demo() {
+  return (
+    <>
+      <TimePicker showSecond />
+      <TimePicker.RangePicker />
+    </>
+  );
+}`;
+
+export function TimePickerPage() {
+  const [range, setRange] = useState<readonly [string, string]>(["09:00", "18:00"]);
+  return <DocPage eyebrow="组件 / 数据录入 / TimePicker" title="TimePicker 时间选择器" description="选择时、分、秒或时间范围。" name="TimePicker" apiRows={[
+    { property: "value / defaultValue", description: "标准时间字符串", type: "string", defaultValue: "''" },
+    { property: "showSecond / use12Hours", description: "秒和 12 小时制", type: "boolean", defaultValue: "false" },
+    { property: "disabledTime", description: "禁用时间判断", type: "(value) => boolean", defaultValue: "-" },
+    { property: "TimePicker.RangePicker", description: "时间范围选择", type: "RangePicker props", defaultValue: "-" },
+  ]}>
+    <DemoCard title="时间与范围" description={`工作时间：${range[0]} - ${range[1]}`} code={timeCode}>
+      <Space wrap><TimePicker aria-label="选择时间" /><TimePicker showSecond aria-label="选择精确时间" /></Space>
+      <Divider />
+      <TimePicker.RangePicker value={range} onChange={setRange} />
+    </DemoCard>
+  </DocPage>;
+}
+
+const TREE_DATA: readonly TreeSelectNode[] = [
+  { title: "产品中心", value: "product", children: [
+    { title: "Web 产品", value: "web", children: [{ title: "管理后台", value: "admin" }, { title: "官网", value: "site" }] },
+    { title: "客户端产品", value: "client" },
+  ] },
+  { title: "研发中心", value: "rd", children: [{ title: "前端组", value: "frontend" }, { title: "后端组", value: "backend" }] },
+];
+
+const treeSelectCode = `import { TreeSelect } from "@sia-ui/react";
+
+export default function Demo() {
+  return (
+    <TreeSelect
+      treeData={treeData}
+      treeCheckable
+      showSearch
+      allowClear
+      treeDefaultExpandAll
+      placeholder="选择团队"
+    />
+  );
+}`;
+
+export function TreeSelectPage() {
+  const [value, setValue] = useState<readonly (string | number)[]>(["frontend"]);
+  return <DocPage eyebrow="组件 / 数据录入 / TreeSelect" title="TreeSelect 树选择" description="在层级结构中搜索、展开并选择一个或多个节点。" name="TreeSelect" apiRows={[
+    { property: "treeData", description: "树形选项数据", type: "TreeSelectNode[]", defaultValue: "[]" },
+    { property: "multiple / treeCheckable", description: "多选和勾选模式", type: "boolean", defaultValue: "false" },
+    { property: "showSearch", description: "显示节点搜索", type: "boolean", defaultValue: "false" },
+    { property: "treeDefaultExpandAll", description: "默认展开全部节点", type: "boolean", defaultValue: "false" },
+    { property: "maxTagCount / allowClear", description: "标签数量和清除", type: "number / boolean", defaultValue: "3 / false" },
+  ]}>
+    <DemoCard title="搜索、多选与展开" description={`已选择 ${value.length} 个节点`} code={treeSelectCode}>
+      <TreeSelect treeData={TREE_DATA} value={value} onChange={(next) => setValue(Array.isArray(next) ? [...next] : next === undefined ? [] : [next])} treeCheckable showSearch allowClear treeDefaultExpandAll placeholder="选择团队" />
+    </DemoCard>
+  </DocPage>;
+}
+
+const uploadListCode = `import { Upload, message } from "@sia-ui/react";
+
+export default function Demo() {
+  function beforeUpload(file) {
+    if (file.size <= 5 * 1024 * 1024) return true;
+    message.error(\`\${file.name} 超过 5MB\`);
+    return false;
+  }
+
+  return (
+    <Upload
+      multiple
+      maxCount={3}
+      accept=".png,.jpg,.pdf"
+      beforeUpload={beforeUpload}
+      onChange={({ file }) => console.log(file.name, file.status ?? "ready")}
+    />
+  );
+}`;
+
+const uploadDraggerCode = `import { Upload, message } from "@sia-ui/react";
+
+export default function Demo() {
+  function beforeUpload(file) {
+    if (file.size <= 5 * 1024 * 1024) return true;
+    message.error(\`\${file.name} 超过 5MB\`);
+    return false;
+  }
+
+  return (
+    <Upload.Dragger
+      multiple
+      maxCount={5}
+      accept=".png,.jpg,.pdf"
+      beforeUpload={beforeUpload}
+    />
+  );
+}`;
+
+export function UploadPage() {
+  const [latest, setLatest] = useState("尚未选择文件");
+  const beforeUpload = useMemo(() => (file: File) => {
+    if (file.size > 5 * 1024 * 1024) {
+      message.error(`${file.name} 超过 5MB`);
+      return false;
+    }
+    return true;
+  }, []);
+  return <DocPage eyebrow="组件 / 数据录入 / Upload" title="Upload 上传" description="选择或拖拽文件，管理上传校验、进度和文件列表。" name="Upload" apiRows={[
+    { property: "accept / multiple / directory", description: "文件类型、多选和目录上传", type: "input file props", defaultValue: "-" },
+    { property: "fileList / defaultFileList", description: "受控或默认文件列表", type: "UploadFile[]", defaultValue: "[]" },
+    { property: "beforeUpload", description: "上传前校验或转换文件", type: "(file, list) => boolean | File | Promise", defaultValue: "-" },
+    { property: "customRequest", description: "自定义上传实现", type: "(options) => void", defaultValue: "本地模拟" },
+    { property: "Upload.Dragger", description: "拖拽上传形态", type: "UploadDraggerProps", defaultValue: "-" },
+  ]}>
+    <DemoCard title="文件列表" description={latest} code={uploadListCode}>
+      <Upload multiple maxCount={3} accept=".png,.jpg,.pdf" beforeUpload={beforeUpload} onChange={({ file }) => setLatest(`${file.name}：${file.status ?? "ready"}`)} />
+    </DemoCard>
+    <DemoCard title="拖拽上传" description="支持点击或把多个文件拖入上传区域。" code={uploadDraggerCode}>
+      <Upload.Dragger multiple maxCount={5} accept=".png,.jpg,.pdf" beforeUpload={beforeUpload} />
+    </DemoCard>
+  </DocPage>;
+}

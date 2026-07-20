@@ -1,0 +1,19 @@
+{
+  "name": "sia-web-ui-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "dev": "pnpm --filter @sia-ui/docs dev",
+    "build": "pnpm --filter @sia-ui/react build && pnpm --filter @sia-ui/docs build",
+    "typecheck": "pnpm -r typecheck",
+    "check": "pnpm typecheck && pnpm build",
+    "create:sia": "node packages/create-sia-web/cli.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.10",
+    "typescript": "^5.7.2"
+  }
+}
+

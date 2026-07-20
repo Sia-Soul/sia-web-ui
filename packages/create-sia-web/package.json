@@ -1,0 +1,17 @@
+{
+  "name": "create-sia-web",
+  "version": "0.1.0",
+  "description": "Create a Sia Web UI project",
+  "type": "module",
+  "bin": {
+    "create-sia-web": "./cli.mjs"
+  },
+  "files": ["cli.mjs", "template"],
+  "scripts": {
+    "typecheck": "node --check cli.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
+

@@ -1,0 +1,11 @@
+* { box-sizing: border-box; }
+body { margin: 0; color: var(--sia-color-text); font-family: Inter, system-ui, "Microsoft YaHei", sans-serif; background: var(--sia-color-background); }
+.app-shell > header { display: flex; align-items: center; justify-content: space-between; height: 64px; padding: 0 32px; background: var(--sia-color-surface); border-bottom: 1px solid var(--sia-color-border); }
+.app-shell > header div { display: grid; gap: 2px; }
+.app-shell > header span { color: var(--sia-color-text-secondary); font-size: 12px; }
+.app-shell > section { width: min(880px, calc(100% - 32px)); margin: 0 auto; padding: 64px 0; }
+h1 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 48px); }
+section > p { margin: 0 0 28px; color: var(--sia-color-text-secondary); font-size: 18px; }
+.sia-alert { margin-bottom: 18px; }
+@media (max-width: 600px) { .app-shell > header { padding: 0 16px; } .app-shell > section { padding-top: 40px; } }
+
