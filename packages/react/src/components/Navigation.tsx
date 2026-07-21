@@ -215,7 +215,7 @@ export function Menu({
   const [open, setOpen] = useControllableState<readonly string[]>({ value: openKeys, defaultValue: defaultOpenKeys, onChange: (next) => onOpenChange?.([...next]) });
 
   useEffect(() => {
-    if (!open.length) return undefined;
+    if (mode === "inline" || !open.length) return undefined;
     const closeOutside = (event: PointerEvent) => {
       const target = event.target as Node;
       if (rootRef.current?.contains(target)) return;
@@ -224,7 +224,7 @@ export function Menu({
     };
     document.addEventListener("pointerdown", closeOutside);
     return () => document.removeEventListener("pointerdown", closeOutside);
-  }, [menuId, open.length, setOpen]);
+  }, [menuId, mode, open.length, setOpen]);
 
   function toggle(key: string, force?: boolean) {
     const shouldOpen = force ?? !open.includes(key);
@@ -241,7 +241,7 @@ export function Menu({
     else onSelect?.({ ...info, selectedKeys: [...next] });
     if (mode !== "inline") setOpen([]);
   }
-  return <ul ref={rootRef} className={`sia-menu sia-menu--${mode} sia-menu--${theme}${inlineCollapsed ? " sia-menu--collapsed" : ""} ${className}`.trim()} role="menu" {...rest}>
+  return <ul ref={rootRef} className={`sia-menu sia-menu--${mode} sia-menu--${theme}${inlineCollapsed ? " sia-menu--collapsed" : ""} ${className}`.trim()} role="menu" {...rest} data-sia-menu-owner={menuId}>
     <MenuLevel items={items} level={0} parents={[]} props={{ menuId, mode, theme, multiple, selectable, inlineCollapsed, inlineIndent, triggerSubMenuAction, selected, open, select, toggle }} />
   </ul>;
 }

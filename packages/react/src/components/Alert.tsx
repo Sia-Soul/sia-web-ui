@@ -20,10 +20,10 @@ export interface AlertProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"
 }
 
 const alertIcons: Record<AlertStatus, ReactNode> = {
-  info: <Icon name="info" variant="filled" />,
-  success: <Icon name="circle-check" variant="filled" />,
-  warning: <Icon name="warning" variant="filled" />,
-  error: <Icon name="circle-close" variant="filled" />,
+  info: <Icon name="info" size={20} />,
+  success: <Icon name="circle-check" size={20} />,
+  warning: <Icon name="warning" size={20} />,
+  error: <Icon name="circle-close" size={20} />,
 };
 
 export function Alert({

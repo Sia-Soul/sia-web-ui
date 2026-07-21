@@ -12,7 +12,7 @@ export function AlertPage() {
     { property: "showIcon / banner", description: "显示图标与顶部横幅", type: "boolean", defaultValue: "false" },
     { property: "closable / action", description: "关闭能力与额外操作", type: "boolean / ReactNode", defaultValue: "false / -" },
   ]}>
-    <DemoCard title="四种状态" description="图标采用 Sia 图标库的实色状态图标。" code={`<Space direction="vertical" style={{ width: "100%" }}>
+    <DemoCard title="四种状态" description="图标采用 Sia 图标库的线框状态图标。" code={`<Space direction="vertical" style={{ width: "100%" }}>
   <Alert type="info" showIcon message="信息提示" description="当前配置将在保存后生效。" />
   <Alert type="success" showIcon message="发布成功" description="新版本已经部署。" closable />
   <Alert type="warning" showIcon message="需要检查" action={<Button size="small">立即检查</Button>} />

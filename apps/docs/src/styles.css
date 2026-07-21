@@ -6,6 +6,19 @@ button, input { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; text-decoration: none; }
 
+.docs-context-menu { position: fixed; z-index: 4000; width: 232px; padding: 6px; color: var(--sia-color-text); background: color-mix(in srgb, var(--sia-color-surface) 96%, transparent); border: 1px solid var(--sia-color-border); border-radius: 12px; box-shadow: 0 14px 40px rgb(0 0 0 / 22%); backdrop-filter: blur(16px); animation: docs-context-menu-in 130ms cubic-bezier(.2, .8, .2, 1) both; }
+.docs-context-menu > div { display: contents; }
+.docs-context-menu button { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 9px; width: 100%; min-height: 42px; padding: 7px 10px; color: inherit; cursor: pointer; background: transparent; border: 0; border-radius: 7px; text-align: left; }
+.docs-context-menu button:hover, .docs-context-menu button:focus-visible { color: var(--sia-color-primary); background: var(--sia-color-control-hover); outline: none; }
+.docs-context-menu button > .sia-icon { color: var(--sia-color-text-secondary); }
+.docs-context-menu button:hover > .sia-icon, .docs-context-menu button:focus-visible > .sia-icon { color: currentColor; }
+.docs-context-menu kbd { padding: 2px 5px; color: var(--sia-color-text-secondary); background: var(--sia-color-control-active); border-radius: 4px; font: 600 11px/1.3 ui-monospace, "SFMono-Regular", Consolas, monospace; }
+.docs-context-menu__divider { height: 1px; margin: 5px 7px; background: var(--sia-color-border); }
+.docs-inspector-highlight { position: fixed; z-index: 3998; pointer-events: none; background: rgb(22 119 255 / 12%); border: 2px solid var(--sia-color-primary); }
+.docs-inspector-label { position: fixed; z-index: 3999; display: flex; align-items: center; gap: 10px; max-width: 272px; height: 25px; padding: 0 8px; overflow: hidden; color: #fff; pointer-events: none; background: var(--sia-color-primary); border-radius: 5px; box-shadow: var(--sia-shadow-popup); font: 600 12px/1 ui-monospace, "SFMono-Regular", Consolas, monospace; text-overflow: ellipsis; white-space: nowrap; }
+.docs-inspector-label span { color: rgb(255 255 255 / 72%); font: 400 11px/1 system-ui, sans-serif; }
+@keyframes docs-context-menu-in { from { opacity: 0; transform: translateY(-4px) scale(.97); } }
+
 .docs-app { --sidebar-width: 272px; height: 100vh; overflow: hidden; padding-top: 66px; }
 .topbar { position: fixed; z-index: 20; inset: 0 0 auto; display: flex; align-items: center; gap: 12px; height: 66px; padding: 0 20px; background: var(--sia-color-surface); border-bottom: 1px solid var(--sia-color-border); }
 .brand { display: flex; align-items: center; flex: 0 0 auto; gap: 12px; min-width: 205px; font-size: 20px; letter-spacing: -0.3px; }
@@ -99,6 +112,10 @@ h1 { margin: 0; font-size: clamp(32px, 3.3vw, 42px); line-height: 1.2; letter-sp
 .card-demo-scroll p { margin: 0 0 12px; }
 .tabs-demo-stack { display: grid; gap: 28px; }
 .tabs-demo-stack .sia-tabs__panel p, .sia-tabs__panel > p { margin: 0; color: var(--sia-color-text-secondary); }
+.tabs-position-demo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.tabs-position-demo > section { min-width: 0; padding: 14px; background: var(--sia-color-background); border: 1px solid var(--sia-color-border); border-radius: var(--sia-radius); }
+.tabs-position-demo > section > strong { display: block; margin-bottom: 8px; font-size: 13px; }
+.tabs-position-demo .sia-tabs--vertical { min-height: 132px; }
 .divider-demo-copy { color: var(--sia-color-text-secondary); }
 .table-demo { width: 100%; }
 .virtual-table-demo .sia-table__viewport { background: var(--sia-color-surface); }
@@ -213,6 +230,7 @@ pre code { color: inherit; }
   .component-demo { align-items: stretch; flex-direction: column; }
   .component-demo > .sia-input-number, .component-demo > .sia-select { width: 100%; }
   .demo-grid { grid-template-columns: 1fr; }
+  .tabs-position-demo { grid-template-columns: 1fr; }
   pre { font-size: 12px; }
   .token-table { overflow-x: auto; }
   .icon-gallery-heading { align-items: stretch; flex-direction: column; gap: 16px; }

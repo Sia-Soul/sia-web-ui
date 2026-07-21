@@ -74,8 +74,13 @@ export function Cascader({
   const [active, setActive] = useState<CascaderOption[]>([]);
   const [search, setSearch] = useState("");
   const [loadingKey, setLoadingKey] = useState("");
-  const selectedPaths = multiple ? (current as readonly (readonly CascaderValue[])[] | undefined) ?? [] : current && !Array.isArray(current[0]) ? [current as readonly CascaderValue[]] : [];
+  const selectedPaths = multiple
+    ? (current as readonly (readonly CascaderValue[])[] | undefined) ?? []
+    : current?.length && !Array.isArray(current[0])
+      ? [current as readonly CascaderValue[]]
+      : [];
   const selectedKeys = new Set(selectedPaths.map(pathKey));
+  const selectedPathSignature = selectedPaths.map(pathKey).join("\u001e");
   const searchPaths = useMemo(() => search ? leafPaths(options, fields).filter((path) => path.some((option) => String(optionLabel(option, fields)).toLowerCase().includes(search.toLowerCase()))) : [], [fields, options, search]);
 
   useEffect(() => {
@@ -88,10 +93,36 @@ export function Cascader({
     return () => document.removeEventListener("pointerdown", close);
   }, [open]);
 
+  useEffect(() => {
+    if (selectedPaths.length) return;
+    setActive([]);
+    setSearch("");
+    setLoadingKey("");
+  }, [selectedPaths.length]);
+
+  useEffect(() => {
+    if (!open || !selectedPaths.length) return;
+    setActive(findPath(options, selectedPaths[0], fields));
+  }, [fields, open, options, selectedPathSignature]);
+
   function emit(next: readonly CascaderValue[] | readonly (readonly CascaderValue[])[] | undefined) {
     setCurrent(next);
     if (multiple) onChange?.(next, ((next as readonly (readonly CascaderValue[])[] | undefined) ?? []).map((path) => findPath(options, path, fields)));
     else onChange?.(next, next ? findPath(options, next as readonly CascaderValue[], fields) : []);
+  }
+  function clearSelection() {
+    setActive([]);
+    setSearch("");
+    setLoadingKey("");
+    emit(multiple ? [] : undefined);
+  }
+  function toggleOpen() {
+    const nextOpen = !open;
+    if (nextOpen) {
+      const selectedPath = selectedPaths[0];
+      setActive(selectedPath ? findPath(options, selectedPath, fields) : []);
+    }
+    setOpen(nextOpen);
   }
   async function activate(option: CascaderOption, depth: number) {
     if (option.disabled) return;
@@ -128,11 +159,11 @@ export function Cascader({
   active.forEach((option) => { const children = optionChildren(option, fields); if (children?.length) columns.push(children); });
 
   return <div ref={rootRef} className={`sia-cascader${open ? " is-open" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()} {...props}>
-    <button type="button" className="sia-cascader__trigger" disabled={disabled} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(!open)}>
+    <button type="button" className="sia-cascader__trigger" disabled={disabled} aria-haspopup="listbox" aria-expanded={open} onClick={toggleOpen}>
       <span className="sia-cascader__value">{display
         ? multiple && Array.isArray(display) ? display.map((label, index) => <span className="sia-cascader__tag" key={pathKey(selectedPaths[index] ?? [])}>{label}</span>) : display
         : <span className="sia-cascader__placeholder">{placeholder}</span>}</span>
-      {allowClear && selectedPaths.length ? <span className="sia-cascader__clear" role="button" aria-label="清除选择" onClick={(event) => { event.stopPropagation(); emit(multiple ? [] : undefined); }}><Icon name="circle-close" variant="filled" size={15} /></span> : null}
+      {allowClear && selectedPaths.length ? <span className="sia-cascader__clear" role="button" aria-label="清除选择" onClick={(event) => { event.stopPropagation(); clearSelection(); }}><Icon name="circle-close" variant="filled" size={15} /></span> : null}
       <Icon name={open ? "chevron-up" : "chevron-down"} size={14} />
     </button>
     <PopupPortal ref={popupRef} anchorRef={rootRef} open={open} className="sia-cascader__popup">

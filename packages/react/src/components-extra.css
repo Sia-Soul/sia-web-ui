@@ -162,7 +162,7 @@
 .sia-picker-range-control__value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sia-picker-range-control__separator { flex: 0 0 auto; margin-inline: 10px; color: var(--sia-color-text-secondary); }
 
-.sia-date-panel { width: 349px; max-width: calc(100vw - 16px); max-height: min(640px, var(--sia-popup-available-height, 640px)); overflow-x: hidden; overflow-y: auto; color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: 12px; box-shadow: var(--sia-shadow-popup); scrollbar-width: thin; animation: sia-date-panel-enter 150ms ease-out; }
+.sia-date-panel { width: 349px; max-width: calc(100vw - 16px); max-height: min(640px, calc(100vh - 16px)); overflow-x: hidden; overflow-y: auto; color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: 12px; box-shadow: var(--sia-shadow-popup); scrollbar-width: thin; animation: sia-date-panel-enter 150ms ease-out; }
 .sia-date-panel--with-time { width: 515px; }
 .sia-date-panel--with-presets { width: 494px; }
 .sia-date-panel--with-presets.sia-date-panel--with-time { width: 660px; }
@@ -400,8 +400,8 @@
 
 .sia-pagination { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 14px; color: var(--sia-color-text-secondary); }
 .sia-pagination__size { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
-.sia-pagination__size select { height: 28px; padding: 0 5px; color: var(--sia-color-text); cursor: pointer; background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: 5px; }
-.sia-pagination__size select:disabled { cursor: not-allowed; opacity: .55; }
+.sia-pagination__size-select.sia-select { width: 94px; }
+.sia-pagination__size-select .sia-select__trigger { min-height: 28px; }
 .sia-pagination__total { display: inline-flex; align-items: center; gap: 4px; padding: 3px; color: inherit; white-space: nowrap; background: transparent; border: 0; }
 button.sia-pagination__total { cursor: pointer; }
 button.sia-pagination__total:disabled { cursor: default; }
@@ -565,7 +565,7 @@ button.sia-pagination__total:disabled { cursor: default; }
 .sia-image-preview > button { position: absolute; top: 18px; right: 18px; display: grid; place-items: center; width: 38px; height: 38px; color: #fff; cursor: pointer; background: rgb(255 255 255 / 12%); border: 0; border-radius: 50%; }
 
 /* Floating content, Timeline and Tree */
-body > .sia-popup-portal[data-sia-popup-layer] { position: fixed; z-index: 1080; box-sizing: border-box; max-width: calc(100vw - 16px); max-height: min(calc(100vh - 16px), var(--sia-popup-available-height, calc(100vh - 16px))); overscroll-behavior: contain; isolation: isolate; }
+body > .sia-popup-portal[data-sia-popup-layer] { position: fixed; z-index: 1080; box-sizing: border-box; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overscroll-behavior: contain; isolation: isolate; }
 .sia-floating { position: relative; display: inline-flex; }
 .sia-floating__overlay { --sia-floating-color: rgb(24 24 27 / 94%); --sia-floating-arrow-border: transparent; position: fixed; z-index: 1080; display: block; width: max-content; max-width: min(320px, calc(100vw - 16px)); padding: 7px 10px; color: #fff; background: var(--sia-floating-color); border-radius: 6px; box-shadow: var(--sia-shadow-popup); font-size: 13px; line-height: 1.5; animation: sia-floating-in 140ms ease; }
 [data-sia-theme="dark"] .sia-floating__overlay[role="tooltip"]:not([data-custom-color]) { --sia-floating-color: rgb(245 245 245 / 96%); --sia-floating-arrow-border: rgb(255 255 255 / 72%); color: #181818; border: 1px solid var(--sia-floating-arrow-border); box-shadow: 0 10px 30px rgb(0 0 0 / 48%), 0 0 0 1px rgb(0 0 0 / 12%); }
@@ -625,6 +625,7 @@ body > .sia-popup-portal[data-sia-popup-layer] { position: fixed; z-index: 1080;
 .sia-progress__info { min-width: 36px; color: var(--sia-color-text-secondary); font-size: 13px; }
 .sia-progress__steps { display: flex; gap: 3px; width: 100%; height: 100%; }
 .sia-progress__steps span { flex: 1; background: var(--sia-color-control-active); }
+.sia-progress__steps span.is-active { background: var(--sia-color-primary); }
 .sia-progress--circle, .sia-progress--dashboard { position: relative; display: inline-grid; place-items: center; }
 .sia-progress--circle svg, .sia-progress--dashboard svg { width: 100%; height: 100%; transform: rotate(-90deg); }
 .sia-progress--dashboard svg { transform: rotate(135deg); }
@@ -681,7 +682,7 @@ body > .sia-popup-portal[data-sia-popup-layer] { position: fixed; z-index: 1080;
 .sia-tour__panel footer > div { display: flex; gap: 7px; }
 
 .sia-alert { position: relative; }
-.sia-alert__icon { display: inline-flex; align-self: flex-start; color: currentColor; font-size: 17px; }
+.sia-alert__icon { display: inline-flex; align-self: flex-start; }
 .sia-alert__content { flex: 1; }
 .sia-alert__content strong, .sia-alert__content > span { display: block; }
 .sia-alert__content > span { margin-top: 3px; color: var(--sia-color-text-secondary); }

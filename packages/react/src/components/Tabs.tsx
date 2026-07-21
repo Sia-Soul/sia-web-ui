@@ -12,6 +12,7 @@ export interface TabItem {
 
 export type TabsType = "line" | "card" | "pill";
 export type TabsOrientation = "horizontal" | "vertical";
+export type TabsPosition = "top" | "right" | "bottom" | "left";
 
 export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
   items: readonly TabItem[];
@@ -20,6 +21,7 @@ export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChang
   onChange?: (key: string) => void;
   type?: TabsType;
   size?: ControlSize;
+  tabPosition?: TabsPosition;
   orientation?: TabsOrientation;
   centered?: boolean;
   tabBarExtraContent?: ReactNode;
@@ -33,6 +35,7 @@ export function Tabs({
   onChange,
   type = "line",
   size = "medium",
+  tabPosition,
   orientation = "horizontal",
   centered = false,
   tabBarExtraContent,
@@ -46,6 +49,8 @@ export function Tabs({
   const selectedKey = items.some((item) => item.key === currentKey && !item.disabled) ? currentKey : firstEnabledKey;
   const baseId = useId().replace(/:/g, "");
   const enabledItems = useMemo(() => items.filter((item) => !item.disabled), [items]);
+  const resolvedPosition = tabPosition ?? (orientation === "vertical" ? "left" : "top");
+  const resolvedOrientation: TabsOrientation = resolvedPosition === "left" || resolvedPosition === "right" ? "vertical" : "horizontal";
 
   function selectTab(key: string) {
     if (key === selectedKey) return;
@@ -59,8 +64,8 @@ export function Tabs({
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>, key: string) {
-    const previousKey = orientation === "horizontal" ? "ArrowLeft" : "ArrowUp";
-    const nextKey = orientation === "horizontal" ? "ArrowRight" : "ArrowDown";
+    const previousKey = resolvedOrientation === "horizontal" ? "ArrowLeft" : "ArrowUp";
+    const nextKey = resolvedOrientation === "horizontal" ? "ArrowRight" : "ArrowDown";
     if (![previousKey, nextKey, "Home", "End"].includes(event.key) || enabledItems.length === 0) return;
     event.preventDefault();
     const currentIndex = Math.max(0, enabledItems.findIndex((item) => item.key === key));
@@ -75,11 +80,11 @@ export function Tabs({
 
   return (
     <div
-      className={`sia-tabs sia-tabs--${type} sia-tabs--${size} sia-tabs--${orientation}${centered ? " sia-tabs--centered" : ""} ${className}`.trim()}
+      className={`sia-tabs sia-tabs--${type} sia-tabs--${size} sia-tabs--${resolvedOrientation} sia-tabs--${resolvedPosition}${centered ? " sia-tabs--centered" : ""} ${className}`.trim()}
       {...props}
     >
       <div className="sia-tabs__header">
-        <div className="sia-tabs__list" role="tablist" aria-orientation={orientation}>
+        <div className="sia-tabs__list" role="tablist" aria-orientation={resolvedOrientation}>
           {items.map((item) => {
             const selected = item.key === selectedKey;
             return (

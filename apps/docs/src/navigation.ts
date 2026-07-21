@@ -64,6 +64,8 @@ export const navGroups: readonly NavGroup[] = [
     title: "数据录入",
     items: [
       { label: "Input 输入框", path: "/components/input", eyebrow: "组件 / 数据录入", title: "Input 输入框", description: "接收用户输入的基础表单控件。" },
+      { label: "TextArea 多行输入框", path: "/components/textarea", eyebrow: "组件 / 数据录入", title: "TextArea 多行输入框", description: "录入项目说明、备注等多行文本。" },
+      { label: "Editor 编辑器", path: "/components/editor", eyebrow: "组件 / 数据录入", title: "Editor 编辑器", description: "基于 Monaco 封装的通用文本与代码编辑器。" },
       { label: "InputNumber 数字输入框", path: "/components/input-number", eyebrow: "组件 / 数据录入", title: "InputNumber 数字输入框", description: "通过输入或步进按钮录入有边界的数值。" },
       { label: "Select 选择器", path: "/components/select", eyebrow: "组件 / 数据录入", title: "Select 选择器", description: "从候选项中选择一个或多个值。" },
       { label: "Cascader 级联选择", path: "/components/cascader", eyebrow: "组件 / 数据录入", title: "Cascader 级联选择", description: "从关联的多级选项中选择路径。" },

@@ -7,6 +7,10 @@
   "scripts": {
     "dev": "pnpm --filter @sia-ui/docs dev",
     "build": "pnpm --filter @sia-ui/react build && pnpm --filter @sia-ui/docs build",
+    "desktop:dev": "pnpm --filter @sia-ui/desktop tauri dev",
+    "desktop:build": "pnpm --filter @sia-ui/desktop tauri build --no-bundle",
+    "desktop:bundle": "pnpm --filter @sia-ui/desktop tauri build",
+    "desktop:web": "pnpm --filter @sia-ui/desktop dev",
     "typecheck": "pnpm -r typecheck",
     "check": "pnpm typecheck && pnpm build",
     "create:sia": "node packages/create-sia-web/cli.mjs"
@@ -16,4 +20,3 @@
     "typescript": "^5.7.2"
   }
 }
-

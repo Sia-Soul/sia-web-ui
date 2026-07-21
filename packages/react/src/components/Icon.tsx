@@ -1,7 +1,8 @@
 import { forwardRef } from "react";
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
+import { extendedIconPaths } from "./IconCatalog";
 
-const iconPaths = {
+const coreIconPaths = {
   search: <><circle cx="10.8" cy="10.8" r="6.8" /><path d="m15.8 15.8 5.2 5.2" /></>,
   plus: <path d="M12 4v16M4 12h16" />,
   minus: <path d="M4 12h16" />,
@@ -72,6 +73,8 @@ const iconPaths = {
   code: <path d="m9 18-6-6 6-6M15 6l6 6-6 6" />,
   github: <path d="M9 19c-4 1.2-4-2-5-2.5M14 22v-3.1c0-.9.3-1.5.8-1.9 2.7-.3 5.5-1.3 5.5-6A4.7 4.7 0 0 0 19 7.7 4.4 4.4 0 0 0 18.9 4S17.8 3.7 15 5.3a11.7 11.7 0 0 0-6 0C6.2 3.7 5.1 4 5.1 4A4.4 4.4 0 0 0 5 7.7 4.7 4.7 0 0 0 3.7 11c0 4.7 2.8 5.7 5.5 6 .5.4.8 1 .8 1.9V22" />,
 } satisfies Record<string, ReactNode>;
+
+const iconPaths = { ...coreIconPaths, ...extendedIconPaths };
 
 export type IconName = keyof typeof iconPaths;
 export const ICON_NAMES = Object.freeze(Object.keys(iconPaths) as IconName[]);

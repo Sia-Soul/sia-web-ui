@@ -1,10 +1,13 @@
 import { Fragment, forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import type { CSSProperties, ReactNode, Ref } from "react";
+import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode, Ref } from "react";
+import { Tooltip } from "../FloatingDisplay";
 import { Icon } from "../Icon";
 import type {
   AnyTablePlugin,
   TableColumn,
   TablePluginContext,
+  TablePluginCellProps,
+  TablePluginHeaderCellProps,
   TablePluginEvent,
   TableProps,
   TableRef,
@@ -76,6 +79,14 @@ interface BodyRowProps<T> {
   className: string;
   onClick: () => void;
   onDoubleClick: () => void;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+  getCellProps: (column: TableColumn<T>) => TablePluginCellProps;
+  onCellMouseEnter: (column: TableColumn<T>) => void;
+  onCellMouseLeave: (column: TableColumn<T>) => void;
+  onCellClick: (column: TableColumn<T>, event: ReactMouseEvent<HTMLTableCellElement>) => void;
+  onCellPointerDown: (column: TableColumn<T>, event: ReactPointerEvent<HTMLTableCellElement>) => void;
+  onCellPointerMove: (column: TableColumn<T>, event: ReactPointerEvent<HTMLTableCellElement>) => void;
 }
 
 const TableBodyRow = memo(function TableBodyRow<T>({
@@ -91,6 +102,14 @@ const TableBodyRow = memo(function TableBodyRow<T>({
   className,
   onClick,
   onDoubleClick,
+  onMouseEnter,
+  onMouseLeave,
+  getCellProps,
+  onCellMouseEnter,
+  onCellMouseLeave,
+  onCellClick,
+  onCellPointerDown,
+  onCellPointerMove,
 }: BodyRowProps<T>) {
   return (
     <tr
@@ -98,8 +117,12 @@ const TableBodyRow = memo(function TableBodyRow<T>({
       style={{ height: rowHeight }}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       {columns.map((column) => {
+        const pluginCellProps = getCellProps(column);
+        if (pluginCellProps.hidden) return null;
         const value = getTableValue(row.record, column.dataIndex, column.code ?? column.key);
         const cellClass = typeof column.cellClassName === "function" ? column.cellClassName(row.record, rowIndex) : column.cellClassName ?? "";
         const fixed = normalizeFixed(column.fixed);
@@ -112,11 +135,20 @@ const TableBodyRow = memo(function TableBodyRow<T>({
         return (
           <td
             key={column.key}
-            className={`sia-table__cell sia-table__cell--${column.align ?? "left"}${fixed ? ` sia-table__cell--fixed sia-table__cell--fixed-${fixed}` : ""}${fixedEdgeClass}${column.ellipsis !== false ? " sia-table__cell--ellipsis" : ""} ${cellClass}`.trim()}
-            style={fixedStyle}
+            rowSpan={pluginCellProps.rowSpan}
+            colSpan={pluginCellProps.colSpan}
+            className={`sia-table__cell sia-table__cell--${column.align ?? "left"}${fixed ? ` sia-table__cell--fixed sia-table__cell--fixed-${fixed}` : ""}${fixedEdgeClass}${column.ellipsis !== false ? " sia-table__cell--ellipsis" : ""} ${cellClass} ${pluginCellProps.className ?? ""}`.trim()}
+            style={{ ...fixedStyle, ...pluginCellProps.style }}
+            onMouseEnter={() => onCellMouseEnter(column)}
+            onMouseLeave={() => onCellMouseLeave(column)}
+            onClick={(event) => onCellClick(column, event)}
+            onPointerDown={(event) => onCellPointerDown(column, event)}
+            onPointerMove={(event) => onCellPointerMove(column, event)}
           >
             <div className="sia-table__cell-content" title={column.ellipsis !== false && typeof value === "string" ? value : undefined}>
-              {column.render ? column.render(value, row.record, row.sourceIndex, { row, rowIndex, column }) : value as ReactNode}
+              {pluginCellProps.content !== undefined
+                ? pluginCellProps.content
+                : column.render ? column.render(value, row.record, row.sourceIndex, { row, rowIndex, column }) : value as ReactNode}
             </div>
           </td>
         );
@@ -313,7 +345,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
   const leftFixedEdgeKey = [...leafColumns].reverse().find((column) => normalizeFixed(column.fixed) === "left")?.key;
   const rightFixedEdgeKey = leafColumns.find((column) => normalizeFixed(column.fixed) === "right")?.key;
 
-  const shouldVirtualize = virtual ?? pipeline.rows.length >= virtualThreshold;
+  const shouldVirtualize = (virtual ?? pipeline.rows.length >= virtualThreshold) && !sortedPlugins.some((plugin) => plugin.disableVirtual);
   const startIndex = shouldVirtualize ? Math.max(0, Math.floor(scrollTop / rowHeight) - overscan) : 0;
   const visibleCount = shouldVirtualize ? Math.ceil(viewportHeight / rowHeight) + overscan * 2 : pipeline.rows.length;
   const endIndex = shouldVirtualize ? Math.min(pipeline.rows.length, startIndex + visibleCount) : pipeline.rows.length;
@@ -342,6 +374,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
   const rootStyle = {
     ...style,
     height: effectiveHeight,
+    "--sia-table-header-height": `${headerRows.length * rowHeight}px`,
   } as CSSProperties;
 
   const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
@@ -426,6 +459,45 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     return fixed === "left" ? { left: leftOffsets.get(column.key) } : fixed === "right" ? { right: rightOffsets.get(column.key) } : undefined;
   }
 
+  function renderHeaderContent(column: TableColumn<T>, content: ReactNode) {
+    if (column.description === undefined || column.description === null) return content;
+    return <span className="sia-table__header-label">
+      <span className="sia-table__header-label-content">{content}</span>
+      <Tooltip title={column.description} placement="top" trigger={["hover", "focus"]}>
+        <button type="button" className="sia-table__header-description" aria-label={`${column.name ?? column.key}列说明`} onClick={(event) => event.stopPropagation()}>
+          <Icon name="info" size={14} />
+        </button>
+      </Tooltip>
+    </span>;
+  }
+
+  function getPluginCellProps(row: TableRow<T>, column: TableColumn<T>): TablePluginCellProps {
+    return sortedPlugins.reduce<TablePluginCellProps>((result, plugin) => {
+      const next = plugin.getCellProps?.(row, column, getContext(plugin));
+      if (!next) return result;
+      return {
+        ...result,
+        ...next,
+        hidden: result.hidden || next.hidden,
+        className: [result.className, next.className].filter(Boolean).join(" "),
+        style: { ...result.style, ...next.style },
+      };
+    }, {});
+  }
+
+  function getPluginHeaderCellProps(column: TableColumn<T>): TablePluginHeaderCellProps {
+    return sortedPlugins.reduce<TablePluginHeaderCellProps>((result, plugin) => {
+      const next = plugin.getHeaderCellProps?.(column, getContext(plugin));
+      if (!next) return result;
+      return {
+        ...result,
+        ...next,
+        className: [result.className, next.className].filter(Boolean).join(" "),
+        style: { ...result.style, ...next.style },
+      };
+    }, {});
+  }
+
   function renderSummaryRow(summary: TableSummaryRow) {
     let labelRendered = false;
     return <tr key={summary.key} className={`sia-table__summary-row ${summary.className ?? ""}`.trim()}>{leafColumns.map((column) => {
@@ -458,6 +530,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
           <thead className={stickyHeader ? "sia-table__head sia-table__head--sticky" : "sia-table__head"}>
             {headerRows.map((headerRow, depth) => <tr key={depth}>{headerRow.map((cell) => {
               const fixed = cell.leaf ? normalizeFixed(cell.column.fixed) : undefined;
+              const pluginHeaderProps = getPluginHeaderCellProps(cell.column);
               const fixedEdgeClass = fixed === "left" && cell.column.key === leftFixedEdgeKey
                 ? " sia-table__cell--fixed-left-edge"
                 : fixed === "right" && cell.column.key === rightFixedEdgeKey ? " sia-table__cell--fixed-right-edge" : "";
@@ -465,11 +538,17 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
                 key={`${cell.column.key}-${depth}`}
                 colSpan={cell.colSpan}
                 rowSpan={cell.rowSpan}
-                className={`sia-table__header-cell sia-table__cell--${cell.column.align ?? "left"}${fixed ? ` sia-table__cell--fixed sia-table__cell--fixed-${fixed}` : ""}${fixedEdgeClass} ${cell.column.headerClassName ?? ""}`.trim()}
-                style={{ ...getFixedStyle(cell.column), top: stickyHeader ? depth * rowHeight : undefined }}
+                className={`sia-table__header-cell sia-table__cell--${cell.column.align ?? "left"}${fixed ? ` sia-table__cell--fixed sia-table__cell--fixed-${fixed}` : ""}${fixedEdgeClass} ${cell.column.headerClassName ?? ""} ${pluginHeaderProps.className ?? ""}`.trim()}
+                style={{ ...getFixedStyle(cell.column), top: stickyHeader ? depth * rowHeight : undefined, ...pluginHeaderProps.style }}
                 scope="col"
+                onPointerDown={(event) => {
+                  for (const plugin of sortedPlugins) plugin.onHeaderPointerDown?.(cell.column, event, getContext(plugin));
+                }}
+                onPointerMove={(event) => {
+                  for (const plugin of sortedPlugins) plugin.onHeaderPointerMove?.(cell.column, event, getContext(plugin));
+                }}
               >
-                {cell.column.renderHeader ? cell.column.renderHeader(cell.column, coreContext) : cell.column.title ?? cell.column.name ?? cell.column.key}
+                {renderHeaderContent(cell.column, cell.column.renderHeader ? cell.column.renderHeader(cell.column, coreContext) : cell.column.title ?? cell.column.name ?? cell.column.key)}
               </th>;
             })}</tr>)}
           </thead>
@@ -496,6 +575,28 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
                   onRowClick?.(row.record, row.sourceIndex);
                 }}
                 onDoubleClick={() => onRowDoubleClick?.(row.record, row.sourceIndex)}
+                onMouseEnter={() => {
+                  for (const plugin of sortedPlugins) plugin.onRowMouseEnter?.(row, getContext(plugin));
+                }}
+                onMouseLeave={() => {
+                  for (const plugin of sortedPlugins) plugin.onRowMouseLeave?.(row, getContext(plugin));
+                }}
+                getCellProps={(column) => getPluginCellProps(row, column)}
+                onCellMouseEnter={(column) => {
+                  for (const plugin of sortedPlugins) plugin.onCellMouseEnter?.(row, column, getContext(plugin));
+                }}
+                onCellMouseLeave={(column) => {
+                  for (const plugin of sortedPlugins) plugin.onCellMouseLeave?.(row, column, getContext(plugin));
+                }}
+                onCellClick={(column, event) => {
+                  for (const plugin of sortedPlugins) plugin.onCellClick?.(row, column, event, getContext(plugin));
+                }}
+                onCellPointerDown={(column, event) => {
+                  for (const plugin of sortedPlugins) plugin.onCellPointerDown?.(row, column, event, getContext(plugin));
+                }}
+                onCellPointerMove={(column, event) => {
+                  for (const plugin of sortedPlugins) plugin.onCellPointerMove?.(row, column, event, getContext(plugin));
+                }}
               />;
             })}
             {bottomSpacer > 0 ? <tr aria-hidden="true"><td colSpan={leafColumns.length} style={{ height: bottomSpacer, padding: 0, border: 0 }} /></tr> : null}

@@ -17,6 +17,23 @@ export default function Demo() {
   return <Tabs items={items} defaultActiveKey="overview" />;
 }`;
 
+const positionCode = `import { Tabs } from "@sia-ui/react";
+
+const items = [
+  { key: "overview", label: "概览", children: "概览内容" },
+  { key: "members", label: "成员", children: "成员内容" },
+  { key: "settings", label: "设置", children: "设置内容" },
+];
+
+export default function Demo() {
+  return <>
+    <Tabs tabPosition="top" items={items} />
+    <Tabs tabPosition="right" items={items} />
+    <Tabs tabPosition="bottom" items={items} />
+    <Tabs tabPosition="left" items={items} />
+  </>;
+}`;
+
 const variantCode = `import { Tabs } from "@sia-ui/react";
 
 export default function Demo() {
@@ -53,7 +70,8 @@ const apiRows = [
   { property: "activeKey / defaultActiveKey", description: "受控激活项与默认激活项", type: "string", defaultValue: "首个可用项" },
   { property: "onChange", description: "激活项变化回调", type: "(key: string) => void", defaultValue: "-" },
   { property: "type", description: "线型、卡片型或胶囊型", type: "'line' | 'card' | 'pill'", defaultValue: "'line'" },
-  { property: "orientation", description: "排列方向", type: "'horizontal' | 'vertical'", defaultValue: "'horizontal'" },
+  { property: "tabPosition", description: "标签栏位于内容的上、右、下或左侧", type: "'top' | 'right' | 'bottom' | 'left'", defaultValue: "'top'" },
+  { property: "orientation", description: "兼容旧版横向、纵向排列，推荐使用 tabPosition", type: "'horizontal' | 'vertical'", defaultValue: "'horizontal'" },
   { property: "size / centered", description: "尺寸与居中排列", type: "ControlSize / boolean", defaultValue: "'medium' / false" },
   { property: "tabBarExtraContent", description: "标签栏右侧额外操作", type: "ReactNode", defaultValue: "-" },
   { property: "destroyInactiveTabPane", description: "是否卸载非激活面板", type: "boolean", defaultValue: "true" },
@@ -72,12 +90,25 @@ export function TabsPage() {
     { key: "active", label: "进行中", children: <p>进行中的内容</p> },
     { key: "done", label: "已完成", children: <p>已完成的内容</p> },
   ];
+  const positionItems = [
+    { key: "overview", label: "概览", children: <p>这里展示概览内容。</p> },
+    { key: "members", label: "成员", children: <p>这里展示成员内容。</p> },
+    { key: "settings", label: "设置", children: <p>这里展示设置内容。</p> },
+  ];
   return <>
     <PageHeader eyebrow="组件 / 导航 / Tabs" title="Tabs 标签页" description="在同一层级的内容分组之间切换，支持完整键盘与无障碍语义。" />
     <DocsTabs activeKey={tab} onChange={setTab} />
     {tab === "examples" ? <div className="demo-stack">
       <DemoCard title="基础用法" description="使用方向键切换标签，Home 和 End 可快速跳转首尾。" code={basicCode}>
         <Tabs items={basicItems} defaultActiveKey="overview" />
+      </DemoCard>
+      <DemoCard title="四个标签位置" description="标签栏可以放在内容区域的上、右、下、左四个方向。" code={positionCode}>
+        <div className="tabs-position-demo">
+          <section><strong>上方</strong><Tabs tabPosition="top" items={positionItems} /></section>
+          <section><strong>下方</strong><Tabs tabPosition="bottom" items={positionItems} /></section>
+          <section><strong>左侧</strong><Tabs tabPosition="left" items={positionItems} /></section>
+          <section><strong>右侧</strong><Tabs tabPosition="right" items={positionItems} /></section>
+        </div>
       </DemoCard>
       <DemoCard title="卡片与胶囊样式" description="不同视觉类型共用相同的数据结构和交互。" code={variantCode}>
         <div className="tabs-demo-stack">

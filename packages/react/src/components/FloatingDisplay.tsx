@@ -34,6 +34,7 @@ type FloatingPosition = {
 
 const FLOATING_GAP = 9;
 const FLOATING_VIEWPORT_PADDING = 8;
+const FLOATING_ARROW_EDGE_OFFSET = 16;
 let activeTooltipClose: (() => void) | undefined;
 
 function clampFloating(value: number, min: number, max: number) {
@@ -72,7 +73,11 @@ function resolveFloatingPosition(trigger: DOMRect, overlay: DOMRect, placement: 
   left = clampFloating(left, FLOATING_VIEWPORT_PADDING, viewportWidth - overlay.width - FLOATING_VIEWPORT_PADDING);
   const result: FloatingPosition = { top, left, placement: resolvedPlacement };
   if (resolvedPlacement.startsWith("top") || resolvedPlacement.startsWith("bottom")) {
-    result.arrowX = clampFloating(trigger.left + trigger.width / 2 - left - 4, 8, overlay.width - 16);
+    result.arrowX = resolvedPlacement.endsWith("-start")
+      ? clampFloating(FLOATING_ARROW_EDGE_OFFSET, 8, overlay.width - 16)
+      : resolvedPlacement.endsWith("-end")
+        ? clampFloating(overlay.width - FLOATING_ARROW_EDGE_OFFSET - 8, 8, overlay.width - 16)
+        : clampFloating(trigger.left + trigger.width / 2 - left - 4, 8, overlay.width - 16);
   } else {
     result.arrowY = clampFloating(trigger.top + trigger.height / 2 - top - 4, 8, overlay.height - 16);
   }
@@ -150,7 +155,7 @@ function Floating({
       window.removeEventListener("scroll", update, true);
       observer.disconnect();
     };
-  }, [placement, visible]);
+  }, [children, content, placement, visible]);
   useEffect(() => () => {
     clearTimers();
     if (activeTooltipClose === closeSelfRef.current) activeTooltipClose = undefined;
@@ -313,7 +318,7 @@ export function Tree({
           onDragStart={() => setDragNode(node)}
           onDragOver={draggable ? (event) => event.preventDefault() : undefined}
           onDrop={draggable ? () => { if (dragNode && dragNode.key !== node.key) onDrop?.({ dragNode, node }); setDragNode(undefined); } : undefined}>
-          {hasChildren ? <button type="button" className="sia-tree__switcher" disabled={node.disabled} onClick={() => void toggleExpand(node)}>{loading.has(node.key) ? <Icon name="loader" className="sia-spin-icon" size={13} /> : <Icon name={open ? "chevron-down" : "chevron-right"} size={13} />}</button> : <span className="sia-tree__switcher">{showLine ? "└" : null}</span>}
+          {hasChildren ? <button type="button" className="sia-tree__switcher" disabled={node.disabled} onClick={() => void toggleExpand(node)}>{loading.has(node.key) ? <Icon name="loader" className="sia-spin-icon" size={13} /> : <Icon name={open ? "chevron-down" : "chevron-right"} size={13} />}</button> : <span className="sia-tree__switcher" aria-hidden="true" />}
           {checkable || node.checkable ? <Checkbox checked={isChecked} disabled={node.disabled || node.disableCheckbox} onChange={() => check(node)} /> : null}
           {showIcon ? <span className="sia-tree__icon">{node.icon ?? <Icon name={hasChildren ? "folder" : "file"} size={15} />}</span> : null}
           <button type="button" className="sia-tree__title" disabled={node.disabled} onClick={(event) => select(node, event)}>{node.title}</button>

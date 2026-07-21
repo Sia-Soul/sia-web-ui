@@ -129,6 +129,9 @@ function DropdownRoot({
     const closeOutside = (event: PointerEvent) => {
       const target = event.target as Node;
       if (rootRef.current?.contains(target) || popupRef.current?.contains(target)) return;
+      const targetOwner = target instanceof Element ? target.closest("[data-sia-menu-owner]")?.getAttribute("data-sia-menu-owner") : null;
+      const menuOwner = popupRef.current?.querySelector("[data-sia-menu-owner]")?.getAttribute("data-sia-menu-owner");
+      if (menuOwner && targetOwner === menuOwner) return;
       updateOpen(false, "trigger");
     };
     const closeWithEscape = (event: globalThis.KeyboardEvent) => {
@@ -157,6 +160,7 @@ function DropdownRoot({
   }, [autoFocus, visible]);
 
   function handleMenuClick(info: MenuClickInfo) {
+    info.domEvent.stopPropagation();
     menu.onClick?.(info);
     updateOpen(false, "menu");
   }
@@ -250,6 +254,7 @@ function DropdownRoot({
       onMouseLeave={() => {
         if (!disabled && triggerSet.has("hover")) scheduleClose();
       }}
+      onClick={(event) => event.stopPropagation()}
     >
       {popupRender ? popupRender(menuNode) : menuNode}
     </PopupPortal>

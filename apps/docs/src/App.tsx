@@ -3,6 +3,7 @@ import { Button, Icon, ThemeSwitch, applySiaTheme } from "@sia-ui/react";
 import { Navigate, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { SiaMark } from "./Icons";
 import { OverlayScrollArea } from "./OverlayScrollArea";
+import { PageContextMenu } from "./PageContextMenu";
 import { navGroups, navItems } from "./navigation";
 import { ButtonPage } from "./pages/ButtonPage";
 import { CardPage } from "./pages/CardPage";
@@ -17,6 +18,8 @@ import { DrawerPage } from "./pages/DrawerPage";
 import { IconPage } from "./pages/IconPage";
 import { InputNumberPage } from "./pages/InputNumberPage";
 import { InputPage } from "./pages/InputPage";
+import { TextAreaPage } from "./pages/TextAreaPage";
+import { EditorPage } from "./pages/EditorPage";
 import { MessagePage } from "./pages/MessagePage";
 import { ModalPage } from "./pages/ModalPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
@@ -62,6 +65,7 @@ export default function App() {
 
   return (
     <div className={appClass}>
+      <PageContextMenu />
       <ScrollToTop scrollRef={contentScrollRef} />
       <header className="topbar">
         <NavLink className="brand" to="/introduction"><SiaMark /><strong>Sia Web UI</strong></NavLink>
@@ -117,6 +121,8 @@ export default function App() {
             <Route path="/components/steps" element={<StepsPage />} />
             <Route path="/components/icon" element={<IconPage />} />
             <Route path="/components/input" element={<InputPage />} />
+            <Route path="/components/textarea" element={<TextAreaPage />} />
+            <Route path="/components/editor" element={<EditorPage />} />
             <Route path="/components/input-number" element={<InputNumberPage />} />
             <Route path="/components/cascader" element={<CascaderPage />} />
             <Route path="/components/checkbox" element={<CheckboxPage />} />

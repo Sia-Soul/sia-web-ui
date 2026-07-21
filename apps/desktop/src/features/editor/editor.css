@@ -1,0 +1,386 @@
+.sia-editor {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) 28px;
+  min-width: 0;
+  height: calc(100vh - 128px);
+  min-height: 520px;
+  overflow: hidden;
+  border: 1px solid var(--sia-color-border, #e6eaf0);
+  border-radius: 10px;
+  background: var(--sia-color-surface, #fff);
+  box-shadow: 0 10px 30px rgb(16 36 62 / 7%);
+}
+
+.sia-editor__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 70px;
+  padding: 12px 16px 11px 18px;
+  border-bottom: 1px solid var(--sia-color-border, #e6eaf0);
+}
+
+.sia-editor__title {
+  display: grid;
+  min-width: 0;
+}
+
+.sia-editor__title-input {
+  width: min(480px, 38vw);
+}
+
+.sia-editor__title-input .sia-input-control {
+  height: 30px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.sia-editor__title-input .sia-input {
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.sia-editor__meta {
+  padding-left: 1px;
+  color: var(--sia-color-text-secondary, #666);
+  font-size: 11px;
+}
+
+.sia-editor__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+
+.sia-editor__header-actions .sia-tag {
+  white-space: nowrap;
+}
+
+.sia-editor__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 42px;
+  padding: 5px 12px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--sia-color-border, #e6eaf0);
+  background: color-mix(in srgb, var(--sia-color-surface, #fff) 92%, var(--sia-color-background, #f5f7fa));
+  scrollbar-width: thin;
+}
+
+.sia-editor__toolbar-button {
+  flex: 0 0 auto;
+  min-width: auto;
+  padding-inline: 9px;
+  color: var(--sia-color-text-secondary, #666);
+}
+
+.sia-editor__toolbar-hint {
+  margin-left: auto;
+  padding: 0 5px 0 16px;
+  color: var(--sia-color-text-secondary, #666);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.sia-editor__storage-error {
+  max-width: 360px;
+  margin-left: auto;
+  overflow: hidden;
+  color: var(--sia-color-error, #ff4d4f);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sia-editor__body {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+}
+
+.document-outline {
+  min-width: 0;
+  overflow: hidden;
+  border-right: 1px solid var(--sia-color-border, #e6eaf0);
+  background: color-mix(in srgb, var(--sia-color-background, #f5f7fa) 55%, var(--sia-color-surface, #fff));
+}
+
+.document-outline__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 42px;
+  padding: 0 12px 0 14px;
+  border-bottom: 1px solid var(--sia-color-border, #e6eaf0);
+}
+
+.document-outline__heading strong {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.document-outline__heading span {
+  display: grid;
+  min-width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--sia-color-text-secondary, #666);
+  background: var(--sia-color-control-hover, #f0f2f5);
+  font-size: 10px;
+}
+
+.document-outline nav {
+  height: calc(100% - 42px);
+  overflow: auto;
+  padding: 8px;
+  scrollbar-width: thin;
+}
+
+.document-outline nav .document-outline__item {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  overflow: hidden;
+  color: var(--sia-color-text-secondary, #666);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  font-size: 12px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-outline nav .document-outline__item:hover,
+.document-outline nav .document-outline__item:focus-visible {
+  color: var(--sia-color-primary, #1677ff);
+  background: var(--sia-color-control-hover, #f0f2f5);
+  outline: none;
+}
+
+.document-outline nav p {
+  margin: 8px 6px;
+  color: var(--sia-color-text-secondary, #666);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.sia-editor__canvas {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  background: var(--sia-color-surface, #fff);
+}
+
+.sia-editor__canvas--split {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.sia-editor__canvas--edit,
+.sia-editor__canvas--preview {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.sia-editor__pane {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sia-editor__pane--source {
+  border-right: 1px solid var(--sia-color-border, #e6eaf0);
+}
+
+.sia-editor__canvas--edit .sia-editor__pane--source {
+  border-right: 0;
+}
+
+.editor-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  height: 100%;
+  color: var(--sia-color-text-secondary, #666);
+  font-size: 12px;
+}
+
+.editor-loading span {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--sia-color-border, #e6eaf0);
+  border-top-color: var(--sia-color-primary, #1677ff);
+  border-radius: 50%;
+  animation: sia-editor-spin 700ms linear infinite;
+}
+
+.sia-editor__pane--preview {
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.markdown-preview {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 28px 34px 54px;
+  color: var(--sia-color-text, #1f1f1f);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.markdown-preview--empty {
+  color: var(--sia-color-text-secondary, #666);
+  text-align: center;
+}
+
+.markdown-preview h1,
+.markdown-preview h2,
+.markdown-preview h3,
+.markdown-preview h4 {
+  margin: 1.35em 0 0.6em;
+  color: var(--sia-color-text, #1f1f1f);
+  line-height: 1.35;
+}
+
+.markdown-preview h1:first-child {
+  margin-top: 0;
+}
+
+.markdown-preview h1 {
+  padding-bottom: 0.35em;
+  border-bottom: 1px solid var(--sia-color-border, #e6eaf0);
+  font-size: 25px;
+}
+
+.markdown-preview h2 {
+  font-size: 19px;
+}
+
+.markdown-preview h3 {
+  font-size: 16px;
+}
+
+.markdown-preview p,
+.markdown-preview ul,
+.markdown-preview ol,
+.markdown-preview blockquote,
+.markdown-preview pre,
+.markdown-preview table {
+  margin: 0.75em 0;
+}
+
+.markdown-preview blockquote {
+  padding: 7px 13px;
+  color: var(--sia-color-text-secondary, #666);
+  background: color-mix(in srgb, var(--sia-color-primary, #1677ff) 5%, transparent);
+  border-left: 3px solid var(--sia-color-primary, #1677ff);
+  border-radius: 0 5px 5px 0;
+}
+
+.markdown-preview blockquote p {
+  margin: 0;
+}
+
+.markdown-preview code {
+  padding: 2px 5px;
+  border-radius: 4px;
+  color: #c7254e;
+  background: color-mix(in srgb, var(--sia-color-background, #f5f7fa) 80%, #fff);
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.markdown-preview pre {
+  overflow: auto;
+  padding: 14px 16px;
+  border: 1px solid var(--sia-color-border, #e6eaf0);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--sia-color-background, #f5f7fa) 76%, var(--sia-color-surface, #fff));
+}
+
+.markdown-preview pre code {
+  padding: 0;
+  color: inherit;
+  background: transparent;
+}
+
+.markdown-preview table {
+  width: 100%;
+  border-spacing: 0;
+  border-collapse: collapse;
+}
+
+.markdown-preview th,
+.markdown-preview td {
+  padding: 7px 10px;
+  border: 1px solid var(--sia-color-border, #e6eaf0);
+  text-align: left;
+}
+
+.markdown-preview th {
+  background: var(--sia-color-control-hover, #f0f2f5);
+}
+
+.markdown-preview input[type="checkbox"] {
+  margin-right: 7px;
+}
+
+.sia-editor__statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-width: 0;
+  padding: 0 11px;
+  color: var(--sia-color-text-secondary, #666);
+  background: color-mix(in srgb, var(--sia-color-background, #f5f7fa) 72%, var(--sia-color-surface, #fff));
+  border-top: 1px solid var(--sia-color-border, #e6eaf0);
+  font-size: 10px;
+}
+
+.sia-editor__statusbar span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes sia-editor-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 1120px) {
+  .sia-editor__body {
+    grid-template-columns: 160px minmax(0, 1fr);
+  }
+
+  .sia-editor__toolbar-hint {
+    display: none;
+  }
+
+  .sia-editor__header-actions .sia-tag {
+    display: none;
+  }
+
+  .markdown-preview {
+    padding: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editor-loading span {
+    animation-duration: 2s;
+  }
+}

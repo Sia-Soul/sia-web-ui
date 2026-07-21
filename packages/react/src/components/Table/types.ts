@@ -1,4 +1,4 @@
-import type { CSSProperties, HTMLAttributes, Key, ReactNode } from "react";
+import type { CSSProperties, HTMLAttributes, Key, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 
 export type TableKey = Key;
 export type TableFixed = "left" | "right";
@@ -19,11 +19,21 @@ export interface TableCellRenderInfo<T> {
   column: TableColumn<T>;
 }
 
+export interface TableMergeStickyConfig<T> {
+  inset?: number;
+  zIndex?: number;
+  className?: string;
+  style?: CSSProperties;
+  align?: TableAlign;
+  getValue?: (record: T, index: number, rows: readonly T[]) => ReactNode;
+}
+
 export interface TableColumn<T = Record<string, unknown>> {
   key: string;
   code?: string;
   name?: string;
   title?: ReactNode;
+  description?: ReactNode;
   dataIndex?: keyof T | string | readonly string[];
   width?: number;
   minWidth?: number;
@@ -34,6 +44,10 @@ export interface TableColumn<T = Record<string, unknown>> {
   ellipsis?: boolean;
   sortable?: boolean;
   editable?: boolean | TableEditableCellConfig<T>;
+  exportable?: boolean;
+  exportRender?: (value: unknown, record: T, index: number, info: TableCellRenderInfo<T>) => ReactNode;
+  rowSpan?: boolean | keyof T | string | readonly string[] | ((record: T, index: number, rows: readonly T[]) => unknown);
+  mergeSticky?: boolean | TableMergeStickyConfig<T>;
   sum?: boolean;
   children?: readonly TableColumn<T>[];
   render?: (value: unknown, record: T, index: number, info: TableCellRenderInfo<T>) => ReactNode;
@@ -73,9 +87,24 @@ export interface TablePluginEvent {
   payload?: unknown;
 }
 
+export interface TablePluginCellProps {
+  rowSpan?: number;
+  colSpan?: number;
+  hidden?: boolean;
+  className?: string;
+  style?: CSSProperties;
+  content?: ReactNode;
+}
+
+export interface TablePluginHeaderCellProps {
+  className?: string;
+  style?: CSSProperties;
+}
+
 export interface TablePlugin<T, S = unknown, Api = unknown> {
   id: string;
   order?: number;
+  disableVirtual?: boolean;
   initialState?: S | (() => S);
   transformColumns?: (columns: readonly TableColumn<T>[], context: TablePluginContext<T, S>) => readonly TableColumn<T>[];
   transformRows?: (rows: readonly TableRow<T>[], context: TablePluginContext<T, S>) => readonly TableRow<T>[];
@@ -85,7 +114,18 @@ export interface TablePlugin<T, S = unknown, Api = unknown> {
   renderFooter?: (context: TablePluginContext<T, S>) => ReactNode;
   renderOverlay?: (context: TablePluginContext<T, S>) => ReactNode;
   getRowClassName?: (row: TableRow<T>, context: TablePluginContext<T, S>) => string;
+  getCellProps?: (row: TableRow<T>, column: TableColumn<T>, context: TablePluginContext<T, S>) => TablePluginCellProps | void;
+  getHeaderCellProps?: (column: TableColumn<T>, context: TablePluginContext<T, S>) => TablePluginHeaderCellProps | void;
   onRowClick?: (row: TableRow<T>, context: TablePluginContext<T, S>) => void;
+  onRowMouseEnter?: (row: TableRow<T>, context: TablePluginContext<T, S>) => void;
+  onRowMouseLeave?: (row: TableRow<T>, context: TablePluginContext<T, S>) => void;
+  onCellMouseEnter?: (row: TableRow<T>, column: TableColumn<T>, context: TablePluginContext<T, S>) => void;
+  onCellMouseLeave?: (row: TableRow<T>, column: TableColumn<T>, context: TablePluginContext<T, S>) => void;
+  onCellClick?: (row: TableRow<T>, column: TableColumn<T>, event: ReactMouseEvent<HTMLTableCellElement>, context: TablePluginContext<T, S>) => void;
+  onCellPointerDown?: (row: TableRow<T>, column: TableColumn<T>, event: ReactPointerEvent<HTMLTableCellElement>, context: TablePluginContext<T, S>) => void;
+  onCellPointerMove?: (row: TableRow<T>, column: TableColumn<T>, event: ReactPointerEvent<HTMLTableCellElement>, context: TablePluginContext<T, S>) => void;
+  onHeaderPointerDown?: (column: TableColumn<T>, event: ReactPointerEvent<HTMLTableCellElement>, context: TablePluginContext<T, S>) => void;
+  onHeaderPointerMove?: (column: TableColumn<T>, event: ReactPointerEvent<HTMLTableCellElement>, context: TablePluginContext<T, S>) => void;
   onMount?: (context: TablePluginContext<T, S>) => void | (() => void);
   onEvent?: (event: TablePluginEvent, context: TablePluginContext<T, S>) => void;
   getApi?: (context: TablePluginContext<T, S>) => Api;
@@ -145,6 +185,7 @@ export interface TableRef<T> {
 export interface TableSortInfo {
   field: string;
   order: "ascend" | "descend" | null;
+  scope?: "page" | "all";
 }
 
 export interface TablePageParams {
