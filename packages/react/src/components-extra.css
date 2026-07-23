@@ -60,22 +60,39 @@
 .sia-splitter--vertical .sia-splitter__handle--before-collapsed .sia-splitter__collapse--before,
 .sia-splitter--vertical .sia-splitter__handle--after-collapsed .sia-splitter__collapse--after { top: 50%; bottom: auto; transform: translateY(-50%); opacity: 1; }
 
+/* Custom desktop window */
+.sia-window-frame { --sia-window-titlebar-height: 42px; --sia-window-control-width: 46px; --sia-window-titlebar-shadow: 0 1px 0 color-mix(in srgb, var(--sia-color-border) 68%, transparent), 0 3px 10px color-mix(in srgb, var(--sia-color-text) 6%, transparent); box-sizing: border-box; display: flex; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; flex-direction: column; color: var(--sia-color-text); background: var(--sia-color-background); border: 1px solid var(--sia-window-border-color, var(--sia-color-border)); }
+.sia-window-titlebar { position: relative; z-index: 1; box-sizing: border-box; display: flex; width: 100%; height: var(--sia-window-titlebar-height); min-height: var(--sia-window-titlebar-height); flex: 0 0 var(--sia-window-titlebar-height); align-items: stretch; color: var(--sia-color-text); background: var(--sia-window-titlebar-background, var(--sia-color-surface)); box-shadow: var(--sia-window-titlebar-shadow); user-select: none; }
+.sia-window-titlebar__leading,
+.sia-window-titlebar__actions { display: flex; min-width: 0; height: 100%; flex: 0 0 auto; align-items: center; gap: var(--sia-window-action-gap, 2px); }
+.sia-window-titlebar__drag-region { min-width: 18px; flex: 1 1 auto; cursor: default; }
+.sia-window-controls { box-sizing: border-box; display: flex; height: 100%; margin-left: 0; flex: 0 0 auto; align-items: stretch; }
+.sia-window-control { box-sizing: border-box; display: inline-grid; width: var(--sia-window-control-width); min-width: var(--sia-window-control-width); height: 100%; padding: 0; place-items: center; color: var(--sia-color-text); cursor: default; background: transparent; border: 0; border-radius: 0; outline: 0; transition: color 120ms ease, background-color 120ms ease; }
+.sia-window-control:hover:not(:disabled) { background: var(--sia-color-control-hover); }
+.sia-window-control:active:not(:disabled) { background: var(--sia-color-control-active); }
+.sia-window-control:focus-visible { position: relative; z-index: 1; box-shadow: inset 0 0 0 2px var(--sia-color-primary); }
+.sia-window-control:disabled { cursor: not-allowed; opacity: .42; }
+.sia-window-control--close:hover:not(:disabled) { color: #fff; background: var(--sia-color-error); }
+.sia-window-control--close:active:not(:disabled) { color: #fff; background: color-mix(in srgb, var(--sia-color-error) 82%, var(--sia-color-text)); }
+
 /* Tool panel */
-.sia-tool-panel { --sia-tool-panel-rail-size: 38px; --sia-tool-panel-handle-size: 4px; display: flex; flex: 0 0 var(--sia-tool-panel-rail-size); width: var(--sia-tool-panel-rail-size); height: 100%; min-width: 0; min-height: 0; overflow: hidden; color: var(--sia-color-text); background: var(--sia-color-surface); }
+.sia-tool-panel { --sia-tool-panel-rail-size: 38px; --sia-tool-panel-handle-size: 4px; --sia-tool-panel-divider-color: var(--sia-color-border); display: flex; flex: 0 0 var(--sia-tool-panel-rail-size); width: var(--sia-tool-panel-rail-size); height: 100%; min-width: 0; min-height: 0; overflow: hidden; color: var(--sia-color-text); background: var(--sia-color-surface); }
 .sia-tool-panel.is-open { flex-basis: calc(var(--sia-tool-panel-rail-size) + var(--sia-tool-panel-size) + var(--sia-tool-panel-handle-size)); width: calc(var(--sia-tool-panel-rail-size) + var(--sia-tool-panel-size) + var(--sia-tool-panel-handle-size)); }
 .sia-tool-panel__rail { display: flex; align-items: flex-start; flex: 0 0 var(--sia-tool-panel-rail-size); width: var(--sia-tool-panel-rail-size); min-width: 0; background: var(--sia-color-surface); }
-.sia-tool-panel__activity { display: flex; align-items: center; flex-direction: column; gap: 7px; width: 100%; height: auto; min-height: 0; padding: 10px 7px; color: var(--sia-color-text-secondary); cursor: pointer; background: transparent; border: 0; outline: 0; }
+.sia-tool-panel--left:not(.is-open) .sia-tool-panel__rail { border-inline-end: 1px solid var(--sia-tool-panel-divider-color); }
+.sia-tool-panel--right:not(.is-open) .sia-tool-panel__rail { border-inline-start: 1px solid var(--sia-tool-panel-divider-color); }
+.sia-tool-panel__activity { display: flex; align-items: center; flex-direction: column; gap: 7px; width: 100%; height: auto; min-height: 0; padding: 10px 7px; color: var(--sia-color-text-secondary); cursor: pointer; background: transparent; border: 0; outline: 0; font: 400 var(--sia-font-size-small)/1 system-ui, sans-serif; }
 .sia-tool-panel__activity:hover { color: var(--sia-color-text); background: var(--sia-color-control-hover); }
 .sia-tool-panel__activity:focus-visible { box-shadow: inset 0 0 0 2px var(--sia-color-primary); }
 .sia-tool-panel__activity.is-active { color: var(--sia-color-primary); }
 .sia-tool-panel--left .sia-tool-panel__activity.is-active { box-shadow: inset -3px 0 0 var(--sia-color-primary); }
 .sia-tool-panel--right .sia-tool-panel__activity.is-active { box-shadow: inset 3px 0 0 var(--sia-color-primary); }
 .sia-tool-panel__activity-icon { display: inline-flex; flex: none; }
-.sia-tool-panel__activity-label { line-height: 1.25; letter-spacing: .02em; writing-mode: vertical-rl; text-orientation: mixed; }
+.sia-tool-panel__activity-label { line-height: 1; letter-spacing: .02em; writing-mode: vertical-rl; text-orientation: upright; }
 .sia-tool-panel__content { flex: 0 0 var(--sia-tool-panel-size); width: var(--sia-tool-panel-size); min-width: 0; min-height: 0; overflow: hidden; }
 .sia-tool-panel__content[hidden] { display: none; }
 .sia-tool-panel__resize-handle { position: relative; z-index: 2; flex: 0 0 var(--sia-tool-panel-handle-size); width: var(--sia-tool-panel-handle-size); cursor: ew-resize; outline: 0; touch-action: none; }
-.sia-tool-panel__resize-handle::after { position: absolute; inset: 0 1px; content: ""; background: var(--sia-color-border); transition: background 120ms ease, box-shadow 120ms ease; }
+.sia-tool-panel__resize-handle::after { position: absolute; inset: 0 1px; content: ""; background: var(--sia-tool-panel-divider-color); transition: background 120ms ease, box-shadow 120ms ease; }
 .sia-tool-panel__resize-handle:hover::after,
 .sia-tool-panel__resize-handle:focus-visible::after { background: var(--sia-color-primary); box-shadow: 0 0 0 1px var(--sia-color-primary); }
 .sia-tool-panel__resize-handle[hidden] { display: none; }

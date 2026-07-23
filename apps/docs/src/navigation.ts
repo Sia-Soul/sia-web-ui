@@ -46,6 +46,7 @@ export const navGroups: readonly NavGroup[] = [
       { label: "Grid 栅格", path: "/components/grid", eyebrow: "组件 / 布局", title: "Grid 栅格", description: "建立稳定、响应式的页面栅格。" },
       { label: "Space 间距", path: "/components/space", eyebrow: "组件 / 布局", title: "Space 间距", description: "为一组元素提供一致的水平或垂直间距。" },
       { label: "Splitter 分隔面板", path: "/components/splitter", eyebrow: "组件 / 布局", title: "Splitter 分隔面板", description: "通过拖拽调整相邻内容面板的尺寸。" },
+      { label: "WindowFrame 自定义窗口", path: "/components/window-frame", eyebrow: "组件 / 布局", title: "WindowFrame 自定义窗口", description: "为无系统装饰的桌面应用提供统一窗口外框和标题栏。" },
       { label: "Divider 分割线", path: "/components/divider", eyebrow: "组件 / 布局", title: "Divider 分割线", description: "分隔不同内容区域，建立清晰的信息层次。" },
     ],
   },

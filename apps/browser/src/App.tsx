@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { FormEvent, MouseEvent as ReactMouseEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 import {
   Button,
+  Dropdown,
   Icon,
   Input,
   Modal,
+  WindowFrame,
+  WindowTitleBar,
   applySiaTheme,
   message,
   type IconName,
+  type MenuItem,
+  type WindowAction,
 } from "@sia-ui/react";
 import HorizontalTabStrip from "./components/HorizontalTabStrip";
 import VerticalTabTree from "./components/VerticalTabTree";
@@ -169,6 +174,8 @@ export default function App() {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([...DEFAULT_BOOKMARKS]);
   const [showBookmarksBar, setShowBookmarksBar] = useState(true);
   const [closedTabs, setClosedTabs] = useState<BrowserTab[]>([]);
+  const [contextTabId, setContextTabId] = useState<string | null>(null);
+  const [windowMaximized, setWindowMaximized] = useState(false);
   const pageHostRef = useRef<HTMLDivElement | null>(null);
   const addressInputRef = useRef<HTMLInputElement | null>(null);
   const addressFocusedRef = useRef(false);
@@ -185,6 +192,12 @@ export default function App() {
   useEffect(() => {
     if (activeTab) activeTabRef.current = activeTab;
   }, [activeTab]);
+
+  useEffect(() => {
+    const preventDefaultContextMenu = (event: Event) => event.preventDefault();
+    document.addEventListener("contextmenu", preventDefaultContextMenu);
+    return () => document.removeEventListener("contextmenu", preventDefaultContextMenu);
+  }, []);
 
   useEffect(() => {
     const candidates = tabs.filter((tab) => (
@@ -823,51 +836,6 @@ export default function App() {
     });
   }
 
-  function showTabContextMenu(tabId: string, event: ReactMouseEvent<HTMLElement>) {
-    event.preventDefault();
-    event.stopPropagation();
-    const tab = tabs.find((item) => item.id === tabId);
-    if (!tab) return;
-    if (!isDesktopRuntime) {
-      message.info("标签页右键菜单仅在 Tauri 桌面版本中显示。");
-      return;
-    }
-    const orderedTabs = getLayoutOrderedTabs();
-    const tabIndex = orderedTabs.findIndex((item) => item.id === tabId);
-    void invokeNative("show_tab_context_menu", {
-      options: {
-        tabId,
-        groups: groups.map((group) => ({ id: group.id, name: group.name })),
-        vertical: tabLayout === "vertical",
-        muted: tab.muted,
-        pinned: Boolean(tab.pinned),
-        canCloseFollowing: tabIndex >= 0 && tabIndex < orderedTabs.length - 1,
-        canReopen: closedTabs.length > 0,
-        x: event.clientX,
-        y: event.clientY,
-      },
-    }).catch((error) => {
-      message.error(error instanceof Error ? error.message : String(error));
-    });
-  }
-
-  function showMoreMenu(event: ReactMouseEvent<HTMLElement>) {
-    if (!isDesktopRuntime) {
-      message.info("更多菜单仅在 Tauri 桌面版本中显示。");
-      return;
-    }
-    const rect = event.currentTarget.getBoundingClientRect();
-    void invokeNative("show_browser_more_menu", {
-      tabLayout,
-      showBookmarksBar,
-      darkMode,
-      x: Math.max(8, rect.right - 220),
-      y: rect.bottom,
-    }).catch((error) => {
-      message.error(error instanceof Error ? error.message : String(error));
-    });
-  }
-
   function handleNativeMenuAction(action: string) {
     if (action.startsWith("more:")) {
       const key = action.slice("more:".length);
@@ -918,24 +886,111 @@ export default function App() {
     return ordered;
   }
 
-  function runWindowAction(action: "start-dragging" | "minimize" | "toggle-maximize" | "close") {
+  function setBrowserPagesHiddenForPopup(hidden: boolean) {
+    if (!isDesktopRuntime) return;
+    if (hidden) {
+      void invokeNative("hide_browser_pages").catch(() => undefined);
+      return;
+    }
+
+    window.setTimeout(() => {
+      const tab = activeTabRef.current;
+      if (!tab.hasWebview || tab.sleeping) return;
+      void invokeNative("switch_browser_tab", {
+        tabId: tab.id,
+        bounds: boundsRef.current,
+      }).catch(() => undefined);
+    }, 0);
+  }
+
+  function renderTabContextScope(children: ReactNode) {
+    const contextTab = tabs.find((tab) => tab.id === contextTabId);
+    const orderedTabs = getLayoutOrderedTabs();
+    const contextTabIndex = contextTab
+      ? orderedTabs.findIndex((tab) => tab.id === contextTab.id)
+      : -1;
+    const adjacentDirection = tabLayout === "vertical" ? "下方" : "右侧";
+    const menuItems: MenuItem[] = contextTab ? [
+      { key: "new-adjacent", label: `在${adjacentDirection}新建标签页` },
+      {
+        key: "move",
+        label: "移动到",
+        children: groups.map((group) => ({
+          key: `move:${group.id}`,
+          label: group.name,
+          disabled: group.id === contextTab.groupId && !contextTab.smallGroupId,
+        })),
+      },
+      { key: "divider-actions", type: "divider" },
+      { key: "refresh", label: "刷新", extra: "Ctrl+R" },
+      { key: "duplicate", label: "复制标签页", extra: "Ctrl+Shift+K" },
+      { key: "move-window", label: "将标签页移动到新窗口" },
+      { key: "toggle-pin", label: contextTab.pinned ? "取消固定标签页" : "固定标签页" },
+      { key: "toggle-mute", label: contextTab.muted ? "取消标签页静音" : "使标签页静音", extra: "Ctrl+M" },
+      { key: "divider-close", type: "divider" },
+      { key: "close", label: "关闭标签页", extra: "Ctrl+W" },
+      { key: "close-others", label: "关闭其他标签页", disabled: tabs.length <= 1 },
+      {
+        key: "close-following",
+        label: `关闭${adjacentDirection}标签页`,
+        disabled: contextTabIndex < 0 || contextTabIndex >= orderedTabs.length - 1,
+      },
+      { key: "divider-reopen", type: "divider" },
+      {
+        key: "reopen-closed",
+        label: "重新打开关闭的标签页",
+        extra: "Ctrl+Shift+T",
+        disabled: closedTabs.length === 0,
+      },
+    ] : [];
+
+    return (
+      <Dropdown
+        className="browser-tab-context-scope"
+        popupClassName="browser-tab-context-popup"
+        trigger={["contextMenu"]}
+        placement="bottomLeft"
+        onOpenChange={(open) => setBrowserPagesHiddenForPopup(open)}
+        menu={{
+          items: menuItems,
+          selectable: false,
+          onClick: ({ key }) => {
+            if (!contextTabId) return;
+            if (key.startsWith("move:")) {
+              handleNativeMenuAction(`tab|${contextTabId}|move|${key.slice("move:".length)}`);
+              return;
+            }
+            handleNativeMenuAction(`tab|${contextTabId}|${key}`);
+          },
+        }}
+        onContextMenu={(event) => {
+          const target = event.target;
+          const tabElement = target instanceof Element
+            ? target.closest<HTMLElement>("[data-browser-tab-id]")
+            : null;
+          const tabId = tabElement?.dataset.browserTabId;
+          if (!tabId) {
+            event.preventDefault();
+            return;
+          }
+          setContextTabId(tabId);
+        }}
+      >
+        {children}
+      </Dropdown>
+    );
+  }
+
+  function runWindowAction(action: WindowAction) {
     if (!isDesktopRuntime) {
       showPreviewNotice();
       return;
     }
+    if (action === "toggle-maximize") setWindowMaximized((value) => !value);
     void invokeNative("browser_window_action", { action }).catch((error) => {
+      if (action === "toggle-maximize") setWindowMaximized((value) => !value);
       message.error(error instanceof Error ? error.message : String(error));
     });
-  }
-
-  function handleTitlebarMouseDown(event: ReactMouseEvent<HTMLElement>) {
-    if (event.button !== 0) return;
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    if (target.closest("button, input, textarea, select, a, [role='button'], [data-tauri-drag-region='false']")) return;
-    if (target.closest("[data-tauri-drag-region]:not([data-tauri-drag-region='false'])")) return;
-    event.preventDefault();
-    runWindowAction(event.detail > 1 ? "toggle-maximize" : "start-dragging");
   }
 
   function toggleBookmark() {
@@ -1257,7 +1312,7 @@ export default function App() {
 
   function renderTitlebarActions() {
     return (
-      <div className="browser-titlebar-actions" data-tauri-drag-region="false">
+      <div className="browser-titlebar-actions">
         <Button
           className="toolbar-icon-button"
           variant="text"
@@ -1277,15 +1332,72 @@ export default function App() {
         >
           S
         </Button>
-        <Button
-          className="toolbar-icon-button"
-          variant="text"
-          size="small"
-          icon={<Icon name="more-vertical" size={18} />}
-          aria-label="更多"
-          title="更多"
-          onClick={showMoreMenu}
-        />
+        <Dropdown
+          className="browser-more-trigger"
+          popupClassName="browser-more-popup"
+          trigger={["click"]}
+          placement="bottomRight"
+          onOpenChange={(open) => setBrowserPagesHiddenForPopup(open)}
+          menu={{
+            selectable: false,
+            items: [
+              {
+                key: "tab-layout",
+                label: tabLayout === "vertical" ? "切换到横向标签" : "切换到垂直标签",
+              },
+              { key: "divider-layout", type: "divider" },
+              { key: "bookmarks", label: "书签" },
+              {
+                key: "bookmark-bar",
+                label: (
+                  <span className="browser-more-bookmark-option">
+                    <span>显示书签栏</span>
+                    <span
+                      className={`browser-more-visibility-toggle${showBookmarksBar ? " is-on" : ""}`}
+                      aria-hidden="true"
+                    >
+                      <i />
+                    </span>
+                  </span>
+                ),
+              },
+              { key: "divider-bookmarks", type: "divider" },
+              {
+                key: "theme",
+                label: (
+                  <span className="browser-more-theme-option">
+                    <span>主题</span>
+                    <span
+                      className={`browser-more-theme-toggle${darkMode ? " is-dark" : ""}`}
+                      aria-hidden="true"
+                    >
+                      <i className="browser-more-theme-toggle__selection" />
+                      <span className={!darkMode ? "is-active" : ""}>
+                        <Icon name="sun" size={13} />
+                      </span>
+                      <span className={darkMode ? "is-active" : ""}>
+                        <Icon name="moon" size={13} />
+                      </span>
+                    </span>
+                  </span>
+                ),
+              },
+              { key: "divider-theme", type: "divider" },
+              { key: "history", label: "历史记录" },
+              { key: "settings", label: "浏览器设置" },
+            ],
+            onClick: ({ key }) => handleNativeMenuAction(`more:${key}`),
+          }}
+        >
+          <Button
+            className="toolbar-icon-button"
+            variant="text"
+            size="small"
+            icon={<Icon name="more-vertical" size={18} />}
+            aria-label="更多"
+            title="更多"
+          />
+        </Dropdown>
       </div>
     );
   }
@@ -1372,65 +1484,42 @@ export default function App() {
   }
 
   return (
-    <div className={`browser-shell browser-shell--${tabLayout}`}>
-      <header
-        className={`browser-titlebar${tabLayout === "vertical" ? " is-vertical" : ""}`}
-        onMouseDown={handleTitlebarMouseDown}
-      >
-        <div className="browser-brand" data-tauri-drag-region="deep" aria-label="Sia Browser">
-          <span className="browser-brand__mark" aria-hidden="true">
-            <strong>Sia</strong>
-            <small>browser</small>
-          </span>
-        </div>
-
-        {tabLayout === "horizontal" ? (
-          <HorizontalTabStrip
-            tabs={tabs}
-            activeId={activeId}
-            onSelect={selectTab}
-            onClose={closeTab}
-            onToggleAudio={toggleTabAudio}
-            onContextMenu={showTabContextMenu}
-            onNew={() => openTab()}
-          />
-        ) : (
-          <div className="vertical-titlebar-navigation">
-            {renderNavigationControls()}
-          </div>
-        )}
-
-        <div className="browser-titlebar__drag-space" data-tauri-drag-region="deep" />
-
-        {renderTitlebarActions()}
-
-        <div className="window-controls" data-tauri-drag-region="false">
-          <Button
-            className="window-control"
-            variant="text"
-            size="small"
-            icon={<Icon name="minus" size={14} />}
-            aria-label="最小化"
-            onClick={() => runWindowAction("minimize")}
-          />
-          <Button
-            className="window-control"
-            variant="text"
-            size="small"
-            icon={<Icon name="fullscreen" size={13} />}
-            aria-label="最大化或还原"
-            onClick={() => runWindowAction("toggle-maximize")}
-          />
-          <Button
-            className="window-control window-control--close"
-            variant="text"
-            size="small"
-            icon={<Icon name="close" size={14} />}
-            aria-label="关闭"
-            onClick={() => runWindowAction("close")}
-          />
-        </div>
-      </header>
+    <WindowFrame
+      className={`browser-shell browser-shell--${tabLayout}`}
+      titleBar={(
+        <WindowTitleBar
+          className={`browser-titlebar${tabLayout === "vertical" ? " is-vertical" : ""}`}
+          leading={(
+            <div className="browser-brand" aria-label="Sia Browser">
+              <span className="browser-brand__mark" aria-hidden="true">
+                <strong>Sia</strong>
+                <small>browser</small>
+              </span>
+            </div>
+          )}
+          actions={renderTitlebarActions()}
+          maximized={windowMaximized}
+          onWindowAction={runWindowAction}
+        >
+          {tabLayout === "horizontal" ? (
+            renderTabContextScope(
+              <HorizontalTabStrip
+                tabs={tabs}
+                activeId={activeId}
+                onSelect={selectTab}
+                onClose={closeTab}
+                onToggleAudio={toggleTabAudio}
+                onNew={() => openTab()}
+              />,
+            )
+          ) : (
+            <div className="vertical-titlebar-navigation">
+              {renderNavigationControls()}
+            </div>
+          )}
+        </WindowTitleBar>
+      )}
+    >
 
       {tabLayout === "horizontal" ? (
         <section className="browser-toolbar" aria-label="浏览器工具栏">
@@ -1440,24 +1529,25 @@ export default function App() {
 
       <div className="browser-workspace">
         {tabLayout === "vertical" ? (
-          <VerticalTabTree
-            groups={groups}
-            tabs={tabs}
-            activeId={activeId}
-            onSelect={selectTab}
-            onClose={closeTab}
-            onToggleAudio={toggleTabAudio}
-            onContextMenu={showTabContextMenu}
-            onNewTab={(groupId, smallGroupId) => openTab(undefined, groupId, smallGroupId)}
-            onNewRootTab={() => openTab(undefined, ROOT_GROUP_ID)}
-            onNewGroup={openNewGroupModal}
-            onNewSmallGroup={(groupId) => openTreeEditDialog("new-small-group", groupId)}
-            onRenameGroup={(groupId) => openTreeEditDialog("rename-group", groupId)}
-            onRenameSmallGroup={(groupId, smallGroupId) => openTreeEditDialog("rename-small-group", groupId, smallGroupId)}
-            onClearGroupData={confirmClearGroupData}
-            onDeleteGroup={confirmDeleteGroup}
-            onDeleteSmallGroup={confirmDeleteSmallGroup}
-          />
+          renderTabContextScope(
+            <VerticalTabTree
+              groups={groups}
+              tabs={tabs}
+              activeId={activeId}
+              onSelect={selectTab}
+              onClose={closeTab}
+              onToggleAudio={toggleTabAudio}
+              onNewTab={(groupId, smallGroupId) => openTab(undefined, groupId, smallGroupId)}
+              onNewRootTab={() => openTab(undefined, ROOT_GROUP_ID)}
+              onNewGroup={openNewGroupModal}
+              onNewSmallGroup={(groupId) => openTreeEditDialog("new-small-group", groupId)}
+              onRenameGroup={(groupId) => openTreeEditDialog("rename-group", groupId)}
+              onRenameSmallGroup={(groupId, smallGroupId) => openTreeEditDialog("rename-small-group", groupId, smallGroupId)}
+              onClearGroupData={confirmClearGroupData}
+              onDeleteGroup={confirmDeleteGroup}
+              onDeleteSmallGroup={confirmDeleteSmallGroup}
+            />,
+          )
         ) : null}
         <div className="browser-content">
           {showBookmarksBar ? (
@@ -1603,6 +1693,6 @@ export default function App() {
           />
         </div>
       </Modal>
-    </div>
+    </WindowFrame>
   );
 }

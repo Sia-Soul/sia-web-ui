@@ -313,6 +313,28 @@ async fn save_csv_file(suggested_name: String, csv: String) -> Result<Option<Str
     .map_err(|error| format!("打开文件保存窗口失败：{error}"))?
 }
 
+#[tauri::command]
+fn data_studio_window_action(app: AppHandle, action: String) -> Result<(), String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "找不到数据库工具主窗口".to_string())?;
+
+    match action.as_str() {
+        "start-dragging" => window.start_dragging(),
+        "minimize" => window.minimize(),
+        "toggle-maximize" => {
+            if window.is_maximized().map_err(|error| error.to_string())? {
+                window.unmaximize()
+            } else {
+                window.maximize()
+            }
+        }
+        "close" => window.close(),
+        _ => return Err(format!("未知窗口操作：{action}")),
+    }
+    .map_err(|error| error.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -322,7 +344,8 @@ pub fn run() {
             save_connection_profiles,
             load_query_workspace,
             save_query_workspace,
-            save_csv_file
+            save_csv_file,
+            data_studio_window_action
         ])
         .run(tauri::generate_context!())
         .expect("启动 Sia Data Studio 失败");

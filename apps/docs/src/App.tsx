@@ -29,6 +29,7 @@ import { TabsPage } from "./pages/TabsPage";
 import { TagPage } from "./pages/TagPage";
 import { TablePage } from "./pages/TablePage";
 import { TokensPage } from "./pages/TokensPage";
+import { WindowFramePage } from "./pages/WindowFramePage";
 
 function ScrollToTop({ scrollRef }: { scrollRef: React.RefObject<HTMLElement> }) {
   const { pathname } = useLocation();
@@ -114,6 +115,7 @@ export default function App() {
             <Route path="/components/grid" element={<GridPage />} />
             <Route path="/components/space" element={<SpacePage />} />
             <Route path="/components/splitter" element={<SplitterPage />} />
+            <Route path="/components/window-frame" element={<WindowFramePage />} />
             <Route path="/components/drawer" element={<DrawerPage />} />
             <Route path="/components/dropdown" element={<DropdownPage />} />
             <Route path="/components/menu" element={<MenuPage />} />

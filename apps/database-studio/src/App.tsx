@@ -2,9 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Icon,
   Modal,
+  ThemeSwitch,
   ToolPanel,
+  WindowFrame,
+  WindowTitleBar,
   applySiaTheme,
   message,
+  type WindowAction,
 } from "@sia-ui/react";
 import { ConnectionModal } from "./components/ConnectionModal";
 import {
@@ -95,6 +99,7 @@ export default function App() {
   const [historyState, setHistoryState] = useState<ExecutionHistoryPage>({ items: DEMO_HISTORY, total: DEMO_HISTORY.length });
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
+  const [windowMaximized, setWindowMaximized] = useState(false);
   const [newQueryRequest, setNewQueryRequest] = useState<{ id: number; sql?: string; label?: string }>({ id: 0 });
   const [toolPanels, setToolPanels] = useState(loadStudioToolPanels);
 
@@ -609,16 +614,57 @@ export default function App() {
     message.info(`${labels[action] ?? "该功能"}正在接入。`);
   }
 
+  function runWindowAction(action: WindowAction) {
+    const invoke = window.__TAURI__?.core?.invoke;
+    if (!isDesktopRuntime || !invoke) {
+      message.info("窗口控制仅在桌面应用中可用。");
+      return;
+    }
+    if (action === "toggle-maximize") setWindowMaximized((value) => !value);
+    void invoke("data_studio_window_action", { action }).catch((windowError) => {
+      if (action === "toggle-maximize") setWindowMaximized((value) => !value);
+      message.error(errorText(windowError));
+    });
+  }
+
+  function changeWindowTheme(dark: boolean) {
+    const nextTheme = dark ? "dark" : "light";
+    setWindowTheme(nextTheme);
+    applySiaTheme(nextTheme);
+  }
+
   if (!activeProfile) return null;
 
   const connectionOptions = profiles.map((profile) => ({ label: profile.name, value: profile.id }));
 
   return (
-    <div className="data-studio-shell" onContextMenu={(event) => event.preventDefault()}>
-      <header className="app-bar">
-        <div className="studio-brand"><Icon name="database" size={24} /><strong>Sia Data Studio</strong></div>
-      </header>
-
+    <WindowFrame
+      className="data-studio-shell"
+      onContextMenu={(event) => event.preventDefault()}
+      titleBar={(
+        <WindowTitleBar
+          className="data-studio-titlebar"
+          leading={(
+            <div className="studio-brand" aria-label="Sia Database">
+              <span className="studio-brand__mark" aria-hidden="true">
+                <strong>Sia</strong>
+                <small>database</small>
+              </span>
+            </div>
+          )}
+          actions={(
+            <ThemeSwitch
+              checked={windowTheme === "dark"}
+              onCheckedChange={changeWindowTheme}
+              lightLabel="切换到暗色主题"
+              darkLabel="切换到亮色主题"
+            />
+          )}
+          maximized={windowMaximized}
+          onWindowAction={runWindowAction}
+        />
+      )}
+    >
       <div className="studio-body">
         <div className="studio-tool-layout">
           <ToolPanel
@@ -702,6 +748,6 @@ export default function App() {
       </footer>
 
       <ConnectionModal open={modalOpen} initialProfile={editingProfile} defaultKind={newConnectionKind} onCancel={() => { setModalOpen(false); setEditingProfile(undefined); }} onSave={saveAndConnect} />
-    </div>
+    </WindowFrame>
   );
 }

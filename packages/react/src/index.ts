@@ -27,6 +27,17 @@ export { Splitter } from "./components/Splitter";
 export type { SplitterPanelProps, SplitterProps } from "./components/Splitter";
 export { ToolPanel } from "./components/ToolPanel";
 export type { ToolPanelPlacement, ToolPanelProps } from "./components/ToolPanel";
+export { WindowControls, WindowFrame, WindowTitleBar } from "./components/WindowFrame";
+export type {
+  WindowAction,
+  WindowActionHandler,
+  WindowControlAction,
+  WindowControlLabels,
+  WindowControlsProps,
+  WindowFrameProps,
+  WindowTitleBarActionsAlign,
+  WindowTitleBarProps,
+} from "./components/WindowFrame";
 export { Drawer } from "./components/Drawer";
 export type { DrawerOpenConfig, DrawerPlacement, DrawerProps } from "./components/Drawer";
 export { Form, Switch, useForm } from "./components/Form";

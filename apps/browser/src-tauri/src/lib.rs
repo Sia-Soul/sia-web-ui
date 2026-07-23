@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use tauri::{
-    menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder, SubmenuBuilder},
+    menu::{CheckMenuItemBuilder, MenuBuilder},
     webview::{NewWindowResponse, PageLoadEvent, WebviewBuilder},
     AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Position, Rect, Size, WebviewUrl,
 };
@@ -22,27 +22,6 @@ struct BrowserBounds {
     y: f64,
     width: f64,
     height: f64,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct TabMenuGroup {
-    id: String,
-    name: String,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct TabContextMenuOptions {
-    tab_id: String,
-    groups: Vec<TabMenuGroup>,
-    vertical: bool,
-    muted: bool,
-    pinned: bool,
-    can_close_following: bool,
-    can_reopen: bool,
-    x: f64,
-    y: f64,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -170,6 +149,11 @@ fn attach_audio_monitor(
             let setup = (|| -> windows::core::Result<()> {
                 let core_webview: ICoreWebView2 =
                     unsafe { platform_webview.controller().CoreWebView2()? };
+                unsafe {
+                    core_webview
+                        .Settings()?
+                        .SetAreDefaultContextMenusEnabled(false)?;
+                }
                 let core_webview_8: ICoreWebView2_8 = core_webview.cast()?;
                 let event_app = monitor_app.clone();
                 let event_tab_id = tab_id.clone();
@@ -232,6 +216,11 @@ fn hide_browser_webviews(app: &AppHandle, except_label: Option<&str>) -> Result<
         }
     }
     Ok(())
+}
+
+#[tauri::command]
+fn hide_browser_pages(app: AppHandle) -> Result<(), String> {
+    hide_browser_webviews(&app, None)
 }
 
 #[tauri::command]
@@ -463,94 +452,6 @@ fn show_browser_more_menu(
 }
 
 #[tauri::command]
-fn show_tab_context_menu(app: AppHandle, options: TabContextMenuOptions) -> Result<(), String> {
-    let window = app
-        .get_window("main")
-        .ok_or_else(|| "找不到浏览器主窗口".to_string())?;
-    let tab_prefix = format!("tab|{}|", options.tab_id);
-    let mut move_menu_builder = SubmenuBuilder::new(&app, "移动到");
-    for group in &options.groups {
-        move_menu_builder =
-            move_menu_builder.text(format!("{tab_prefix}move|{}", group.id), &group.name);
-    }
-    let move_menu = move_menu_builder
-        .build()
-        .map_err(|error| error.to_string())?;
-    let refresh = MenuItemBuilder::with_id(format!("{tab_prefix}refresh"), "刷新")
-        .accelerator("Ctrl+R")
-        .build(&app)
-        .map_err(|error| error.to_string())?;
-    let duplicate = MenuItemBuilder::with_id(format!("{tab_prefix}duplicate"), "复制标签页")
-        .accelerator("Ctrl+Shift+K")
-        .build(&app)
-        .map_err(|error| error.to_string())?;
-    let mute_label = if options.muted {
-        "取消标签页静音"
-    } else {
-        "使标签页静音"
-    };
-    let mute = MenuItemBuilder::with_id(format!("{tab_prefix}toggle-mute"), mute_label)
-        .accelerator("Ctrl+M")
-        .build(&app)
-        .map_err(|error| error.to_string())?;
-    let close = MenuItemBuilder::with_id(format!("{tab_prefix}close"), "关闭标签页")
-        .accelerator("Ctrl+W")
-        .build(&app)
-        .map_err(|error| error.to_string())?;
-    let close_following_label = if options.vertical {
-        "关闭下方标签页"
-    } else {
-        "关闭右侧标签页"
-    };
-    let close_following = MenuItemBuilder::with_id(
-        format!("{tab_prefix}close-following"),
-        close_following_label,
-    )
-    .enabled(options.can_close_following)
-    .build(&app)
-    .map_err(|error| error.to_string())?;
-    let reopen =
-        MenuItemBuilder::with_id(format!("{tab_prefix}reopen-closed"), "重新打开关闭的窗口")
-            .accelerator("Ctrl+Shift+T")
-            .enabled(options.can_reopen)
-            .build(&app)
-            .map_err(|error| error.to_string())?;
-    let new_tab_label = if options.vertical {
-        "在下方新建标签页"
-    } else {
-        "在右侧新建标签页"
-    };
-    let pin_label = if options.pinned {
-        "取消固定标签页"
-    } else {
-        "固定标签页"
-    };
-    let menu = MenuBuilder::new(&app)
-        .text(format!("{tab_prefix}new-adjacent"), new_tab_label)
-        .item(&move_menu)
-        .separator()
-        .item(&refresh)
-        .item(&duplicate)
-        .text(format!("{tab_prefix}move-window"), "将标签页移动到新窗口")
-        .text(format!("{tab_prefix}toggle-pin"), pin_label)
-        .item(&mute)
-        .separator()
-        .item(&close)
-        .text(format!("{tab_prefix}close-others"), "关闭其他标签页")
-        .item(&close_following)
-        .separator()
-        .item(&reopen)
-        .build()
-        .map_err(|error| error.to_string())?;
-    window
-        .popup_menu_at(
-            &menu,
-            LogicalPosition::new(options.x.max(0.0), options.y.max(0.0)),
-        )
-        .map_err(|error| error.to_string())
-}
-
-#[tauri::command]
 fn clear_browser_tabs_data(app: AppHandle, tab_ids: Vec<String>) -> Result<(), String> {
     for tab_id in tab_ids {
         if let Some(webview) = app.get_webview(&browser_label(&tab_id)) {
@@ -648,10 +549,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             open_browser_tab,
             switch_browser_tab,
+            hide_browser_pages,
             close_browser_tab,
             set_browser_tab_muted,
             show_browser_more_menu,
-            show_tab_context_menu,
             clear_browser_tabs_data,
             load_browser_state,
             save_browser_state,

@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
-import type { MouseEvent } from "react";
-import { Button, Dropdown, Icon } from "@sia-ui/react";
+import { useMemo, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
+import { Button, Dropdown, Icon, Tooltip } from "@sia-ui/react";
 import { ROOT_GROUP_ID, type BrowserGroup, type BrowserTab } from "../browserTypes";
 import BrowserFavicon from "./BrowserFavicon";
 
@@ -11,7 +11,6 @@ interface VerticalTabTreeProps {
   onSelect: (tabId: string) => void;
   onClose: (tabId: string) => void;
   onToggleAudio: (tabId: string) => void;
-  onContextMenu: (tabId: string, event: MouseEvent<HTMLElement>) => void;
   onNewTab: (groupId: string, smallGroupId?: string) => void;
   onNewRootTab: () => void;
   onNewGroup: () => void;
@@ -23,6 +22,20 @@ interface VerticalTabTreeProps {
   onDeleteSmallGroup: (groupId: string, smallGroupId: string) => void;
 }
 
+const COMPACT_PANEL_WIDTH = 56;
+
+function compactGroupTitle(value: string, maxWidth = 4) {
+  let width = 0;
+  let result = "";
+  for (const character of value) {
+    const characterWidth = /[\u3400-\u9fff\uf900-\ufaff]/.test(character) ? 2 : 1;
+    if (width + characterWidth > maxWidth) break;
+    result += character;
+    width += characterWidth;
+  }
+  return result;
+}
+
 export default function VerticalTabTree({
   groups,
   tabs,
@@ -30,7 +43,6 @@ export default function VerticalTabTree({
   onSelect,
   onClose,
   onToggleAudio,
-  onContextMenu,
   onNewTab,
   onNewRootTab,
   onNewGroup,
@@ -43,6 +55,12 @@ export default function VerticalTabTree({
 }: VerticalTabTreeProps) {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [collapsedSmallGroups, setCollapsedSmallGroups] = useState<Set<string>>(new Set());
+  const [panelWidth, setPanelWidth] = useState(292);
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
+  const [panelPinned, setPanelPinned] = useState(true);
+  const [floatingHovered, setFloatingHovered] = useState(false);
+  const [resizing, setResizing] = useState(false);
+  const resizeStateRef = useRef<{ pointerId: number; startX: number; startWidth: number } | null>(null);
   const tabsByGroup = useMemo(() => {
     const map = new Map<string, BrowserTab[]>();
     for (const tab of tabs) {
@@ -54,6 +72,7 @@ export default function VerticalTabTree({
   }, [tabs]);
   const rootTabs = tabsByGroup.get(ROOT_GROUP_ID) ?? [];
   const activeTab = tabs.find((tab) => tab.id === activeId);
+  const panelExpanded = !panelCollapsed && (panelPinned || floatingHovered);
 
   function toggle(setter: typeof setCollapsedGroups, key: string) {
     setter((current) => {
@@ -64,13 +83,53 @@ export default function VerticalTabTree({
     });
   }
 
+  function handleResizeStart(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!panelExpanded || event.button !== 0) return;
+    const target = event.target;
+    if (target instanceof Element && target.closest("button")) return;
+    event.preventDefault();
+    resizeStateRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startWidth: panelWidth,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setResizing(true);
+  }
+
+  function handleResizeMove(event: ReactPointerEvent<HTMLDivElement>) {
+    const resizeState = resizeStateRef.current;
+    if (!resizeState || resizeState.pointerId !== event.pointerId) return;
+    setPanelWidth(Math.min(440, Math.max(220, resizeState.startWidth + event.clientX - resizeState.startX)));
+  }
+
+  function finishResize(event: ReactPointerEvent<HTMLDivElement>) {
+    if (resizeStateRef.current?.pointerId !== event.pointerId) return;
+    resizeStateRef.current = null;
+    setResizing(false);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  function togglePanelPinned() {
+    if (panelPinned) {
+      setPanelPinned(false);
+      setFloatingHovered(true);
+      return;
+    }
+    setPanelPinned(true);
+    setPanelCollapsed(false);
+    setFloatingHovered(false);
+  }
+
   function renderTab(tab: BrowserTab) {
     const active = tab.id === activeId;
     return (
       <div
         key={tab.id}
         className={`vertical-tree-tab${active ? " is-active" : ""}${tab.audible || tab.muted ? " has-audio" : ""}`}
-        onContextMenu={(event) => onContextMenu(tab.id, event)}
+        data-browser-tab-id={tab.id}
       >
         <Button
           className="vertical-tree-tab__select"
@@ -85,10 +144,10 @@ export default function VerticalTabTree({
         </Button>
         {tab.audible || tab.muted ? (
           <Button
-            className="vertical-tree-tab__audio"
+            className={`vertical-tree-tab__audio${tab.muted ? " is-muted" : ""}`}
             variant="text"
             size="small"
-            icon={<Icon name={tab.muted ? "volume-off" : "volume-up"} size={12} />}
+            icon={<Icon name={tab.muted ? "speaker-muted" : "speaker-wave"} size={13} />}
             aria-label={tab.muted ? `取消静音 ${tab.title}` : `静音 ${tab.title}`}
             title={tab.muted ? "取消静音" : "静音"}
             onClick={(event) => {
@@ -109,37 +168,92 @@ export default function VerticalTabTree({
     );
   }
 
+  function renderCompactTab(tab: BrowserTab) {
+    const active = tab.id === activeId;
+    return (
+      <Button
+        key={tab.id}
+        className={`vertical-tree-compact-tab${active ? " is-active" : ""}`}
+        variant="text"
+        size="small"
+        icon={<BrowserFavicon url={tab.url} loading={tab.loading} size={16} />}
+        data-browser-tab-id={tab.id}
+        aria-label={tab.title}
+        title={tab.title}
+        onClick={() => onSelect(tab.id)}
+      />
+    );
+  }
+
   return (
-    <aside className="vertical-tab-tree" aria-label="垂直标签页">
+    <aside
+      className={`vertical-tab-tree${panelExpanded ? "" : " is-collapsed"}${panelPinned ? " is-pinned" : " is-floating"}${resizing ? " is-resizing" : ""}`}
+      style={{
+        width: panelExpanded ? panelWidth : COMPACT_PANEL_WIDTH,
+        minWidth: panelExpanded ? panelWidth : COMPACT_PANEL_WIDTH,
+      }}
+      aria-label="垂直标签页"
+      onMouseEnter={() => {
+        if (!panelPinned && !panelCollapsed) setFloatingHovered(true);
+      }}
+      onMouseLeave={() => {
+        if (!panelPinned && !resizing) setFloatingHovered(false);
+      }}
+    >
       <div className="vertical-tab-tree__header">
-        <div className="vertical-tab-tree__intro">
-          <strong>标签分组</strong>
-          <small>分组间 Cookie 独立</small>
-        </div>
-        <div className="vertical-tab-tree__actions">
-          <Button
-            className="vertical-tree-header-action"
-            variant="text"
-            size="small"
-            icon={<Icon name="file-plus" size={15} />}
-            aria-label="新建根级标签页"
-            title="新建根级标签页"
-            onClick={onNewRootTab}
+        {panelExpanded ? (
+          <div className="vertical-tab-tree__actions">
+            <Tooltip title="新建页签" placement="bottom" mouseEnterDelay={0.2}>
+              <Button
+                className="vertical-tree-header-action"
+                variant="text"
+                size="small"
+                icon={<Icon name="tab-plus" size={16} />}
+                aria-label="新建页签"
+                onClick={onNewRootTab}
+              />
+            </Tooltip>
+            <Tooltip title="新建分组" placement="bottom" mouseEnterDelay={0.2}>
+              <Button
+                className="vertical-tree-header-action"
+                variant="text"
+                size="small"
+                icon={<Icon name="folder-plus" size={16} />}
+                aria-label="新建分组"
+                onClick={onNewGroup}
+              />
+            </Tooltip>
+            <Tooltip
+              title={panelPinned ? "切换为浮动面板" : "固定标签面板"}
+              placement="bottom"
+              mouseEnterDelay={0.2}
+            >
+              <Button
+                className={`vertical-tree-header-action vertical-tree-header-action--pin${panelPinned ? " is-active" : ""}`}
+                variant="text"
+                size="small"
+                icon={<Icon name={panelPinned ? "pin" : "pin-off"} size={15} />}
+                aria-label={panelPinned ? "切换为浮动面板" : "固定标签面板"}
+                onClick={togglePanelPinned}
+              />
+            </Tooltip>
+          </div>
+        ) : (
+          <Tooltip
+            title={panelPinned ? "切换为浮动面板" : "固定并展开标签面板"}
+            placement="right"
+            mouseEnterDelay={0.2}
           >
-            新页签
-          </Button>
-          <Button
-            className="vertical-tree-header-action"
-            variant="text"
-            size="small"
-            icon={<Icon name="plus" size={15} />}
-            aria-label="新建根分组"
-            title="新建根分组"
-            onClick={onNewGroup}
-          >
-            新分组
-          </Button>
-        </div>
+            <Button
+              className={`vertical-tree-header-action vertical-tree-header-action--pin${panelPinned ? " is-active" : ""}`}
+              variant="text"
+              size="small"
+              icon={<Icon name={panelPinned ? "pin" : "pin-off"} size={15} />}
+              aria-label={panelPinned ? "切换为浮动面板" : "固定并展开标签面板"}
+              onClick={togglePanelPinned}
+            />
+          </Tooltip>
+        )}
       </div>
 
       <div className="vertical-tab-tree__scroll">
@@ -295,6 +409,71 @@ export default function VerticalTabTree({
             {rootTabs.map(renderTab)}
           </div>
         ) : null}
+      </div>
+      {!panelExpanded ? (
+        <div className="vertical-tab-tree__compact-scroll" aria-label="紧凑标签列表">
+          {groups.map((group) => {
+            const groupTabs = tabsByGroup.get(group.id) ?? [];
+            const groupCollapsed = collapsedGroups.has(group.id);
+            return (
+              <section
+                key={group.id}
+                className="vertical-tree-compact-group"
+                style={{ "--group-color": group.color } as React.CSSProperties}
+              >
+                <Button
+                  className="vertical-tree-compact-group__title"
+                  variant="text"
+                  size="small"
+                  title={group.name}
+                  aria-label={`分组：${group.name}`}
+                  aria-expanded={!groupCollapsed}
+                  onClick={() => toggle(setCollapsedGroups, group.id)}
+                >
+                  {compactGroupTitle(group.name)}
+                </Button>
+                {!groupCollapsed ? (
+                  <div className="vertical-tree-compact-group__tabs">
+                    {groupTabs.map(renderCompactTab)}
+                  </div>
+                ) : null}
+              </section>
+            );
+          })}
+          {rootTabs.length > 0 ? (
+            <div className="vertical-tree-compact-root-tabs">
+              {rootTabs.map(renderCompactTab)}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      <div
+        className="vertical-tab-tree__resize-handle"
+        role="separator"
+        aria-label="调整标签面板宽度"
+        aria-orientation="vertical"
+        onPointerDown={handleResizeStart}
+        onPointerMove={handleResizeMove}
+        onPointerUp={finishResize}
+        onPointerCancel={finishResize}
+      >
+        <Tooltip title={panelExpanded ? "收起标签面板" : "展开标签面板"} placement="right" mouseEnterDelay={0.2}>
+          <Button
+            className="vertical-tab-tree__collapse-button"
+            variant="text"
+            size="small"
+            icon={<Icon name={panelExpanded ? "chevron-left" : "chevron-right"} size={12} />}
+            aria-label={panelExpanded ? "收起标签面板" : "展开标签面板"}
+            onClick={() => {
+              if (panelPinned) {
+                setPanelCollapsed((current) => !current);
+                return;
+              }
+              setPanelCollapsed(false);
+              setFloatingHovered(true);
+            }}
+          />
+        </Tooltip>
       </div>
     </aside>
   );

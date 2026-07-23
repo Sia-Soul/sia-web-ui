@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { MouseEvent, WheelEvent } from "react";
+import type { WheelEvent } from "react";
 import {
   Button,
   Dropdown,
@@ -15,7 +15,6 @@ interface HorizontalTabStripProps {
   onSelect: (tabId: string) => void;
   onClose: (tabId: string) => void;
   onToggleAudio: (tabId: string) => void;
-  onContextMenu: (tabId: string, event: MouseEvent<HTMLElement>) => void;
   onNew: () => void;
 }
 
@@ -25,7 +24,6 @@ export default function HorizontalTabStrip({
   onSelect,
   onClose,
   onToggleAudio,
-  onContextMenu,
   onNew,
 }: HorizontalTabStripProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -121,7 +119,6 @@ export default function HorizontalTabStrip({
               key={tab.id}
               className={`browser-tab${tab.id === activeId ? " is-active" : ""}${tab.audible || tab.muted ? " has-audio" : ""}`}
               data-browser-tab-id={tab.id}
-              onContextMenu={(event) => onContextMenu(tab.id, event)}
             >
               <Button
                 className="browser-tab__select"
@@ -137,10 +134,10 @@ export default function HorizontalTabStrip({
               </Button>
               {tab.audible || tab.muted ? (
                 <Button
-                  className="browser-tab__audio"
+                  className={`browser-tab__audio${tab.muted ? " is-muted" : ""}`}
                   variant="text"
                   size="small"
-                  icon={<Icon name={tab.muted ? "volume-off" : "volume-up"} size={13} />}
+                  icon={<Icon name={tab.muted ? "speaker-muted" : "speaker-wave"} size={13} />}
                   aria-label={tab.muted ? `取消静音 ${tab.title}` : `静音 ${tab.title}`}
                   title={tab.muted ? "取消静音" : "静音"}
                   onClick={(event) => {
