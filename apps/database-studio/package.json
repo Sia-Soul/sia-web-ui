@@ -1,0 +1,31 @@
+{
+  "name": "@sia-ui/database-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "host:build": "dotnet build src-dotnet/Sia.DataStudio.DatabaseHost.csproj --nologo --verbosity quiet",
+    "host:publish": "dotnet publish src-dotnet/Sia.DataStudio.DatabaseHost.csproj --configuration Release --runtime win-x64 --self-contained true --nologo --verbosity quiet -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None --output src-tauri/resources",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b --pretty false",
+    "preview": "vite preview --host 127.0.0.1",
+    "tauri": "cargo tauri",
+    "tauri:dev": "pnpm host:build && cargo tauri dev",
+    "tauri:build": "pnpm host:publish && cargo tauri build",
+    "tauri:build:bin": "pnpm host:publish && cargo tauri build --no-bundle"
+  },
+  "dependencies": {
+    "@sia-ui/react": "workspace:*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "sql-formatter": "15.8.2"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11"
+  }
+}

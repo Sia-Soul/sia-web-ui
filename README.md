@@ -7,6 +7,7 @@ Sia Web UI 是 SiaUI 的 Web 端设计系统与项目母版。它把客户端已
 ```text
 apps/docs/                  组件文档与交互预览
 apps/desktop/               Tauri 2 + React 桌面客户端
+apps/database-studio/       数据库连接与 SQL 工作台
 apps/browser/               无边框 Tauri 浏览器
 packages/react/             @sia-ui/react 组件包
 packages/create-sia-web/    create-sia-web 项目生成器
@@ -30,6 +31,18 @@ pnpm desktop:dev
 
 ```powershell
 pnpm desktop:web
+```
+
+启动数据库工作台：
+
+```powershell
+pnpm database:dev
+```
+
+只在浏览器中预览数据库工作台（使用演示数据）：
+
+```powershell
+pnpm database:web
 ```
 
 启动无边框浏览器：

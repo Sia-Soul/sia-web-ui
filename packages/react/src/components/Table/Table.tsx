@@ -205,7 +205,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
   ));
   const pluginApisRef = useRef<Record<string, unknown>>({});
   const contextsRef = useRef<Map<string, TablePluginContext<T, any>>>(new Map());
-  const mountedPluginsRef = useRef(new Map<string, void | (() => void)>());
+  const mountedPluginsRef = useRef(new Map<string, { plugin: AnyTablePlugin<T>; cleanup?: void | (() => void) }>());
   const pipeline = { columns: baseColumns as readonly TableColumn<T>[], rows: createTableRows(dataSource, getRowKey) as readonly TableRow<T>[] };
   const nextApis: Record<string, unknown> = {};
   const contexts = new Map<string, TablePluginContext<T, any>>();
@@ -253,14 +253,20 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
   contextsRef.current = contexts;
 
   useEffect(() => {
+    const activePlugins = new Map(sortedPlugins.map((plugin) => [plugin.id, plugin]));
+    for (const [pluginId, mounted] of mountedPluginsRef.current) {
+      if (activePlugins.get(pluginId) === mounted.plugin) continue;
+      mounted.cleanup?.();
+      mountedPluginsRef.current.delete(pluginId);
+    }
     for (const plugin of sortedPlugins) {
       if (mountedPluginsRef.current.has(plugin.id) || !plugin.onMount) continue;
-      mountedPluginsRef.current.set(plugin.id, plugin.onMount(contextsRef.current.get(plugin.id)!));
+      mountedPluginsRef.current.set(plugin.id, { plugin, cleanup: plugin.onMount(contextsRef.current.get(plugin.id)!) });
     }
   }, [sortedPlugins]);
 
   useEffect(() => () => {
-    for (const cleanup of mountedPluginsRef.current.values()) cleanup?.();
+    for (const mounted of mountedPluginsRef.current.values()) mounted.cleanup?.();
     mountedPluginsRef.current.clear();
   }, []);
 

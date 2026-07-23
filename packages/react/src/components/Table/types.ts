@@ -43,6 +43,7 @@ export interface TableColumn<T = Record<string, unknown>> {
   hidden?: boolean;
   ellipsis?: boolean;
   sortable?: boolean;
+  filterable?: boolean;
   editable?: boolean | TableEditableCellConfig<T>;
   exportable?: boolean;
   exportRender?: (value: unknown, record: T, index: number, info: TableCellRenderInfo<T>) => ReactNode;

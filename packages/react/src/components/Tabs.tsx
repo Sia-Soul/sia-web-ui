@@ -1,5 +1,8 @@
 import { useId, useMemo, useState } from "react";
 import type { HTMLAttributes, KeyboardEvent, ReactNode } from "react";
+import { Dropdown } from "./Dropdown";
+import { Icon } from "./Icon";
+import type { MenuClickInfo, MenuItem } from "./Navigation";
 import type { ControlSize } from "./shared";
 
 export interface TabItem {
@@ -8,11 +11,16 @@ export interface TabItem {
   children?: ReactNode;
   disabled?: boolean;
   icon?: ReactNode;
+  closable?: boolean;
 }
 
 export type TabsType = "line" | "card" | "pill";
 export type TabsOrientation = "horizontal" | "vertical";
 export type TabsPosition = "top" | "right" | "bottom" | "left";
+export type TabsContextMenuClickInfo = MenuClickInfo & {
+  tabKey: string;
+  tab: TabItem;
+};
 
 export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
   items: readonly TabItem[];
@@ -26,6 +34,10 @@ export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChang
   centered?: boolean;
   tabBarExtraContent?: ReactNode;
   destroyInactiveTabPane?: boolean;
+  closable?: boolean;
+  onEdit?: (key: string, action: "remove") => void;
+  tabContextMenu?: readonly MenuItem[] | ((tab: TabItem) => readonly MenuItem[]);
+  onTabContextMenuClick?: (info: TabsContextMenuClickInfo) => void;
 }
 
 export function Tabs({
@@ -40,6 +52,10 @@ export function Tabs({
   centered = false,
   tabBarExtraContent,
   destroyInactiveTabPane = true,
+  closable = false,
+  onEdit,
+  tabContextMenu,
+  onTabContextMenuClick,
   className = "",
   ...props
 }: TabsProps) {
@@ -87,23 +103,56 @@ export function Tabs({
         <div className="sia-tabs__list" role="tablist" aria-orientation={resolvedOrientation}>
           {items.map((item) => {
             const selected = item.key === selectedKey;
+            const canClose = item.closable ?? closable;
+            const tabNode = (
+              <span className={`sia-tabs__tab-wrap${canClose ? " is-closable" : ""}`} key={item.key}>
+                <button
+                  id={`${baseId}-tab-${item.key}`}
+                  type="button"
+                  className="sia-tabs__tab"
+                  role="tab"
+                  aria-selected={selected}
+                  aria-controls={hasPanels ? `${baseId}-panel-${item.key}` : undefined}
+                  tabIndex={selected ? 0 : -1}
+                  disabled={item.disabled}
+                  onClick={() => selectTab(item.key)}
+                  onKeyDown={(event) => handleKeyDown(event, item.key)}
+                >
+                  {item.icon ? <span className="sia-tabs__icon">{item.icon}</span> : null}
+                  <span>{item.label}</span>
+                </button>
+                {canClose ? (
+                  <button
+                    type="button"
+                    className="sia-tabs__close"
+                    aria-label={`关闭${typeof item.label === "string" ? item.label : "标签页"}`}
+                    disabled={item.disabled}
+                    onClick={() => onEdit?.(item.key, "remove")}
+                  >
+                    <Icon name="close" size={12} />
+                  </button>
+                ) : null}
+              </span>
+            );
+            const contextMenuItems = typeof tabContextMenu === "function"
+              ? tabContextMenu(item)
+              : tabContextMenu;
+            if (!contextMenuItems?.length) return tabNode;
             return (
-              <button
+              <Dropdown
                 key={item.key}
-                id={`${baseId}-tab-${item.key}`}
-                type="button"
-                className="sia-tabs__tab"
-                role="tab"
-                aria-selected={selected}
-                aria-controls={hasPanels ? `${baseId}-panel-${item.key}` : undefined}
-                tabIndex={selected ? 0 : -1}
-                disabled={item.disabled}
-                onClick={() => selectTab(item.key)}
-                onKeyDown={(event) => handleKeyDown(event, item.key)}
+                className="sia-tabs__tab-context-trigger"
+                popupClassName="sia-tabs__tab-context-menu"
+                trigger={["contextMenu"]}
+                tabIndex={-1}
+                menu={{
+                  items: contextMenuItems,
+                  selectable: false,
+                  onClick: (info) => onTabContextMenuClick?.({ ...info, tabKey: item.key, tab: item }),
+                }}
               >
-                {item.icon ? <span className="sia-tabs__icon">{item.icon}</span> : null}
-                <span>{item.label}</span>
-              </button>
+                {tabNode}
+              </Dropdown>
             );
           })}
         </div>

@@ -10,6 +10,7 @@ import {
   createColumnTransformPlugin,
   createEditablePlugin,
   createExportPlugin,
+  createFilterPlugin,
   createHighlightPlugin,
   createIndexPlugin,
   createLocalStorageTableSettingsAdapter,
@@ -375,7 +376,9 @@ const apiRows = [
   { property: "TableColumn.mergeSticky", description: "合并单元格滚动越过表头时保持内容可见", type: "boolean / config", defaultValue: "false" },
   { property: "TableColumn.description", description: "列头说明；悬停说明图标后以页面级 Tooltip 展示", type: "ReactNode", defaultValue: "-" },
   { property: "TableColumn.exportable / exportRender", description: "控制导出列及自定义导出内容", type: "boolean / function", defaultValue: "true / 原始值" },
+  { property: "TableColumn.filterable / createFilterPlugin", description: "为列头增加文本筛选面板，支持自定义匹配函数和受控筛选值", type: "boolean / TableFilterPluginOptions<T>", defaultValue: "false / -" },
   { property: "createCellSelectionPlugin", description: "支持单元格拖拽框选、序号整行选择、父子列头整列选择及 Ctrl+C 复制", type: "TableCellSelectionPluginOptions<T>", defaultValue: "-" },
+  { property: "createColumnSettingPlugin.showButton", description: "控制是否显示表格内置列设置按钮；外部工具栏可通过 TableRef 打开", type: "boolean", defaultValue: "true" },
   { property: "createSelectionPlugin.showSelectedCount", description: "显示可点击的已选数量、已选项面板和跨页保留勾选开关", type: "boolean", defaultValue: "false" },
   { property: "createSelectionPlugin.preserveSelectedRowKeys", description: "初始开启跨页保留勾选；未开启时翻页会清空上一页选择", type: "boolean", defaultValue: "false" },
   { property: "createSelectionPlugin.selectionPanelColumnCount", description: "已选项面板默认展示表格最前面的列数（不含勾选列）", type: "number", defaultValue: "4" },
@@ -442,6 +445,7 @@ export function TablePage() {
     createCellSelectionPlugin<ProductRow>({
       onChange: (_range, cells) => setFullFeatureSelectedCellCount(cells.length),
     }),
+    createFilterPlugin<ProductRow>(),
     createSortPlugin<ProductRow>({ scope: "all" }),
     createPaginationPlugin<ProductRow>({ defaultPageSize: 10, pageSizeOptions: [10, 25, 50] }),
     createEditablePlugin<ProductRow>({

@@ -3,14 +3,45 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type * as Monaco from "monaco-editor";
 import EditorWorker from "monaco-editor/editor/editor.worker.js?worker";
+import { Dropdown } from "./Dropdown";
+import type { MenuItem } from "./Navigation";
+import { registerSqlLanguages, type SqlDialectLanguage } from "./sqlLanguages";
 
 export type EditorTheme = "light" | "dark";
+export type EditorLanguage = SqlDialectLanguage | (string & {});
+
+export interface EditorRange {
+  startLineNumber: number;
+  startColumn: number;
+  endLineNumber: number;
+  endColumn: number;
+}
+
+export interface EditorSelectionChange {
+  range: EditorRange;
+  text: string;
+  cursorOffset: number;
+}
+
+export type EditorCommand = "cut" | "copy" | "paste" | "selectAll";
+
+export interface EditorContextMenuItem {
+  key: string;
+  label: string;
+  command?: EditorCommand;
+  disabled?: boolean | ((api: EditorHandle | null) => boolean);
+  onClick?: (api: EditorHandle) => void;
+}
 
 export interface EditorHandle {
   focus(): void;
+  getValue(): string;
+  getSelection(): EditorRange | null;
+  getSelectedText(): string;
   insertBlock(content: string): void;
   prefixLines(prefix: string): void;
   revealLine(line: number): void;
+  setSelection(range: EditorRange): void;
   wrapSelection(prefix: string, suffix: string, placeholder?: string): void;
 }
 
@@ -18,10 +49,13 @@ export interface EditorProps {
   value: string;
   onChange?: (value: string) => void;
   onReady?: (api: EditorHandle | null) => void;
-  language?: string;
+  onSelectionChange?: (selection: EditorSelectionChange) => void;
+  language?: EditorLanguage;
   path?: string;
   theme?: EditorTheme;
   options?: Monaco.editor.IStandaloneEditorConstructionOptions;
+  highlightRange?: EditorRange | null;
+  contextMenuItems?: readonly EditorContextMenuItem[];
   className?: string;
   ariaLabel?: string;
   loadingText?: string;
@@ -44,40 +78,55 @@ async function loadMonaco() {
     import("monaco-editor/editor/contrib/clipboard/browser/clipboard.js"),
     import("monaco-editor/editor/contrib/contextmenu/browser/contextmenu.js"),
   ]);
-  return import("monaco-editor/editor/editor.api.js");
+  const monaco = await import("monaco-editor/editor/editor.api.js");
+  registerSqlLanguages(monaco);
+  return monaco;
 }
 
 export function Editor({
   value,
   onChange,
   onReady,
+  onSelectionChange,
   language = "plaintext",
   path,
   theme = "light",
   options,
+  highlightRange,
+  contextMenuItems = [],
   className = "",
   ariaLabel = "代码编辑器",
   loadingText = "正在加载编辑器…",
 }: EditorProps) {
   const generatedId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
+  const rangeHighlightRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const modelRef = useRef<Monaco.editor.ITextModel | null>(null);
+  const apiRef = useRef<EditorHandle | null>(null);
+  const updateHighlightRef = useRef<() => void>(() => undefined);
   const changeHandlerRef = useRef(onChange);
   const readyHandlerRef = useRef(onReady);
+  const selectionHandlerRef = useRef(onSelectionChange);
+  const highlightRangeRef = useRef(highlightRange);
+  const contextMenuItemsRef = useRef(contextMenuItems);
   const initialValueRef = useRef(value);
   const initialLanguageRef = useRef(language);
   const initialPathRef = useRef(path);
   const initialThemeRef = useRef(theme);
   const initialOptionsRef = useRef(options);
   const [loading, setLoading] = useState(true);
+  const [, setSelectionVersion] = useState(0);
 
   changeHandlerRef.current = onChange;
   readyHandlerRef.current = onReady;
+  selectionHandlerRef.current = onSelectionChange;
+  highlightRangeRef.current = highlightRange;
+  contextMenuItemsRef.current = contextMenuItems;
 
   useEffect(() => {
     let disposed = false;
-    let contentSubscription: Monaco.IDisposable | undefined;
+    const subscriptions: Monaco.IDisposable[] = [];
 
     async function mountEditor() {
       const monaco = await loadMonaco();
@@ -93,7 +142,7 @@ export function Editor({
         model,
         theme: initialThemeRef.current === "dark" ? "vs-dark" : "vs",
         automaticLayout: true,
-        contextmenu: true,
+        contextmenu: contextMenuItemsRef.current.length === 0,
         fontFamily: '"Cascadia Code", Consolas, "Microsoft YaHei", monospace',
         fontSize: 14,
         lineHeight: 23,
@@ -110,12 +159,28 @@ export function Editor({
 
       editorRef.current = editor;
       modelRef.current = model;
-      contentSubscription = editor.onDidChangeModelContent(() => {
+      subscriptions.push(editor.onDidChangeModelContent(() => {
         changeHandlerRef.current?.(model.getValue());
+      }));
+
+      const serializeRange = (range: Monaco.IRange): EditorRange => ({
+        startLineNumber: range.startLineNumber,
+        startColumn: range.startColumn,
+        endLineNumber: range.endLineNumber,
+        endColumn: range.endColumn,
       });
 
       const api: EditorHandle = {
         focus: () => editor.focus(),
+        getValue: () => model.getValue(),
+        getSelection: () => {
+          const selection = editor.getSelection();
+          return selection ? serializeRange(selection) : null;
+        },
+        getSelectedText: () => {
+          const selection = editor.getSelection();
+          return selection ? model.getValueInRange(selection) : "";
+        },
         insertBlock(content) {
           const selection = editor.getSelection();
           if (!selection) return;
@@ -142,6 +207,11 @@ export function Editor({
           editor.setPosition({ lineNumber: line, column: 1 });
           editor.focus();
         },
+        setSelection(range) {
+          editor.setSelection(range);
+          editor.revealRangeInCenterIfOutsideViewport(range);
+          editor.focus();
+        },
         wrapSelection(prefix, suffix, placeholder = "") {
           const selection = editor.getSelection();
           if (!selection) return;
@@ -159,8 +229,54 @@ export function Editor({
         },
       };
 
+      apiRef.current = api;
+      const emitSelection = () => {
+        const selection = editor.getSelection();
+        if (!selection) return;
+        selectionHandlerRef.current?.({
+          range: serializeRange(selection),
+          text: model.getValueInRange(selection),
+          cursorOffset: model.getOffsetAt(selection.getPosition()),
+        });
+        setSelectionVersion((version) => version + 1);
+      };
+      subscriptions.push(editor.onDidChangeCursorSelection(emitSelection));
+
+      function updateHighlight() {
+        const element = rangeHighlightRef.current;
+        const range = highlightRangeRef.current;
+        if (!element || !range) {
+          element?.removeAttribute("data-visible");
+          return;
+        }
+        const validRange = model.validateRange(range);
+        const layout = editor.getLayoutInfo();
+        const scrollTop = editor.getScrollTop();
+        const startTop = editor.getTopForLineNumber(validRange.startLineNumber) - scrollTop;
+        const endTop = validRange.endLineNumber < model.getLineCount()
+          ? editor.getTopForLineNumber(validRange.endLineNumber + 1) - scrollTop
+          : editor.getTopForLineNumber(validRange.endLineNumber) - scrollTop + editor.getOption(monaco.editor.EditorOption.lineHeight);
+        const visibleTop = Math.max(0, startTop);
+        const visibleBottom = Math.min(layout.height, endTop);
+        if (visibleBottom <= visibleTop) {
+          element.removeAttribute("data-visible");
+          return;
+        }
+        element.style.left = `${layout.contentLeft}px`;
+        element.style.top = `${visibleTop}px`;
+        element.style.width = `${Math.max(0, layout.contentWidth - 12)}px`;
+        element.style.height = `${visibleBottom - visibleTop}px`;
+        element.setAttribute("data-visible", "true");
+      }
+
+      updateHighlightRef.current = updateHighlight;
+      subscriptions.push(editor.onDidScrollChange(updateHighlight));
+      subscriptions.push(editor.onDidLayoutChange(updateHighlight));
+      subscriptions.push(editor.onDidContentSizeChange(updateHighlight));
       setLoading(false);
       readyHandlerRef.current?.(api);
+      emitSelection();
+      updateHighlight();
     }
 
     void mountEditor();
@@ -168,11 +284,13 @@ export function Editor({
     return () => {
       disposed = true;
       readyHandlerRef.current?.(null);
-      contentSubscription?.dispose();
+      subscriptions.forEach((subscription) => subscription.dispose());
       editorRef.current?.dispose();
       modelRef.current?.dispose();
       editorRef.current = null;
       modelRef.current = null;
+      apiRef.current = null;
+      updateHighlightRef.current = () => undefined;
     };
   }, [generatedId]);
 
@@ -195,13 +313,63 @@ export function Editor({
   }, [theme]);
 
   useEffect(() => {
-    editorRef.current?.updateOptions(options ?? {});
-  }, [options]);
+    editorRef.current?.updateOptions({
+      ...(options ?? {}),
+      contextmenu: contextMenuItems.length === 0 ? (options?.contextmenu ?? true) : false,
+    });
+  }, [contextMenuItems.length, options]);
 
-  return (
+  useEffect(() => {
+    updateHighlightRef.current();
+  }, [highlightRange]);
+
+  const editorNode = (
     <div className={`sia-editor-control ${className}`.trim()} data-loading={loading || undefined}>
       <div className="sia-editor-control__surface" ref={containerRef} aria-label={ariaLabel} />
+      <div ref={rangeHighlightRef} className="sia-editor-control__range-highlight" aria-hidden="true" />
       {loading ? <div className="sia-editor-control__loading" role="status"><span />{loadingText}</div> : null}
     </div>
+  );
+
+  if (contextMenuItems.length === 0) return editorNode;
+
+  const menuItems: MenuItem[] = contextMenuItems.map((item) => ({
+    key: item.key,
+    label: item.label,
+    disabled: typeof item.disabled === "function" ? item.disabled(apiRef.current) : item.disabled,
+  }));
+
+  function runContextMenuItem(key: string) {
+    const item = contextMenuItemsRef.current.find((candidate) => candidate.key === key);
+    const editor = editorRef.current;
+    const api = apiRef.current;
+    if (!item || !editor || !api) return;
+    if (item.command) {
+      const commandId: Record<EditorCommand, string> = {
+        cut: "editor.action.clipboardCutAction",
+        copy: "editor.action.clipboardCopyAction",
+        paste: "editor.action.clipboardPasteAction",
+        selectAll: "editor.action.selectAll",
+      };
+      editor.trigger("sia-editor-context-menu", commandId[item.command], null);
+    } else {
+      item.onClick?.(api);
+    }
+    editor.focus();
+  }
+
+  return (
+    <Dropdown
+      className="sia-editor-control__context-menu"
+      popupClassName="sia-editor-control__context-popup"
+      trigger={["contextMenu"]}
+      tabIndex={-1}
+      menu={{ items: menuItems, onClick: ({ key }) => runContextMenuItem(key) }}
+      onOpenChange={(open) => {
+        if (open) setSelectionVersion((version) => version + 1);
+      }}
+    >
+      {editorNode}
+    </Dropdown>
   );
 }

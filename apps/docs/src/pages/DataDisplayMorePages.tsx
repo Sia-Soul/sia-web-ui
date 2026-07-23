@@ -202,6 +202,7 @@ export function TreePage() {
     { property: "selectedKeys / expandedKeys / checkedKeys", description: "选择、展开和勾选键", type: "Key[]", defaultValue: "[]" },
     { property: "checkable / checkStrictly", description: "勾选与父子独立模式", type: "boolean", defaultValue: "false" },
     { property: "loadData / draggable / onDrop", description: "异步节点与拖拽", type: "function / boolean / function", defaultValue: "-" },
+    { property: "TreeNode.rowProps", description: "传递到节点整行容器的原生属性，可用于右键菜单与测试标识", type: "HTMLAttributes<HTMLDivElement>", defaultValue: "-" },
   ]}>
     <DemoCard title="选择与勾选" description={`选择 ${selected.length} 项，勾选 ${checked.length} 项`} code={`<Tree
   treeData={treeData}

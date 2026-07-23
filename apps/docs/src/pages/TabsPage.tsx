@@ -65,8 +65,26 @@ export default function Demo() {
   />;
 }`;
 
+const closableCode = `import { useState } from "react";
+import { Tabs } from "@sia-ui/react";
+
+export default function Demo() {
+  const [items, setItems] = useState([
+    { key: "query-1", label: "查询 1" },
+    { key: "query-2", label: "查询 2" },
+  ]);
+  return <Tabs
+    type="card"
+    items={items}
+    closable={items.length > 1}
+    onEdit={(key, action) => {
+      if (action === "remove") setItems((current) => current.filter((item) => item.key !== key));
+    }}
+  />;
+}`;
+
 const apiRows = [
-  { property: "items", description: "标签项，包含 key、label、children、icon 和 disabled", type: "TabItem[]", defaultValue: "[]" },
+  { property: "items", description: "标签项，包含 key、label、children、icon、disabled 和 closable", type: "TabItem[]", defaultValue: "[]" },
   { property: "activeKey / defaultActiveKey", description: "受控激活项与默认激活项", type: "string", defaultValue: "首个可用项" },
   { property: "onChange", description: "激活项变化回调", type: "(key: string) => void", defaultValue: "-" },
   { property: "type", description: "线型、卡片型或胶囊型", type: "'line' | 'card' | 'pill'", defaultValue: "'line'" },
@@ -75,11 +93,17 @@ const apiRows = [
   { property: "size / centered", description: "尺寸与居中排列", type: "ControlSize / boolean", defaultValue: "'medium' / false" },
   { property: "tabBarExtraContent", description: "标签栏右侧额外操作", type: "ReactNode", defaultValue: "-" },
   { property: "destroyInactiveTabPane", description: "是否卸载非激活面板", type: "boolean", defaultValue: "true" },
+  { property: "closable / onEdit", description: "显示关闭操作，并在移除标签时回调", type: "boolean / (key, 'remove') => void", defaultValue: "false / -" },
 ] as const;
 
 export function TabsPage() {
   const [tab, setTab] = useState<"examples" | "api">("examples");
   const [activeKey, setActiveKey] = useState("design");
+  const [closableItems, setClosableItems] = useState([
+    { key: "query-1", label: "查询 1" },
+    { key: "query-2", label: "查询 2" },
+    { key: "query-3", label: "查询 3" },
+  ]);
   const basicItems = [
     { key: "overview", label: "项目概览", icon: <Icon name="component" size={15} />, children: <p>这里展示项目概览和近期动态。</p> },
     { key: "members", label: "成员管理", icon: <Icon name="user" size={15} />, children: <p>这里展示项目成员及其权限。</p> },
@@ -126,6 +150,16 @@ export function TabsPage() {
             { key: "release", label: "发布", children: <p>发布内容</p>, disabled: true },
           ]}
           tabBarExtraContent={<Button size="small" icon={<Icon name="plus" size={14} />}>新增</Button>}
+        />
+      </DemoCard>
+      <DemoCard title="可关闭标签" description="工作台类应用可以关闭标签；仅剩一项时可通过 closable 禁止关闭。" code={closableCode}>
+        <Tabs
+          type="card"
+          items={closableItems}
+          closable={closableItems.length > 1}
+          onEdit={(key, action) => {
+            if (action === "remove") setClosableItems((items) => items.filter((item) => item.key !== key));
+          }}
         />
       </DemoCard>
     </div> : <ApiTable name="Tabs" rows={apiRows} />}

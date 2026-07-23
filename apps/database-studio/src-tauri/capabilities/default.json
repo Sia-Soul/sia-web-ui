@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Sia Data Studio 主窗口的数据库访问权限",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

@@ -97,7 +97,6 @@ function DropdownRoot({
     clearTimers();
     if (next === visible) return;
     if (open === undefined) setInternalOpen(next);
-    if (!next) setContextPoint(undefined);
     onOpenChange?.(next, { source });
   }
 
@@ -122,13 +121,19 @@ function DropdownRoot({
     return () => window.clearTimeout(timer);
   }, [visible]);
 
+  useEffect(() => {
+    if (!visible && !mounted) setContextPoint(undefined);
+  }, [mounted, visible]);
+
   useEffect(() => () => clearTimers(), []);
 
   useEffect(() => {
     if (!visible) return undefined;
+    const contextMenuTrigger = triggerSet.has("contextMenu");
     const closeOutside = (event: PointerEvent) => {
       const target = event.target as Node;
-      if (rootRef.current?.contains(target) || popupRef.current?.contains(target)) return;
+      if (popupRef.current?.contains(target)) return;
+      if (!contextMenuTrigger && rootRef.current?.contains(target)) return;
       const targetOwner = target instanceof Element ? target.closest("[data-sia-menu-owner]")?.getAttribute("data-sia-menu-owner") : null;
       const menuOwner = popupRef.current?.querySelector("[data-sia-menu-owner]")?.getAttribute("data-sia-menu-owner");
       if (menuOwner && targetOwner === menuOwner) return;

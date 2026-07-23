@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Sia Data Studio 主窗口的数据库访问权限","local":true,"windows":["main"],"permissions":["core:default"]}}

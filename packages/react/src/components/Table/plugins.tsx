@@ -901,6 +901,132 @@ export function createSortPlugin<T extends Record<string, unknown>>(options: Tab
   };
 }
 
+// Column filter plugin
+export type TableFilterValues = Readonly<Record<string, string>>;
+export interface TableFilterPluginOptions<T> {
+  value?: TableFilterValues;
+  defaultValue?: TableFilterValues;
+  placeholder?: string | ((column: TableColumn<T>) => string);
+  predicate?: (value: unknown, filterValue: string, record: T, column: TableColumn<T>) => boolean;
+  onChange?: (filters: TableFilterValues) => void;
+}
+interface FilterState { filters: Record<string, string>; }
+export interface TableFilterApi<T> {
+  getFilters: () => TableFilterValues;
+  setFilter: (columnKey: string, value: string) => void;
+  clear: (columnKey?: string) => void;
+  getFilteredRows: () => readonly T[];
+}
+
+function TableFilterControl<T extends Record<string, unknown>>({
+  column,
+  value,
+  placeholder,
+  onApply,
+}: {
+  column: TableColumn<T>;
+  value: string;
+  placeholder: string;
+  onApply: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const label = getColumnLabel(column);
+  useEffect(() => { if (open) setDraft(value); }, [open, value]);
+  const apply = (nextValue: string) => {
+    onApply(nextValue.trim());
+    setOpen(false);
+  };
+  return <span className="sia-table__filter-header">
+    <span>{column.title ?? column.name ?? column.key}</span>
+    <Popover
+      open={open}
+      onOpenChange={setOpen}
+      placement="bottom-end"
+      overlayClassName="sia-table-filter-popover"
+      content={<div className="sia-table-filter-panel">
+        <Input
+          size="small"
+          value={draft}
+          placeholder={placeholder}
+          aria-label={`筛选${label}`}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => { if (event.key === "Enter") apply(draft); if (event.key === "Escape") setOpen(false); }}
+        />
+        <div className="sia-table-filter-panel__actions">
+          <Button size="small" disabled={!value && !draft} onClick={() => { setDraft(""); apply(""); }}>清除</Button>
+          <Button size="small" variant="primary" onClick={() => apply(draft)}>应用</Button>
+        </div>
+      </div>}
+    >
+      <button
+        type="button"
+        className={`sia-table__filter-button${value ? " is-active" : ""}`}
+        aria-label={`筛选${label}`}
+        aria-pressed={Boolean(value)}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <Icon name="search" size={13} />
+      </button>
+    </Popover>
+  </span>;
+}
+
+export function createFilterPlugin<T extends Record<string, unknown>>(
+  options: TableFilterPluginOptions<T> = {},
+): TablePlugin<T, FilterState, TableFilterApi<T>> {
+  const current = (context: TablePluginContext<T, FilterState>) => options.value ?? context.state.filters;
+  const matches = (record: T, context: TablePluginContext<T, FilterState>) => {
+    const filters = current(context);
+    return Object.entries(filters).every(([columnKey, filterValue]) => {
+      if (!filterValue) return true;
+      const column = flattenTableColumns(context.columns).find((item) => item.key === columnKey)
+        ?? flattenTableColumns(context.baseColumns).find((item) => item.key === columnKey);
+      if (!column) return true;
+      const value = getTableValue(record, column.dataIndex, column.code ?? column.key);
+      if (options.predicate) return options.predicate(value, filterValue, record, column);
+      const normalizedFilter = filterValue.toLocaleLowerCase();
+      if (value === null || value === undefined) return normalizedFilter === "null" || normalizedFilter === "空";
+      const text = typeof value === "object" ? JSON.stringify(value) : String(value);
+      return text.toLocaleLowerCase().includes(normalizedFilter);
+    });
+  };
+  const update = (filters: TableFilterValues, context: TablePluginContext<T, FilterState>) => {
+    const normalized = Object.fromEntries(Object.entries(filters).filter(([, value]) => value.trim()).map(([key, value]) => [key, value.trim()]));
+    context.setState({ filters: normalized });
+    const pagination = context.getState<PaginationState>("pagination");
+    if (pagination) context.setPluginState<PaginationState>("pagination", { ...pagination, current: 1 });
+    options.onChange?.(normalized);
+  };
+  return {
+    id: "filter",
+    order: 35,
+    initialState: { filters: { ...(options.defaultValue ?? {}) } },
+    transformColumns(columns, context) {
+      return mapTableLeafColumns(columns, (column) => {
+        if (!column.filterable) return column;
+        const previousHeader = column.renderHeader;
+        return { ...column, renderHeader: (currentColumn, coreContext) => {
+          const renderedColumn = { ...currentColumn, title: previousHeader ? previousHeader(currentColumn, coreContext) : currentColumn.title };
+          const placeholder = typeof options.placeholder === "function" ? options.placeholder(currentColumn) : options.placeholder ?? `输入${getColumnLabel(currentColumn)}筛选`;
+          return <TableFilterControl column={renderedColumn} value={current(context)[column.key] ?? ""} placeholder={placeholder} onApply={(value) => update({ ...current(context), [column.key]: value }, context)} />;
+        }};
+      });
+    },
+    transformRows(rows, context) {
+      return rows.filter((row) => matches(row.record, context));
+    },
+    getApi(context) {
+      return {
+        getFilters: () => current(context),
+        setFilter: (columnKey, value) => update({ ...current(context), [columnKey]: value }, context),
+        clear: (columnKey) => update(columnKey ? { ...current(context), [columnKey]: "" } : {}, context),
+        getFilteredRows: () => context.sourceData.filter((record) => matches(record, context)),
+      };
+    },
+  };
+}
+
 // Pagination plugin
 export interface TablePaginationPluginOptions {
   mode?: "local" | "server" | "auto";
@@ -949,7 +1075,8 @@ export function createPaginationPlugin<T extends Record<string, unknown>>(option
     },
     renderFooter(context) {
       const page = currentPage(context);
-      const totalRecords = options.totalCount ?? context.sourceData.length;
+      const filteredCount = context.getPluginApi<TableFilterApi<T>>("filter")?.getFilteredRows().length;
+      const totalRecords = options.totalCount ?? filteredCount ?? context.sourceData.length;
       return (
         <Pagination
           className="sia-table__pagination"
@@ -1138,7 +1265,13 @@ function EditableTableCell<T extends Record<string, unknown>>({
     if (Object.is(nextValue, value)) return onCancel();
     savingRef.current = true;
     setSaving(true);
-    try { if (await onSave(nextValue)) onCancel(); } finally { savingRef.current = false; setSaving(false); }
+    try {
+      await onSave(nextValue);
+    } finally {
+      onCancel();
+      savingRef.current = false;
+      setSaving(false);
+    }
   }
   saveRef.current = save;
 
@@ -1245,6 +1378,7 @@ export function createResizePlugin<T extends Record<string, unknown>>(options: T
 // Column setting plugin and persistence adapter
 export interface TableColumnSettingPluginOptions<T> {
   defaultVisibleKeys?: readonly string[];
+  showButton?: boolean;
   onVisibleChange?: (columns: readonly TableColumn<T>[]) => void;
   onOrderChange?: (columns: readonly TableColumn<T>[]) => void;
   adapter?: TableSettingsAdapter;
@@ -1349,7 +1483,7 @@ export function createColumnSettingPlugin<T extends Record<string, unknown>>(opt
         void save({ columns: currentItems(context), pageSize, version: 1 });
       }
     },
-    renderToolbarEnd: (context) => <Button size="small" variant="text" className="sia-table__toolbar-icon" icon={<Icon name="settings" size={16} />} aria-label="打开列设置" title="列设置" onClick={() => context.setState((state) => ({ ...state, open: true }))} />,
+    renderToolbarEnd: options.showButton === false ? undefined : (context) => <Button size="small" variant="text" className="sia-table__toolbar-icon" icon={<Icon name="settings" size={16} />} aria-label="打开列设置" title="列设置" onClick={() => context.setState((state) => ({ ...state, open: true }))} />,
     renderOverlay: (context) => <ColumnSettingPanel open={context.state.open} items={currentItems(context)} columns={context.baseColumns} onClose={() => context.setState((state) => ({ ...state, open: false }))} onApply={(items) => apply(items, context)} />,
     getApi: (context) => ({ open: () => context.setState((state) => ({ ...state, open: true })), close: () => context.setState((state) => ({ ...state, open: false })), getSettings: () => currentItems(context), apply: (items) => apply(items, context) }),
   };
@@ -1415,6 +1549,7 @@ export interface TableExportPluginOptions<T> {
   includeBom?: boolean;
   sanitizeFormula?: boolean;
   buttonLabel?: ReactNode;
+  showButton?: boolean;
   onExport?: (csv: string, rows: readonly T[]) => void | Promise<void>;
 }
 export interface TableExportApi<T> {
@@ -1495,7 +1630,7 @@ export function createExportPlugin<T extends Record<string, unknown>>(
   return {
     id: "export",
     order: 95,
-    renderToolbarEnd: (context) => <Button
+    renderToolbarEnd: options.showButton === false ? undefined : (context) => <Button
       size="small"
       icon={<Icon name="download" size={14} />}
       disabled={getRows(context).length === 0}

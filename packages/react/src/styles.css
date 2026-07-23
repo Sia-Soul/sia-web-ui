@@ -202,6 +202,10 @@
 .sia-editor-control { position: relative; width: 100%; height: 100%; min-width: 0; min-height: 180px; overflow: hidden; color: var(--sia-color-text); background: var(--sia-color-surface); }
 .sia-editor-control__surface { width: 100%; height: 100%; }
 .sia-editor-control .monaco-editor, .sia-editor-control .monaco-editor * { user-select: text; -webkit-user-select: text; }
+.sia-editor-control__context-menu { display: flex; width: 100%; height: 100%; min-width: 0; min-height: 0; }
+.sia-editor-control__context-menu > .sia-editor-control { flex: 1; min-height: 0; }
+.sia-editor-control__range-highlight { position: absolute; z-index: 3; display: none; box-sizing: border-box; pointer-events: none; border: 1px dashed color-mix(in srgb, var(--sia-color-primary) 42%, var(--sia-color-border)); border-radius: 3px; background: color-mix(in srgb, var(--sia-color-primary) 4%, transparent); }
+.sia-editor-control__range-highlight[data-visible="true"] { display: block; }
 .sia-editor-control__loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 9px; color: var(--sia-color-text-secondary); background: var(--sia-color-surface); font-size: 12px; }
 .sia-editor-control__loading span { width: 14px; height: 14px; border: 2px solid var(--sia-color-border); border-top-color: var(--sia-color-primary); border-radius: 50%; animation: sia-spin 700ms linear infinite; }
 
@@ -437,7 +441,14 @@
 .sia-tabs__header { display: flex; align-items: stretch; min-width: 0; }
 .sia-tabs__list { display: flex; min-width: 0; flex: 1; gap: 24px; }
 .sia-tabs__extra { display: flex; align-items: center; margin-left: auto; padding-left: 16px; }
+.sia-tabs__tab-context-trigger { display: inline-flex; align-items: stretch; min-width: 0; }
+.sia-tabs__tab-wrap { position: relative; display: inline-flex; align-items: center; min-width: 0; }
 .sia-tabs__tab { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; height: 44px; padding: 0 8px; color: var(--sia-color-text-secondary); cursor: pointer; white-space: nowrap; background: transparent; border: 0; font-size: var(--sia-font-size); }
+.sia-tabs__tab-wrap.is-closable .sia-tabs__tab { padding-right: 28px; }
+.sia-tabs__close { position: absolute; z-index: 1; top: 50%; right: 7px; display: inline-grid; width: 18px; height: 18px; padding: 0; place-items: center; color: var(--sia-color-text-secondary); cursor: pointer; background: transparent; border: 0; border-radius: 4px; transform: translateY(-50%); }
+.sia-tabs__close:hover:not(:disabled) { color: var(--sia-color-text); background: var(--sia-color-control-hover); }
+.sia-tabs__close:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--sia-color-focus-ring); }
+.sia-tabs__close:disabled { cursor: not-allowed; opacity: 0.45; }
 .sia-tabs__tab:hover:not(:disabled) { color: var(--sia-color-primary-hover); }
 .sia-tabs__tab:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--sia-color-focus-ring); border-radius: var(--sia-radius); }
 .sia-tabs__tab[aria-selected="true"] { color: var(--sia-color-primary); font-weight: 600; }
@@ -452,6 +463,7 @@
 .sia-tabs--card.sia-tabs--top .sia-tabs__list { align-items: end; border-bottom: 1px solid var(--sia-color-border); }
 .sia-tabs--card.sia-tabs--bottom .sia-tabs__list { align-items: start; border-top: 1px solid var(--sia-color-border); }
 .sia-tabs--card .sia-tabs__tab { height: 38px; padding-inline: 16px; border: 1px solid transparent; }
+.sia-tabs--card .sia-tabs__tab-wrap.is-closable .sia-tabs__tab { padding-right: 34px; }
 .sia-tabs--card.sia-tabs--top .sia-tabs__tab { border-bottom: 0; border-radius: var(--sia-radius) var(--sia-radius) 0 0; }
 .sia-tabs--card.sia-tabs--bottom .sia-tabs__tab { border-top: 0; border-radius: 0 0 var(--sia-radius) var(--sia-radius); }
 .sia-tabs--card .sia-tabs__tab[aria-selected="true"] { background: var(--sia-color-surface); border-color: var(--sia-color-border); }
@@ -466,7 +478,9 @@
 .sia-tabs--vertical { align-items: stretch; flex-direction: row; }
 .sia-tabs--vertical .sia-tabs__header { flex-direction: column; }
 .sia-tabs--vertical .sia-tabs__list { align-items: stretch; flex-direction: column; gap: 4px; flex: 0 0 auto; }
+.sia-tabs--vertical .sia-tabs__tab-context-trigger, .sia-tabs--vertical .sia-tabs__tab-wrap { width: 100%; }
 .sia-tabs--vertical .sia-tabs__tab { justify-content: flex-start; min-width: 128px; padding-inline: 14px; }
+.sia-tabs--vertical .sia-tabs__tab-wrap .sia-tabs__tab { width: 100%; }
 .sia-tabs--vertical .sia-tabs__extra { margin: auto 0 0; padding: 16px 0 0; }
 .sia-tabs--left.sia-tabs--line .sia-tabs__list { border-right: 1px solid var(--sia-color-border); }
 .sia-tabs--right.sia-tabs--line .sia-tabs__list { border-left: 1px solid var(--sia-color-border); }
@@ -561,6 +575,15 @@
 .sia-table__sort-button { display: grid; align-content: center; width: 20px; height: 28px; padding: 0; color: var(--sia-color-text-secondary); cursor: pointer; background: transparent; border: 0; }
 .sia-table__sort-button .sia-icon { margin-block: -2px; }
 .sia-table__sort-button .is-active { color: var(--sia-color-primary); }
+.sia-table__filter-header { display: flex; align-items: center; justify-content: space-between; min-width: 0; gap: 4px; }
+.sia-table__filter-header > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.sia-table__filter-button { display: grid; place-items: center; flex: 0 0 24px; width: 24px; height: 24px; padding: 0; color: var(--sia-color-text-secondary); cursor: pointer; background: transparent; border: 0; border-radius: var(--sia-radius); }
+.sia-table__filter-button:hover { color: var(--sia-color-primary); background: color-mix(in srgb, var(--sia-color-primary) 10%, transparent); }
+.sia-table__filter-button.is-active { color: var(--sia-color-primary); background: color-mix(in srgb, var(--sia-color-primary) 14%, transparent); }
+.sia-floating__overlay.sia-table-filter-popover { width: 250px; padding: 10px; }
+.sia-table-filter-popover .sia-popover__content { display: block; }
+.sia-table-filter-panel { display: grid; gap: 10px; }
+.sia-table-filter-panel__actions { display: flex; justify-content: flex-end; gap: 8px; }
 .sia-table__resizable-header { display: flex; align-items: center; justify-content: space-between; min-width: 0; }
 .sia-table__resize-handle { position: absolute; z-index: 2; top: 0; right: -6px; bottom: 0; width: 12px; cursor: ew-resize; touch-action: none; }
 .sia-table__resize-handle::after { position: absolute; top: 18%; bottom: 18%; left: 50%; width: 3px; content: ""; background: transparent; border-radius: 2px; transform: translateX(-50%); }

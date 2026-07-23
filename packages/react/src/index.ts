@@ -25,6 +25,8 @@ export { Col, Divider, Flex, Row, Space } from "./components/Layout";
 export type { ColProps, ColSize, DividerProps, FlexProps, GridBreakpoint, LayoutGap, RowProps, SpaceCompactProps, SpaceProps } from "./components/Layout";
 export { Splitter } from "./components/Splitter";
 export type { SplitterPanelProps, SplitterProps } from "./components/Splitter";
+export { ToolPanel } from "./components/ToolPanel";
+export type { ToolPanelPlacement, ToolPanelProps } from "./components/ToolPanel";
 export { Drawer } from "./components/Drawer";
 export type { DrawerOpenConfig, DrawerPlacement, DrawerProps } from "./components/Drawer";
 export { Form, Switch, useForm } from "./components/Form";
@@ -50,7 +52,16 @@ export type { InputProps } from "./components/Input";
 export { TextArea } from "./components/TextArea";
 export type { TextAreaProps } from "./components/TextArea";
 export { Editor } from "./components/Editor";
-export type { EditorHandle, EditorProps, EditorTheme } from "./components/Editor";
+export type {
+  EditorCommand,
+  EditorContextMenuItem,
+  EditorHandle,
+  EditorLanguage,
+  EditorProps,
+  EditorRange,
+  EditorSelectionChange,
+  EditorTheme,
+} from "./components/Editor";
 export { InputNumber } from "./components/InputNumber";
 export type { InputNumberProps } from "./components/InputNumber";
 export { Select } from "./components/Select";
@@ -65,7 +76,7 @@ export type { ModalActionResult, ModalOpenConfig, ModalProps, ModalType, Overlay
 export { Tag } from "./components/Tag";
 export type { TagProps, TagStatus, TagVariant } from "./components/Tag";
 export { Tabs } from "./components/Tabs";
-export type { TabItem, TabsOrientation, TabsPosition, TabsProps, TabsType } from "./components/Tabs";
+export type { TabItem, TabsContextMenuClickInfo, TabsOrientation, TabsPosition, TabsProps, TabsType } from "./components/Tabs";
 export * from "./components/Table";
 export { ThemeSwitch } from "./components/ThemeSwitch";
 export type { ThemeSwitchProps } from "./components/ThemeSwitch";

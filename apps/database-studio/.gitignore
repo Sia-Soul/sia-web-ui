@@ -1,0 +1,3 @@
+src-dotnet/bin/
+src-dotnet/obj/
+src-tauri/resources/

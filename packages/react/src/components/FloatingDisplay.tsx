@@ -235,12 +235,15 @@ export type TreeKey = string | number;
 export interface TreeNode {
   key: TreeKey;
   title: ReactNode;
+  prefix?: ReactNode;
+  extra?: ReactNode;
   disabled?: boolean;
   disableCheckbox?: boolean;
   selectable?: boolean;
   checkable?: boolean;
   isLeaf?: boolean;
   icon?: ReactNode;
+  rowProps?: Omit<HTMLAttributes<HTMLDivElement>, "children"> & Partial<Record<`data-${string}`, string | number>>;
   children?: readonly TreeNode[];
   [key: string]: unknown;
 }
@@ -312,16 +315,25 @@ export function Tree({
       const isSelected = selected.includes(node.key);
       const isChecked = checked.includes(node.key);
       const hasChildren = Boolean(node.children?.length || node.isLeaf === false);
+      const { className: rowClassName = "", style: rowStyle, onClick: onRowClick, ...rowProps } = node.rowProps ?? {};
       return <div className={`sia-tree__node${isSelected ? " is-selected" : ""}${node.disabled ? " is-disabled" : ""}`} role="treeitem" aria-expanded={hasChildren ? open : undefined} aria-selected={isSelected} key={node.key}>
-        <div className={`sia-tree__row${blockNode ? " sia-tree__row--block" : ""}`} style={{ paddingInlineStart: depth * 20 }}
+        <div {...rowProps} className={`sia-tree__row${blockNode ? " sia-tree__row--block" : ""} ${rowClassName}`.trim()} style={{ ...rowStyle, paddingInlineStart: depth * 20 }}
           draggable={draggable && !node.disabled}
+          onClick={(event) => {
+            onRowClick?.(event);
+            if (event.defaultPrevented || node.disabled) return;
+            select(node, event);
+            if (hasChildren) void toggleExpand(node);
+          }}
           onDragStart={() => setDragNode(node)}
           onDragOver={draggable ? (event) => event.preventDefault() : undefined}
           onDrop={draggable ? () => { if (dragNode && dragNode.key !== node.key) onDrop?.({ dragNode, node }); setDragNode(undefined); } : undefined}>
-          {hasChildren ? <button type="button" className="sia-tree__switcher" disabled={node.disabled} onClick={() => void toggleExpand(node)}>{loading.has(node.key) ? <Icon name="loader" className="sia-spin-icon" size={13} /> : <Icon name={open ? "chevron-down" : "chevron-right"} size={13} />}</button> : <span className="sia-tree__switcher" aria-hidden="true" />}
-          {checkable || node.checkable ? <Checkbox checked={isChecked} disabled={node.disabled || node.disableCheckbox} onChange={() => check(node)} /> : null}
+          {hasChildren ? <button type="button" className="sia-tree__switcher" disabled={node.disabled} onClick={(event) => { event.stopPropagation(); void toggleExpand(node); }}>{loading.has(node.key) ? <Icon name="loader" className="sia-spin-icon" size={13} /> : <Icon name={open ? "chevron-down" : "chevron-right"} size={13} />}</button> : <span className="sia-tree__switcher" aria-hidden="true" />}
+          {checkable || node.checkable ? <span onClick={(event) => event.stopPropagation()}><Checkbox checked={isChecked} disabled={node.disabled || node.disableCheckbox} onChange={() => check(node)} /></span> : null}
+          {node.prefix ? <span className="sia-tree__prefix" onClick={(event) => event.stopPropagation()}>{node.prefix}</span> : null}
           {showIcon ? <span className="sia-tree__icon">{node.icon ?? <Icon name={hasChildren ? "folder" : "file"} size={15} />}</span> : null}
-          <button type="button" className="sia-tree__title" disabled={node.disabled} onClick={(event) => select(node, event)}>{node.title}</button>
+          <button type="button" className="sia-tree__title" disabled={node.disabled}>{node.title}</button>
+          {node.extra ? <span className="sia-tree__extra" onClick={(event) => event.stopPropagation()}>{node.extra}</span> : null}
         </div>
         {open && node.children?.length ? <div className="sia-tree__children" role="group">{render(node.children, depth + 1)}</div> : null}
       </div>;

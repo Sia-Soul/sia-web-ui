@@ -1,0 +1,20 @@
+[package]
+name = "sia-data-studio"
+version = "0.1.0"
+description = "Sia WebUI database connection and SQL workbench"
+authors = ["Sia UI"]
+edition = "2021"
+
+[lib]
+name = "sia_data_studio_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+keyring = { version = "3.6.3", features = ["windows-native"] }
+rfd = "0.15"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = [] }
