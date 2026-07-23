@@ -11,6 +11,10 @@
     "desktop:build": "pnpm --filter @sia-ui/desktop tauri build --no-bundle",
     "desktop:bundle": "pnpm --filter @sia-ui/desktop tauri build",
     "desktop:web": "pnpm --filter @sia-ui/desktop dev",
+    "browser:dev": "pnpm --filter @sia-ui/browser tauri:dev",
+    "browser:build": "pnpm --filter @sia-ui/browser tauri:build:bin",
+    "browser:bundle": "pnpm --filter @sia-ui/browser tauri:build",
+    "browser:web": "pnpm --filter @sia-ui/browser dev",
     "typecheck": "pnpm -r typecheck",
     "check": "pnpm typecheck && pnpm build",
     "create:sia": "node packages/create-sia-web/cli.mjs"

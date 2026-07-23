@@ -1,0 +1,22 @@
+[package]
+name = "sia-browser"
+version = "0.1.0"
+description = "A Sia WebUI browser shell powered by Tauri"
+authors = ["Sia UI"]
+edition = "2021"
+
+[lib]
+name = "sia_browser_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2.11.5", features = ["unstable"] }
+
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.38.2"
+windows = "0.61.3"

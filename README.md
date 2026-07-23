@@ -7,6 +7,7 @@ Sia Web UI 是 SiaUI 的 Web 端设计系统与项目母版。它把客户端已
 ```text
 apps/docs/                  组件文档与交互预览
 apps/desktop/               Tauri 2 + React 桌面客户端
+apps/browser/               无边框 Tauri 浏览器
 packages/react/             @sia-ui/react 组件包
 packages/create-sia-web/    create-sia-web 项目生成器
 docs/design/                Web 端视觉基准
@@ -31,10 +32,28 @@ pnpm desktop:dev
 pnpm desktop:web
 ```
 
+启动无边框浏览器：
+
+```powershell
+pnpm browser:dev
+```
+
+只预览浏览器外壳（真实网页需要 Tauri 子 WebView）：
+
+```powershell
+pnpm browser:web
+```
+
 生成可直接运行的桌面程序：
 
 ```powershell
 pnpm desktop:build
+```
+
+生成浏览器桌面程序：
+
+```powershell
+pnpm browser:build
 ```
 
 生成 MSI/NSIS 等平台安装包（需要能够下载平台打包工具）：
