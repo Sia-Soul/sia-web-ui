@@ -23,6 +23,62 @@ export interface EditorSelectionChange {
   cursorOffset: number;
 }
 
+export interface EditorKeyDownEvent {
+  key: string;
+  code: string;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  shiftKey: boolean;
+  altKey: boolean;
+  repeat: boolean;
+  preventDefault(): void;
+  stopPropagation(): void;
+}
+
+export type EditorCompletionItemKind =
+  | "text"
+  | "keyword"
+  | "snippet"
+  | "database"
+  | "schema"
+  | "table"
+  | "view"
+  | "column"
+  | "function"
+  | "procedure"
+  | "value";
+
+export interface EditorCompletionContext {
+  value: string;
+  textBeforeCursor: string;
+  lineTextBeforeCursor: string;
+  word: string;
+  position: {
+    lineNumber: number;
+    column: number;
+    offset: number;
+  };
+  triggerCharacter?: string;
+}
+
+export interface EditorCompletionItem {
+  label: string;
+  insertText?: string;
+  kind?: EditorCompletionItemKind;
+  detail?: string;
+  documentation?: string;
+  filterText?: string;
+  sortText?: string;
+  preselect?: boolean;
+  commitCharacters?: readonly string[];
+  insertTextFormat?: "plain" | "snippet";
+  range?: EditorRange;
+}
+
+export type EditorCompletionProvider = (
+  context: EditorCompletionContext,
+) => readonly EditorCompletionItem[] | Promise<readonly EditorCompletionItem[]>;
+
 export type EditorCommand = "cut" | "copy" | "paste" | "selectAll";
 
 export interface EditorContextMenuItem {
@@ -50,12 +106,16 @@ export interface EditorProps {
   onChange?: (value: string) => void;
   onReady?: (api: EditorHandle | null) => void;
   onSelectionChange?: (selection: EditorSelectionChange) => void;
+  onKeyDown?: (event: EditorKeyDownEvent) => void;
   language?: EditorLanguage;
   path?: string;
   theme?: EditorTheme;
   options?: Monaco.editor.IStandaloneEditorConstructionOptions;
   highlightRange?: EditorRange | null;
   contextMenuItems?: readonly EditorContextMenuItem[];
+  completionProvider?: EditorCompletionProvider;
+  completionTriggerCharacters?: readonly string[];
+  refreshSuggestionOnSpace?: boolean;
   className?: string;
   ariaLabel?: string;
   loadingText?: string;
@@ -77,6 +137,7 @@ async function loadMonaco() {
     import("monaco-editor/languages/definitions/markdown/register.js"),
     import("monaco-editor/editor/contrib/clipboard/browser/clipboard.js"),
     import("monaco-editor/editor/contrib/contextmenu/browser/contextmenu.js"),
+    import("monaco-editor/editor/contrib/suggest/browser/suggestController.js"),
   ]);
   const monaco = await import("monaco-editor/editor/editor.api.js");
   registerSqlLanguages(monaco);
@@ -88,12 +149,16 @@ export function Editor({
   onChange,
   onReady,
   onSelectionChange,
+  onKeyDown,
   language = "plaintext",
   path,
   theme = "light",
   options,
   highlightRange,
   contextMenuItems = [],
+  completionProvider,
+  completionTriggerCharacters = ["."],
+  refreshSuggestionOnSpace = false,
   className = "",
   ariaLabel = "代码编辑器",
   loadingText = "正在加载编辑器…",
@@ -108,8 +173,11 @@ export function Editor({
   const changeHandlerRef = useRef(onChange);
   const readyHandlerRef = useRef(onReady);
   const selectionHandlerRef = useRef(onSelectionChange);
+  const keyDownHandlerRef = useRef(onKeyDown);
   const highlightRangeRef = useRef(highlightRange);
   const contextMenuItemsRef = useRef(contextMenuItems);
+  const completionProviderRef = useRef(completionProvider);
+  const refreshSuggestionOnSpaceRef = useRef(refreshSuggestionOnSpace);
   const initialValueRef = useRef(value);
   const initialLanguageRef = useRef(language);
   const initialPathRef = useRef(path);
@@ -121,8 +189,11 @@ export function Editor({
   changeHandlerRef.current = onChange;
   readyHandlerRef.current = onReady;
   selectionHandlerRef.current = onSelectionChange;
+  keyDownHandlerRef.current = onKeyDown;
   highlightRangeRef.current = highlightRange;
   contextMenuItemsRef.current = contextMenuItems;
+  completionProviderRef.current = completionProvider;
+  refreshSuggestionOnSpaceRef.current = refreshSuggestionOnSpace;
 
   useEffect(() => {
     let disposed = false;
@@ -159,9 +230,44 @@ export function Editor({
 
       editorRef.current = editor;
       modelRef.current = model;
+      let refreshSuggestionAfterSpace = false;
+      let refreshSuggestionTimer: number | undefined;
       subscriptions.push(editor.onDidChangeModelContent(() => {
         changeHandlerRef.current?.(model.getValue());
+        if (!refreshSuggestionAfterSpace) return;
+        refreshSuggestionAfterSpace = false;
+        window.clearTimeout(refreshSuggestionTimer);
+        refreshSuggestionTimer = window.setTimeout(() => {
+          if (editor.hasTextFocus()) {
+            editor.trigger("sia-editor", "editor.action.triggerSuggest", null);
+          }
+        }, 0);
       }));
+      subscriptions.push(editor.onKeyDown((event) => {
+        const browserEvent = event.browserEvent;
+        if (refreshSuggestionOnSpaceRef.current
+          && event.keyCode === monaco.KeyCode.Space
+          && !browserEvent.ctrlKey
+          && !browserEvent.metaKey
+          && !browserEvent.altKey) {
+          refreshSuggestionAfterSpace = true;
+          editor.trigger("sia-editor", "hideSuggestWidget", null);
+        }
+        keyDownHandlerRef.current?.({
+          key: browserEvent.key,
+          code: browserEvent.code,
+          ctrlKey: browserEvent.ctrlKey,
+          metaKey: browserEvent.metaKey,
+          shiftKey: browserEvent.shiftKey,
+          altKey: browserEvent.altKey,
+          repeat: browserEvent.repeat,
+          preventDefault: () => event.preventDefault(),
+          stopPropagation: () => event.stopPropagation(),
+        });
+      }));
+      subscriptions.push({
+        dispose: () => window.clearTimeout(refreshSuggestionTimer),
+      });
 
       const serializeRange = (range: Monaco.IRange): EditorRange => ({
         startLineNumber: range.startLineNumber,
@@ -305,6 +411,86 @@ export function Editor({
       if (model) monaco.editor.setModelLanguage(model, language);
     });
   }, [language]);
+
+  const completionEnabled = Boolean(completionProvider);
+  const completionTriggerKey = completionTriggerCharacters.join("\u0000");
+
+  useEffect(() => {
+    if (loading || !completionEnabled) return undefined;
+    let disposed = false;
+    let subscription: Monaco.IDisposable | undefined;
+    void loadMonaco().then((monaco) => {
+      const editorModel = modelRef.current;
+      if (disposed || !editorModel) return;
+      const kindMap: Record<EditorCompletionItemKind, Monaco.languages.CompletionItemKind> = {
+        text: monaco.languages.CompletionItemKind.Text,
+        keyword: monaco.languages.CompletionItemKind.Keyword,
+        snippet: monaco.languages.CompletionItemKind.Snippet,
+        database: monaco.languages.CompletionItemKind.Module,
+        schema: monaco.languages.CompletionItemKind.Module,
+        table: monaco.languages.CompletionItemKind.Struct,
+        view: monaco.languages.CompletionItemKind.Interface,
+        column: monaco.languages.CompletionItemKind.Field,
+        function: monaco.languages.CompletionItemKind.Function,
+        procedure: monaco.languages.CompletionItemKind.Method,
+        value: monaco.languages.CompletionItemKind.Value,
+      };
+      subscription = monaco.languages.registerCompletionItemProvider(language, {
+        triggerCharacters: completionTriggerKey ? completionTriggerKey.split("\u0000") : undefined,
+        provideCompletionItems: async (model, position, context, token) => {
+          const provider = completionProviderRef.current;
+          if (!provider || model !== editorModel) return { suggestions: [] };
+          const word = model.getWordUntilPosition(position);
+          const offset = model.getOffsetAt(position);
+          const defaultRange = new monaco.Range(
+            position.lineNumber,
+            word.startColumn,
+            position.lineNumber,
+            word.endColumn,
+          );
+          const items = await provider({
+            value: model.getValue(),
+            textBeforeCursor: model.getValue().slice(0, offset),
+            lineTextBeforeCursor: model.getLineContent(position.lineNumber).slice(0, position.column - 1),
+            word: word.word,
+            position: {
+              lineNumber: position.lineNumber,
+              column: position.column,
+              offset,
+            },
+            triggerCharacter: context.triggerCharacter,
+          });
+          if (token.isCancellationRequested) return { suggestions: [] };
+          return {
+            suggestions: items.map((item) => ({
+              label: item.label,
+              insertText: item.insertText ?? item.label,
+              kind: kindMap[item.kind ?? "text"],
+              detail: item.detail,
+              documentation: item.documentation,
+              filterText: item.filterText,
+              sortText: item.sortText,
+              preselect: item.preselect,
+              commitCharacters: item.commitCharacters ? [...item.commitCharacters] : undefined,
+              insertTextRules: item.insertTextFormat === "snippet"
+                ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+                : undefined,
+              range: item.range ? new monaco.Range(
+                item.range.startLineNumber,
+                item.range.startColumn,
+                item.range.endLineNumber,
+                item.range.endColumn,
+              ) : defaultRange,
+            })),
+          };
+        },
+      });
+    });
+    return () => {
+      disposed = true;
+      subscription?.dispose();
+    };
+  }, [completionEnabled, completionTriggerKey, language, loading]);
 
   useEffect(() => {
     void loadMonaco().then((monaco) => {

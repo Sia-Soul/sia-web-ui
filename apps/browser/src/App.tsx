@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import type { FormEvent, MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import {
   Button,
-  Dropdown,
   Icon,
   Input,
-  Modal,
   WindowFrame,
   WindowTitleBar,
   applySiaTheme,
   message,
   type IconName,
-  type MenuItem,
   type WindowAction,
 } from "@sia-ui/react";
 import HorizontalTabStrip from "./components/HorizontalTabStrip";
+import type { BrowserOverlayPayload } from "./components/BrowserOverlayWindow";
+import type { FloatingTabPanelPayload } from "./components/BrowserTabPanelWindow";
+import type { PasswordSubmission } from "./components/PasswordManagerModal";
 import VerticalTabTree from "./components/VerticalTabTree";
 import {
   BROWSER_GROUPS,
@@ -30,10 +30,6 @@ interface BrowserBounds {
   y: number;
   width: number;
   height: number;
-}
-
-interface BrowserOverlayRect extends BrowserBounds {
-  radius: number;
 }
 
 interface BrowserNativeEvent {
@@ -75,6 +71,11 @@ interface TreeEditDialog {
   kind: TreeEditKind;
   groupId: string;
   smallGroupId?: string;
+}
+
+interface BrowserOverlayAction {
+  action: string;
+  value?: string;
 }
 
 const isDesktopRuntime = Boolean(window.__TAURI__);
@@ -168,28 +169,22 @@ export default function App() {
   const [newTabQuery, setNewTabQuery] = useState("");
   const [darkMode, setDarkMode] = useState(false);
   const [groups, setGroups] = useState<BrowserGroup[]>(() => [...BROWSER_GROUPS]);
-  const [newGroupOpen, setNewGroupOpen] = useState(false);
-  const [newGroupName, setNewGroupName] = useState("");
-  const [treeEditDialog, setTreeEditDialog] = useState<TreeEditDialog | null>(null);
-  const [treeEditName, setTreeEditName] = useState("");
   const [tabLayout, setTabLayout] = useState<TabLayoutMode>("vertical");
   const [layoutPreferenceSet, setLayoutPreferenceSet] = useState(false);
   const [stateHydrated, setStateHydrated] = useState(!isDesktopRuntime);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([...DEFAULT_BOOKMARKS]);
   const [showBookmarksBar, setShowBookmarksBar] = useState(true);
   const [closedTabs, setClosedTabs] = useState<BrowserTab[]>([]);
-  const [contextTabId, setContextTabId] = useState<string | null>(null);
   const [windowMaximized, setWindowMaximized] = useState(false);
+  const [floatingPanelPinVersion, setFloatingPanelPinVersion] = useState(0);
   const pageHostRef = useRef<HTMLDivElement | null>(null);
   const addressInputRef = useRef<HTMLInputElement | null>(null);
   const addressFocusedRef = useRef(false);
   const previewNoticeShownRef = useRef(false);
   const boundsRef = useRef<BrowserBounds>({ x: 0, y: 126, width: 1200, height: 700 });
+  const floatingPanelOpenRef = useRef(false);
+  const floatingPanelWidthRef = useRef(292);
   const activeTabRef = useRef<BrowserTab>(FIRST_TAB);
-  const overlayRegionTabIdRef = useRef<string | undefined>(undefined);
-  const overlayRegionFrameRef = useRef<number | undefined>(undefined);
-  const popupOverlayRef = useRef<{ popupClassName: string; shadowPadding: number } | null>(null);
-  const floatingPanelOverlayRef = useRef(false);
 
   const activeTab = useMemo(
     () => tabs.find((tab) => tab.id === activeId) ?? tabs[0],
@@ -197,114 +192,9 @@ export default function App() {
   );
   const activeBookmarked = Boolean(activeTab?.url && bookmarks.some((bookmark) => bookmark.url === activeTab.url));
 
-  const refreshBrowserOverlayRegions = useCallback(() => {
-    if (!isDesktopRuntime) return;
-    if (overlayRegionFrameRef.current !== undefined) {
-      window.cancelAnimationFrame(overlayRegionFrameRef.current);
-      overlayRegionFrameRef.current = undefined;
-    }
-
-    overlayRegionFrameRef.current = window.requestAnimationFrame(() => {
-      overlayRegionFrameRef.current = window.requestAnimationFrame(() => {
-        overlayRegionFrameRef.current = undefined;
-        const tab = activeTabRef.current;
-        const previousTabId = overlayRegionTabIdRef.current;
-        if (previousTabId && previousTabId !== tab.id) {
-          void invokeNative("set_browser_overlay_regions", {
-            tabId: previousTabId,
-            rects: [],
-            disableInput: false,
-          }).catch(() => undefined);
-        }
-        if (!tab.hasWebview || tab.sleeping) {
-          overlayRegionTabIdRef.current = undefined;
-          return;
-        }
-
-        const pageBounds = boundsRef.current;
-        const rects: BrowserOverlayRect[] = [];
-        const appendRegion = (
-          element: HTMLElement,
-          padding: { top: number; right: number; bottom: number; left: number },
-          radius: number,
-          targetWidth?: number,
-        ) => {
-          const elementRect = element.getBoundingClientRect();
-          const elementRight = targetWidth === undefined
-            ? elementRect.right
-            : Math.max(elementRect.right, elementRect.left + targetWidth);
-          const left = Math.max(pageBounds.x, elementRect.left - padding.left);
-          const top = Math.max(pageBounds.y, elementRect.top - padding.top);
-          const right = Math.min(
-            pageBounds.x + pageBounds.width,
-            elementRight + padding.right,
-          );
-          const bottom = Math.min(
-            pageBounds.y + pageBounds.height,
-            elementRect.bottom + padding.bottom,
-          );
-          if (right <= left || bottom <= top) return;
-          rects.push({
-            x: left - pageBounds.x,
-            y: top - pageBounds.y,
-            width: right - left,
-            height: bottom - top,
-            radius,
-          });
-        };
-
-        if (floatingPanelOverlayRef.current) {
-          const panel = document.querySelector<HTMLElement>(
-            ".vertical-tab-tree.is-floating:not(.is-collapsed)",
-          );
-          if (panel) {
-            const targetWidth = Number.parseFloat(panel.style.width);
-            appendRegion(
-              panel,
-              { top: 0, right: 18, bottom: 0, left: 0 },
-              0,
-              Number.isFinite(targetWidth) ? targetWidth : undefined,
-            );
-          }
-        }
-
-        const popupOverlay = popupOverlayRef.current;
-        if (popupOverlay) {
-          const popup = document.querySelector<HTMLElement>(
-            `.${popupOverlay.popupClassName}`,
-          );
-          if (popup) {
-            const padding = popupOverlay.shadowPadding;
-            appendRegion(
-              popup,
-              { top: padding, right: padding, bottom: padding, left: padding },
-              14 + padding,
-            );
-          }
-        }
-
-        overlayRegionTabIdRef.current = rects.length > 0 ? tab.id : undefined;
-        void invokeNative("set_browser_overlay_regions", {
-          tabId: tab.id,
-          rects,
-          disableInput: Boolean(popupOverlay),
-        }).catch(() => undefined);
-      });
-    });
-  }, []);
-
-  const updateBrowserFloatingPanelRegion = useCallback((open: boolean) => {
-    floatingPanelOverlayRef.current = open;
-    refreshBrowserOverlayRegions();
-  }, [refreshBrowserOverlayRegions]);
-
   useEffect(() => {
     if (activeTab) activeTabRef.current = activeTab;
   }, [activeTab]);
-
-  useEffect(() => {
-    refreshBrowserOverlayRegions();
-  }, [activeId, refreshBrowserOverlayRegions]);
 
   useEffect(() => {
     const preventDefaultContextMenu = (event: Event) => event.preventDefault();
@@ -454,11 +344,57 @@ export default function App() {
     };
     boundsRef.current = bounds;
     if (isDesktopRuntime) {
-      void invokeNative("set_browser_bounds", { bounds })
-        .then(refreshBrowserOverlayRegions)
-        .catch(() => undefined);
+      void invokeNative("set_browser_bounds", { bounds }).catch(() => undefined);
     }
-  }, [refreshBrowserOverlayRegions]);
+  }, []);
+
+  function createFloatingTabPanelPayload(): FloatingTabPanelPayload {
+    return {
+      groups,
+      tabs,
+      activeId,
+      darkMode,
+      closedTabCount: closedTabs.length,
+    };
+  }
+
+  function updateFloatingTabPanel(open: boolean, panelWidth: number) {
+    if (!isDesktopRuntime) return;
+    floatingPanelWidthRef.current = panelWidth;
+    if (!open) {
+      floatingPanelOpenRef.current = false;
+      void invokeNative("close_floating_tab_panel").catch(() => undefined);
+      return;
+    }
+    const workspace = document.querySelector<HTMLElement>(".browser-workspace");
+    if (!workspace) return;
+    const rect = workspace.getBoundingClientRect();
+    floatingPanelOpenRef.current = true;
+    void invokeNative("open_floating_tab_panel", {
+      payload: createFloatingTabPanelPayload(),
+      bounds: {
+        x: Math.round(rect.left),
+        y: Math.round(rect.top),
+        width: panelWidth,
+        height: Math.max(1, Math.round(rect.height)),
+      },
+    }).catch((error) => {
+      message.error(error instanceof Error ? error.message : String(error));
+    });
+  }
+
+  useEffect(() => {
+    if (!isDesktopRuntime || !floatingPanelOpenRef.current) return;
+    void invokeNative("update_floating_tab_panel", {
+      payload: createFloatingTabPanelPayload(),
+    }).catch(() => undefined);
+  }, [activeId, closedTabs.length, darkMode, groups, tabs]);
+
+  useEffect(() => {
+    if (!isDesktopRuntime || tabLayout === "vertical") return;
+    floatingPanelOpenRef.current = false;
+    void invokeNative("close_floating_tab_panel").catch(() => undefined);
+  }, [tabLayout]);
 
   useEffect(() => {
     syncBrowserBounds();
@@ -580,6 +516,7 @@ export default function App() {
   useEffect(() => {
     if (!isDesktopRuntime || !window.__TAURI__) return;
     let unlisten: (() => void) | undefined;
+    let unlistenPassword: (() => void) | undefined;
     let disposed = false;
 
     void window.__TAURI__.event.listen<BrowserNativeEvent>("sia://browser-event", ({ payload }) => {
@@ -616,11 +553,27 @@ export default function App() {
       else unlisten = dispose;
     });
 
+    void window.__TAURI__.event.listen<PasswordSubmission>(
+      "sia://password-submission",
+      ({ payload }) => {
+        if (!payload.password || !payload.origin) return;
+        openBrowserOverlay({
+          kind: "password-save",
+          ...payload,
+          darkMode,
+        });
+      },
+    ).then((dispose) => {
+      if (disposed) dispose();
+      else unlistenPassword = dispose;
+    });
+
     return () => {
       disposed = true;
       unlisten?.();
+      unlistenPassword?.();
     };
-  }, [openTab]);
+  }, [darkMode, openTab]);
 
   useEffect(() => {
     if (!addressFocusedRef.current) setAddressDraft(activeTab?.url ?? "");
@@ -782,7 +735,8 @@ export default function App() {
 
   function goHome() {
     if (!activeTab) return;
-    updateTab(activeTab.id, {
+    const homeTab: BrowserTab = {
+      ...activeTab,
       title: "新标签页",
       url: "",
       loading: false,
@@ -791,10 +745,14 @@ export default function App() {
       inactiveSince: undefined,
       audible: false,
       muted: false,
-    });
+    };
+    activeTabRef.current = homeTab;
+    setTabs((current) => current.map((tab) => tab.id === homeTab.id ? homeTab : tab));
     setAddressDraft("");
     if (isDesktopRuntime) {
-      void invokeNative("close_browser_tab", { tabId: activeTab.id }).catch(() => undefined);
+      void invokeNative("close_browser_tab", { tabId: homeTab.id }).catch((error) => {
+        message.error(error instanceof Error ? error.message : String(error));
+      });
     }
   }
 
@@ -961,10 +919,32 @@ export default function App() {
         message.info(`书签栏中有 ${bookmarks.length} 个书签`);
       } else if (key === "bookmark-bar") {
         setShowBookmarksBar((current) => !current);
+      } else if (key === "passwords") {
+        openBrowserOverlay({ kind: "passwords", darkMode });
       } else if (key === "theme") {
         handleThemeChange(!darkMode);
       } else {
         message.info(key === "history" ? "历史记录将在下一阶段接入。" : "设置中心将在下一阶段接入。");
+      }
+      return;
+    }
+
+    if (action.startsWith("tree|")) {
+      const [, groupId, smallGroupIdValue, key] = action.split("|");
+      if (!groupId || !key) return;
+      const smallGroupId = smallGroupIdValue || undefined;
+      if (key === "new-tab") openTab(undefined, groupId, smallGroupId);
+      else if (key === "new-small-group") openTreeEditDialog("new-small-group", groupId);
+      else if (key === "rename") {
+        openTreeEditDialog(
+          smallGroupId ? "rename-small-group" : "rename-group",
+          groupId,
+          smallGroupId,
+        );
+      } else if (key === "clear-data") confirmClearGroupData(groupId, smallGroupId);
+      else if (key === "delete") {
+        if (smallGroupId) confirmDeleteSmallGroup(groupId, smallGroupId);
+        else confirmDeleteGroup(groupId);
       }
       return;
     }
@@ -987,6 +967,23 @@ export default function App() {
     else if (key === "reopen-closed") reopenLastClosedTab();
   }
 
+  function handleFloatingTabPanelAction(payload: BrowserOverlayAction) {
+    const { action, value = "" } = payload;
+    if (action === "select" && value) selectTab(value);
+    else if (action === "close" && value) closeTab(value);
+    else if (action === "toggle-audio" && value) toggleTabAudio(value);
+    else if (action === "new-root-tab") openTab(undefined, ROOT_GROUP_ID);
+    else if (action === "new-group") openNewGroupModal();
+    else if (action === "new-tab") {
+      const [groupId, smallGroupId] = value.split("|");
+      if (groupId) openTab(undefined, groupId, smallGroupId || undefined);
+    } else if (action === "pin") {
+      floatingPanelOpenRef.current = false;
+      void invokeNative("close_floating_tab_panel").catch(() => undefined);
+      setFloatingPanelPinVersion((current) => current + 1);
+    }
+  }
+
   function getLayoutOrderedTabs() {
     if (tabLayout === "horizontal") return [...tabs];
     const ordered: BrowserTab[] = [];
@@ -1001,92 +998,59 @@ export default function App() {
     return ordered;
   }
 
-  function updateBrowserPopupRegion(
-    open: boolean,
-    popupClassName: string,
-    shadowPadding = 6,
-  ) {
-    popupOverlayRef.current = open ? { popupClassName, shadowPadding } : null;
-    refreshBrowserOverlayRegions();
+  function openBrowserOverlay(payload: BrowserOverlayPayload) {
+    if (!isDesktopRuntime) {
+      showPreviewNotice();
+      return;
+    }
+    void invokeNative("open_browser_overlay", { payload }).catch((error) => {
+      message.error(error instanceof Error ? error.message : String(error));
+    });
+  }
+
+  function openTabActionMenu(tabId: string, x: number, y: number) {
+    const contextTab = tabs.find((tab) => tab.id === tabId);
+    if (!contextTab) return;
+    const orderedTabs = getLayoutOrderedTabs();
+    const contextTabIndex = orderedTabs.findIndex((tab) => tab.id === contextTab.id);
+    void invokeNative("show_browser_tab_menu", {
+      tabId: contextTab.id,
+      adjacentDirection: tabLayout === "vertical" ? "下方" : "右侧",
+      groups: groups.map((group) => ({
+        id: group.id,
+        name: group.name,
+        disabled: group.id === contextTab.groupId && !contextTab.smallGroupId,
+      })),
+      pinned: Boolean(contextTab.pinned),
+      muted: Boolean(contextTab.muted),
+      disableCloseOthers: tabs.length <= 1,
+      disableCloseFollowing: contextTabIndex < 0 || contextTabIndex >= orderedTabs.length - 1,
+      disableReopenClosed: closedTabs.length === 0,
+      darkMode,
+      sourceWindow: "main",
+      x,
+      y,
+    }).catch((error) => {
+      message.error(error instanceof Error ? error.message : String(error));
+    });
   }
 
   function renderTabContextScope(children: ReactNode) {
-    const contextTab = tabs.find((tab) => tab.id === contextTabId);
-    const orderedTabs = getLayoutOrderedTabs();
-    const contextTabIndex = contextTab
-      ? orderedTabs.findIndex((tab) => tab.id === contextTab.id)
-      : -1;
-    const adjacentDirection = tabLayout === "vertical" ? "下方" : "右侧";
-    const menuItems: MenuItem[] = contextTab ? [
-      { key: "new-adjacent", label: `在${adjacentDirection}新建标签页` },
-      {
-        key: "move",
-        label: "移动到",
-        children: groups.map((group) => ({
-          key: `move:${group.id}`,
-          label: group.name,
-          disabled: group.id === contextTab.groupId && !contextTab.smallGroupId,
-        })),
-      },
-      { key: "divider-actions", type: "divider" },
-      { key: "refresh", label: "刷新", extra: "Ctrl+R" },
-      { key: "duplicate", label: "复制标签页", extra: "Ctrl+Shift+K" },
-      { key: "move-window", label: "将标签页移动到新窗口" },
-      { key: "toggle-pin", label: contextTab.pinned ? "取消固定标签页" : "固定标签页" },
-      { key: "toggle-mute", label: contextTab.muted ? "取消标签页静音" : "使标签页静音", extra: "Ctrl+M" },
-      { key: "divider-close", type: "divider" },
-      { key: "close", label: "关闭标签页", extra: "Ctrl+W" },
-      { key: "close-others", label: "关闭其他标签页", disabled: tabs.length <= 1 },
-      {
-        key: "close-following",
-        label: `关闭${adjacentDirection}标签页`,
-        disabled: contextTabIndex < 0 || contextTabIndex >= orderedTabs.length - 1,
-      },
-      { key: "divider-reopen", type: "divider" },
-      {
-        key: "reopen-closed",
-        label: "重新打开关闭的标签页",
-        extra: "Ctrl+Shift+T",
-        disabled: closedTabs.length === 0,
-      },
-    ] : [];
-
     return (
-      <Dropdown
+      <span
         className="browser-tab-context-scope"
-        popupClassName="browser-tab-context-popup"
-        trigger={["contextMenu"]}
-        placement="bottomLeft"
-        onOpenChange={(open) => {
-          updateBrowserPopupRegion(open, "browser-tab-context-popup");
-        }}
-        menu={{
-          items: menuItems,
-          selectable: false,
-          onClick: ({ key }) => {
-            if (!contextTabId) return;
-            if (key.startsWith("move:")) {
-              handleNativeMenuAction(`tab|${contextTabId}|move|${key.slice("move:".length)}`);
-              return;
-            }
-            handleNativeMenuAction(`tab|${contextTabId}|${key}`);
-          },
-        }}
         onContextMenu={(event) => {
+          event.preventDefault();
           const target = event.target;
           const tabElement = target instanceof Element
             ? target.closest<HTMLElement>("[data-browser-tab-id]")
             : null;
           const tabId = tabElement?.dataset.browserTabId;
-          if (!tabId) {
-            event.preventDefault();
-            return;
-          }
-          setContextTabId(tabId);
+          if (tabId) openTabActionMenu(tabId, event.clientX, event.clientY);
         }}
       >
         {children}
-      </Dropdown>
+      </span>
     );
   }
 
@@ -1128,12 +1092,19 @@ export default function App() {
   }
 
   function openNewGroupModal() {
-    setNewGroupName("");
-    setNewGroupOpen(true);
+    openBrowserOverlay({
+      kind: "form",
+      formKind: "new-group",
+      title: "新建分组",
+      label: "分组名称",
+      placeholder: "例如：测试环境",
+      description: "每个分组使用独立的 Cookie 数据目录。",
+      darkMode,
+    });
   }
 
-  function createGroup() {
-    const name = newGroupName.trim();
+  function createGroup(nameValue: string) {
+    const name = nameValue.trim();
     if (!name) {
       message.warning("请输入分组名称");
       return false;
@@ -1161,13 +1132,43 @@ export default function App() {
       : kind === "rename-small-group"
         ? group.smallGroups.find((item) => item.id === smallGroupId)?.name ?? ""
         : "";
-    setTreeEditName(initialName);
-    setTreeEditDialog({ kind, groupId, smallGroupId });
+    openBrowserOverlay({
+      kind: "form",
+      formKind: kind,
+      title: kind === "new-small-group"
+        ? "新建小分组"
+        : kind === "rename-group"
+          ? "重命名分组"
+          : "重命名小分组",
+      label: kind === "rename-group" ? "分组名称" : "小分组名称",
+      initialValue: initialName,
+      placeholder: kind === "rename-group" ? "请输入分组名称" : "请输入小分组名称",
+      groupId,
+      smallGroupId,
+      darkMode,
+    });
   }
 
-  function submitTreeEdit() {
-    if (!treeEditDialog) return false;
-    const name = treeEditName.trim();
+  function openTreeActionMenu(
+    groupId: string,
+    smallGroupId: string | undefined,
+    x: number,
+    y: number,
+  ) {
+    void invokeNative("show_browser_tree_menu", {
+      groupId,
+      smallGroupId,
+      darkMode,
+      sourceWindow: "main",
+      x,
+      y,
+    }).catch((error) => {
+      message.error(error instanceof Error ? error.message : String(error));
+    });
+  }
+
+  function submitTreeEdit(treeEditDialog: TreeEditDialog, nameValue: string) {
+    const name = nameValue.trim();
     if (!name) {
       message.warning(treeEditDialog.kind === "rename-group" ? "请输入分组名称" : "请输入小分组名称");
       return false;
@@ -1280,40 +1281,31 @@ export default function App() {
     const group = groups.find((item) => item.id === groupId);
     const smallGroup = group?.smallGroups.find((item) => item.id === smallGroupId);
     if (!group) return;
-    const targetTabs = tabs.filter((tab) => (
-      tab.groupId === groupId && (smallGroupId === undefined || tab.smallGroupId === smallGroupId)
-    ));
     const targetName = smallGroup ? `小分组“${smallGroup.name}”` : `分组“${group.name}”`;
-
-    Modal.confirm({
+    openBrowserOverlay({
+      kind: "confirm",
       title: "清除浏览数据",
-      children: smallGroup
+      description: smallGroup
         ? `${targetName}与所属分组共享 Cookie。继续后将清除相关 WebView 的缓存、Cookie 和站点数据。`
         : `确定清除${targetName}的缓存、Cookie 和站点数据吗？`,
       okText: "清除",
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        if (isDesktopRuntime) {
-          await invokeNative("clear_browser_tabs_data", { tabIds: targetTabs.map((tab) => tab.id) });
-        }
-        message.success(`已清除${targetName}的浏览数据`);
-      },
+      danger: true,
+      action: ["confirm", "clear-data", groupId, smallGroupId ?? ""].join("|"),
+      darkMode,
     });
   }
 
   function confirmDeleteGroup(groupId: string) {
     const group = groups.find((item) => item.id === groupId);
     if (!group) return;
-    Modal.confirm({
+    openBrowserOverlay({
+      kind: "confirm",
       title: "删除标签组",
-      children: `删除“${group.name}”后，该分组及其中的所有标签页和小分组都会关闭。`,
+      description: `删除“${group.name}”后，该分组及其中的所有标签页和小分组都会关闭。`,
       okText: "删除",
-      okButtonProps: { danger: true },
-      onOk: () => {
-        removeTreeTabs(groupId);
-        setGroups((current) => current.filter((item) => item.id !== groupId));
-        message.success(`已删除标签组“${group.name}”`);
-      },
+      danger: true,
+      action: ["confirm", "delete-group", groupId].join("|"),
+      darkMode,
     });
   }
 
@@ -1321,34 +1313,126 @@ export default function App() {
     const group = groups.find((item) => item.id === groupId);
     const smallGroup = group?.smallGroups.find((item) => item.id === smallGroupId);
     if (!group || !smallGroup) return;
-    Modal.confirm({
+    openBrowserOverlay({
+      kind: "confirm",
       title: "删除小分组",
-      children: `删除“${smallGroup.name}”后，其中的所有标签页都会关闭。`,
+      description: `删除“${smallGroup.name}”后，其中的所有标签页都会关闭。`,
       okText: "删除",
-      okButtonProps: { danger: true },
-      onOk: () => {
+      danger: true,
+      action: ["confirm", "delete-small-group", groupId, smallGroupId].join("|"),
+      darkMode,
+    });
+  }
+
+  function handleBrowserOverlayAction(payload: BrowserOverlayAction) {
+    const { action, value = "" } = payload;
+    if (action.startsWith("confirm|")) {
+      const [, command, groupId, smallGroupIdValue] = action.split("|");
+      if (!groupId || !command) return;
+      const smallGroupId = smallGroupIdValue || undefined;
+      const group = groups.find((item) => item.id === groupId);
+      const smallGroup = group?.smallGroups.find((item) => item.id === smallGroupId);
+      if (!group) return;
+      if (command === "clear-data") {
+        const targetTabs = tabs.filter((tab) => (
+          tab.groupId === groupId && (smallGroupId === undefined || tab.smallGroupId === smallGroupId)
+        ));
+        const targetName = smallGroup ? `小分组“${smallGroup.name}”` : `分组“${group.name}”`;
+        void invokeNative("clear_browser_tabs_data", {
+          tabIds: targetTabs.map((tab) => tab.id),
+        }).then(() => {
+          message.success(`已清除${targetName}的浏览数据`);
+        }).catch((error) => {
+          message.error(error instanceof Error ? error.message : String(error));
+        });
+      } else if (command === "delete-group") {
+        removeTreeTabs(groupId);
+        setGroups((current) => current.filter((item) => item.id !== groupId));
+        message.success(`已删除标签组“${group.name}”`);
+      } else if (command === "delete-small-group" && smallGroupId && smallGroup) {
         removeTreeTabs(groupId, smallGroupId);
         setGroups((current) => current.map((item) => item.id === groupId
           ? { ...item, smallGroups: item.smallGroups.filter((entry) => entry.id !== smallGroupId) }
           : item));
         message.success(`已删除小分组“${smallGroup.name}”`);
-      },
-    });
+      }
+      return;
+    }
+    if (action.startsWith("tree|")) {
+      const [, groupId, smallGroupIdValue, key] = action.split("|");
+      if (!groupId || !key) return;
+      const smallGroupId = smallGroupIdValue || undefined;
+      if (key === "new-tab") openTab(undefined, groupId, smallGroupId);
+      else if (key === "new-small-group") openTreeEditDialog("new-small-group", groupId);
+      else if (key === "rename") {
+        openTreeEditDialog(
+          smallGroupId ? "rename-small-group" : "rename-group",
+          groupId,
+          smallGroupId,
+        );
+      } else if (key === "clear-data") confirmClearGroupData(groupId, smallGroupId);
+      else if (key === "delete") {
+        if (smallGroupId) confirmDeleteSmallGroup(groupId, smallGroupId);
+        else confirmDeleteGroup(groupId);
+      }
+      return;
+    }
+    if (!action.startsWith("form|")) {
+      handleNativeMenuAction(action);
+      return;
+    }
+    const [, kind, groupId, smallGroupId] = action.split("|");
+    if (kind === "new-group") {
+      createGroup(value);
+      return;
+    }
+    if (
+      (kind === "new-small-group" || kind === "rename-group" || kind === "rename-small-group")
+      && groupId
+    ) {
+      submitTreeEdit({
+        kind,
+        groupId,
+        smallGroupId: smallGroupId || undefined,
+      }, value);
+    }
   }
 
   useEffect(() => {
     if (!isDesktopRuntime || !window.__TAURI__) return;
-    let unlisten: (() => void) | undefined;
+    let unlistenNative: (() => void) | undefined;
+    let unlistenOverlay: (() => void) | undefined;
+    let unlistenFloatingPanel: (() => void) | undefined;
     let disposed = false;
     void window.__TAURI__.event.listen<string>("sia://native-menu-action", ({ payload }) => {
       handleNativeMenuAction(payload);
     }).then((dispose) => {
       if (disposed) dispose();
-      else unlisten = dispose;
+      else unlistenNative = dispose;
+    });
+    void window.__TAURI__.event.listen<BrowserOverlayAction>(
+      "sia://browser-overlay-action",
+      ({ payload }) => {
+        handleBrowserOverlayAction(payload);
+      },
+    ).then((dispose) => {
+      if (disposed) dispose();
+      else unlistenOverlay = dispose;
+    });
+    void window.__TAURI__.event.listen<BrowserOverlayAction>(
+      "sia://floating-tab-panel-action",
+      ({ payload }) => {
+        handleFloatingTabPanelAction(payload);
+      },
+    ).then((dispose) => {
+      if (disposed) dispose();
+      else unlistenFloatingPanel = dispose;
     });
     return () => {
       disposed = true;
-      unlisten?.();
+      unlistenNative?.();
+      unlistenOverlay?.();
+      unlistenFloatingPanel?.();
     };
   }, [
     activeId,
@@ -1441,74 +1525,27 @@ export default function App() {
         >
           S
         </Button>
-        <Dropdown
-          className="browser-more-trigger"
-          popupClassName="browser-more-popup"
-          trigger={["click"]}
-          placement="bottomRight"
-          onOpenChange={(open) => {
-            updateBrowserPopupRegion(open, "browser-more-popup", 10);
+        <Button
+          className="toolbar-icon-button browser-more-trigger"
+          variant="text"
+          size="small"
+          icon={<Icon name="more-vertical" size={18} />}
+          aria-label="更多"
+          title="更多"
+          onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            void invokeNative("show_browser_more_menu", {
+              tabLayout,
+              showBookmarksBar,
+              darkMode,
+              sourceWindow: "main",
+              x: rect.left,
+              y: rect.bottom,
+            }).catch((error) => {
+              message.error(error instanceof Error ? error.message : String(error));
+            });
           }}
-          menu={{
-            selectable: false,
-            items: [
-              {
-                key: "tab-layout",
-                label: tabLayout === "vertical" ? "切换到横向标签" : "切换到垂直标签",
-              },
-              { key: "divider-layout", type: "divider" },
-              { key: "bookmarks", label: "书签" },
-              {
-                key: "bookmark-bar",
-                label: (
-                  <span className="browser-more-bookmark-option">
-                    <span>显示书签栏</span>
-                    <span
-                      className={`browser-more-visibility-toggle${showBookmarksBar ? " is-on" : ""}`}
-                      aria-hidden="true"
-                    >
-                      <i />
-                    </span>
-                  </span>
-                ),
-              },
-              { key: "divider-bookmarks", type: "divider" },
-              {
-                key: "theme",
-                label: (
-                  <span className="browser-more-theme-option">
-                    <span>主题</span>
-                    <span
-                      className={`browser-more-theme-toggle${darkMode ? " is-dark" : ""}`}
-                      aria-hidden="true"
-                    >
-                      <i className="browser-more-theme-toggle__selection" />
-                      <span className={!darkMode ? "is-active" : ""}>
-                        <Icon name="sun" size={13} />
-                      </span>
-                      <span className={darkMode ? "is-active" : ""}>
-                        <Icon name="moon" size={13} />
-                      </span>
-                    </span>
-                  </span>
-                ),
-              },
-              { key: "divider-theme", type: "divider" },
-              { key: "history", label: "历史记录" },
-              { key: "settings", label: "浏览器设置" },
-            ],
-            onClick: ({ key }) => handleNativeMenuAction(`more:${key}`),
-          }}
-        >
-          <Button
-            className="toolbar-icon-button"
-            variant="text"
-            size="small"
-            icon={<Icon name="more-vertical" size={18} />}
-            aria-label="更多"
-            title="更多"
-          />
-        </Dropdown>
+        />
       </div>
     );
   }
@@ -1642,6 +1679,7 @@ export default function App() {
         {tabLayout === "vertical" ? (
           renderTabContextScope(
             <VerticalTabTree
+              key={`vertical-tab-tree-${floatingPanelPinVersion}`}
               groups={groups}
               tabs={tabs}
               activeId={activeId}
@@ -1651,13 +1689,9 @@ export default function App() {
               onNewTab={(groupId, smallGroupId) => openTab(undefined, groupId, smallGroupId)}
               onNewRootTab={() => openTab(undefined, ROOT_GROUP_ID)}
               onNewGroup={openNewGroupModal}
-              onNewSmallGroup={(groupId) => openTreeEditDialog("new-small-group", groupId)}
-              onRenameGroup={(groupId) => openTreeEditDialog("rename-group", groupId)}
-              onRenameSmallGroup={(groupId, smallGroupId) => openTreeEditDialog("rename-small-group", groupId, smallGroupId)}
-              onClearGroupData={confirmClearGroupData}
-              onDeleteGroup={confirmDeleteGroup}
-              onDeleteSmallGroup={confirmDeleteSmallGroup}
-              onFloatingOverlayChange={updateBrowserFloatingPanelRegion}
+              onTreeActionsOpen={openTreeActionMenu}
+              forcePinnedVersion={floatingPanelPinVersion}
+              onFloatingOverlayChange={updateFloatingTabPanel}
             />,
           )
         ) : null}
@@ -1748,63 +1782,6 @@ export default function App() {
           </main>
         </div>
       </div>
-      <Modal
-        open={newGroupOpen}
-        title="新建分组"
-        width={380}
-        centered
-        okText="创建"
-        onOk={createGroup}
-        onOpenChange={setNewGroupOpen}
-      >
-        <div className="new-group-form">
-          <label htmlFor="new-group-name">分组名称</label>
-          <Input
-            id="new-group-name"
-            value={newGroupName}
-            autoFocus
-            maxLength={24}
-            placeholder="例如：测试环境"
-            onChange={(event) => setNewGroupName(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && createGroup() !== false) setNewGroupOpen(false);
-            }}
-          />
-          <small>每个分组使用独立的 Cookie 数据目录。</small>
-        </div>
-      </Modal>
-      <Modal
-        open={Boolean(treeEditDialog)}
-        title={treeEditDialog?.kind === "new-small-group"
-          ? "新建小分组"
-          : treeEditDialog?.kind === "rename-group"
-            ? "重命名分组"
-            : "重命名小分组"}
-        width={380}
-        centered
-        okText={treeEditDialog?.kind === "new-small-group" ? "创建" : "保存"}
-        onOk={submitTreeEdit}
-        onOpenChange={(open) => {
-          if (!open) setTreeEditDialog(null);
-        }}
-      >
-        <div className="new-group-form">
-          <label htmlFor="tree-edit-name">
-            {treeEditDialog?.kind === "rename-group" ? "分组名称" : "小分组名称"}
-          </label>
-          <Input
-            id="tree-edit-name"
-            value={treeEditName}
-            autoFocus
-            maxLength={24}
-            placeholder={treeEditDialog?.kind === "rename-group" ? "请输入分组名称" : "请输入小分组名称"}
-            onChange={(event) => setTreeEditName(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && submitTreeEdit() !== false) setTreeEditDialog(null);
-            }}
-          />
-        </div>
-      </Modal>
     </WindowFrame>
   );
 }

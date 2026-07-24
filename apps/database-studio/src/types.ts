@@ -85,7 +85,32 @@ export interface DatabaseSchema {
   error?: string;
 }
 
+export type DatabaseObjectCategory = "tables" | "views" | "functions" | "procedures";
+
 export interface SchemaSnapshot {
   database: string;
   databases: DatabaseSchema[];
+  databaseCount?: number;
+  databasesLoaded?: boolean;
+}
+
+export interface DatabaseUser {
+  name: string;
+  host?: string;
+  type?: string;
+  status?: string;
+}
+
+export interface DatabaseUserSnapshot {
+  users: DatabaseUser[];
+  loaded: boolean;
+  count?: number;
+  loading?: boolean;
+  error?: string;
+}
+
+export interface DatabaseUserInput {
+  name: string;
+  host?: string;
+  password: string;
 }

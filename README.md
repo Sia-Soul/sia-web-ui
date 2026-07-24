@@ -9,6 +9,7 @@ apps/docs/                  组件文档与交互预览
 apps/desktop/               Tauri 2 + React 桌面客户端
 apps/database-studio/       数据库连接与 SQL 工作台
 apps/browser/               无边框 Tauri 浏览器
+apps/disk-space/            实时磁盘空间探测器
 packages/react/             @sia-ui/react 组件包
 packages/create-sia-web/    create-sia-web 项目生成器
 docs/design/                Web 端视觉基准
@@ -55,6 +56,18 @@ pnpm browser:dev
 
 ```powershell
 pnpm browser:web
+```
+
+启动磁盘空间探测器：
+
+```powershell
+pnpm disk:dev
+```
+
+只在浏览器中预览磁盘空间探测器（使用增量演示数据）：
+
+```powershell
+pnpm disk:web
 ```
 
 生成可直接运行的桌面程序：

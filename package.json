@@ -19,6 +19,10 @@
     "browser:build": "pnpm --filter @sia-ui/browser tauri:build:bin",
     "browser:bundle": "pnpm --filter @sia-ui/browser tauri:build",
     "browser:web": "pnpm --filter @sia-ui/browser dev",
+    "disk:dev": "pnpm --filter @sia-ui/disk-space tauri:dev",
+    "disk:build": "pnpm --filter @sia-ui/disk-space tauri:build:bin",
+    "disk:bundle": "pnpm --filter @sia-ui/disk-space tauri:build",
+    "disk:web": "pnpm --filter @sia-ui/disk-space dev",
     "typecheck": "pnpm -r typecheck",
     "check": "pnpm typecheck && pnpm build",
     "create:sia": "node packages/create-sia-web/cli.mjs"

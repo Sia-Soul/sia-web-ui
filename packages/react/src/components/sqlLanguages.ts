@@ -3,37 +3,43 @@ import type * as Monaco from "monaco-editor";
 export type SqlDialectLanguage = "sql-postgresql" | "sql-mysql" | "sql-sqlserver" | "sql-sqlite";
 
 const COMMON_KEYWORDS = [
-  "all", "alter", "and", "any", "as", "asc", "begin", "between", "by", "case", "check",
-  "column", "commit", "constraint", "create", "cross", "database", "default", "delete", "desc",
-  "distinct", "drop", "else", "end", "exists", "false", "foreign", "from", "full", "group",
-  "having", "in", "index", "inner", "insert", "into", "is", "join", "key", "left", "like",
-  "not", "null", "on", "or", "order", "outer", "primary", "references", "right", "rollback",
-  "select", "set", "table", "then", "true", "union", "unique", "update", "values", "view",
-  "when", "where", "with",
+  "add", "all", "alter", "and", "any", "as", "asc", "begin", "between", "by", "call", "cascade",
+  "case", "cast", "check", "collate", "column", "commit", "constraint", "create", "cross",
+  "current_date", "current_time", "current_timestamp", "database", "default", "delete", "desc",
+  "distinct", "drop", "else", "end", "escape", "except", "exists", "explain", "false", "fetch",
+  "first", "following", "for", "foreign", "from", "full", "generated", "grant", "group", "groups",
+  "having", "in", "index", "inner", "insert", "intersect", "interval", "into", "is", "join", "key",
+  "last", "left", "like", "localtime", "localtimestamp", "natural", "next", "not", "null",
+  "nulls", "offset", "on", "only", "or", "order", "outer", "over", "partition", "preceding",
+  "primary", "range", "recursive", "references", "rename", "restrict", "revoke", "right", "rollback",
+  "row", "rows", "schema", "select", "sequence", "set", "table", "then", "ties", "to",
+  "transaction", "trigger", "true", "truncate", "unbounded", "union", "unique", "update", "using",
+  "values", "view", "when", "where", "window", "with",
 ];
 
 const DIALECT_KEYWORDS: Record<SqlDialectLanguage, readonly string[]> = {
   "sql-postgresql": [
-    "analyze", "array", "do", "ilike", "language", "lateral", "returning", "serial", "unlogged",
-    "vacuum", "verbose",
+    "analyze", "array", "concurrently", "conflict", "do", "ilike", "language", "lateral",
+    "materialized", "returning", "serial", "tablespace", "unlogged", "vacuum", "verbose",
   ],
   "sql-mysql": [
-    "auto_increment", "delimiter", "describe", "engine", "explain", "replace", "show",
-    "straight_join", "unsigned", "use", "zerofill",
+    "auto_increment", "delimiter", "describe", "engine", "fulltext", "ignore", "lock", "optimize",
+    "replace", "show", "straight_join", "unsigned", "use", "zerofill",
   ],
   "sql-sqlserver": [
-    "clustered", "exec", "go", "identity", "merge", "nocheck", "nonclustered", "nolock", "output",
-    "procedure", "raiserror", "throw", "top", "try_convert",
+    "apply", "catch", "clustered", "exec", "execute", "go", "identity", "merge", "nocheck",
+    "nonclustered", "nolock", "output", "pivot", "procedure", "raiserror", "throw", "top", "try",
+    "try_convert", "unpivot",
   ],
   "sql-sqlite": [
-    "attach", "autoincrement", "conflict", "detach", "pragma", "recursive", "reindex", "replace",
-    "rowid", "vacuum", "without",
+    "attach", "autoincrement", "conflict", "detach", "pragma", "reindex", "replace", "rowid",
+    "strict", "vacuum", "virtual", "without",
   ],
 };
 
 const DIALECT_BUILTINS: Record<SqlDialectLanguage, readonly string[]> = {
   "sql-postgresql": [
-    "bigserial", "boolean", "bytea", "date", "double", "generate_series", "inet", "integer", "interval",
+    "bigserial", "boolean", "bytea", "date", "double", "generate_series", "inet", "integer",
     "json", "jsonb", "numeric", "real", "smallserial", "text", "time", "timestamp", "uuid", "varchar",
   ],
   "sql-mysql": [

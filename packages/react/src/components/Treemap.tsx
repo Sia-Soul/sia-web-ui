@@ -1,0 +1,582 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, HTMLAttributes, MouseEvent, ReactNode } from "react";
+import { Icon } from "./Icon";
+
+export type TreemapNodeKind = "directory" | "file";
+
+export interface TreemapNode {
+  key: string;
+  label: string;
+  value: number;
+  kind?: TreemapNodeKind;
+  color?: string;
+  meta?: ReactNode;
+  layoutValue?: number;
+  children?: readonly TreemapNode[];
+  hasChildren?: boolean;
+  disabled?: boolean;
+}
+
+export interface TreemapNodeClickInfo {
+  node: TreemapNode;
+  expanded: boolean;
+  nativeEvent: MouseEvent<HTMLElement>;
+}
+
+export interface TreemapProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
+  data: readonly TreemapNode[];
+  activeKey?: string | null;
+  expandedKeys?: readonly string[];
+  defaultExpandedKeys?: readonly string[];
+  focusedKey?: string | null;
+  defaultFocusedKey?: string | null;
+  gap?: number;
+  headerHeight?: number;
+  minLabelWidth?: number;
+  minLabelHeight?: number;
+  minTileWidth?: number;
+  minTileHeight?: number;
+  maxVisibleNodes?: number;
+  emptyContent?: ReactNode;
+  valueFormatter?: (value: number, node: TreemapNode) => ReactNode;
+  overflowLabel?: (count: number) => string;
+  onExpandedChange?: (keys: string[]) => void;
+  onFocusedChange?: (key: string | null) => void;
+  onNodeClick?: (info: TreemapNodeClickInfo) => void;
+}
+
+interface Rectangle {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface WeightedNode {
+  node: TreemapNode;
+  area: number;
+}
+
+interface PositionedNode {
+  node: TreemapNode;
+  rectangle: Rectangle;
+  depth: number;
+  expanded: boolean;
+}
+
+type InternalTreemapNode = TreemapNode & {
+  __active?: boolean;
+};
+
+function positiveValue(value: number) {
+  return Number.isFinite(value) && value > 0 ? value : 1;
+}
+
+function layoutValue(node: TreemapNode) {
+  return positiveValue(node.layoutValue ?? node.value);
+}
+
+function minimumAreaWeights(nodes: readonly TreemapNode[], totalArea: number, minimumArea: number) {
+  const values = nodes.map(layoutValue);
+  const areas = new Array<number>(nodes.length).fill(0);
+  const remaining = new Set(nodes.map((_, index) => index));
+  let availableArea = totalArea;
+  let availableValue = values.reduce((sum, value) => sum + value, 0);
+
+  while (remaining.size > 0 && availableArea > 0 && availableValue > 0) {
+    const undersized = [...remaining].filter(
+      (index) => values[index]! / availableValue * availableArea < minimumArea,
+    );
+    if (undersized.length === 0) {
+      remaining.forEach((index) => {
+        areas[index] = values[index]! / availableValue * availableArea;
+      });
+      break;
+    }
+    undersized.forEach((index) => {
+      areas[index] = minimumArea;
+      availableArea -= minimumArea;
+      availableValue -= values[index]!;
+      remaining.delete(index);
+    });
+  }
+
+  if (remaining.size > 0 && (availableArea <= 0 || availableValue <= 0)) {
+    const equalArea = Math.max(0, availableArea) / remaining.size;
+    remaining.forEach((index) => { areas[index] = equalArea; });
+  }
+  return nodes.map((node, index) => ({ node, area: areas[index] ?? 0 }));
+}
+
+function worstAspectRatio(row: readonly WeightedNode[], side: number) {
+  if (row.length === 0 || side <= 0) return Number.POSITIVE_INFINITY;
+  const sum = row.reduce((total, item) => total + item.area, 0);
+  const minimum = Math.min(...row.map((item) => item.area));
+  const maximum = Math.max(...row.map((item) => item.area));
+  if (minimum <= 0 || sum <= 0) return Number.POSITIVE_INFINITY;
+  const sideSquared = side * side;
+  const sumSquared = sum * sum;
+  return Math.max((sideSquared * maximum) / sumSquared, sumSquared / (sideSquared * minimum));
+}
+
+function placeRow(row: readonly WeightedNode[], bounds: Rectangle) {
+  const placements: Array<{ node: TreemapNode; rectangle: Rectangle }> = [];
+  const rowArea = row.reduce((total, item) => total + item.area, 0);
+  if (bounds.width >= bounds.height) {
+    const columnWidth = bounds.height > 0 ? rowArea / bounds.height : 0;
+    let y = bounds.y;
+    row.forEach((item, index) => {
+      const height = columnWidth > 0
+        ? index === row.length - 1
+          ? bounds.y + bounds.height - y
+          : item.area / columnWidth
+        : 0;
+      placements.push({
+        node: item.node,
+        rectangle: { x: bounds.x, y, width: columnWidth, height },
+      });
+      y += height;
+    });
+    return {
+      placements,
+      remaining: {
+        x: bounds.x + columnWidth,
+        y: bounds.y,
+        width: Math.max(0, bounds.width - columnWidth),
+        height: bounds.height,
+      },
+    };
+  }
+
+  const rowHeight = bounds.width > 0 ? rowArea / bounds.width : 0;
+  let x = bounds.x;
+  row.forEach((item, index) => {
+    const width = rowHeight > 0
+      ? index === row.length - 1
+        ? bounds.x + bounds.width - x
+        : item.area / rowHeight
+      : 0;
+    placements.push({
+      node: item.node,
+      rectangle: { x, y: bounds.y, width, height: rowHeight },
+    });
+    x += width;
+  });
+  return {
+    placements,
+    remaining: {
+      x: bounds.x,
+      y: bounds.y + rowHeight,
+      width: bounds.width,
+      height: Math.max(0, bounds.height - rowHeight),
+    },
+  };
+}
+
+function squarify(nodes: readonly TreemapNode[], bounds: Rectangle, minimumArea: number) {
+  if (nodes.length === 0 || bounds.width <= 0 || bounds.height <= 0) return [];
+  const remainingNodes = minimumAreaWeights(
+    nodes,
+    bounds.width * bounds.height,
+    minimumArea,
+  ).sort((left, right) => right.area - left.area);
+  const placements: Array<{ node: TreemapNode; rectangle: Rectangle }> = [];
+  let remainingBounds = { ...bounds };
+  let row: WeightedNode[] = [];
+
+  while (remainingNodes.length > 0) {
+    const candidate = remainingNodes[0]!;
+    const side = Math.min(remainingBounds.width, remainingBounds.height);
+    const nextRow = [...row, candidate];
+    if (row.length === 0 || worstAspectRatio(nextRow, side) <= worstAspectRatio(row, side)) {
+      row = nextRow;
+      remainingNodes.shift();
+      continue;
+    }
+
+    const result = placeRow(row, remainingBounds);
+    placements.push(...result.placements);
+    remainingBounds = result.remaining;
+    row = [];
+  }
+
+  if (row.length > 0) placements.push(...placeRow(row, remainingBounds).placements);
+  return placements;
+}
+
+function limitNodes(
+  nodes: readonly TreemapNode[],
+  bounds: Rectangle,
+  minimumArea: number,
+  maxVisibleNodes: number,
+  groupKey: string,
+  overflowLabel: (count: number) => string,
+  activeKey: string | null,
+) {
+  const areaCapacity = Math.max(1, Math.floor(bounds.width * bounds.height / minimumArea));
+  const capacity = Math.max(1, Math.min(maxVisibleNodes, areaCapacity));
+  if (nodes.length <= capacity) return nodes;
+  const sorted = [...nodes].sort((left, right) => layoutValue(right) - layoutValue(left));
+  const visible = sorted.slice(0, capacity - 1);
+  const overflow = sorted.slice(capacity - 1);
+  const overflowNode: InternalTreemapNode = {
+    key: `${groupKey}::sia-overflow`,
+    label: overflowLabel(overflow.length),
+    value: overflow.reduce((sum, node) => sum + Math.max(0, Number.isFinite(node.value) ? node.value : 0), 0),
+    layoutValue: overflow.reduce((sum, node) => sum + layoutValue(node), 0),
+    kind: "directory",
+    color: "#a9b6c5",
+    children: overflow,
+    hasChildren: true,
+    __active: Boolean(activeKey && overflow.some((node) => node.key === activeKey)),
+  };
+  return [...visible, overflowNode];
+}
+
+function collapseNarrowNodes(
+  nodes: readonly TreemapNode[],
+  placements: readonly { node: TreemapNode; rectangle: Rectangle }[],
+  bounds: Rectangle,
+  minimumArea: number,
+  minimumWidth: number,
+  minimumHeight: number,
+  groupKey: string,
+  overflowLabel: (count: number) => string,
+  activeKey: string | null,
+) {
+  const narrowKeys = new Set(
+    placements
+      .filter(({ rectangle }) => rectangle.width < minimumWidth || rectangle.height < minimumHeight)
+      .map(({ node }) => node.key),
+  );
+  if (narrowKeys.size === 0 || narrowKeys.size === nodes.length) return placements;
+
+  const kept: TreemapNode[] = [];
+  const collapsed: TreemapNode[] = [];
+  nodes.forEach((node) => {
+    if (!narrowKeys.has(node.key)) {
+      kept.push(node);
+      return;
+    }
+    if (node.key.endsWith("::sia-overflow") && node.children?.length) collapsed.push(...node.children);
+    else collapsed.push(node);
+  });
+
+  const availableArea = Math.max(1, bounds.width * bounds.height);
+  const readableArea = Math.min(
+    availableArea * 0.18,
+    Math.max(minimumWidth * bounds.height, minimumHeight * bounds.width),
+  );
+  const keptWeight = kept.reduce((sum, node) => sum + layoutValue(node), 0);
+  const actualValue = collapsed.reduce(
+    (sum, node) => sum + Math.max(0, Number.isFinite(node.value) ? node.value : 0),
+    0,
+  );
+  const actualLayoutValue = collapsed.reduce((sum, node) => sum + layoutValue(node), 0);
+  const readableWeight = readableArea < availableArea && keptWeight > 0
+    ? readableArea * keptWeight / (availableArea - readableArea)
+    : actualValue;
+  const overflowNode: InternalTreemapNode = {
+    key: `${groupKey}::sia-readable-overflow`,
+    label: overflowLabel(collapsed.length),
+    value: actualValue,
+    layoutValue: Math.max(actualLayoutValue, readableWeight),
+    kind: "directory",
+    color: "#a9b6c5",
+    children: collapsed,
+    hasChildren: true,
+    __active: Boolean(activeKey && collapsed.some((node) => node.key === activeKey)),
+  };
+  return squarify([...kept, overflowNode], bounds, minimumArea);
+}
+
+function collectPositions(
+  nodes: readonly TreemapNode[],
+  bounds: Rectangle,
+  expanded: ReadonlySet<string>,
+  gap: number,
+  headerHeight: number,
+  minTileWidth: number,
+  minTileHeight: number,
+  maxVisibleNodes: number,
+  overflowLabel: (count: number) => string,
+  activeKey: string | null,
+  depth = 0,
+  parentKey = "root",
+): PositionedNode[] {
+  const result: PositionedNode[] = [];
+  const minimumWidthWithGap = minTileWidth + gap * 2;
+  const minimumHeightWithGap = minTileHeight + gap * 2;
+  const minimumArea = Math.max(1, minimumWidthWithGap * minimumHeightWithGap);
+  const visibleNodes = limitNodes(
+    nodes,
+    bounds,
+    minimumArea,
+    maxVisibleNodes,
+    `${parentKey}:${depth}`,
+    overflowLabel,
+    activeKey,
+  );
+  const initialPlacements = squarify(visibleNodes, bounds, minimumArea);
+  const placements = parentKey.endsWith("::sia-readable-overflow")
+    ? initialPlacements
+    : collapseNarrowNodes(
+      visibleNodes,
+      initialPlacements,
+      bounds,
+      minimumArea,
+      minimumWidthWithGap,
+      minimumHeightWithGap,
+      `${parentKey}:${depth}`,
+      overflowLabel,
+      activeKey,
+    );
+  placements.forEach(({ node, rectangle }) => {
+    const inset = Math.min(gap, rectangle.width / 4, rectangle.height / 4);
+    const tile = {
+      x: rectangle.x + inset,
+      y: rectangle.y + inset,
+      width: Math.max(0, rectangle.width - inset * 2),
+      height: Math.max(0, rectangle.height - inset * 2),
+    };
+    const hasChildren = Boolean(node.hasChildren || node.children?.length);
+    const isExpanded = node.kind === "directory"
+      && hasChildren
+      && expanded.has(node.key)
+      && Boolean(node.children?.length)
+      && tile.width >= 72
+      && tile.height >= headerHeight * 2;
+    result.push({ node, rectangle: tile, depth, expanded: isExpanded });
+
+    if (!isExpanded || !node.children) return;
+    const childBounds = {
+      x: tile.x,
+      y: tile.y + headerHeight,
+      width: tile.width,
+      height: Math.max(0, tile.height - headerHeight),
+    };
+    result.push(...collectPositions(
+      node.children,
+      childBounds,
+      expanded,
+      gap,
+      headerHeight,
+      minTileWidth,
+      minTileHeight,
+      maxVisibleNodes,
+      overflowLabel,
+      activeKey,
+      depth + 1,
+      node.key,
+    ));
+  });
+  return result;
+}
+
+function defaultValueFormatter(value: number) {
+  return new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 1 }).format(value);
+}
+
+function tileFontSize(rectangle: Rectangle) {
+  const shortestSide = Math.min(rectangle.width, rectangle.height);
+  if (shortestSide < 28 || rectangle.width < 44) return 8;
+  if (shortestSide < 38 || rectangle.width < 62) return 9;
+  if (shortestSide < 54 || rectangle.width < 86) return 10;
+  if (shortestSide < 76) return 11;
+  if (shortestSide < 110) return 12;
+  return 14;
+}
+
+function findNode(nodes: readonly TreemapNode[], key: string): TreemapNode | null {
+  for (const node of nodes) {
+    if (node.key === key) return node;
+    if (node.children?.length) {
+      const found = findNode(node.children, key);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+export function Treemap({
+  data,
+  activeKey = null,
+  expandedKeys,
+  defaultExpandedKeys = [],
+  focusedKey,
+  defaultFocusedKey = null,
+  gap = 2,
+  headerHeight = 28,
+  minLabelWidth = 26,
+  minLabelHeight = 18,
+  minTileWidth = 28,
+  minTileHeight = 18,
+  maxVisibleNodes = 180,
+  emptyContent = "暂无数据",
+  valueFormatter = defaultValueFormatter,
+  overflowLabel = (count) => `其他 ${count} 项`,
+  onExpandedChange,
+  onFocusedChange,
+  onNodeClick,
+  className = "",
+  style,
+  ...props
+}: TreemapProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const [internalExpandedKeys, setInternalExpandedKeys] = useState(() => [...defaultExpandedKeys]);
+  const [internalFocusedKey, setInternalFocusedKey] = useState<string | null>(defaultFocusedKey);
+  const currentExpandedKeys = expandedKeys ?? internalExpandedKeys;
+  const currentFocusedKey = focusedKey === undefined ? internalFocusedKey : focusedKey;
+  const expandedSet = useMemo(() => new Set(currentExpandedKeys), [currentExpandedKeys]);
+  const focusedNode = useMemo(
+    () => currentFocusedKey ? findNode(data, currentFocusedKey) : null,
+    [currentFocusedKey, data],
+  );
+  const effectiveFocusedNode = focusedNode
+    && expandedSet.has(focusedNode.key)
+    && Boolean(focusedNode.children?.length)
+    ? focusedNode
+    : null;
+  const positions = useMemo(
+    () => collectPositions(
+      effectiveFocusedNode ? [effectiveFocusedNode] : data,
+      { x: 0, y: 0, ...size },
+      expandedSet,
+      Math.max(0, gap),
+      Math.max(18, headerHeight),
+      Math.max(1, minTileWidth),
+      Math.max(1, minTileHeight),
+      Math.max(1, maxVisibleNodes),
+      overflowLabel,
+      activeKey,
+    ),
+    [activeKey, data, effectiveFocusedNode, expandedSet, gap, headerHeight, maxVisibleNodes, minTileHeight, minTileWidth, overflowLabel, size],
+  );
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return undefined;
+    const updateSize = () => {
+      const next = element.getBoundingClientRect();
+      setSize((current) => current.width === next.width && current.height === next.height
+        ? current
+        : { width: next.width, height: next.height });
+    };
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!currentFocusedKey || effectiveFocusedNode) return;
+    if (focusedKey === undefined) setInternalFocusedKey(null);
+    onFocusedChange?.(null);
+  }, [currentFocusedKey, effectiveFocusedNode, focusedKey, onFocusedChange]);
+
+  function updateFocusedKey(next: string | null) {
+    if (focusedKey === undefined) setInternalFocusedKey(next);
+    onFocusedChange?.(next);
+  }
+
+  function handleNodeClick(node: TreemapNode, nativeEvent: MouseEvent<HTMLElement>) {
+    const isExpanded = expandedSet.has(node.key);
+    const hasChildren = Boolean(node.hasChildren || node.children?.length);
+    if (node.kind === "directory" && hasChildren && !node.disabled) {
+      const next = isExpanded
+        ? currentExpandedKeys.filter((key) => key !== node.key)
+        : [...currentExpandedKeys, node.key];
+      if (expandedKeys === undefined) setInternalExpandedKeys(next);
+      onExpandedChange?.(next);
+      if (isExpanded && currentFocusedKey === node.key) updateFocusedKey(null);
+    }
+    onNodeClick?.({ node, expanded: isExpanded, nativeEvent });
+  }
+
+  return (
+    <div
+      {...props}
+      ref={containerRef}
+      className={`sia-treemap ${className}`.trim()}
+      style={style}
+      role="tree"
+    >
+      {data.length === 0 ? <div className="sia-treemap__empty">{emptyContent}</div> : null}
+      {positions.map(({ node, rectangle, depth, expanded }) => {
+        const active = node.key === activeKey || Boolean((node as InternalTreemapNode).__active);
+        const fontSize = tileFontSize(rectangle);
+        const tileStyle = {
+          "--sia-treemap-x": `${rectangle.x}px`,
+          "--sia-treemap-y": `${rectangle.y}px`,
+          "--sia-treemap-width": `${rectangle.width}px`,
+          "--sia-treemap-height": `${rectangle.height}px`,
+          "--sia-treemap-color": node.color,
+          "--sia-treemap-depth": depth,
+          "--sia-treemap-font-size": `${fontSize}px`,
+          "--sia-treemap-value-font-size": `${Math.max(7, fontSize - 1)}px`,
+        } as CSSProperties;
+        const showLabel = rectangle.width >= minLabelWidth && rectangle.height >= minLabelHeight;
+        const showValue = rectangle.width >= Math.max(52, minLabelWidth)
+          && rectangle.height >= Math.max(34, minLabelHeight + 12);
+        const hasChildren = Boolean(node.hasChildren || node.children?.length);
+        const title = `${node.label} · ${String(valueFormatter(node.value, node))}`;
+        if (expanded) {
+          return (
+            <div
+              className={`sia-treemap__tile sia-treemap__tile--directory is-expanded${effectiveFocusedNode?.key === node.key ? " is-focused" : ""}${active ? " is-active" : ""}`}
+              style={tileStyle}
+              role="treeitem"
+              aria-expanded="true"
+              title={title}
+              data-treemap-key={node.key}
+              key={node.key}
+            >
+              <div className="sia-treemap__header">
+                <button
+                  type="button"
+                  className="sia-treemap__header-main"
+                  disabled={node.disabled}
+                  onClick={(event) => handleNodeClick(node, event)}
+                >
+                  <span className="sia-treemap__label">{node.label}</span>
+                  {showValue ? <span className="sia-treemap__value">{valueFormatter(node.value, node)}</span> : null}
+                </button>
+                <button
+                  type="button"
+                  className="sia-treemap__focus"
+                  aria-label={effectiveFocusedNode?.key === node.key ? `还原 ${node.label}` : `聚焦展开 ${node.label}`}
+                  title={effectiveFocusedNode?.key === node.key ? "还原原有视图" : "展开到整个区域"}
+                  onClick={() => updateFocusedKey(effectiveFocusedNode?.key === node.key ? null : node.key)}
+                >
+                  <Icon name={effectiveFocusedNode?.key === node.key ? "fullscreen-exit" : "fullscreen"} size={14} />
+                </button>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <button
+            type="button"
+            className={`sia-treemap__tile sia-treemap__tile--${node.kind ?? "file"}${node.disabled ? " is-disabled" : ""}${showValue ? "" : " is-compact"}${active ? " is-active" : ""}`}
+            style={tileStyle}
+            role="treeitem"
+            aria-expanded={node.kind === "directory" && hasChildren ? "false" : undefined}
+            disabled={node.disabled}
+            title={title}
+            data-treemap-key={node.key}
+            onClick={(event) => handleNodeClick(node, event)}
+            key={node.key}
+          >
+            {showLabel ? (
+              <span className="sia-treemap__content">
+                <span className="sia-treemap__label">{node.label}</span>
+                {showValue ? <span className="sia-treemap__value">{valueFormatter(node.value, node)}</span> : null}
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}

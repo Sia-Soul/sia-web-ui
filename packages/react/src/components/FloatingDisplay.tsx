@@ -242,7 +242,9 @@ export interface TreeNode {
   selectable?: boolean;
   checkable?: boolean;
   isLeaf?: boolean;
+  loaded?: boolean;
   icon?: ReactNode;
+  loadingText?: ReactNode;
   rowProps?: Omit<HTMLAttributes<HTMLDivElement>, "children"> & Partial<Record<`data-${string}`, string | number>>;
   children?: readonly TreeNode[];
   [key: string]: unknown;
@@ -256,6 +258,7 @@ export interface TreeProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSelec
   defaultExpandAll?: boolean;
   checkedKeys?: readonly TreeKey[];
   defaultCheckedKeys?: readonly TreeKey[];
+  loadingKeys?: readonly TreeKey[];
   checkable?: boolean;
   checkStrictly?: boolean;
   multiple?: boolean;
@@ -263,6 +266,10 @@ export interface TreeProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSelec
   showLine?: boolean;
   showIcon?: boolean;
   blockNode?: boolean;
+  indentSize?: number;
+  switcherWidth?: number;
+  stickyAncestors?: boolean;
+  stickyRowHeight?: number;
   draggable?: boolean;
   loadData?: (node: TreeNode) => void | Promise<void>;
   onSelect?: (keys: TreeKey[], info: { selected: boolean; node: TreeNode; nativeEvent: React.MouseEvent }) => void;
@@ -278,21 +285,27 @@ function collectKeys(nodes: readonly TreeNode[], branchOnly = false, result: Tre
 function descendants(node: TreeNode) { return node.children ? collectKeys(node.children) : []; }
 
 export function Tree({
-  treeData, selectedKeys, defaultSelectedKeys = [], expandedKeys, defaultExpandedKeys = [], defaultExpandAll = false, checkedKeys, defaultCheckedKeys = [],
+  treeData, selectedKeys, defaultSelectedKeys = [], expandedKeys, defaultExpandedKeys = [], defaultExpandAll = false, checkedKeys, defaultCheckedKeys = [], loadingKeys = [],
   checkable = false, checkStrictly = false, multiple = false, selectable = true, showLine = false, showIcon = false, blockNode = false,
+  indentSize = 20, switcherWidth = 24, stickyAncestors = false, stickyRowHeight = 34,
   draggable = false, loadData, onSelect, onCheck, onExpand, onDrop, className = "", ...props
 }: TreeProps) {
   const [selected, setSelected] = useControllableState<readonly TreeKey[]>({ value: selectedKeys, defaultValue: defaultSelectedKeys });
   const [expanded, setExpanded] = useControllableState<readonly TreeKey[]>({ value: expandedKeys, defaultValue: defaultExpandAll ? collectKeys(treeData, true) : defaultExpandedKeys });
   const [checked, setChecked] = useControllableState<readonly TreeKey[]>({ value: checkedKeys, defaultValue: defaultCheckedKeys });
   const [loading, setLoading] = useState<Set<TreeKey>>(new Set());
+  const controlledLoading = useMemo(() => new Set(loadingKeys), [loadingKeys]);
   const [dragNode, setDragNode] = useState<TreeNode>();
+  const normalizedSwitcherWidth = Math.max(0, switcherWidth);
   async function toggleExpand(node: TreeNode) {
     const nextExpanded = !expanded.includes(node.key);
-    if (nextExpanded && !node.children?.length && node.isLeaf === false && loadData) {
+    if (nextExpanded && node.loaded !== true && !node.children?.length && node.isLeaf === false && loadData) {
       setLoading((keys) => new Set(keys).add(node.key));
-      await loadData(node);
-      setLoading((keys) => { const next = new Set(keys); next.delete(node.key); return next; });
+      try {
+        await loadData(node);
+      } finally {
+        setLoading((keys) => { const next = new Set(keys); next.delete(node.key); return next; });
+      }
     }
     const next = nextExpanded ? [...expanded, node.key] : expanded.filter((key) => key !== node.key);
     setExpanded(next); onExpand?.([...next], { expanded: nextExpanded, node });
@@ -315,9 +328,18 @@ export function Tree({
       const isSelected = selected.includes(node.key);
       const isChecked = checked.includes(node.key);
       const hasChildren = Boolean(node.children?.length || node.isLeaf === false);
+      const nodeLoading = loading.has(node.key) || controlledLoading.has(node.key);
+      const sticky = stickyAncestors && hasChildren && open;
       const { className: rowClassName = "", style: rowStyle, onClick: onRowClick, ...rowProps } = node.rowProps ?? {};
-      return <div className={`sia-tree__node${isSelected ? " is-selected" : ""}${node.disabled ? " is-disabled" : ""}`} role="treeitem" aria-expanded={hasChildren ? open : undefined} aria-selected={isSelected} key={node.key}>
-        <div {...rowProps} className={`sia-tree__row${blockNode ? " sia-tree__row--block" : ""} ${rowClassName}`.trim()} style={{ ...rowStyle, paddingInlineStart: depth * 20 }}
+      const unloaded = hasChildren && node.loaded === false;
+      return <div className={`sia-tree__node${isSelected ? " is-selected" : ""}${node.disabled ? " is-disabled" : ""}${unloaded ? " is-unloaded" : ""}`} role="treeitem" aria-expanded={hasChildren ? open : undefined} aria-selected={isSelected} key={node.key}>
+        <div {...rowProps} className={`sia-tree__row${blockNode ? " sia-tree__row--block" : ""}${sticky ? " sia-tree__row--sticky" : ""} ${rowClassName}`.trim()} style={{
+          ...rowStyle,
+          paddingInlineStart: depth * Math.max(0, indentSize),
+          top: sticky ? depth * Math.max(1, stickyRowHeight) : rowStyle?.top,
+          zIndex: sticky ? Math.max(1, 100 - depth) : rowStyle?.zIndex,
+        }}
+          aria-busy={nodeLoading || undefined}
           draggable={draggable && !node.disabled}
           onClick={(event) => {
             onRowClick?.(event);
@@ -328,16 +350,17 @@ export function Tree({
           onDragStart={() => setDragNode(node)}
           onDragOver={draggable ? (event) => event.preventDefault() : undefined}
           onDrop={draggable ? () => { if (dragNode && dragNode.key !== node.key) onDrop?.({ dragNode, node }); setDragNode(undefined); } : undefined}>
-          {hasChildren ? <button type="button" className="sia-tree__switcher" disabled={node.disabled} onClick={(event) => { event.stopPropagation(); void toggleExpand(node); }}>{loading.has(node.key) ? <Icon name="loader" className="sia-spin-icon" size={13} /> : <Icon name={open ? "chevron-down" : "chevron-right"} size={13} />}</button> : <span className="sia-tree__switcher" aria-hidden="true" />}
+          {hasChildren ? <button type="button" className="sia-tree__switcher" style={{ width: normalizedSwitcherWidth, flexBasis: normalizedSwitcherWidth }} disabled={node.disabled} onClick={(event) => { event.stopPropagation(); void toggleExpand(node); }}>{nodeLoading ? <Icon name="loader" className="sia-spin-icon" size={13} /> : <Icon name={open ? "chevron-down" : "chevron-right"} size={13} />}</button> : <span className="sia-tree__switcher" style={{ width: normalizedSwitcherWidth, flexBasis: normalizedSwitcherWidth }} aria-hidden="true" />}
           {checkable || node.checkable ? <span onClick={(event) => event.stopPropagation()}><Checkbox checked={isChecked} disabled={node.disabled || node.disableCheckbox} onChange={() => check(node)} /></span> : null}
           {node.prefix ? <span className="sia-tree__prefix" onClick={(event) => event.stopPropagation()}>{node.prefix}</span> : null}
           {showIcon ? <span className="sia-tree__icon">{node.icon ?? <Icon name={hasChildren ? "folder" : "file"} size={15} />}</span> : null}
           <button type="button" className="sia-tree__title" disabled={node.disabled}>{node.title}</button>
+          {nodeLoading ? <span className="sia-tree__loading-text" role="status">{node.loadingText ?? "正在加载…"}</span> : null}
           {node.extra ? <span className="sia-tree__extra" onClick={(event) => event.stopPropagation()}>{node.extra}</span> : null}
         </div>
         {open && node.children?.length ? <div className="sia-tree__children" role="group">{render(node.children, depth + 1)}</div> : null}
       </div>;
     });
   }
-  return <div className={`sia-tree${showLine ? " sia-tree--line" : ""} ${className}`.trim()} role="tree" aria-multiselectable={multiple || undefined} {...props}>{render(treeData)}</div>;
+  return <div className={`sia-tree${showLine ? " sia-tree--line" : ""}${stickyAncestors ? " sia-tree--sticky-ancestors" : ""} ${className}`.trim()} role="tree" aria-multiselectable={multiple || undefined} {...props}>{render(treeData)}</div>;
 }

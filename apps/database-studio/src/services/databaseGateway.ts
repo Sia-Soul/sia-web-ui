@@ -1,5 +1,8 @@
 import type {
   ConnectionProfile,
+  DatabaseObjectCategory,
+  DatabaseUser,
+  DatabaseUserInput,
   DatabaseSchema,
   ExecutionHistoryPage,
   QueryEditMetadata,
@@ -21,7 +24,7 @@ type HostQueryResult = {
 };
 
 type DatabaseHostRequest = {
-  operation: "test" | "query" | "update-cell" | "audit-list";
+  operation: "test" | "query" | "update-cell" | "audit-list" | "user-create" | "user-update" | "user-delete";
   profile: Pick<ConnectionProfile, "id" | "name" | "kind" | "host" | "port" | "database" | "username" | "password" | "sslMode">;
   sql?: string;
   parameters?: Record<string, unknown>;
@@ -33,6 +36,9 @@ type DatabaseHostRequest = {
   offset?: number;
   confirmWithoutWhere?: boolean;
   allowWithoutBackup?: boolean;
+  userName?: string;
+  userHost?: string;
+  password?: string;
 };
 
 export const isDesktopRuntime = Boolean(window.__TAURI__ || window.__TAURI_INTERNALS__);
@@ -290,141 +296,413 @@ export async function loadExecutionHistory(profile: ConnectionProfile, limit = 2
 type DatabaseRow = { database_name: string };
 type ObjectRow = { schema_name?: string; table_name: string; object_type?: string };
 type ColumnRow = { schema_name?: string; table_name: string; column_name: string };
+type UserRow = { user_name: string; user_host?: string; user_type?: string; user_status?: string };
+type DatabaseObjectCountRow = {
+  table_count?: number | string;
+  view_count?: number | string;
+  function_count?: number | string;
+  procedure_count?: number | string;
+};
+type ConnectionObjectCountRow = {
+  database_count?: number | string;
+  user_count?: number | string;
+};
 
-function objectIdentity(item: { schema_name?: string; table_name: string }) {
-  return `${item.schema_name ?? ""}.${item.table_name}`;
+const demoUsersByProfile = new Map<string, DatabaseUser[]>();
+
+function demoUsers(profile: ConnectionProfile) {
+  const existing = demoUsersByProfile.get(profile.id);
+  if (existing) return existing;
+  const users: DatabaseUser[] = profile.kind === "sqlite" ? [] : profile.kind === "mysql"
+    ? [
+      { name: profile.username || "root", host: "%", type: "caching_sha2_password", status: "正常" },
+      { name: "report_reader", host: "%", type: "mysql_native_password", status: "正常" },
+    ]
+    : profile.kind === "sqlserver"
+      ? [
+        { name: profile.username || "sa", type: "SQL_LOGIN", status: "正常" },
+        { name: "report_reader", type: "SQL_LOGIN", status: "正常" },
+      ]
+      : [
+        { name: profile.username || "postgres", type: "超级用户", status: "正常" },
+        { name: "report_reader", type: "普通用户", status: "正常" },
+      ];
+  demoUsersByProfile.set(profile.id, users);
+  return users;
 }
 
-function buildDatabaseSchema(databaseName: string, objects: ObjectRow[], columns: ColumnRow[]): DatabaseSchema {
-  const columnMap = new Map<string, ColumnRow[]>();
-  columns.forEach((column) => {
-    const key = objectIdentity(column);
-    columnMap.set(key, [...(columnMap.get(key) ?? []), column]);
-  });
-  const typeOf = (item: ObjectRow) => String(item.object_type).toLowerCase();
-  const functions = objects.filter((item) => typeOf(item).includes("function"));
-  const procedures = objects.filter((item) => typeOf(item).includes("procedure"));
-  const views = objects.filter((item) => typeOf(item).includes("view"));
-  const tables = objects.filter((item) => !functions.includes(item) && !procedures.includes(item) && !views.includes(item));
-  const children = (items: ObjectRow[], prefix: string, nodeType: "table" | "view") => items.map((item) => ({
-    key: `${prefix}-${item.schema_name ?? "default"}-${item.table_name}`,
-    title: item.schema_name ? `${item.schema_name}.${item.table_name}` : item.table_name,
-    nodeType,
-    tableName: item.table_name,
-    schemaName: item.schema_name,
-    children: (columnMap.get(objectIdentity(item)) ?? []).map((column) => ({
-      key: `${prefix}-${column.schema_name ?? "default"}-${item.table_name}-${column.column_name}`,
-      title: column.column_name,
-      isLeaf: true,
-    })),
-  }));
-  const routines = (items: ObjectRow[], prefix: string, nodeType: "function" | "procedure") => items.map((item) => ({
-    key: `${prefix}-${item.schema_name ?? "default"}-${item.table_name}`,
-    title: item.schema_name ? `${item.schema_name}.${item.table_name}` : item.table_name,
-    nodeType,
-    routineName: item.table_name,
-    schemaName: item.schema_name,
-    isLeaf: true,
-  }));
+export async function loadConnectionObjectSummary(profile: ConnectionProfile) {
+  if (!isDesktopRuntime) {
+    await new Promise((resolve) => window.setTimeout(resolve, 180));
+    const defaultName = profile.database.trim() || defaultDatabase(profile.kind);
+    return {
+      databaseCount: new Set([defaultName, ...DEMO_SCHEMA.databases.map((database) => database.name)]).size,
+      userCount: demoUsers(profile).length,
+    };
+  }
+
+  let sql: string;
+  if (profile.kind === "sqlite") {
+    return { databaseCount: 1, userCount: 0 };
+  } else if (profile.kind === "postgres") {
+    sql = `
+      SELECT
+        (SELECT COUNT(*) FROM pg_database WHERE datallowconn AND NOT datistemplate) AS database_count,
+        (SELECT COUNT(*) FROM pg_catalog.pg_user) AS user_count
+    `;
+  } else if (profile.kind === "sqlserver") {
+    sql = `
+      SELECT
+        (SELECT COUNT(*) FROM sys.databases WHERE state = 0 AND HAS_DBACCESS(name) = 1) AS database_count,
+        (SELECT COUNT(*) FROM sys.server_principals
+          WHERE type IN ('S', 'U', 'G', 'E', 'X') AND name NOT LIKE '##%') AS user_count
+    `;
+  } else {
+    sql = `
+      SELECT
+        (SELECT COUNT(*) FROM information_schema.SCHEMATA) AS database_count,
+        (SELECT COUNT(*) FROM mysql.user) AS user_count
+    `;
+  }
+
+  const [row] = await queryRows(profile, sql) as ConnectionObjectCountRow[];
   return {
-    name: databaseName,
-    loaded: true,
-    nodes: [
-      { key: "tables", title: `表 (${tables.length})`, nodeType: "category", children: children(tables, "table", "table") },
-      { key: "views", title: `视图 (${views.length})`, nodeType: "category", children: children(views, "view", "view") },
-      { key: "functions", title: `函数 (${functions.length})`, nodeType: "category", children: routines(functions, "function", "function") },
-      { key: "procedures", title: `存储过程 (${procedures.length})`, nodeType: "category", children: routines(procedures, "procedure", "procedure") },
-    ],
+    databaseCount: numericCount(row?.database_count),
+    userCount: numericCount(row?.user_count),
   };
 }
 
-function demoDatabaseSchema(databaseName: string): DatabaseSchema {
-  const existing = DEMO_SCHEMA.databases.find((database) => database.name === databaseName);
-  if (existing?.nodes.length) {
-    const nodes = existing.nodes.map((node) => {
-      const nodeType = node.key === "tables" ? "table" : node.key === "views" ? "view" : undefined;
-      return {
-        ...node,
-        nodeType: "category",
-        children: node.children?.map((child) => ({
-          ...child,
-          nodeType,
-          tableName: String(child.title),
-          schemaName: undefined,
-        })),
-      };
-    });
-    return {
-      ...existing,
-      loaded: true,
-      nodes: [
-        ...nodes,
-        { key: "functions", title: "函数 (0)", nodeType: "category", children: [] },
-        { key: "procedures", title: "存储过程 (0)", nodeType: "category", children: [] },
-      ],
-    };
+export async function loadDatabaseUsers(profile: ConnectionProfile): Promise<DatabaseUser[]> {
+  if (profile.kind === "sqlite") return [];
+  if (!isDesktopRuntime) {
+    await new Promise((resolve) => window.setTimeout(resolve, 260));
+    return demoUsers(profile).map((user) => ({ ...user }));
   }
+  const sql = profile.kind === "postgres"
+    ? "SELECT usename AS user_name, CASE WHEN usesuper THEN '超级用户' WHEN usecreatedb THEN '可创建数据库' ELSE '普通用户' END AS user_type, CASE WHEN valuntil IS NOT NULL AND valuntil < CURRENT_TIMESTAMP THEN '已过期' ELSE '正常' END AS user_status FROM pg_catalog.pg_user ORDER BY usename"
+    : profile.kind === "sqlserver"
+      ? "SELECT name AS user_name, type_desc AS user_type, CASE WHEN is_disabled = 1 THEN N'已禁用' ELSE N'正常' END AS user_status FROM sys.server_principals WHERE type IN ('S', 'U', 'G', 'E', 'X') AND name NOT LIKE '##%' ORDER BY name"
+      : "SELECT User AS user_name, Host AS user_host, plugin AS user_type, '正常' AS user_status FROM mysql.user ORDER BY User, Host";
+  const rows = await queryRows(profile, sql) as UserRow[];
+  return rows.map((row) => ({
+    name: String(row.user_name ?? ""),
+    host: row.user_host ? String(row.user_host) : undefined,
+    type: row.user_type ? String(row.user_type) : undefined,
+    status: row.user_status ? String(row.user_status) : undefined,
+  })).filter((user) => user.name);
+}
+
+async function manageDatabaseUser(
+  operation: "user-create" | "user-update" | "user-delete",
+  profile: ConnectionProfile,
+  input: DatabaseUserInput,
+  safety: SqlSafetyOptions = {},
+) {
+  if (profile.kind === "sqlite") throw new Error("SQLite 不支持数据库用户管理。");
+  if (!isDesktopRuntime) {
+    await new Promise((resolve) => window.setTimeout(resolve, 320));
+    const users = demoUsers(profile);
+    const index = users.findIndex((user) => user.name === input.name && (user.host ?? "") === (input.host ?? ""));
+    if (operation === "user-create") {
+      if (index >= 0) throw new Error(`用户 ${input.name} 已存在。`);
+      users.push({
+        name: input.name,
+        host: profile.kind === "mysql" ? input.host || "%" : undefined,
+        type: profile.kind === "postgres" ? "普通用户" : profile.kind === "sqlserver" ? "SQL_LOGIN" : "caching_sha2_password",
+        status: "正常",
+      });
+    } else if (index < 0) {
+      throw new Error(`用户 ${input.name} 不存在。`);
+    } else if (operation === "user-delete") {
+      users.splice(index, 1);
+    }
+    const action = operation === "user-create" ? "UserCreate" : operation === "user-update" ? "UserUpdate" : "UserDelete";
+    return demoAudit(profile, action, `${action} ${input.name} PASSWORD '***'`, {
+      highRisk: operation !== "user-create",
+      affectedRows: 1,
+      backupPath: operation === "user-create" ? undefined : `browser-demo://backups/user-${input.name}.json`,
+      backupRowCount: operation === "user-create" ? undefined : 1,
+      backupTable: operation === "user-create" ? undefined : `database-user:${input.name}`,
+      backupSkipped: safety.allowWithoutBackup,
+    });
+  }
+  const result = await requestDatabaseHost<HostQueryResult>({
+    operation,
+    profile: hostProfile(profile),
+    userName: input.name,
+    userHost: input.host,
+    password: input.password,
+    allowWithoutBackup: safety.allowWithoutBackup,
+  });
+  assertNoConfirmation(result);
+  if (!result.audit) throw new Error("数据库用户操作没有返回执行日志。");
+  return result.audit;
+}
+
+export function createDatabaseUser(profile: ConnectionProfile, input: DatabaseUserInput) {
+  return manageDatabaseUser("user-create", profile, input);
+}
+
+export function updateDatabaseUser(
+  profile: ConnectionProfile,
+  input: DatabaseUserInput,
+  safety: SqlSafetyOptions = {},
+) {
+  return manageDatabaseUser("user-update", profile, input, safety);
+}
+
+export function deleteDatabaseUser(
+  profile: ConnectionProfile,
+  user: DatabaseUser,
+  safety: SqlSafetyOptions = {},
+) {
+  return manageDatabaseUser("user-delete", profile, {
+    name: user.name,
+    host: user.host,
+    password: "",
+  }, safety);
+}
+
+const CATEGORY_LABELS: Record<DatabaseObjectCategory, string> = {
+  tables: "表",
+  views: "视图",
+  functions: "函数",
+  procedures: "存储过程",
+};
+
+type DatabaseObjectCounts = Record<DatabaseObjectCategory, number>;
+
+function databaseCategoryNodes(counts?: DatabaseObjectCounts) {
+  return (Object.keys(CATEGORY_LABELS) as DatabaseObjectCategory[]).map((category) => ({
+    key: category,
+    title: counts ? `${CATEGORY_LABELS[category]} (${counts[category]})` : CATEGORY_LABELS[category],
+    nodeType: "category",
+    category,
+    isLeaf: false,
+    loaded: false,
+  }));
+}
+
+function databaseSchemaShell(databaseName: string, counts?: DatabaseObjectCounts): DatabaseSchema {
   return {
     name: databaseName,
     loaded: true,
-    nodes: [
-      {
-        key: "tables",
-        title: "表 (2)",
-        nodeType: "category",
-        children: [
-          { key: "table-events", title: "events", nodeType: "table", tableName: "events", children: [{ key: "events-id", title: "id", isLeaf: true }, { key: "events-created-at", title: "created_at", isLeaf: true }] },
-          { key: "table-metrics", title: "metrics", nodeType: "table", tableName: "metrics", children: [{ key: "metrics-id", title: "id", isLeaf: true }, { key: "metrics-value", title: "value", isLeaf: true }] },
-        ],
-      },
-      { key: "views", title: "视图 (0)", nodeType: "category", children: [] },
-      { key: "functions", title: "函数 (0)", nodeType: "category", children: [] },
-      { key: "procedures", title: "存储过程 (0)", nodeType: "category", children: [] },
-    ],
+    nodes: databaseCategoryNodes(counts),
+  };
+}
+
+function objectNodes(category: DatabaseObjectCategory, objects: ObjectRow[]) {
+  const nodeType = category === "tables" ? "table"
+    : category === "views" ? "view"
+      : category === "functions" ? "function"
+        : "procedure";
+  return objects.map((item) => ({
+    key: `${nodeType}-${item.schema_name ?? "default"}-${item.table_name}`,
+    title: item.schema_name ? `${item.schema_name}.${item.table_name}` : item.table_name,
+    nodeType,
+    tableName: nodeType === "table" || nodeType === "view" ? item.table_name : undefined,
+    routineName: nodeType === "function" || nodeType === "procedure" ? item.table_name : undefined,
+    schemaName: item.schema_name,
+    isLeaf: nodeType === "function" || nodeType === "procedure",
+    loaded: nodeType === "function" || nodeType === "procedure",
+  }));
+}
+
+function sqlLiteral(value: string) {
+  return `'${value.replaceAll("'", "''")}'`;
+}
+
+function numericCount(value: unknown) {
+  const count = Number(value);
+  return Number.isFinite(count) ? count : 0;
+}
+
+function databaseObjectCounts(row: DatabaseObjectCountRow | undefined): DatabaseObjectCounts {
+  return {
+    tables: numericCount(row?.table_count),
+    views: numericCount(row?.view_count),
+    functions: numericCount(row?.function_count),
+    procedures: numericCount(row?.procedure_count),
   };
 }
 
 export async function loadDatabaseSchema(profile: ConnectionProfile, databaseName: string): Promise<DatabaseSchema> {
   if (!isDesktopRuntime) {
-    await new Promise((resolve) => window.setTimeout(resolve, 260));
-    return demoDatabaseSchema(databaseName);
+    await new Promise((resolve) => window.setTimeout(resolve, 180));
+    const database = DEMO_SCHEMA.databases.find((item) => item.name === databaseName);
+    const count = (category: DatabaseObjectCategory) =>
+      database?.nodes.find((node) => node.key === category)?.children?.length ?? 0;
+    return databaseSchemaShell(databaseName, {
+      tables: count("tables"),
+      views: count("views"),
+      functions: count("functions"),
+      procedures: count("procedures"),
+    });
   }
 
   const databaseProfile = { ...profile, database: databaseName };
-  if (databaseProfile.kind === "sqlite") {
-    const objects = await queryRows(databaseProfile, "SELECT name AS table_name, type AS object_type FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' ORDER BY type, name") as ObjectRow[];
-    const columnGroups = await Promise.all(objects.map(async (item) => {
-      const escapedName = item.table_name.replaceAll('"', '""');
-      const rows = await queryRows(databaseProfile, `PRAGMA table_info("${escapedName}")`) as Array<{ name: string }>;
-      return rows.map((row) => ({ table_name: item.table_name, column_name: row.name }));
+  let sql: string;
+  if (profile.kind === "sqlite") {
+    sql = `
+      SELECT
+        SUM(CASE WHEN type = 'table' THEN 1 ELSE 0 END) AS table_count,
+        SUM(CASE WHEN type = 'view' THEN 1 ELSE 0 END) AS view_count,
+        0 AS function_count,
+        0 AS procedure_count
+      FROM sqlite_master
+      WHERE name NOT LIKE 'sqlite_%'
+    `;
+  } else if (profile.kind === "postgres") {
+    sql = `
+      SELECT
+        (SELECT COUNT(*) FROM information_schema.tables
+          WHERE table_schema NOT IN ('pg_catalog', 'information_schema') AND table_type = 'BASE TABLE') AS table_count,
+        (SELECT COUNT(*) FROM information_schema.tables
+          WHERE table_schema NOT IN ('pg_catalog', 'information_schema') AND table_type = 'VIEW') AS view_count,
+        (SELECT COUNT(*) FROM information_schema.routines
+          WHERE routine_schema NOT IN ('pg_catalog', 'information_schema') AND routine_type = 'FUNCTION') AS function_count,
+        (SELECT COUNT(*) FROM information_schema.routines
+          WHERE routine_schema NOT IN ('pg_catalog', 'information_schema') AND routine_type = 'PROCEDURE') AS procedure_count
+    `;
+  } else if (profile.kind === "sqlserver") {
+    sql = `
+      SELECT
+        (SELECT COUNT(*) FROM sys.tables WHERE is_ms_shipped = 0) AS table_count,
+        (SELECT COUNT(*) FROM sys.views WHERE is_ms_shipped = 0) AS view_count,
+        (SELECT COUNT(*) FROM sys.objects
+          WHERE type IN ('FN', 'IF', 'TF', 'FS', 'FT') AND is_ms_shipped = 0) AS function_count,
+        (SELECT COUNT(*) FROM sys.objects
+          WHERE type IN ('P', 'PC') AND is_ms_shipped = 0) AS procedure_count
+    `;
+  } else {
+    sql = `
+      SELECT
+        (SELECT COUNT(*) FROM information_schema.tables
+          WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE') AS table_count,
+        (SELECT COUNT(*) FROM information_schema.tables
+          WHERE table_schema = DATABASE() AND table_type = 'VIEW') AS view_count,
+        (SELECT COUNT(*) FROM information_schema.routines
+          WHERE routine_schema = DATABASE() AND routine_type = 'FUNCTION') AS function_count,
+        (SELECT COUNT(*) FROM information_schema.routines
+          WHERE routine_schema = DATABASE() AND routine_type = 'PROCEDURE') AS procedure_count
+    `;
+  }
+
+  const [row] = await queryRows(databaseProfile, sql) as DatabaseObjectCountRow[];
+  return databaseSchemaShell(databaseName, databaseObjectCounts(row));
+}
+
+export async function loadDatabaseCategory(
+  profile: ConnectionProfile,
+  databaseName: string,
+  category: DatabaseObjectCategory,
+) {
+  if (!isDesktopRuntime) {
+    await new Promise((resolve) => window.setTimeout(resolve, 180));
+    const demo = DEMO_SCHEMA.databases.find((database) => database.name === databaseName);
+    const source = demo?.nodes.find((node) => node.key === category)?.children ?? [];
+    return {
+      key: category,
+      title: `${CATEGORY_LABELS[category]} (${source.length})`,
+      nodeType: "category",
+      category,
+      isLeaf: false,
+      loaded: true,
+      children: source.map((node) => ({
+        ...node,
+        nodeType: category === "tables" ? "table"
+          : category === "views" ? "view"
+            : category === "functions" ? "function"
+              : "procedure",
+        tableName: String(node.title),
+        isLeaf: category === "functions" || category === "procedures",
+        loaded: category === "functions" || category === "procedures",
+        children: undefined,
+      })),
+    };
+  }
+
+  const databaseProfile = { ...profile, database: databaseName };
+  let sql: string;
+  if (profile.kind === "sqlite") {
+    if (category === "functions" || category === "procedures") {
+      return { key: category, title: `${CATEGORY_LABELS[category]} (0)`, nodeType: "category", category, isLeaf: false, loaded: true, children: [] };
+    }
+    const sqliteType = category === "tables" ? "table" : "view";
+    sql = `SELECT name AS table_name, type AS object_type FROM sqlite_master WHERE type = '${sqliteType}' AND name NOT LIKE 'sqlite_%' ORDER BY name`;
+  } else if (profile.kind === "postgres") {
+    if (category === "tables" || category === "views") {
+      const tableType = category === "tables" ? "BASE TABLE" : "VIEW";
+      sql = `SELECT table_schema AS schema_name, table_name, table_type AS object_type FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog', 'information_schema') AND table_type = '${tableType}' ORDER BY table_schema, table_name`;
+    } else {
+      const routineType = category === "functions" ? "FUNCTION" : "PROCEDURE";
+      sql = `SELECT routine_schema AS schema_name, routine_name AS table_name, routine_type AS object_type FROM information_schema.routines WHERE routine_schema NOT IN ('pg_catalog', 'information_schema') AND routine_type = '${routineType}' ORDER BY routine_schema, routine_name`;
+    }
+  } else if (profile.kind === "sqlserver") {
+    if (category === "tables" || category === "views") {
+      const tableType = category === "tables" ? "BASE TABLE" : "VIEW";
+      sql = `SELECT TABLE_SCHEMA AS schema_name, TABLE_NAME AS table_name, TABLE_TYPE AS object_type FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = '${tableType}' ORDER BY TABLE_SCHEMA, TABLE_NAME`;
+    } else {
+      const types = category === "procedures" ? "'P', 'PC'" : "'FN', 'IF', 'TF', 'FS', 'FT'";
+      sql = `SELECT SCHEMA_NAME(schema_id) AS schema_name, name AS table_name, CASE WHEN type IN ('P', 'PC') THEN 'PROCEDURE' ELSE 'FUNCTION' END AS object_type FROM sys.objects WHERE type IN (${types}) ORDER BY schema_name, table_name`;
+    }
+  } else if (category === "tables" || category === "views") {
+    const tableType = category === "tables" ? "BASE TABLE" : "VIEW";
+    sql = `SELECT TABLE_SCHEMA AS schema_name, TABLE_NAME AS table_name, TABLE_TYPE AS object_type FROM information_schema.tables WHERE table_schema = DATABASE() AND TABLE_TYPE = '${tableType}' ORDER BY table_name`;
+  } else {
+    const routineType = category === "functions" ? "FUNCTION" : "PROCEDURE";
+    sql = `SELECT ROUTINE_SCHEMA AS schema_name, ROUTINE_NAME AS table_name, ROUTINE_TYPE AS object_type FROM information_schema.routines WHERE routine_schema = DATABASE() AND ROUTINE_TYPE = '${routineType}' ORDER BY routine_name`;
+  }
+
+  const objects = await queryRows(databaseProfile, sql) as ObjectRow[];
+  return {
+    key: category,
+    title: `${CATEGORY_LABELS[category]} (${objects.length})`,
+    nodeType: "category",
+    category,
+    isLeaf: false,
+    loaded: true,
+    children: objectNodes(category, objects),
+  };
+}
+
+export async function loadDatabaseObjectColumns(
+  profile: ConnectionProfile,
+  databaseName: string,
+  tableName: string,
+  schemaName?: string,
+) {
+  if (!isDesktopRuntime) {
+    await new Promise((resolve) => window.setTimeout(resolve, 140));
+    return ["id", "name", "created_at"].map((columnName) => ({
+      key: `column-${schemaName ?? "default"}-${tableName}-${columnName}`,
+      title: columnName,
+      nodeType: "column",
+      isLeaf: true,
+      loaded: true,
     }));
-    return buildDatabaseSchema(databaseName, objects, columnGroups.flat());
   }
 
-  if (databaseProfile.kind === "postgres") {
-    const [objects, columns, routines] = await Promise.all([
-      queryRows(databaseProfile, "SELECT table_schema AS schema_name, table_name, table_type AS object_type FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog', 'information_schema') ORDER BY table_schema, table_name") as Promise<ObjectRow[]>,
-      queryRows(databaseProfile, "SELECT table_schema AS schema_name, table_name, column_name FROM information_schema.columns WHERE table_schema NOT IN ('pg_catalog', 'information_schema') ORDER BY table_schema, table_name, ordinal_position") as Promise<ColumnRow[]>,
-      queryRows(databaseProfile, "SELECT routine_schema AS schema_name, routine_name AS table_name, routine_type AS object_type FROM information_schema.routines WHERE routine_schema NOT IN ('pg_catalog', 'information_schema') ORDER BY routine_schema, routine_name") as Promise<ObjectRow[]>,
-    ]);
-    return buildDatabaseSchema(databaseName, [...objects, ...routines], columns);
+  const databaseProfile = { ...profile, database: databaseName };
+  let columns: ColumnRow[];
+  if (profile.kind === "sqlite") {
+    const escapedName = tableName.replaceAll('"', '""');
+    const rows = await queryRows(databaseProfile, `PRAGMA table_info("${escapedName}")`) as Array<{ name: string }>;
+    columns = rows.map((row) => ({ table_name: tableName, column_name: row.name }));
+  } else {
+    const schemaPredicate = schemaName ? ` AND TABLE_SCHEMA = ${sqlLiteral(schemaName)}` : "";
+    columns = await queryRows(
+      databaseProfile,
+      `SELECT TABLE_SCHEMA AS schema_name, TABLE_NAME AS table_name, COLUMN_NAME AS column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ${sqlLiteral(tableName)}${schemaPredicate} ORDER BY ORDINAL_POSITION`,
+    ) as ColumnRow[];
   }
-
-  if (databaseProfile.kind === "sqlserver") {
-    const [objects, columns, routines] = await Promise.all([
-      queryRows(databaseProfile, "SELECT TABLE_SCHEMA AS schema_name, TABLE_NAME AS table_name, TABLE_TYPE AS object_type FROM INFORMATION_SCHEMA.TABLES ORDER BY TABLE_SCHEMA, TABLE_NAME") as Promise<ObjectRow[]>,
-      queryRows(databaseProfile, "SELECT TABLE_SCHEMA AS schema_name, TABLE_NAME AS table_name, COLUMN_NAME AS column_name FROM INFORMATION_SCHEMA.COLUMNS ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION") as Promise<ColumnRow[]>,
-      queryRows(databaseProfile, "SELECT SCHEMA_NAME(schema_id) AS schema_name, name AS table_name, CASE WHEN type IN ('P', 'PC') THEN 'PROCEDURE' ELSE 'FUNCTION' END AS object_type FROM sys.objects WHERE type IN ('P', 'PC', 'FN', 'IF', 'TF', 'FS', 'FT') ORDER BY schema_name, table_name") as Promise<ObjectRow[]>,
-    ]);
-    return buildDatabaseSchema(databaseName, [...objects, ...routines], columns);
-  }
-
-  const [objects, columns, routines] = await Promise.all([
-    queryRows(databaseProfile, "SELECT TABLE_SCHEMA AS schema_name, TABLE_NAME AS table_name, TABLE_TYPE AS object_type FROM information_schema.tables WHERE table_schema = DATABASE() ORDER BY table_name") as Promise<ObjectRow[]>,
-    queryRows(databaseProfile, "SELECT TABLE_SCHEMA AS schema_name, TABLE_NAME AS table_name, COLUMN_NAME AS column_name FROM information_schema.columns WHERE table_schema = DATABASE() ORDER BY table_name, ordinal_position") as Promise<ColumnRow[]>,
-    queryRows(databaseProfile, "SELECT ROUTINE_SCHEMA AS schema_name, ROUTINE_NAME AS table_name, ROUTINE_TYPE AS object_type FROM information_schema.routines WHERE routine_schema = DATABASE() ORDER BY routine_name") as Promise<ObjectRow[]>,
-  ]);
-  return buildDatabaseSchema(databaseName, [...objects, ...routines], columns);
+  return columns.map((column) => ({
+    key: `column-${column.schema_name ?? "default"}-${tableName}-${column.column_name}`,
+    title: column.column_name,
+    nodeType: "column",
+    isLeaf: true,
+    loaded: true,
+  }));
 }
 
 export async function loadSchema(profile: ConnectionProfile): Promise<SchemaSnapshot> {
@@ -435,6 +713,8 @@ export async function loadSchema(profile: ConnectionProfile): Promise<SchemaSnap
     return {
       database: defaultName,
       databases: names.map((name) => ({ name, nodes: [], loaded: false })),
+      databaseCount: names.length,
+      databasesLoaded: true,
     };
   }
 
@@ -459,5 +739,7 @@ export async function loadSchema(profile: ConnectionProfile): Promise<SchemaSnap
   return {
     database: defaultName,
     databases: names.map((name) => ({ name, nodes: [], loaded: false })),
+    databaseCount: names.length,
+    databasesLoaded: true,
   };
 }

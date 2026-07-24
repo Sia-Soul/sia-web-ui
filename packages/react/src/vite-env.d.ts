@@ -5,3 +5,4 @@ declare module "*?worker" {
 
 declare module "monaco-editor/editor/contrib/clipboard/browser/clipboard.js";
 declare module "monaco-editor/editor/contrib/contextmenu/browser/contextmenu.js";
+declare module "monaco-editor/editor/contrib/suggest/browser/suggestController.js";

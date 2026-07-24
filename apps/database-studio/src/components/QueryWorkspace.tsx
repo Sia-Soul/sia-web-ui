@@ -22,6 +22,7 @@ import {
   type AnyTablePlugin,
   type EditorContextMenuItem,
   type EditorHandle,
+  type EditorKeyDownEvent,
   type EditorLanguage,
   type EditorSelectionChange,
   type TableColumn,
@@ -30,12 +31,13 @@ import {
 } from "@sia-ui/react";
 import { saveCsvFile } from "../services/fileExport";
 import { currentSqlStatement } from "../services/sqlStatement";
+import { createSqlCompletionProvider } from "../services/sqlCompletion";
 import {
   loadQueryWorkspace,
   saveQueryWorkspace,
   type QueryDocument,
 } from "../services/queryWorkspaceRepository";
-import type { DatabaseKind, QueryResult } from "../types";
+import type { DatabaseKind, DatabaseSchema, QueryResult } from "../types";
 
 interface ResultTableRow extends Record<string, unknown> {
   __siaRowIndex: number;
@@ -49,15 +51,18 @@ interface QueryWorkspaceProps {
   error: string;
   connectionOptions: readonly { label: string; value: string }[];
   databaseOptions: readonly { label: string; value: string }[];
+  databaseSchema?: DatabaseSchema;
   activeConnectionId: string;
   activeDatabase: string;
   activeConnectionConnected: boolean;
+  activeConnectionConnecting?: boolean;
   databaseLoading?: boolean;
   activeDatabaseKind: DatabaseKind;
   windowTheme: "light" | "dark";
   onConnectionChange: (id: string) => void;
   onDatabaseChange: (database: string) => void;
   onSqlChange: (sql: string) => void;
+  onLoadTableColumns?: (tableName: string, schemaName?: string) => Promise<readonly string[]>;
   onRun: (sql: string) => void;
   onFormat: () => void;
   onCellUpdate: (column: string, rowIndex: number, value: unknown) => Promise<boolean>;
@@ -140,15 +145,18 @@ export function QueryWorkspace({
   error,
   connectionOptions,
   databaseOptions,
+  databaseSchema,
   activeConnectionId,
   activeDatabase,
   activeConnectionConnected,
+  activeConnectionConnecting = false,
   databaseLoading = false,
   activeDatabaseKind,
   windowTheme,
   onConnectionChange,
   onDatabaseChange,
   onSqlChange,
+  onLoadTableColumns,
   onRun,
   onFormat,
   onCellUpdate,
@@ -177,6 +185,12 @@ export function QueryWorkspace({
     () => currentSqlStatement(activeSql, editorSelection.cursorOffset),
     [activeSql, editorSelection.cursorOffset],
   );
+  const completionProvider = useMemo(() => createSqlCompletionProvider({
+    kind: activeDatabaseKind,
+    databaseNames: databaseOptions.map((option) => option.value),
+    schema: databaseSchema,
+    loadTableColumns: onLoadTableColumns,
+  }), [activeDatabaseKind, databaseOptions, databaseSchema, onLoadTableColumns]);
   const runSelectionOrCurrentStatement = useCallback(() => {
     const selectedSql = editorRef.current?.getSelectedText().trim();
     if (selectedSql) {
@@ -191,6 +205,16 @@ export function QueryWorkspace({
     }
     onRun(activeSql);
   }, [activeSql, activeStatement, onRun]);
+  const handleEditorKeyDown = useCallback((event: EditorKeyDownEvent) => {
+    const modifierPressed = event.ctrlKey || event.metaKey;
+    const runShortcut = event.key === "F5"
+      || (modifierPressed && event.key.toLowerCase() === "r")
+      || (modifierPressed && event.key === "Enter");
+    if (!runShortcut) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (!event.repeat && !running) runSelectionOrCurrentStatement();
+  }, [runSelectionOrCurrentStatement, running]);
   const editorContextMenuItems = useMemo<readonly EditorContextMenuItem[]>(() => [
     {
       key: "run-selection",
@@ -220,7 +244,12 @@ export function QueryWorkspace({
     void loadQueryWorkspace().then((snapshot) => {
       if (cancelled) return;
       const loadedQueries = snapshot?.queries.filter((query) => query.key && query.label) ?? [];
-      if (loadedQueries.length > 0) {
+      if (snapshot && loadedQueries.length === 0) {
+        setQueries([]);
+        setActiveQueryKey("");
+        nextQueryNumber.current = 1;
+        onSqlChange("");
+      } else if (loadedQueries.length > 0) {
         const loadedActiveKey = loadedQueries.some((query) => query.key === snapshot?.activeQueryKey)
           ? snapshot?.activeQueryKey ?? loadedQueries[0].key
           : loadedQueries[0].key;
@@ -285,30 +314,15 @@ export function QueryWorkspace({
     addQuery(newQueryRequest.sql, newQueryRequest.label);
   }, [newQueryRequest]);
 
-  useEffect(() => {
-    function handleRunShortcut(event: KeyboardEvent) {
-      if (!(event.ctrlKey || event.metaKey) || event.key !== "Enter") return;
-      event.preventDefault();
-      runSelectionOrCurrentStatement();
-    }
-    window.addEventListener("keydown", handleRunShortcut);
-    return () => window.removeEventListener("keydown", handleRunShortcut);
-  }, [runSelectionOrCurrentStatement]);
-
   function closeQuery(key: string) {
     const index = queries.findIndex((query) => query.key === key);
     if (index < 0) return;
-    let nextQueries = queries.filter((query) => query.key !== key);
-    if (nextQueries.length === 0) {
-      const number = nextQueryNumber.current;
-      nextQueryNumber.current += 1;
-      nextQueries = [{ key: `query-${number}`, label: `查询 ${number}`, sql: "-- 新查询\n\n" }];
-    }
+    const nextQueries = queries.filter((query) => query.key !== key);
     setQueries(nextQueries);
     if (key === activeQueryKey) {
       const nextActive = nextQueries[Math.min(index, nextQueries.length - 1)];
-      setActiveQueryKey(nextActive.key);
-      onSqlChange(nextActive.sql);
+      setActiveQueryKey(nextActive?.key ?? "");
+      onSqlChange(nextActive?.sql ?? "");
     }
   }
 
@@ -321,12 +335,9 @@ export function QueryWorkspace({
   }
 
   function closeAllQueries() {
-    const number = nextQueryNumber.current;
-    nextQueryNumber.current += 1;
-    const next = { key: `query-${number}`, label: `查询 ${number}`, sql: "-- 新查询\n\n" };
-    setQueries([next]);
-    setActiveQueryKey(next.key);
-    onSqlChange(next.sql);
+    setQueries([]);
+    setActiveQueryKey("");
+    onSqlChange("");
   }
 
   useEffect(() => {
@@ -463,11 +474,12 @@ export function QueryWorkspace({
         tabBarExtraContent={<Tooltip title="新建查询"><Button variant="text" size="small" icon={<Icon name="plus" size={16} />} aria-label="新建查询" onClick={() => addQuery()} /></Tooltip>}
       />
 
-      <Splitter orientation="vertical" className="query-splitter">
+      {activeQuery ? (
+        <Splitter orientation="vertical" className="query-splitter">
         <Splitter.Panel defaultSize={53} min={30}>
           <section className="editor-panel">
             <div className="query-toolbar">
-              <Tooltip title="优先运行选中内容，否则运行当前 SQL 语句">
+              <Tooltip title="运行（F5 / Ctrl+R / Ctrl+Enter）：优先运行选中内容，否则运行当前 SQL 语句">
                 <Button variant="primary" icon={<Icon name="play" size={15} />} loading={running} onClick={runSelectionOrCurrentStatement}>运行</Button>
               </Tooltip>
               <Button danger icon={<Icon name="stop" size={15} />} disabled={!running}>停止</Button>
@@ -486,10 +498,16 @@ export function QueryWorkspace({
                 options={databaseOptions}
                 loading={databaseLoading}
                 disabled={!activeConnectionConnected}
+                showSearch
+                searchPlaceholder="搜索数据库"
+                notFoundContent="没有匹配的数据库"
                 aria-label="当前数据库"
                 onChange={(value) => value && onDatabaseChange(String(value))}
               />
-              <span className={`connection-state${activeConnectionConnected ? " is-online" : ""}`}><i />{activeConnectionConnected ? "已连接" : "未连接"}</span>
+              <span className={`connection-state${activeConnectionConnected ? " is-online" : ""}`}>
+                {activeConnectionConnecting ? <Icon name="loader" size={13} spin /> : <i />}
+                {activeConnectionConnecting ? "正在连接，成功后自动执行…" : activeConnectionConnected ? "已连接" : "未连接"}
+              </span>
             </div>
             <Editor
               className="sql-editor"
@@ -499,15 +517,22 @@ export function QueryWorkspace({
                 editorRef.current = api;
               }}
               onSelectionChange={setEditorSelection}
+              onKeyDown={handleEditorKeyDown}
               language={DIALECT_LANGUAGE[activeDatabaseKind]}
               theme={windowTheme}
               highlightRange={activeStatement?.range}
               contextMenuItems={editorContextMenuItems}
+              completionProvider={completionProvider}
+              completionTriggerCharacters={["."]}
+              refreshSuggestionOnSpace
               ariaLabel="SQL 查询编辑器"
               options={{
                 fontSize: 14,
                 lineHeight: 24,
                 padding: { top: 16, bottom: 16 },
+                quickSuggestions: { other: true, comments: false, strings: false },
+                suggestOnTriggerCharacters: true,
+                wordBasedSuggestions: "off",
                 wordWrap: "off",
                 renderLineHighlight: "none",
               }}
@@ -530,9 +555,13 @@ export function QueryWorkspace({
                 <div className="result-actions">
                   <div className="result-inline-info">
                     <span>{result.rows.length} 行 · {result.durationMs} ms{selectedCellCount > 0 ? ` · 已选 ${selectedCellCount} 个单元格` : ""}</span>
-                    <span>{result.editable ? "双击编辑非主键列 · 确认 SQL 后自动备份并执行 UPDATE" : "当前结果只读：仅包含主键的单表查询可写回"}</span>
+                    <span>{result.rows.length === 0
+                      ? "运行 SQL 后将在下方显示结果"
+                      : result.editable
+                        ? "双击编辑非主键列 · 确认 SQL 后自动备份并执行 UPDATE"
+                        : "当前结果只读：仅包含主键的单表查询可写回"}</span>
                   </div>
-                  <Tooltip title="选择路径并导出全部结果为 CSV"><Button variant="text" size="small" icon={<Icon name="download" size={15} />} aria-label="导出结果" onClick={() => void exportResults()} /></Tooltip>
+                  <Tooltip title="选择路径并导出全部结果为 CSV"><Button variant="text" size="small" icon={<Icon name="download" size={15} />} aria-label="导出结果" disabled={result.rows.length === 0} onClick={() => void exportResults()} /></Tooltip>
                 </div>
               )}
             />
@@ -563,7 +592,17 @@ export function QueryWorkspace({
             )}
           </section>
         </Splitter.Panel>
-      </Splitter>
+        </Splitter>
+      ) : (
+        <section className="query-workspace-empty">
+          <Icon name="file" size={34} />
+          <strong>没有打开的查询</strong>
+          <p>点击上方“+”创建一个新的 SQL 查询。</p>
+          <Button variant="primary" icon={<Icon name="plus" size={15} />} onClick={() => addQuery()}>
+            新建查询
+          </Button>
+        </section>
+      )}
     </main>
   );
 }

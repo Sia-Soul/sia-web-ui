@@ -1,6 +1,11 @@
+mod browser_overlay;
+mod floating_windows;
+mod passwords;
+
+use passwords::{attach_password_bridge, PASSWORD_AUTOFILL_SCRIPT};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tauri::{
-    menu::{CheckMenuItemBuilder, MenuBuilder},
     webview::{NewWindowResponse, PageLoadEvent, WebviewBuilder},
     AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Position, Rect, Size, WebviewUrl,
 };
@@ -10,20 +15,7 @@ use webview2_com::{
     Microsoft::Web::WebView2::Win32::{ICoreWebView2, ICoreWebView2_8},
 };
 #[cfg(windows)]
-use windows::{
-    core::{Interface, BOOL},
-    Win32::{
-        Foundation::{HWND, RECT},
-        Graphics::Gdi::{
-            CombineRgn, CreateRectRgn, CreateRoundRectRgn, DeleteObject, SetWindowRgn, HGDIOBJ,
-            RGN_DIFF,
-        },
-        UI::{
-            Input::KeyboardAndMouse::EnableWindow,
-            WindowsAndMessaging::GetClientRect,
-        },
-    },
-};
+use windows::core::{Interface, BOOL};
 
 const BROWSER_WEBVIEW_PREFIX: &str = "browser-tab-";
 const BROWSER_STATE_FILE: &str = "browser-state.json";
@@ -37,14 +29,12 @@ struct BrowserBounds {
     height: f64,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct BrowserPopupRect {
-    x: f64,
-    y: f64,
-    width: f64,
-    height: f64,
-    radius: f64,
+struct BrowserMenuGroup {
+    id: String,
+    name: String,
+    disabled: bool,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -242,86 +232,8 @@ fn hide_browser_webviews(app: &AppHandle, except_label: Option<&str>) -> Result<
 }
 
 #[tauri::command]
-fn set_browser_overlay_regions(
-    app: AppHandle,
-    tab_id: String,
-    rects: Vec<BrowserPopupRect>,
-    disable_input: bool,
-) -> Result<(), String> {
-    let webview = app
-        .get_webview(&browser_label(&tab_id))
-        .ok_or_else(|| "当前标签页还没有打开网页".to_string())?;
-    #[cfg(windows)]
-    {
-        let scale_factor = app
-            .get_window("main")
-            .ok_or_else(|| "找不到浏览器主窗口".to_string())?
-            .scale_factor()
-            .map_err(|error| error.to_string())?;
-        webview
-            .with_webview(move |platform_webview| {
-                let controller = platform_webview.controller();
-                let mut hwnd = HWND::default();
-                if unsafe { controller.ParentWindow(&mut hwnd) }.is_err() {
-                    return;
-                }
-                if rects.is_empty() {
-                    unsafe {
-                        SetWindowRgn(hwnd, None, true);
-                        let _ = EnableWindow(hwnd, true);
-                    }
-                    return;
-                }
-                let mut client_rect = RECT::default();
-                if unsafe { GetClientRect(hwnd, &mut client_rect) }.is_err() {
-                    return;
-                }
-                let full_region = unsafe {
-                    CreateRectRgn(
-                        0,
-                        0,
-                        client_rect.right - client_rect.left,
-                        client_rect.bottom - client_rect.top,
-                    )
-                };
-                unsafe {
-                    for rect in rects {
-                        let left = (rect.x * scale_factor).floor() as i32;
-                        let top = (rect.y * scale_factor).floor() as i32;
-                        let right = ((rect.x + rect.width) * scale_factor).ceil() as i32;
-                        let bottom = ((rect.y + rect.height) * scale_factor).ceil() as i32;
-                        let exclusion_region = if rect.radius > 0.0 {
-                            let corner_radius = (rect.radius * scale_factor).round() as i32;
-                            CreateRoundRectRgn(
-                                left,
-                                top,
-                                right,
-                                bottom,
-                                corner_radius,
-                                corner_radius,
-                            )
-                        } else {
-                            CreateRectRgn(left, top, right, bottom)
-                        };
-                        CombineRgn(
-                            Some(full_region),
-                            Some(full_region),
-                            Some(exclusion_region),
-                            RGN_DIFF,
-                        );
-                        let _ = DeleteObject(HGDIOBJ(exclusion_region.0));
-                    }
-                    let _ = EnableWindow(hwnd, !disable_input);
-                    if SetWindowRgn(hwnd, Some(full_region), true) == 0 {
-                        let _ = DeleteObject(HGDIOBJ(full_region.0));
-                    }
-                }
-            })
-            .map_err(|error| error.to_string())?;
-    }
-    #[cfg(not(windows))]
-    let _ = (rects, disable_input);
-    Ok(())
+fn hide_browser_pages(app: AppHandle) -> Result<(), String> {
+    hide_browser_webviews(&app, None)
 }
 
 #[tauri::command]
@@ -365,6 +277,7 @@ async fn open_browser_tab(
 
     let builder = WebviewBuilder::new(label, WebviewUrl::External(parsed_url))
         .data_directory(data_directory)
+        .initialization_script(PASSWORD_AUTOFILL_SCRIPT)
         .zoom_hotkeys_enabled(true)
         .on_navigation(|next_url| {
             matches!(
@@ -431,7 +344,8 @@ async fn open_browser_tab(
             LogicalSize::new(bounds.width.max(1.0), bounds.height.max(1.0)),
         )
         .map_err(|error| error.to_string())?;
-    attach_audio_monitor(&app, &webview, tab_id, group_id)?;
+    attach_audio_monitor(&app, &webview, tab_id.clone(), group_id)?;
+    attach_password_bridge(&app, &webview, tab_id)?;
     webview.set_focus().map_err(|error| error.to_string())?;
     Ok(())
 }
@@ -453,6 +367,8 @@ fn switch_browser_tab(app: AppHandle, tab_id: String, bounds: BrowserBounds) -> 
 #[tauri::command]
 fn close_browser_tab(app: AppHandle, tab_id: String) -> Result<(), String> {
     if let Some(webview) = app.get_webview(&browser_label(&tab_id)) {
+        // 先隐藏再销毁，确保“主页”和关闭标签操作不会因 WebView2 延迟销毁而残留旧网页。
+        webview.hide().map_err(|error| error.to_string())?;
         webview.close().map_err(|error| error.to_string())?;
     }
     Ok(())
@@ -513,43 +429,227 @@ fn set_browser_tab_muted(app: AppHandle, tab_id: String, muted: bool) -> Result<
 #[tauri::command]
 fn show_browser_more_menu(
     app: AppHandle,
+    menu_store: tauri::State<'_, floating_windows::BrowserMenuStore>,
     tab_layout: String,
     show_bookmarks_bar: bool,
     dark_mode: bool,
+    source_window: String,
     x: f64,
     y: f64,
 ) -> Result<(), String> {
-    let window = app
-        .get_window("main")
-        .ok_or_else(|| "找不到浏览器主窗口".to_string())?;
-    let bookmark_bar = CheckMenuItemBuilder::with_id("more:bookmark-bar", "显示书签栏")
-        .checked(show_bookmarks_bar)
-        .build(&app)
-        .map_err(|error| error.to_string())?;
-    let dark_theme = CheckMenuItemBuilder::with_id("more:theme", "深色主题")
-        .checked(dark_mode)
-        .build(&app)
-        .map_err(|error| error.to_string())?;
     let layout_label = if tab_layout == "vertical" {
         "切换到横向标签"
     } else {
         "切换到垂直标签"
     };
-    let menu = MenuBuilder::new(&app)
-        .text("more:tab-layout", layout_label)
-        .separator()
-        .text("more:bookmarks", "书签")
-        .item(&bookmark_bar)
-        .separator()
-        .item(&dark_theme)
-        .separator()
-        .text("more:history", "历史记录")
-        .text("more:settings", "浏览器设置")
-        .build()
-        .map_err(|error| error.to_string())?;
-    window
-        .popup_menu_at(&menu, LogicalPosition::new(x.max(0.0), y.max(0.0)))
-        .map_err(|error| error.to_string())
+    let payload = json!({
+        "darkMode": dark_mode,
+        "items": [
+            { "key": "more:tab-layout", "label": layout_label },
+            { "type": "divider" },
+            { "key": "more:bookmarks", "label": "书签" },
+            {
+                "key": "more:bookmark-bar",
+                "label": "显示书签栏",
+                "checked": show_bookmarks_bar
+            },
+            { "type": "divider" },
+            { "key": "more:passwords", "label": "密码" },
+            { "type": "divider" },
+            {
+                "key": "more:theme",
+                "label": "主题",
+                "variant": "theme",
+                "checked": dark_mode
+            },
+            { "type": "divider" },
+            { "key": "more:history", "label": "历史记录" },
+            { "key": "more:settings", "label": "浏览器设置" }
+        ]
+    });
+    floating_windows::show_menu(
+        &app,
+        &menu_store,
+        payload,
+        source_window,
+        floating_windows::FloatingWindowBounds {
+            x,
+            y,
+            width: 276.0,
+            height: 354.0,
+        },
+    )
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+fn show_browser_tab_menu(
+    app: AppHandle,
+    menu_store: tauri::State<'_, floating_windows::BrowserMenuStore>,
+    tab_id: String,
+    adjacent_direction: String,
+    groups: Vec<BrowserMenuGroup>,
+    pinned: bool,
+    muted: bool,
+    disable_close_others: bool,
+    disable_close_following: bool,
+    disable_reopen_closed: bool,
+    dark_mode: bool,
+    source_window: String,
+    x: f64,
+    y: f64,
+) -> Result<(), String> {
+    let prefix = format!("tab|{tab_id}");
+    let move_items = groups
+        .into_iter()
+        .map(|group| {
+            json!({
+                "key": format!("{prefix}|move|{}", group.id),
+                "label": group.name,
+                "disabled": group.disabled
+            })
+        })
+        .collect::<Vec<_>>();
+    let payload = json!({
+        "darkMode": dark_mode,
+        "items": [
+            {
+                "key": format!("{prefix}|new-adjacent"),
+                "label": format!("在{adjacent_direction}新建标签页")
+            },
+            {
+                "key": format!("{prefix}|move"),
+                "label": "移动到",
+                "children": move_items
+            },
+            { "type": "divider" },
+            {
+                "key": format!("{prefix}|refresh"),
+                "label": "刷新",
+                "shortcut": "Ctrl+R"
+            },
+            {
+                "key": format!("{prefix}|duplicate"),
+                "label": "复制标签页",
+                "shortcut": "Ctrl+Shift+K"
+            },
+            {
+                "key": format!("{prefix}|move-window"),
+                "label": "将标签页移动到新窗口"
+            },
+            {
+                "key": format!("{prefix}|toggle-pin"),
+                "label": if pinned { "取消固定标签页" } else { "固定标签页" }
+            },
+            {
+                "key": format!("{prefix}|toggle-mute"),
+                "label": if muted { "取消标签页静音" } else { "使标签页静音" },
+                "shortcut": "Ctrl+M"
+            },
+            { "type": "divider" },
+            {
+                "key": format!("{prefix}|close"),
+                "label": "关闭标签页",
+                "shortcut": "Ctrl+W"
+            },
+            {
+                "key": format!("{prefix}|close-others"),
+                "label": "关闭其他标签页",
+                "disabled": disable_close_others
+            },
+            {
+                "key": format!("{prefix}|close-following"),
+                "label": format!("关闭{adjacent_direction}标签页"),
+                "disabled": disable_close_following
+            },
+            { "type": "divider" },
+            {
+                "key": format!("{prefix}|reopen-closed"),
+                "label": "重新打开关闭的标签页",
+                "shortcut": "Ctrl+Shift+T",
+                "disabled": disable_reopen_closed
+            }
+        ]
+    });
+    floating_windows::show_menu(
+        &app,
+        &menu_store,
+        payload,
+        source_window,
+        floating_windows::FloatingWindowBounds {
+            x,
+            y,
+            width: 304.0,
+            height: 494.0,
+        },
+    )
+}
+
+#[tauri::command]
+fn show_browser_tree_menu(
+    app: AppHandle,
+    menu_store: tauri::State<'_, floating_windows::BrowserMenuStore>,
+    group_id: String,
+    small_group_id: Option<String>,
+    dark_mode: bool,
+    source_window: String,
+    x: f64,
+    y: f64,
+) -> Result<(), String> {
+    let small_group = small_group_id.as_deref().unwrap_or_default();
+    let prefix = format!("tree|{group_id}|{small_group}");
+    let mut items = vec![json!({
+        "key": format!("{prefix}|new-tab"),
+        "label": "新建标签页"
+    })];
+    if small_group_id.is_none() {
+        items.push(json!({
+            "key": format!("{prefix}|new-small-group"),
+            "label": "新建小分组"
+        }));
+    }
+    items.extend([
+        json!({
+            "key": format!("{prefix}|rename"),
+            "label": "重命名"
+        }),
+        json!({ "type": "divider" }),
+        json!({
+            "key": format!("{prefix}|clear-data"),
+            "label": if small_group_id.is_some() {
+                "清除此小分组的浏览数据"
+            } else {
+                "清除此组的浏览数据"
+            }
+        }),
+        json!({ "type": "divider" }),
+        json!({
+            "key": format!("{prefix}|delete"),
+            "label": if small_group_id.is_some() {
+                "删除小分组"
+            } else {
+                "删除标签组"
+            },
+            "danger": true
+        }),
+    ]);
+    let height = if small_group_id.is_some() {
+        214.0
+    } else {
+        252.0
+    };
+    floating_windows::show_menu(
+        &app,
+        &menu_store,
+        json!({ "darkMode": dark_mode, "items": items }),
+        source_window,
+        floating_windows::FloatingWindowBounds {
+            x,
+            y,
+            width: 286.0,
+            height,
+        },
+    )
 }
 
 #[tauri::command]
@@ -641,25 +741,50 @@ fn browser_window_action(app: AppHandle, action: String) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .on_menu_event(|app, event| {
-            let action = event.id().as_ref();
-            if action.starts_with("more:") || action.starts_with("tab|") {
-                let _ = app.emit("sia://native-menu-action", action.to_string());
+        .manage(browser_overlay::BrowserOverlayStore::default())
+        .manage(floating_windows::TabPanelStore::default())
+        .manage(floating_windows::BrowserMenuStore::default())
+        .setup(|app| {
+            if let Err(error) = browser_overlay::initialize(app.handle()) {
+                eprintln!("无法预加载浏览器模态窗口：{error}");
             }
+            if let Err(error) = floating_windows::initialize(app.handle()) {
+                eprintln!("无法预加载浏览器浮动窗口：{error}");
+            }
+            Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             open_browser_tab,
             switch_browser_tab,
-            set_browser_overlay_regions,
+            hide_browser_pages,
             close_browser_tab,
             set_browser_tab_muted,
             show_browser_more_menu,
+            show_browser_tab_menu,
+            show_browser_tree_menu,
             clear_browser_tabs_data,
             load_browser_state,
             save_browser_state,
             set_browser_bounds,
             browser_page_action,
             browser_window_action,
+            browser_overlay::open_browser_overlay,
+            browser_overlay::get_browser_overlay_state,
+            browser_overlay::close_browser_overlay,
+            browser_overlay::browser_overlay_action,
+            floating_windows::open_floating_tab_panel,
+            floating_windows::update_floating_tab_panel,
+            floating_windows::get_floating_tab_panel_state,
+            floating_windows::close_floating_tab_panel,
+            floating_windows::floating_tab_panel_action,
+            floating_windows::get_browser_menu_state,
+            floating_windows::close_browser_menu,
+            floating_windows::browser_menu_action,
+            passwords::list_browser_passwords,
+            passwords::get_browser_password,
+            passwords::save_browser_password,
+            passwords::delete_browser_password,
+            passwords::import_browser_passwords,
         ])
         .run(tauri::generate_context!())
         .expect("启动 Sia Browser 失败");

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Sia 磁盘空间探测器主窗口权限",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

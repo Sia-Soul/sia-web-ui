@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Icon,
   Modal,
@@ -8,41 +8,84 @@ import {
   WindowTitleBar,
   applySiaTheme,
   message,
+  type TreeNode,
   type WindowAction,
 } from "@sia-ui/react";
 import { ConnectionModal } from "./components/ConnectionModal";
+import { DatabaseUserModal } from "./components/DatabaseUserModal";
 import {
   ConnectionRail,
   type ConnectionMenuAction,
   type DatabaseMenuAction,
   type TableMenuAction,
   type TableMenuTarget,
+  type UserMenuAction,
+  type UserMenuTarget,
 } from "./components/ConnectionRail";
 import { Inspector } from "./components/Inspector";
 import { QueryWorkspace } from "./components/QueryWorkspace";
-import { DEFAULT_SQL, DEMO_HISTORY, DEMO_RESULT } from "./data/demo";
+import { DEFAULT_SQL, DEMO_HISTORY } from "./data/demo";
 import {
   SqlConfirmationRequiredError,
   connect,
+  createDatabaseUser,
+  deleteDatabaseUser,
   disconnect,
   executeSql,
   isDesktopRuntime,
+  loadDatabaseUsers,
+  loadDatabaseCategory,
+  loadDatabaseObjectColumns,
   loadDatabaseSchema,
+  loadConnectionObjectSummary,
   loadExecutionHistory,
   loadSchema,
+  updateDatabaseUser,
   updateResultCell,
 } from "./services/databaseGateway";
 import { loadPersistedProfiles, loadProfiles, saveProfiles } from "./services/profileRepository";
+import { defaultDatabase } from "./services/connectionDefaults";
 import { formatSql } from "./services/sqlFormatter";
-import type { ConnectionProfile, DatabaseKind, ExecutionHistoryPage, QueryResult, SchemaSnapshot, SqlExecutionDetail, SqlSafetyOptions } from "./types";
+import type {
+  ConnectionProfile,
+  DatabaseKind,
+  DatabaseObjectCategory,
+  DatabaseUser,
+  DatabaseUserInput,
+  DatabaseUserSnapshot,
+  ExecutionHistoryPage,
+  QueryResult,
+  SchemaSnapshot,
+  SqlExecutionDetail,
+  SqlSafetyOptions,
+} from "./types";
 
-const STUDIO_TOOL_PANELS_KEY = "sia-data-studio:tool-panels:v3";
+const STUDIO_TOOL_PANELS_KEY = "sia-data-studio:tool-panels:v4";
+const QUERY_CONTEXT_KEY = "sia-data-studio:query-context:v1";
+
+const EMPTY_QUERY_RESULT: QueryResult = {
+  rows: [],
+  durationMs: 0,
+  executedAt: "",
+  message: "尚未执行 SQL。",
+};
 
 interface StudioToolPanels {
   leftOpen: boolean;
   rightOpen: boolean;
   leftSize: number;
   rightSize: number;
+}
+
+interface DatabaseUserEditor {
+  profileId: string;
+  mode: "create" | "edit";
+  user?: DatabaseUser;
+}
+
+interface QueryContext {
+  connectionId: string;
+  database: string;
 }
 
 function errorText(error: unknown) {
@@ -55,6 +98,28 @@ function showError(title: string, error: unknown) {
     children: errorText(error),
     centered: true,
     width: 560,
+  });
+}
+
+function findTreeNode(nodes: readonly TreeNode[], predicate: (node: TreeNode) => boolean): TreeNode | undefined {
+  for (const node of nodes) {
+    if (predicate(node)) return node;
+    const found = node.children ? findTreeNode(node.children, predicate) : undefined;
+    if (found) return found;
+  }
+  return undefined;
+}
+
+function replaceTreeNode(
+  nodes: readonly TreeNode[],
+  predicate: (node: TreeNode) => boolean,
+  replacement: TreeNode,
+): TreeNode[] {
+  return nodes.map((node) => {
+    if (predicate(node)) return replacement;
+    if (!node.children) return node;
+    const children = replaceTreeNode(node.children, predicate, replacement);
+    return children.some((child, index) => child !== node.children?.[index]) ? { ...node, children } : node;
   });
 }
 
@@ -78,7 +143,24 @@ function loadStudioToolPanels(): StudioToolPanels {
   } catch {
     // 使用默认工具面板状态。
   }
-  return { leftOpen: true, rightOpen: true, leftSize: 320, rightSize: 360 };
+  return { leftOpen: true, rightOpen: false, leftSize: 320, rightSize: 360 };
+}
+
+function loadQueryContext(profiles: readonly ConnectionProfile[]): QueryContext {
+  try {
+    const value = JSON.parse(localStorage.getItem(QUERY_CONTEXT_KEY) ?? "null") as Partial<QueryContext> | null;
+    const profile = profiles.find((item) => item.id === value?.connectionId);
+    if (profile) {
+      return {
+        connectionId: profile.id,
+        database: typeof value?.database === "string" && value.database.trim() ? value.database : profile.database,
+      };
+    }
+  } catch {
+    // 使用首个连接作为查询上下文。
+  }
+  const profile = profiles[0];
+  return { connectionId: profile?.id ?? "", database: profile?.database ?? "" };
 }
 
 export default function App() {
@@ -90,18 +172,22 @@ export default function App() {
   const [editingProfile, setEditingProfile] = useState<ConnectionProfile | undefined>();
   const [newConnectionKind, setNewConnectionKind] = useState<DatabaseKind>("postgres");
   const [schemas, setSchemas] = useState<Record<string, SchemaSnapshot>>({});
+  const [databaseUsers, setDatabaseUsers] = useState<Record<string, DatabaseUserSnapshot>>({});
+  const [databaseUserEditor, setDatabaseUserEditor] = useState<DatabaseUserEditor>();
   const [schemaLoadingId, setSchemaLoadingId] = useState("");
   const [connectingId, setConnectingId] = useState("");
-  const [selectedDatabases, setSelectedDatabases] = useState<Record<string, string>>(() =>
-    Object.fromEntries(profiles.map((profile) => [profile.id, profile.database])));
+  const [queryContext, setQueryContext] = useState<QueryContext>(() => loadQueryContext(profiles));
   const [sql, setSql] = useState(DEFAULT_SQL);
-  const [result, setResult] = useState<QueryResult>(DEMO_RESULT);
+  const [result, setResult] = useState<QueryResult>(EMPTY_QUERY_RESULT);
   const [historyState, setHistoryState] = useState<ExecutionHistoryPage>({ items: DEMO_HISTORY, total: DEMO_HISTORY.length });
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
   const [windowMaximized, setWindowMaximized] = useState(false);
   const [newQueryRequest, setNewQueryRequest] = useState<{ id: number; sql?: string; label?: string }>({ id: 0 });
   const [toolPanels, setToolPanels] = useState(loadStudioToolPanels);
+  const databaseObjectLoadingRef = useRef(new Map<string, Promise<void>>());
+  const completionColumnLoadingRef = useRef(new Map<string, Promise<readonly string[]>>());
+  const [databaseObjectLoadingKeys, setDatabaseObjectLoadingKeys] = useState<Set<string>>(() => new Set());
 
   const updateToolPanels = useCallback((patch: Partial<StudioToolPanels>) => {
     setToolPanels((current) => {
@@ -112,24 +198,61 @@ export default function App() {
   }, []);
 
   const activeProfile = useMemo(() => profiles.find((profile) => profile.id === activeId) ?? profiles[0], [activeId, profiles]);
+  const queryProfile = useMemo(
+    () => profiles.find((profile) => profile.id === queryContext.connectionId) ?? profiles[0],
+    [profiles, queryContext.connectionId],
+  );
   const activeDatabase = useMemo(() => {
-    if (!activeProfile) return "";
-    const selected = selectedDatabases[activeProfile.id] || activeProfile.database;
-    const databases = schemas[activeProfile.id]?.databases;
-    return databases?.some((database) => database.name === selected) ? selected : activeProfile.database;
-  }, [activeProfile, schemas, selectedDatabases]);
+    if (!queryProfile) return "";
+    const selected = queryContext.database || queryProfile.database;
+    const databases = schemas[queryProfile.id]?.databases;
+    return databases?.some((database) => database.name === selected) ? selected : queryProfile.database;
+  }, [queryContext.database, queryProfile, schemas]);
   const executionProfile = useMemo(
-    () => activeProfile ? { ...activeProfile, database: activeDatabase } : undefined,
-    [activeDatabase, activeProfile],
+    () => queryProfile ? { ...queryProfile, database: activeDatabase } : undefined,
+    [activeDatabase, queryProfile],
   );
   const databaseOptions = useMemo(() => {
-    if (!activeProfile) return [];
+    if (!queryProfile) return [];
     const names = [...new Set([
-      activeDatabase || activeProfile.database,
-      ...(schemas[activeProfile.id]?.databases.map((database) => database.name) ?? []),
+      activeDatabase || queryProfile.database,
+      ...(schemas[queryProfile.id]?.databases.map((database) => database.name) ?? []),
     ])].filter(Boolean);
     return names.map((database) => ({ label: database, value: database }));
-  }, [activeDatabase, activeProfile, schemas]);
+  }, [activeDatabase, queryProfile, schemas]);
+  const activeDatabaseSchema = useMemo(
+    () => queryProfile
+      ? schemas[queryProfile.id]?.databases.find((database) => database.name === activeDatabase)
+      : undefined,
+    [activeDatabase, queryProfile, schemas],
+  );
+  const loadCompletionColumns = useCallback((tableName: string, schemaName?: string): Promise<readonly string[]> => {
+    if (!queryProfile?.connected || !activeDatabase) return Promise.resolve([]);
+    const predicate = (node: TreeNode) =>
+      (node.nodeType === "table" || node.nodeType === "view")
+      && node.tableName === tableName
+      && (node.schemaName ?? "") === (schemaName ?? "");
+    const cachedNode = activeDatabaseSchema ? findTreeNode(activeDatabaseSchema.nodes, predicate) : undefined;
+    if (cachedNode?.loaded === true) {
+      return Promise.resolve(cachedNode.children
+        ?.map((node) => typeof node.title === "string" ? node.title : "")
+        .filter(Boolean) ?? []);
+    }
+
+    const cacheKey = `${queryProfile.id}:${activeDatabase}:${schemaName ?? ""}:${tableName}`.toLowerCase();
+    const pending = completionColumnLoadingRef.current.get(cacheKey);
+    if (pending) return pending;
+    const request = loadDatabaseObjectColumns(queryProfile, activeDatabase, tableName, schemaName)
+      .then((nodes) => nodes
+        .map((node) => typeof node.title === "string" ? node.title : "")
+        .filter(Boolean))
+      .catch(() => {
+        completionColumnLoadingRef.current.delete(cacheKey);
+        return [];
+      });
+    completionColumnLoadingRef.current.set(cacheKey, request);
+    return request;
+  }, [activeDatabase, activeDatabaseSchema, queryProfile]);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -144,6 +267,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    localStorage.setItem(QUERY_CONTEXT_KEY, JSON.stringify(queryContext));
+  }, [queryContext]);
+
+  useEffect(() => {
     let cancelled = false;
     void loadPersistedProfiles().then((persisted) => {
       if (cancelled) return;
@@ -151,11 +278,14 @@ export default function App() {
         ...profile,
         connected: isDesktopRuntime ? false : profile.connected,
       })));
-      setSelectedDatabases((current) => ({
-        ...Object.fromEntries(persisted.map((profile) => [profile.id, profile.database])),
-        ...current,
-      }));
       setActiveId((current) => persisted.some((profile) => profile.id === current) ? current : persisted[0]?.id ?? "");
+      setQueryContext((current) => {
+        const profile = persisted.find((item) => item.id === current.connectionId) ?? persisted[0];
+        return {
+          connectionId: profile?.id ?? "",
+          database: profile?.id === current.connectionId && current.database ? current.database : profile?.database ?? "",
+        };
+      });
     });
     return () => {
       cancelled = true;
@@ -174,13 +304,13 @@ export default function App() {
   }, []);
 
   const loadHistoryPage = useCallback(async (page: number, pageSize: number): Promise<ExecutionHistoryPage> => {
-    if (!activeProfile) return { items: [], total: 0 };
-    const loaded = await loadExecutionHistory(activeProfile, pageSize, (page - 1) * pageSize);
+    if (!queryProfile) return { items: [], total: 0 };
+    const loaded = await loadExecutionHistory(queryProfile, pageSize, (page - 1) * pageSize);
     return {
       ...loaded,
-      items: loaded.items.map((item) => ({ ...item, connectionName: activeProfile.name })),
+      items: loaded.items.map((item) => ({ ...item, connectionName: queryProfile.name })),
     };
-  }, [activeProfile]);
+  }, [queryProfile]);
 
   const refreshExecutionHistory = useCallback(async () => {
     try {
@@ -194,54 +324,270 @@ export default function App() {
     void refreshExecutionHistory();
   }, [refreshExecutionHistory]);
 
+  const loadConnectionOverview = useCallback(async (profile: ConnectionProfile) => {
+    setSchemaLoadingId(profile.id);
+    try {
+      const summary = await loadConnectionObjectSummary(profile);
+      setSchemas((current) => ({
+        ...current,
+        [profile.id]: {
+          database: profile.database.trim() || defaultDatabase(profile.kind),
+          databases: [],
+          databaseCount: summary.databaseCount,
+          databasesLoaded: false,
+        },
+      }));
+      setDatabaseUsers((current) => ({
+        ...current,
+        [profile.id]: {
+          users: [],
+          count: summary.userCount,
+          loaded: false,
+        },
+      }));
+    } finally {
+      setSchemaLoadingId((current) => current === profile.id ? "" : current);
+    }
+  }, []);
+
+  const loadConnectionNode = useCallback(async (profileId: string) => {
+    const profile = profiles.find((item) => item.id === profileId);
+    if (!profile?.connected) return;
+    await loadConnectionOverview(profile);
+  }, [loadConnectionOverview, profiles]);
+
   const refreshSchema = useCallback(async () => {
     if (!activeProfile?.connected) return;
-    setSchemaLoadingId(activeProfile.id);
     try {
-      const nextSchema = await loadSchema(activeProfile);
-      setSchemas((current) => ({ ...current, [activeProfile.id]: nextSchema }));
+      await loadConnectionOverview(activeProfile);
     } catch (schemaError) {
       showError("数据库对象加载失败", schemaError);
-    } finally {
-      setSchemaLoadingId("");
     }
-  }, [activeProfile]);
+  }, [activeProfile, loadConnectionOverview]);
 
-  const loadDatabaseObjects = useCallback(async (profileId: string, databaseName: string, force = false) => {
+  const loadDatabaseList = useCallback((profileId: string, force = false): Promise<void> => {
+    const profile = profiles.find((item) => item.id === profileId);
+    const snapshot = schemas[profileId];
+    const loadingKey = `databases:${profileId}`;
+    const pending = databaseObjectLoadingRef.current.get(loadingKey);
+    if (pending) return pending;
+    if (!profile?.connected || (!force && snapshot?.databasesLoaded)) return Promise.resolve();
+
+    setDatabaseObjectLoadingKeys((current) => new Set(current).add(loadingKey));
+    const request = (async () => {
+      try {
+        const nextSchema = await loadSchema(profile);
+        setSchemas((current) => ({ ...current, [profileId]: nextSchema }));
+      } catch (databaseError) {
+        showError(`数据库列表加载失败 · ${profile.name}`, databaseError);
+        throw databaseError;
+      } finally {
+        databaseObjectLoadingRef.current.delete(loadingKey);
+        setDatabaseObjectLoadingKeys((current) => {
+          const next = new Set(current);
+          next.delete(loadingKey);
+          return next;
+        });
+      }
+    })();
+    databaseObjectLoadingRef.current.set(loadingKey, request);
+    return request;
+  }, [profiles, schemas]);
+
+  const loadDatabaseObjects = useCallback((profileId: string, databaseName: string, force = false): Promise<void> => {
     const profile = profiles.find((item) => item.id === profileId);
     const database = schemas[profileId]?.databases.find((item) => item.name === databaseName);
-    if (!profile?.connected || (!force && database?.loaded)) return;
-    try {
-      const nextDatabase = await loadDatabaseSchema(profile, databaseName);
-      setSchemas((current) => {
-        const snapshot = current[profileId];
-        if (!snapshot) return current;
-        return {
-          ...current,
-          [profileId]: {
-            ...snapshot,
-            databases: snapshot.databases.map((item) => item.name === databaseName ? nextDatabase : item),
-          },
-        };
-      });
-    } catch (databaseError) {
-      const text = errorText(databaseError);
-      setSchemas((current) => {
-        const snapshot = current[profileId];
-        if (!snapshot) return current;
-        return {
-          ...current,
-          [profileId]: {
-            ...snapshot,
-            databases: snapshot.databases.map((item) => item.name === databaseName
-              ? { ...item, loaded: true, error: text }
-              : item),
-          },
-        };
-      });
-      showError(`数据库 ${databaseName} 加载失败`, text);
-    }
+    const loadingKey = `database:${profileId}:${databaseName}`;
+    const pending = databaseObjectLoadingRef.current.get(loadingKey);
+    if (pending) return pending;
+    if (!profile?.connected || (!force && database?.loaded)) return Promise.resolve();
+
+    setDatabaseObjectLoadingKeys((current) => new Set(current).add(loadingKey));
+    const request = (async () => {
+      try {
+        const nextDatabase = await loadDatabaseSchema(profile, databaseName);
+        setSchemas((current) => {
+          const snapshot = current[profileId];
+          if (!snapshot) return current;
+          return {
+            ...current,
+            [profileId]: {
+              ...snapshot,
+              databases: snapshot.databases.map((item) => item.name === databaseName ? nextDatabase : item),
+            },
+          };
+        });
+      } catch (databaseError) {
+        const text = errorText(databaseError);
+        setSchemas((current) => {
+          const snapshot = current[profileId];
+          if (!snapshot) return current;
+          return {
+            ...current,
+            [profileId]: {
+              ...snapshot,
+              databases: snapshot.databases.map((item) => item.name === databaseName
+                ? { ...item, loaded: true, error: text }
+                : item),
+            },
+          };
+        });
+        showError(`数据库 ${databaseName} 加载失败`, text);
+      } finally {
+        databaseObjectLoadingRef.current.delete(loadingKey);
+        setDatabaseObjectLoadingKeys((current) => {
+          const next = new Set(current);
+          next.delete(loadingKey);
+          return next;
+        });
+      }
+    })();
+    databaseObjectLoadingRef.current.set(loadingKey, request);
+    return request;
   }, [profiles, schemas]);
+
+  const loadDatabaseCategoryObjects = useCallback((
+    profileId: string,
+    databaseName: string,
+    category: DatabaseObjectCategory,
+    force = false,
+  ): Promise<void> => {
+    const profile = profiles.find((item) => item.id === profileId);
+    const database = schemas[profileId]?.databases.find((item) => item.name === databaseName);
+    const currentCategory = database?.nodes.find((node) => node.key === category);
+    const loadingKey = `category:${profileId}:${databaseName}:${category}`;
+    const treeLoadingKey = `object:${profileId}:${databaseName}:${category}`;
+    const pending = databaseObjectLoadingRef.current.get(loadingKey);
+    if (pending) return pending;
+    if (!profile?.connected || !database?.loaded || (!force && currentCategory?.loaded === true)) return Promise.resolve();
+
+    setDatabaseObjectLoadingKeys((current) => new Set(current).add(treeLoadingKey));
+    const request = (async () => {
+      try {
+        const nextCategory = await loadDatabaseCategory(profile, databaseName, category);
+        setSchemas((current) => {
+          const snapshot = current[profileId];
+          if (!snapshot) return current;
+          return {
+            ...current,
+            [profileId]: {
+              ...snapshot,
+              databases: snapshot.databases.map((item) => item.name === databaseName
+                ? { ...item, nodes: replaceTreeNode(item.nodes, (node) => node.key === category, nextCategory) }
+                : item),
+            },
+          };
+        });
+      } catch (categoryError) {
+        showError(`${databaseName} · ${String(currentCategory?.title ?? category)} 加载失败`, categoryError);
+      } finally {
+        databaseObjectLoadingRef.current.delete(loadingKey);
+        setDatabaseObjectLoadingKeys((current) => {
+          const next = new Set(current);
+          next.delete(treeLoadingKey);
+          return next;
+        });
+      }
+    })();
+    databaseObjectLoadingRef.current.set(loadingKey, request);
+    return request;
+  }, [profiles, schemas]);
+
+  const loadDatabaseObjectFields = useCallback((
+    profileId: string,
+    databaseName: string,
+    tableName: string,
+    schemaName?: string,
+    force = false,
+  ): Promise<void> => {
+    const profile = profiles.find((item) => item.id === profileId);
+    const database = schemas[profileId]?.databases.find((item) => item.name === databaseName);
+    const predicate = (node: TreeNode) =>
+      (node.nodeType === "table" || node.nodeType === "view")
+      && node.tableName === tableName
+      && (node.schemaName ?? "") === (schemaName ?? "");
+    const currentObject = database ? findTreeNode(database.nodes, predicate) : undefined;
+    const objectKey = currentObject?.key;
+    const loadingKey = `fields:${profileId}:${databaseName}:${schemaName ?? ""}:${tableName}`;
+    const treeLoadingKey = objectKey ? `object:${profileId}:${databaseName}:${objectKey}` : loadingKey;
+    const pending = databaseObjectLoadingRef.current.get(loadingKey);
+    if (pending) return pending;
+    if (!profile?.connected || !currentObject || (!force && currentObject.loaded === true)) return Promise.resolve();
+
+    setDatabaseObjectLoadingKeys((current) => new Set(current).add(treeLoadingKey));
+    const request = (async () => {
+      try {
+        const columns = await loadDatabaseObjectColumns(profile, databaseName, tableName, schemaName);
+        setSchemas((current) => {
+          const snapshot = current[profileId];
+          if (!snapshot) return current;
+          return {
+            ...current,
+            [profileId]: {
+              ...snapshot,
+              databases: snapshot.databases.map((item) => {
+                if (item.name !== databaseName) return item;
+                const latestObject = findTreeNode(item.nodes, predicate) ?? currentObject;
+                return {
+                  ...item,
+                  nodes: replaceTreeNode(item.nodes, predicate, {
+                    ...latestObject,
+                    children: columns,
+                    loaded: true,
+                  }),
+                };
+              }),
+            },
+          };
+        });
+      } catch (fieldError) {
+        showError(`字段加载失败 · ${schemaName ? `${schemaName}.` : ""}${tableName}`, fieldError);
+      } finally {
+        databaseObjectLoadingRef.current.delete(loadingKey);
+        setDatabaseObjectLoadingKeys((current) => {
+          const next = new Set(current);
+          next.delete(treeLoadingKey);
+          return next;
+        });
+      }
+    })();
+    databaseObjectLoadingRef.current.set(loadingKey, request);
+    return request;
+  }, [profiles, schemas]);
+
+  const loadUsers = useCallback(async (profileId: string, force = false) => {
+    const profile = profiles.find((item) => item.id === profileId);
+    const snapshot = databaseUsers[profileId];
+    if (!profile?.connected || (!force && snapshot?.loaded)) return;
+    setDatabaseUsers((current) => ({
+      ...current,
+      [profileId]: {
+        users: current[profileId]?.users ?? [],
+        count: current[profileId]?.count,
+        loaded: false,
+        loading: true,
+      },
+    }));
+    try {
+      const users = await loadDatabaseUsers(profile);
+      setDatabaseUsers((current) => ({
+        ...current,
+        [profileId]: { users, count: users.length, loaded: true },
+      }));
+    } catch (userError) {
+      const text = errorText(userError);
+      setDatabaseUsers((current) => ({
+        ...current,
+        [profileId]: {
+          users: current[profileId]?.users ?? [],
+          count: current[profileId]?.count,
+          loaded: true,
+          error: text,
+        },
+      }));
+      showError(`用户列表加载失败 · ${profile.name}`, text);
+    }
+  }, [databaseUsers, profiles]);
 
   useEffect(() => {
     if (activeProfile?.connected) void refreshSchema();
@@ -249,12 +595,6 @@ export default function App() {
 
   const runQuery = useCallback(async (statementSql = sql, safety: SqlSafetyOptions = {}) => {
     if (!executionProfile) return;
-    if (!executionProfile.connected) {
-      const messageText = "请先连接数据库。浏览器预览可直接使用演示连接。";
-      setError(messageText);
-      showError("SQL 执行失败", messageText);
-      return;
-    }
     if (!statementSql.trim()) {
       const messageText = "请输入要执行的 SQL。";
       setError(messageText);
@@ -263,12 +603,51 @@ export default function App() {
     }
     setRunning(true);
     setError("");
+    let connectionMessage: ReturnType<typeof message.loading> | undefined;
+    let queryExecutionProfile = executionProfile;
     try {
-      const nextResult = await executeSql(executionProfile, statementSql, safety);
+      if (!executionProfile.connected) {
+        setConnectingId(executionProfile.id);
+        connectionMessage = message.loading(
+          `当前连接未建立，正在连接“${executionProfile.name}”；连接成功后将自动执行 SQL。`,
+          0,
+        );
+        try {
+          const duration = await connect(executionProfile);
+          queryExecutionProfile = { ...executionProfile, connected: true };
+          setProfiles((items) => items.map((item) =>
+            item.id === executionProfile.id ? { ...item, connected: true } : item));
+          connectionMessage.update({
+            type: "loading",
+            content: `连接成功（${duration} ms），正在执行 SQL…`,
+            duration: 0,
+          });
+        } catch (connectionError) {
+          const text = errorText(connectionError);
+          setError(text);
+          connectionMessage.update({
+            type: "error",
+            content: `自动连接失败：${text}`,
+            duration: 4,
+          });
+          showError(`自动连接 ${executionProfile.name} 失败`, text);
+          return;
+        } finally {
+          setConnectingId((current) => current === executionProfile.id ? "" : current);
+        }
+      }
+
+      const nextResult = await executeSql(queryExecutionProfile, statementSql, safety);
       setResult(nextResult);
       recordExecution(nextResult.execution);
+      connectionMessage?.update({
+        type: "success",
+        content: "连接成功，SQL 已执行完成。",
+        duration: 2,
+      });
     } catch (queryError) {
       if (queryError instanceof SqlConfirmationRequiredError) {
+        connectionMessage?.close();
         recordExecution(queryError.execution);
         Modal.confirm({
           type: "warning",
@@ -285,6 +664,7 @@ export default function App() {
         });
         return;
       }
+      connectionMessage?.close();
       const text = queryError instanceof Error ? queryError.message : String(queryError);
       setError(text);
       showError("SQL 执行失败", text);
@@ -356,8 +736,8 @@ export default function App() {
       const next = exists ? profiles.map((item) => item.id === profile.id ? connectedProfile : item) : [...profiles, connectedProfile];
       await saveProfiles(next);
       setProfiles(next);
-      setSelectedDatabases((current) => ({ ...current, [profile.id]: profile.database }));
       setActiveId(profile.id);
+      setQueryContext({ connectionId: profile.id, database: profile.database });
       setModalOpen(false);
       setEditingProfile(undefined);
       message.success(`已连接 ${profile.name} · ${duration} ms`);
@@ -386,15 +766,11 @@ export default function App() {
       message.warning("请先连接数据库。");
       return;
     }
-    setSchemaLoadingId(profile.id);
     try {
-      const nextSchema = await loadSchema(profile);
-      setSchemas((current) => ({ ...current, [profile.id]: nextSchema }));
+      await loadConnectionOverview(profile);
       message.success(`${profile.name} 已刷新`);
     } catch (refreshError) {
       showError(`刷新 ${profile.name} 失败`, refreshError);
-    } finally {
-      setSchemaLoadingId("");
     }
   }
 
@@ -405,8 +781,9 @@ export default function App() {
   }
 
   async function formatCurrentSql() {
+    if (!queryProfile) return;
     try {
-      setSql(await formatSql(sql, activeProfile.kind));
+      setSql(await formatSql(sql, queryProfile.kind));
     } catch (formatError) {
       showError("SQL 格式化失败", formatError);
     }
@@ -414,6 +791,10 @@ export default function App() {
 
   function openQuery(initialSql = "-- 新查询\n\n", label?: string) {
     setNewQueryRequest((current) => ({ id: current.id + 1, sql: initialSql, label }));
+  }
+
+  function selectQueryContext(profile: ConnectionProfile, database = profile.database) {
+    setQueryContext({ connectionId: profile.id, database });
   }
 
   function quoteIdentifier(kind: DatabaseKind, identifier: string) {
@@ -430,6 +811,7 @@ export default function App() {
   async function handleConnectionMenu(action: ConnectionMenuAction, profile: ConnectionProfile) {
     setActiveId(profile.id);
     if (action === "new-query") {
+      selectQueryContext(profile);
       openQuery();
       return;
     }
@@ -463,12 +845,19 @@ export default function App() {
             delete next[profile.id];
             return next;
           });
-          setSelectedDatabases((current) => {
+          setDatabaseUsers((current) => {
             const next = { ...current };
             delete next[profile.id];
             return next;
           });
           if (activeId === profile.id) setActiveId(remaining[0]?.id ?? "");
+          if (queryContext.connectionId === profile.id) {
+            const nextQueryProfile = remaining[0];
+            setQueryContext({
+              connectionId: nextQueryProfile?.id ?? "",
+              database: nextQueryProfile?.database ?? "",
+            });
+          }
           message.success("连接已删除");
         },
       });
@@ -486,7 +875,6 @@ export default function App() {
       const next = [...profiles, duplicate];
       await saveProfiles(next);
       setProfiles(next);
-      setSelectedDatabases((current) => ({ ...current, [duplicate.id]: duplicate.database }));
       setActiveId(duplicate.id);
       message.success("连接已复制");
       return;
@@ -502,7 +890,6 @@ export default function App() {
     const profile = profiles.find((item) => item.id === profileId);
     if (!profile) return;
     setActiveId(profileId);
-    setSelectedDatabases((current) => ({ ...current, [profileId]: databaseName }));
     const databaseIdentifier = quoteIdentifier(profile.kind, databaseName);
 
     if (action === "database-open") {
@@ -514,26 +901,139 @@ export default function App() {
       return;
     }
     if (action === "database-create") {
+      selectQueryContext(profile, databaseName);
       openQuery(`CREATE DATABASE ${quoteIdentifier(profile.kind, "new_database")};\n`, "新建数据库");
       return;
     }
     if (action === "database-delete") {
+      selectQueryContext(profile, databaseName);
       openQuery(`DROP DATABASE ${databaseIdentifier};\n`, `删除 ${databaseName}`);
       message.warning("已生成删除数据库语句，请检查后手动运行。");
       return;
     }
     if (action === "database-new-query") {
+      selectQueryContext(profile, databaseName);
       openQuery(`-- ${databaseName}\n\n`, databaseName);
       return;
     }
-    if (action === "database-refresh") void loadDatabaseObjects(profileId, databaseName, true);
+    if (action === "database-refresh") {
+      const cachePrefix = `${profileId}:${databaseName}:`.toLowerCase();
+      [...completionColumnLoadingRef.current.keys()]
+        .filter((key) => key.startsWith(cachePrefix))
+        .forEach((key) => completionColumnLoadingRef.current.delete(key));
+      void loadDatabaseObjects(profileId, databaseName, true);
+    }
+  }
+
+  async function saveDatabaseUser(input: DatabaseUserInput, safety: SqlSafetyOptions = {}): Promise<void> {
+    if (!databaseUserEditor) return;
+    const profile = profiles.find((item) => item.id === databaseUserEditor.profileId);
+    if (!profile?.connected) throw new Error("当前数据库连接已断开，请重新连接后再操作用户。");
+    try {
+      const execution = databaseUserEditor.mode === "create"
+        ? await createDatabaseUser(profile, input)
+        : await updateDatabaseUser(profile, input, safety);
+      recordExecution(execution);
+      setDatabaseUserEditor(undefined);
+      await loadUsers(profile.id, true);
+      void refreshExecutionHistory();
+      message.success(databaseUserEditor.mode === "create" ? "用户已创建" : "用户已更新");
+    } catch (userError) {
+      if (userError instanceof SqlConfirmationRequiredError) {
+        recordExecution(userError.execution);
+        await new Promise<void>((resolve) => {
+          Modal.confirm({
+            type: "warning",
+            title: userError.confirmation.title,
+            children: userError.confirmation.message,
+            okText: "无备份执行",
+            cancelText: "取消",
+            okButtonProps: { danger: true },
+            onCancel: () => resolve(),
+            onOk: async () => {
+              await saveDatabaseUser(input, { ...safety, allowWithoutBackup: true });
+              resolve();
+            },
+          });
+        });
+        return;
+      }
+      throw userError;
+    }
+  }
+
+  async function removeDatabaseUser(
+    profile: ConnectionProfile,
+    user: DatabaseUser,
+    safety: SqlSafetyOptions = {},
+  ) {
+    try {
+      const execution = await deleteDatabaseUser(profile, user, safety);
+      recordExecution(execution);
+      await loadUsers(profile.id, true);
+      void refreshExecutionHistory();
+      message.success(`用户 ${user.name}${user.host ? `@${user.host}` : ""} 已删除`);
+    } catch (userError) {
+      if (userError instanceof SqlConfirmationRequiredError) {
+        recordExecution(userError.execution);
+        Modal.confirm({
+          type: "warning",
+          title: userError.confirmation.title,
+          children: userError.confirmation.message,
+          okText: "无备份删除",
+          cancelText: "取消删除",
+          okButtonProps: { danger: true },
+          onOk: () => removeDatabaseUser(profile, user, { ...safety, allowWithoutBackup: true }),
+        });
+        return;
+      }
+      showError("删除用户失败", userError);
+      void refreshExecutionHistory();
+    }
+  }
+
+  function handleUserMenu(action: UserMenuAction, target: UserMenuTarget) {
+    const profile = profiles.find((item) => item.id === target.profileId);
+    if (!profile) return;
+    setActiveId(profile.id);
+    if (action === "user-new") {
+      setDatabaseUserEditor({ profileId: profile.id, mode: "create" });
+      return;
+    }
+    if (action === "user-edit" && target.user) {
+      setDatabaseUserEditor({ profileId: profile.id, mode: "edit", user: target.user });
+      return;
+    }
+    if (action === "user-delete" && target.user) {
+      const displayName = `${target.user.name}${target.user.host ? `@${target.user.host}` : ""}`;
+      Modal.confirm({
+        type: "warning",
+        title: "删除数据库用户",
+        children: `确定删除用户“${displayName}”吗？删除前会自动备份可读取的用户元数据，删除当前登录用户可能导致连接失效。`,
+        okText: "删除",
+        cancelText: "取消",
+        okButtonProps: { danger: true },
+        onOk: () => removeDatabaseUser(profile, target.user!),
+      });
+    }
   }
 
   function handleTableMenu(action: TableMenuAction, target: TableMenuTarget) {
     const profile = profiles.find((item) => item.id === target.profileId);
     if (!profile) return;
     setActiveId(profile.id);
-    setSelectedDatabases((current) => ({ ...current, [profile.id]: target.databaseName }));
+    if ([
+      "table-open",
+      "table-design",
+      "table-create",
+      "table-delete",
+      "table-clear",
+      "table-truncate",
+      "table-copy-structure",
+      "table-copy-data",
+    ].includes(action)) {
+      selectQueryContext(profile, target.databaseName);
+    }
     const table = qualifiedTable(profile, target);
     const tableLabel = target.schemaName ? `${target.schemaName}.${target.tableName}` : target.tableName;
 
@@ -590,7 +1090,16 @@ export default function App() {
       return;
     }
     if (action === "table-refresh") {
-      void loadDatabaseObjects(target.profileId, target.databaseName, true);
+      completionColumnLoadingRef.current.delete(
+        `${target.profileId}:${target.databaseName}:${target.schemaName ?? ""}:${target.tableName}`.toLowerCase(),
+      );
+      void loadDatabaseObjectFields(
+        target.profileId,
+        target.databaseName,
+        target.tableName,
+        target.schemaName,
+        true,
+      );
       return;
     }
     if (action === "table-info") {
@@ -633,7 +1142,7 @@ export default function App() {
     applySiaTheme(nextTheme);
   }
 
-  if (!activeProfile) return null;
+  if (!activeProfile || !queryProfile) return null;
 
   const connectionOptions = profiles.map((profile) => ({ label: profile.name, value: profile.id }));
 
@@ -652,6 +1161,7 @@ export default function App() {
               </span>
             </div>
           )}
+          aria-label="Sia Data Studio"
           actions={(
             <ThemeSwitch
               checked={windowTheme === "dark"}
@@ -662,7 +1172,9 @@ export default function App() {
           )}
           maximized={windowMaximized}
           onWindowAction={runWindowAction}
-        />
+        >
+          <span className="studio-window-title">Sia Data Studio</span>
+        </WindowTitleBar>
       )}
     >
       <div className="studio-body">
@@ -681,17 +1193,25 @@ export default function App() {
             <ConnectionRail
               profiles={profiles}
               schemas={schemas}
+              users={databaseUsers}
               activeId={activeProfile.id}
               loadingId={schemaLoadingId}
+              databaseLoadingKeys={databaseObjectLoadingKeys}
               connectingId={connectingId}
               onSelect={setActiveId}
               onNew={() => openNewConnection()}
               onRefresh={() => void refreshSchema()}
               onConnect={connectProfile}
+              onLoadConnection={loadConnectionNode}
+              onLoadDatabases={loadDatabaseList}
               onLoadDatabase={loadDatabaseObjects}
+              onLoadDatabaseCategory={loadDatabaseCategoryObjects}
+              onLoadDatabaseObject={loadDatabaseObjectFields}
+              onLoadUsers={loadUsers}
               onMenuAction={handleConnectionMenu}
               onDatabaseMenuAction={handleDatabaseMenu}
               onTableMenuAction={handleTableMenu}
+              onUserMenuAction={handleUserMenu}
             />
           </ToolPanel>
           <div className="studio-tool-layout__main">
@@ -702,15 +1222,21 @@ export default function App() {
               error={error}
               connectionOptions={connectionOptions}
               databaseOptions={databaseOptions}
-              activeConnectionId={activeProfile.id}
+              databaseSchema={activeDatabaseSchema}
+              activeConnectionId={queryProfile.id}
               activeDatabase={activeDatabase}
-              activeConnectionConnected={Boolean(activeProfile.connected)}
-              databaseLoading={schemaLoadingId === activeProfile.id}
-              activeDatabaseKind={activeProfile.kind}
+              activeConnectionConnected={Boolean(queryProfile.connected)}
+              activeConnectionConnecting={connectingId === queryProfile.id}
+              databaseLoading={schemaLoadingId === queryProfile.id}
+              activeDatabaseKind={queryProfile.kind}
               windowTheme={windowTheme}
-              onConnectionChange={setActiveId}
-              onDatabaseChange={(database) => setSelectedDatabases((current) => ({ ...current, [activeProfile.id]: database }))}
+              onConnectionChange={(connectionId) => {
+                const profile = profiles.find((item) => item.id === connectionId);
+                if (profile) selectQueryContext(profile);
+              }}
+              onDatabaseChange={(database) => setQueryContext((current) => ({ ...current, database }))}
               onSqlChange={setSql}
+              onLoadTableColumns={loadCompletionColumns}
               onRun={(statementSql) => void runQuery(statementSql)}
               onFormat={formatCurrentSql}
               onCellUpdate={saveResultCell}
@@ -729,7 +1255,7 @@ export default function App() {
             onResizeEnd={(rightSize) => updateToolPanels({ rightSize })}
           >
             <Inspector
-              profile={executionProfile ?? activeProfile}
+              profile={executionProfile ?? queryProfile}
               history={historyState.items}
               historyTotal={historyState.total}
               onLoadHistoryPage={loadHistoryPage}
@@ -739,7 +1265,7 @@ export default function App() {
       </div>
 
       <footer className="status-bar">
-        <span>{activeProfile.kind === "postgres" ? "PostgreSQL" : activeProfile.kind === "mysql" ? "MySQL / MariaDB" : activeProfile.kind === "sqlserver" ? "SQL Server" : "SQLite"}</span>
+        <span>{queryProfile.kind === "postgres" ? "PostgreSQL" : queryProfile.kind === "mysql" ? "MySQL / MariaDB" : queryProfile.kind === "sqlserver" ? "SQL Server" : "SQLite"}</span>
         <span>UTF-8</span>
         <span className="status-autocommit"><i />自动提交</span>
         <span className="status-bar__spacer" />
@@ -748,6 +1274,14 @@ export default function App() {
       </footer>
 
       <ConnectionModal open={modalOpen} initialProfile={editingProfile} defaultKind={newConnectionKind} onCancel={() => { setModalOpen(false); setEditingProfile(undefined); }} onSave={saveAndConnect} />
+      <DatabaseUserModal
+        open={Boolean(databaseUserEditor)}
+        mode={databaseUserEditor?.mode ?? "create"}
+        kind={profiles.find((profile) => profile.id === databaseUserEditor?.profileId)?.kind ?? activeProfile.kind}
+        user={databaseUserEditor?.user}
+        onCancel={() => setDatabaseUserEditor(undefined)}
+        onSave={saveDatabaseUser}
+      />
     </WindowFrame>
   );
 }

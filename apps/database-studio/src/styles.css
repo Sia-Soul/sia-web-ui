@@ -132,6 +132,18 @@ dt {
   letter-spacing: 0.08em;
 }
 
+.studio-window-title {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  overflow: hidden;
+  color: var(--sia-color-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .active-connection-select {
   width: 220px;
 }
@@ -253,7 +265,7 @@ dt {
 }
 
 .connection-tree-scroll .sia-tree__node.is-selected > .connection-tree-row {
-  color: var(--sia-color-primary);
+  color: var(--sia-color-primary-text);
   background: color-mix(in srgb, var(--sia-color-primary) 12%, var(--sia-color-surface));
 }
 
@@ -415,6 +427,27 @@ dt {
 .query-tabs .sia-tabs__extra .sia-button {
   min-width: 30px;
   padding-inline: 6px;
+}
+
+.query-workspace-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  color: var(--sia-color-text-secondary);
+  background: var(--sia-color-surface);
+}
+
+.query-workspace-empty strong {
+  color: var(--sia-color-text);
+  font-size: 15px;
+}
+
+.query-workspace-empty p {
+  margin: 0 0 4px;
+  font-size: 13px;
 }
 
 .editor-panel,
@@ -877,6 +910,39 @@ dt {
   align-items: center;
   width: 100%;
   gap: 10px;
+}
+
+.connection-user-tags,
+.database-user-form__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.connection-user-tags .sia-tag {
+  max-width: 116px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.database-user-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  gap: 10px;
+}
+
+.database-user-form {
+  display: grid;
+  gap: 2px;
+}
+
+.database-user-modal__hint {
+  margin: 4px 0 0;
+  color: var(--sia-color-text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .connection-test-state {

@@ -37,6 +37,9 @@ try
             "test" => TestConnection(freeSql, request, jsonOptions),
             "query" => ExecuteSql(freeSql, request, jsonOptions),
             "update-cell" => UpdateCell(freeSql, request, jsonOptions),
+            "user-create" => ManageDatabaseUser(freeSql, request, "UserCreate", jsonOptions),
+            "user-update" => ManageDatabaseUser(freeSql, request, "UserUpdate", jsonOptions),
+            "user-delete" => ManageDatabaseUser(freeSql, request, "UserDelete", jsonOptions),
             _ => throw new InvalidOperationException($"不支持的数据库操作：{request.Operation}"),
         };
     }
@@ -183,6 +186,123 @@ static object ExecuteSql(IFreeSql freeSql, DatabaseRequest request, JsonSerializ
         throw;
     }
 }
+
+static object ManageDatabaseUser(
+    IFreeSql freeSql,
+    DatabaseRequest request,
+    string operation,
+    JsonSerializerOptions jsonOptions)
+{
+    if (request.Profile.Kind == "sqlite") throw new InvalidOperationException("SQLite 不支持数据库用户管理。");
+    var userName = request.UserName.Trim();
+    var userHost = string.IsNullOrWhiteSpace(request.UserHost) ? "%" : request.UserHost.Trim();
+    if (string.IsNullOrWhiteSpace(userName)) throw new InvalidOperationException("用户名不能为空。");
+    if (operation is "UserCreate" or "UserUpdate" && string.IsNullOrEmpty(request.Password))
+        throw new InvalidOperationException("密码不能为空。");
+
+    var sql = BuildUserCommandSql(request.Profile.Kind, operation, userName, userHost, request.Password, false);
+    var auditSql = BuildUserCommandSql(request.Profile.Kind, operation, userName, userHost, "***", true);
+    var highRisk = operation is "UserUpdate" or "UserDelete";
+    var audit = CreateAudit(request, operation, auditSql, null, highRisk);
+    var stopwatch = Stopwatch.StartNew();
+    BackupResult? backup = null;
+
+    try
+    {
+        if (highRisk && !request.AllowWithoutBackup)
+        {
+            try
+            {
+                var rows = LoadDatabaseUserMetadata(freeSql, request.Profile.Kind, userName, userHost);
+                if (rows.Count == 0) throw new InvalidOperationException($"数据库中不存在用户 {UserDisplayName(request.Profile.Kind, userName, userHost)}。");
+                backup = WriteMetadataBackup(
+                    request,
+                    audit.Id,
+                    operation,
+                    $"database-user:{UserDisplayName(request.Profile.Kind, userName, userHost)}",
+                    rows,
+                    jsonOptions);
+            }
+            catch (Exception backupError)
+            {
+                audit.BackupError = GetErrorMessage(backupError);
+                CompleteAudit(audit, stopwatch, false, error: $"自动备份用户元数据失败：{audit.BackupError}");
+                AppendAudit(request, audit, jsonOptions);
+                return new
+                {
+                    confirmation = new SqlConfirmation(
+                        "backup-failed",
+                        "用户元数据备份失败",
+                        $"执行前备份用户元数据失败：{audit.BackupError}。是否确认在没有备份的情况下继续执行？"),
+                    audit,
+                };
+            }
+        }
+        else if (highRisk)
+        {
+            audit.BackupSkipped = true;
+        }
+
+        var affectedRows = freeSql.Ado.ExecuteNonQuery(sql);
+        ApplyBackup(audit, backup);
+        CompleteAudit(audit, stopwatch, true, affectedRows: affectedRows);
+        AppendAudit(request, audit, jsonOptions);
+        return new { rows = Array.Empty<object>(), affectedRows, audit };
+    }
+    catch (Exception error)
+    {
+        ApplyBackup(audit, backup);
+        CompleteAudit(audit, stopwatch, false, error: GetErrorMessage(error));
+        AppendAudit(request, audit, jsonOptions);
+        throw;
+    }
+}
+
+static string BuildUserCommandSql(
+    string kind,
+    string operation,
+    string userName,
+    string userHost,
+    string password,
+    bool redacted)
+{
+    var account = kind == "mysql"
+        ? $"{QuoteSqlLiteral(userName)}@{QuoteSqlLiteral(userHost)}"
+        : QuoteIdentifier(kind, userName);
+    var passwordLiteral = kind == "sqlserver" ? $"N{QuoteSqlLiteral(password)}" : QuoteSqlLiteral(password);
+    return (kind, operation) switch
+    {
+        ("postgres", "UserCreate") => $"CREATE ROLE {account} LOGIN PASSWORD {passwordLiteral}",
+        ("postgres", "UserUpdate") => $"ALTER ROLE {account} WITH PASSWORD {passwordLiteral}",
+        ("postgres", "UserDelete") => $"DROP ROLE {account}",
+        ("mysql", "UserCreate") => $"CREATE USER {account} IDENTIFIED BY {passwordLiteral}",
+        ("mysql", "UserUpdate") => $"ALTER USER {account} IDENTIFIED BY {passwordLiteral}",
+        ("mysql", "UserDelete") => $"DROP USER {account}",
+        ("sqlserver", "UserCreate") => $"CREATE LOGIN {account} WITH PASSWORD = {passwordLiteral}",
+        ("sqlserver", "UserUpdate") => $"ALTER LOGIN {account} WITH PASSWORD = {passwordLiteral}",
+        ("sqlserver", "UserDelete") => $"DROP LOGIN {account}",
+        _ => throw new InvalidOperationException($"数据库 {kind} 不支持用户操作 {operation}。"),
+    };
+}
+
+static IReadOnlyList<dynamic> LoadDatabaseUserMetadata(
+    IFreeSql freeSql,
+    string kind,
+    string userName,
+    string userHost)
+{
+    var sql = kind switch
+    {
+        "postgres" => $"SELECT usename AS user_name, usesuper, usecreatedb, valuntil FROM pg_catalog.pg_user WHERE usename = {QuoteSqlLiteral(userName)}",
+        "mysql" => $"SELECT User AS user_name, Host AS user_host, plugin AS user_type FROM mysql.user WHERE User = {QuoteSqlLiteral(userName)} AND Host = {QuoteSqlLiteral(userHost)}",
+        "sqlserver" => $"SELECT name AS user_name, type_desc AS user_type, is_disabled FROM sys.server_principals WHERE name = {QuoteSqlLiteral(userName)}",
+        _ => throw new InvalidOperationException($"数据库 {kind} 不支持用户元数据读取。"),
+    };
+    return freeSql.Ado.Query<dynamic>(sql);
+}
+
+static string UserDisplayName(string kind, string userName, string userHost) =>
+    kind == "mysql" ? $"{userName}@{userHost}" : userName;
 
 static object UpdateCell(IFreeSql freeSql, DatabaseRequest request, JsonSerializerOptions jsonOptions)
 {
@@ -346,6 +466,45 @@ static BackupResult WriteBackup(
     }
     File.Move(temporaryPath, path, true);
     return new BackupResult(path, rows.Count, QualifiedTableName(table));
+}
+
+static BackupResult WriteMetadataBackup(
+    DatabaseRequest request,
+    string auditId,
+    string operation,
+    string objectName,
+    IReadOnlyList<dynamic> rows,
+    JsonSerializerOptions jsonOptions)
+{
+    var now = DateTimeOffset.UtcNow;
+    var root = StorageRoot(request);
+    var directory = Path.Combine(root, "backups", now.ToString("yyyy"), now.ToString("MM"), now.ToString("dd"));
+    Directory.CreateDirectory(directory);
+    var safeName = Regex.Replace(objectName, @"[^\p{L}\p{N}_-]+", "_");
+    var fileName = $"{now:yyyyMMdd-HHmmss-fff}-{safeName}-{auditId}.json";
+    var path = Path.Combine(directory, fileName);
+    var temporaryPath = $"{path}.tmp";
+    var envelope = new BackupEnvelope(
+        auditId,
+        operation,
+        request.Profile.Id,
+        request.Profile.Name,
+        request.Profile.Kind,
+        request.Profile.Database,
+        objectName,
+        now,
+        rows.Count,
+        rows);
+    var content = JsonSerializer.Serialize(envelope, new JsonSerializerOptions(jsonOptions) { WriteIndented = true });
+    using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+    using (var writer = new StreamWriter(stream, new UTF8Encoding(false)))
+    {
+        writer.Write(content);
+        writer.Flush();
+        stream.Flush(true);
+    }
+    File.Move(temporaryPath, path, true);
+    return new BackupResult(path, rows.Count, objectName);
 }
 
 static void AppendAudit(DatabaseRequest request, SqlAuditRecord audit, JsonSerializerOptions jsonOptions)
@@ -604,6 +763,8 @@ static string QuoteIdentifier(string kind, string identifier) => kind switch
     _ => $"\"{identifier.Replace("\"", "\"\"")}\"",
 };
 
+static string QuoteSqlLiteral(string value) => $"'{value.Replace("'", "''")}'";
+
 static string QuoteTable(string kind, DbTableInfo table)
 {
     var parts = new List<string>();
@@ -680,7 +841,10 @@ internal sealed record DatabaseRequest(
     int Limit = 20,
     int Offset = 0,
     bool ConfirmWithoutWhere = false,
-    bool AllowWithoutBackup = false);
+    bool AllowWithoutBackup = false,
+    string UserName = "",
+    string UserHost = "",
+    string Password = "");
 
 internal sealed record DatabaseResponse(bool Ok, object? Data, string? Error);
 internal sealed record SqlConfirmation(string Type, string Title, string Message);

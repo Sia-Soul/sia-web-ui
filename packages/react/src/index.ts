@@ -65,8 +65,13 @@ export type { TextAreaProps } from "./components/TextArea";
 export { Editor } from "./components/Editor";
 export type {
   EditorCommand,
+  EditorCompletionContext,
+  EditorCompletionItem,
+  EditorCompletionItemKind,
+  EditorCompletionProvider,
   EditorContextMenuItem,
   EditorHandle,
+  EditorKeyDownEvent,
   EditorLanguage,
   EditorProps,
   EditorRange,
@@ -88,6 +93,8 @@ export { Tag } from "./components/Tag";
 export type { TagProps, TagStatus, TagVariant } from "./components/Tag";
 export { Tabs } from "./components/Tabs";
 export type { TabItem, TabsContextMenuClickInfo, TabsOrientation, TabsPosition, TabsProps, TabsType } from "./components/Tabs";
+export { Treemap } from "./components/Treemap";
+export type { TreemapNode, TreemapNodeClickInfo, TreemapNodeKind, TreemapProps } from "./components/Treemap";
 export * from "./components/Table";
 export { ThemeSwitch } from "./components/ThemeSwitch";
 export type { ThemeSwitchProps } from "./components/ThemeSwitch";

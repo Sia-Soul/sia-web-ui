@@ -1,1 +1,1 @@
-{"default":{"identifier":"default","description":"Sia Browser 外壳的基础窗口与事件权限","local":true,"windows":["main"],"webviews":["main"],"permissions":["core:default","core:window:allow-start-dragging"]}}
+{"default":{"identifier":"default","description":"Sia Browser 外壳的基础窗口与事件权限","local":true,"windows":["main","browser-overlay","browser-tab-panel","browser-menu"],"webviews":["main","browser-overlay","browser-tab-panel","browser-menu"],"permissions":["core:default","core:window:allow-start-dragging"]}}

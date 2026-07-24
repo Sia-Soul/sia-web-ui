@@ -1,6 +1,6 @@
 import { Button, Dropdown, Icon, Input, Tag, Tree, type MenuItem, type TreeKey, type TreeNode } from "@sia-ui/react";
-import { useCallback, useMemo, useRef, useState } from "react";
-import type { ConnectionProfile, DatabaseKind, SchemaSnapshot } from "../types";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ConnectionProfile, DatabaseKind, DatabaseObjectCategory, DatabaseUser, DatabaseUserSnapshot, SchemaSnapshot } from "../types";
 
 export type ConnectionMenuAction = "open" | "edit" | "delete" | "duplicate" | "new-query" | "command-line" | "run-sql-file" | "refresh" | `new-${DatabaseKind}`;
 export type DatabaseMenuAction = "database-open" | "database-edit" | "database-create" | "database-delete" | "database-new-query" | "database-run-sql-file" | "database-refresh";
@@ -10,6 +10,7 @@ export type TableMenuAction =
   | "table-dump-structure" | "table-dump-data" | "table-print" | "table-reverse-model"
   | "table-group-add" | "table-group-create" | "table-copy-name" | "table-rename"
   | "table-create-shortcut" | "table-refresh" | "table-info";
+export type UserMenuAction = "user-new" | "user-edit" | "user-delete";
 
 export interface TableMenuTarget {
   profileId: string;
@@ -18,20 +19,33 @@ export interface TableMenuTarget {
   schemaName?: string;
 }
 
+export interface UserMenuTarget {
+  profileId: string;
+  user?: DatabaseUser;
+}
+
 interface ConnectionRailProps {
   profiles: readonly ConnectionProfile[];
   schemas: Readonly<Record<string, SchemaSnapshot>>;
+  users: Readonly<Record<string, DatabaseUserSnapshot>>;
   activeId: string;
   loadingId?: string;
+  databaseLoadingKeys?: ReadonlySet<string>;
   connectingId?: string;
   onSelect: (id: string) => void;
   onNew: () => void;
   onRefresh: () => void;
   onConnect: (profile: ConnectionProfile) => Promise<boolean>;
+  onLoadConnection: (profileId: string) => Promise<void>;
+  onLoadDatabases: (profileId: string) => Promise<void>;
   onLoadDatabase: (profileId: string, databaseName: string) => Promise<void>;
+  onLoadDatabaseCategory: (profileId: string, databaseName: string, category: DatabaseObjectCategory) => Promise<void>;
+  onLoadDatabaseObject: (profileId: string, databaseName: string, tableName: string, schemaName?: string) => Promise<void>;
+  onLoadUsers: (profileId: string, force?: boolean) => Promise<void>;
   onMenuAction: (action: ConnectionMenuAction, profile: ConnectionProfile) => void;
   onDatabaseMenuAction: (action: DatabaseMenuAction, profileId: string, databaseName: string) => void;
   onTableMenuAction: (action: TableMenuAction, target: TableMenuTarget) => void;
+  onUserMenuAction: (action: UserMenuAction, target: UserMenuTarget) => void;
 }
 
 function connectionKey(id: string) {
@@ -111,6 +125,8 @@ function prefixObjectNodes(
     return {
       ...node,
       key: `object:${profileId}:${databaseName}:${node.key}`,
+      profileId,
+      databaseName,
       selectable: false,
       icon: <Icon
         name={iconName}
@@ -165,28 +181,48 @@ function placeholderNode(key: string, title = "暂无可见对象"): TreeNode {
 type TreeContext =
   | { type: "connection"; profileId: string }
   | { type: "database"; profileId: string; databaseName: string }
+  | { type: "users"; profileId: string }
+  | { type: "user"; profileId: string; userName: string; userHost?: string }
   | ({ type: "table" } & TableMenuTarget);
 
 export function ConnectionRail({
   profiles,
   schemas,
+  users,
   activeId,
   loadingId,
+  databaseLoadingKeys = new Set(),
   connectingId,
   onSelect,
   onNew,
   onRefresh,
   onConnect,
+  onLoadConnection,
+  onLoadDatabases,
   onLoadDatabase,
+  onLoadDatabaseCategory,
+  onLoadDatabaseObject,
+  onLoadUsers,
   onMenuAction,
   onDatabaseMenuAction,
   onTableMenuAction,
+  onUserMenuAction,
 }: ConnectionRailProps) {
   const [query, setQuery] = useState("");
   const [expandedKeys, setExpandedKeys] = useState<TreeKey[]>([]);
   const [treeContext, setTreeContext] = useState<TreeContext>({ type: "connection", profileId: activeId });
   const [favoriteKeys, setFavoriteKeys] = useState<Set<string>>(loadFavoriteKeys);
   const pendingConnectionIds = useRef(new Set<string>());
+
+  useEffect(() => {
+    const disconnectedKeys = new Set<TreeKey>(
+      profiles.filter((profile) => !profile.connected).map((profile) => connectionKey(profile.id)),
+    );
+    setExpandedKeys((current) => {
+      const next = current.filter((key) => !disconnectedKeys.has(key));
+      return next.length === current.length ? current : next;
+    });
+  }, [profiles]);
 
   const toggleFavorite = useCallback((key: string) => {
     setFavoriteKeys((current) => {
@@ -199,7 +235,29 @@ export function ConnectionRail({
   }, []);
 
   const contextProfile = profiles.find((profile) => profile.id === treeContext.profileId) ?? profiles.find((profile) => profile.id === activeId) ?? profiles[0];
+  const contextUser = treeContext.type === "user"
+    ? users[treeContext.profileId]?.users.find((user) =>
+      user.name === treeContext.userName && (user.host ?? "") === (treeContext.userHost ?? ""))
+    : undefined;
   const contextMenuItems = useMemo<MenuItem[]>(() => {
+    if (treeContext.type === "users") {
+      return [
+        {
+          key: "user-new",
+          label: "新建",
+          icon: <Icon name="plus" size={15} />,
+          disabled: contextProfile?.kind === "sqlite",
+        },
+      ];
+    }
+
+    if (treeContext.type === "user") {
+      return [
+        { key: "user-edit", label: "编辑", icon: <Icon name="edit" size={15} /> },
+        { key: "user-delete", label: "删除", icon: <Icon name="trash" size={15} />, danger: true },
+      ];
+    }
+
     if (treeContext.type === "database") {
       return [
         { key: "database-open", label: "打开数据库", icon: <Icon name="database" size={15} /> },
@@ -291,13 +349,15 @@ export function ConnectionRail({
       { key: "connection-divider-2", type: "divider" },
       { key: "refresh", label: "刷新", icon: <Icon name="refresh" size={15} /> },
     ];
-  }, [connectingId, contextProfile?.connected, contextProfile?.id, profiles.length, treeContext.type]);
+  }, [connectingId, contextProfile?.connected, contextProfile?.id, contextProfile?.kind, profiles.length, treeContext.type]);
 
   const nodes = useMemo<TreeNode[]>(() => {
     const normalized = query.trim().toLowerCase();
     return profiles.flatMap((profile) => {
       const schema = schemas[profile.id];
+      const userSnapshot = users[profile.id];
       const connectionMatches = profile.name.toLowerCase().includes(normalized);
+      const databaseListLoaded = Boolean(schema?.databasesLoaded);
       const databaseNodes: TreeNode[] = (schema?.databases ?? []).map((database) => {
         const favoriteKey = databaseFavoriteKey(profile.id, database.name);
         const favorite = favoriteKeys.has(favoriteKey);
@@ -325,10 +385,12 @@ export function ConnectionRail({
           favoriteKey,
           selectable: false,
           isLeaf: false,
+          loaded: database.loaded,
           icon: <Icon name="database" size={16} style={{ color: "#0f9f8f" }} />,
           profileId: profile.id,
           databaseName: database.name,
           nodeType: "database",
+          loadingText: "正在加载数据库对象…",
           searchText: database.name,
           rowProps: {
             "data-node-context": "database",
@@ -339,39 +401,68 @@ export function ConnectionRail({
         } satisfies TreeNode;
       }).sort((first, second) => Number(favoriteKeys.has(String(second.favoriteKey)))
         - Number(favoriteKeys.has(String(first.favoriteKey))));
+      const userNodes: TreeNode[] | undefined = userSnapshot?.loading
+        ? [placeholderNode(`users-loading:${profile.id}`, "正在加载用户…")]
+        : userSnapshot?.error
+          ? [placeholderNode(`users-error:${profile.id}`, `加载失败：${userSnapshot.error}`)]
+          : userSnapshot?.loaded
+            ? userSnapshot.users.length
+              ? userSnapshot.users.map((user) => ({
+                key: `user:${profile.id}:${encodeURIComponent(user.name)}:${encodeURIComponent(user.host ?? "")}`,
+                title: user.host ? `${user.name}@${user.host}` : user.name,
+                selectable: false,
+                isLeaf: true,
+                icon: <Icon name="user" size={16} style={{ color: "#0f9f8f" }} />,
+                extra: (
+                  <span className="connection-user-tags">
+                    {user.type ? <Tag>{user.type}</Tag> : null}
+                    {user.status ? <Tag status={user.status === "正常" ? "success" : "warning"}>{user.status}</Tag> : null}
+                  </span>
+                ),
+                profileId: profile.id,
+                nodeType: "user",
+                userName: user.name,
+                userHost: user.host,
+                searchText: `${user.name} ${user.host ?? ""} ${user.type ?? ""} ${user.status ?? ""}`,
+                rowProps: {
+                  "data-node-context": "user",
+                  "data-profile-id": profile.id,
+                  "data-user-name": user.name,
+                  ...(user.host ? { "data-user-host": user.host } : {}),
+                },
+              } satisfies TreeNode))
+              : [placeholderNode(`users-empty:${profile.id}`, profile.kind === "sqlite" ? "SQLite 不支持数据库用户" : "暂无可见用户")]
+            : undefined;
       const sourceNodes: TreeNode[] = schema ? [
         {
           key: `databases:${profile.id}`,
-          title: `数据库 (${schema.databases.length})`,
+          title: `数据库 (${schema.databaseCount ?? schema.databases.length})`,
           selectable: false,
+          isLeaf: false,
+          loaded: databaseListLoaded,
           icon: <Icon name="database" size={17} style={{ color: "#0f9f8f" }} />,
-          children: databaseNodes.length ? databaseNodes : [placeholderNode(`databases-empty:${profile.id}`)],
+          profileId: profile.id,
+          nodeType: "databases",
+          loadingText: "正在加载数据库列表…",
+          children: databaseListLoaded
+            ? databaseNodes.length ? databaseNodes : [placeholderNode(`databases-empty:${profile.id}`)]
+            : undefined,
         },
         {
-          key: `security:${profile.id}`,
-          title: "安全性",
+          key: `users:${profile.id}`,
+          title: `用户 (${userSnapshot?.count ?? userSnapshot?.users.length ?? 0})`,
           selectable: false,
-          icon: <Icon name="shield" size={17} style={{ color: "#f59e0b" }} />,
-          children: [
-            { key: `security-logins:${profile.id}`, title: "登录名", selectable: false, icon: <Icon name="user" size={16} style={{ color: "#f59e0b" }} />, children: [placeholderNode(`security-logins-empty:${profile.id}`)] },
-            { key: `security-roles:${profile.id}`, title: "服务器角色", selectable: false, icon: <Icon name="users" size={16} style={{ color: "#d97706" }} />, children: [placeholderNode(`security-roles-empty:${profile.id}`)] },
-            { key: `security-credentials:${profile.id}`, title: "凭据", selectable: false, icon: <Icon name="shield-check" size={16} style={{ color: "#ef5261" }} />, children: [placeholderNode(`security-credentials-empty:${profile.id}`)] },
-            { key: `security-users:${profile.id}`, title: "数据库用户", selectable: false, icon: <Icon name="user" size={16} style={{ color: "#f59e0b" }} />, children: [placeholderNode(`security-users-empty:${profile.id}`)] },
-          ],
-        },
-        {
-          key: `management:${profile.id}`,
-          title: "管理",
-          selectable: false,
-          icon: <Icon name="settings" size={17} style={{ color: "#7c3aed" }} />,
-          children: [placeholderNode(`management-empty:${profile.id}`)],
-        },
-        {
-          key: `system-info:${profile.id}`,
-          title: "系统信息",
-          selectable: false,
-          icon: <Icon name="info" size={17} style={{ color: "#64748b" }} />,
-          children: [placeholderNode(`system-info-empty:${profile.id}`)],
+          isLeaf: false,
+          loaded: Boolean(userSnapshot?.loaded),
+          icon: <Icon name="users" size={17} style={{ color: "#0f9f8f" }} />,
+          profileId: profile.id,
+          nodeType: "users",
+          loadingText: "正在加载用户…",
+          rowProps: {
+            "data-node-context": "users",
+            "data-profile-id": profile.id,
+          },
+          children: userNodes,
         },
       ] : [];
       const objectNodes = normalized && !connectionMatches ? filterObjectNodes(sourceNodes, normalized) : sourceNodes;
@@ -392,6 +483,7 @@ export function ConnectionRail({
           </span>
         ),
         icon: <Icon name={profile.kind === "sqlite" ? "file" : "database"} size={16} style={{ color: KIND_COLORS[profile.kind] }} />,
+        loaded: Boolean(schema && userSnapshot),
         profileId: profile.id,
         rowProps: {
           "data-node-context": "connection",
@@ -401,7 +493,7 @@ export function ConnectionRail({
         children,
       } satisfies TreeNode;
     });
-  }, [connectingId, favoriteKeys, loadingId, profiles, query, schemas, toggleFavorite]);
+  }, [connectingId, favoriteKeys, loadingId, profiles, query, schemas, toggleFavorite, users]);
 
   async function handleExpand(
     nextKeys: TreeKey[],
@@ -431,6 +523,8 @@ export function ConnectionRail({
         setExpandedKeys((current) => current.includes(info.node.key)
           ? current
           : [...current, info.node.key]);
+      } else {
+        setExpandedKeys((current) => current.filter((key) => key !== info.node.key));
       }
     } finally {
       pendingConnectionIds.current.delete(profileId);
@@ -455,7 +549,11 @@ export function ConnectionRail({
           items: contextMenuItems,
           selectable: false,
           onClick: ({ key }) => {
-            if (treeContext.type === "database") {
+            if (treeContext.type === "users") {
+              onUserMenuAction(key as UserMenuAction, { profileId: treeContext.profileId });
+            } else if (treeContext.type === "user" && contextUser) {
+              onUserMenuAction(key as UserMenuAction, { profileId: treeContext.profileId, user: contextUser });
+            } else if (treeContext.type === "database") {
               onDatabaseMenuAction(key as DatabaseMenuAction, treeContext.profileId, treeContext.databaseName);
             } else if (treeContext.type === "table") {
               onTableMenuAction(key as TableMenuAction, treeContext);
@@ -474,6 +572,15 @@ export function ConnectionRail({
           }
           if (type === "database" && row.dataset.databaseName) {
             setTreeContext({ type, profileId, databaseName: row.dataset.databaseName });
+          } else if (type === "users") {
+            setTreeContext({ type, profileId });
+          } else if (type === "user" && row.dataset.userName) {
+            setTreeContext({
+              type,
+              profileId,
+              userName: row.dataset.userName,
+              userHost: row.dataset.userHost,
+            });
           } else if (type === "table" && row.dataset.databaseName && row.dataset.tableName) {
             setTreeContext({
               type,
@@ -493,13 +600,34 @@ export function ConnectionRail({
             treeData={nodes}
             selectedKeys={[connectionKey(activeId)]}
             expandedKeys={query.trim() ? collectBranchKeys(nodes) : expandedKeys}
+            loadingKeys={[...databaseLoadingKeys]}
             onExpand={(keys, info) => {
               void handleExpand(keys, info);
             }}
             loadData={(node) => {
               const profileId = typeof node.profileId === "string" ? node.profileId : "";
               const databaseName = typeof node.databaseName === "string" ? node.databaseName : "";
-              return profileId && databaseName ? onLoadDatabase(profileId, databaseName) : Promise.resolve();
+              if (node.key === connectionKey(profileId) && profileId) return onLoadConnection(profileId);
+              if (node.nodeType === "databases" && profileId) return onLoadDatabases(profileId);
+              if (node.nodeType === "users" && profileId) return onLoadUsers(profileId);
+              if (node.nodeType === "database" && profileId && databaseName) {
+                return onLoadDatabase(profileId, databaseName);
+              }
+              if (node.nodeType === "category" && profileId && databaseName && typeof node.category === "string") {
+                return onLoadDatabaseCategory(profileId, databaseName, node.category as DatabaseObjectCategory);
+              }
+              if ((node.nodeType === "table" || node.nodeType === "view")
+                && profileId
+                && databaseName
+                && typeof node.tableName === "string") {
+                return onLoadDatabaseObject(
+                  profileId,
+                  databaseName,
+                  node.tableName,
+                  typeof node.schemaName === "string" ? node.schemaName : undefined,
+                );
+              }
+              return Promise.resolve();
             }}
             onSelect={(_keys, info) => {
               const profileId = info.node.profileId;
@@ -508,6 +636,10 @@ export function ConnectionRail({
             showIcon
             showLine
             blockNode
+            indentSize={12}
+            switcherWidth={18}
+            stickyAncestors
+            stickyRowHeight={30}
           />
         </div>
       </Dropdown>
