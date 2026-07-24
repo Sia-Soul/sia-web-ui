@@ -32,6 +32,10 @@ interface BrowserBounds {
   height: number;
 }
 
+interface BrowserOverlayRect extends BrowserBounds {
+  radius: number;
+}
+
 interface BrowserNativeEvent {
   tabId: string;
   kind: "load" | "title" | "new-window" | "audio" | "error";
@@ -182,6 +186,10 @@ export default function App() {
   const previewNoticeShownRef = useRef(false);
   const boundsRef = useRef<BrowserBounds>({ x: 0, y: 126, width: 1200, height: 700 });
   const activeTabRef = useRef<BrowserTab>(FIRST_TAB);
+  const overlayRegionTabIdRef = useRef<string | undefined>(undefined);
+  const overlayRegionFrameRef = useRef<number | undefined>(undefined);
+  const popupOverlayRef = useRef<{ popupClassName: string; shadowPadding: number } | null>(null);
+  const floatingPanelOverlayRef = useRef(false);
 
   const activeTab = useMemo(
     () => tabs.find((tab) => tab.id === activeId) ?? tabs[0],
@@ -189,9 +197,114 @@ export default function App() {
   );
   const activeBookmarked = Boolean(activeTab?.url && bookmarks.some((bookmark) => bookmark.url === activeTab.url));
 
+  const refreshBrowserOverlayRegions = useCallback(() => {
+    if (!isDesktopRuntime) return;
+    if (overlayRegionFrameRef.current !== undefined) {
+      window.cancelAnimationFrame(overlayRegionFrameRef.current);
+      overlayRegionFrameRef.current = undefined;
+    }
+
+    overlayRegionFrameRef.current = window.requestAnimationFrame(() => {
+      overlayRegionFrameRef.current = window.requestAnimationFrame(() => {
+        overlayRegionFrameRef.current = undefined;
+        const tab = activeTabRef.current;
+        const previousTabId = overlayRegionTabIdRef.current;
+        if (previousTabId && previousTabId !== tab.id) {
+          void invokeNative("set_browser_overlay_regions", {
+            tabId: previousTabId,
+            rects: [],
+            disableInput: false,
+          }).catch(() => undefined);
+        }
+        if (!tab.hasWebview || tab.sleeping) {
+          overlayRegionTabIdRef.current = undefined;
+          return;
+        }
+
+        const pageBounds = boundsRef.current;
+        const rects: BrowserOverlayRect[] = [];
+        const appendRegion = (
+          element: HTMLElement,
+          padding: { top: number; right: number; bottom: number; left: number },
+          radius: number,
+          targetWidth?: number,
+        ) => {
+          const elementRect = element.getBoundingClientRect();
+          const elementRight = targetWidth === undefined
+            ? elementRect.right
+            : Math.max(elementRect.right, elementRect.left + targetWidth);
+          const left = Math.max(pageBounds.x, elementRect.left - padding.left);
+          const top = Math.max(pageBounds.y, elementRect.top - padding.top);
+          const right = Math.min(
+            pageBounds.x + pageBounds.width,
+            elementRight + padding.right,
+          );
+          const bottom = Math.min(
+            pageBounds.y + pageBounds.height,
+            elementRect.bottom + padding.bottom,
+          );
+          if (right <= left || bottom <= top) return;
+          rects.push({
+            x: left - pageBounds.x,
+            y: top - pageBounds.y,
+            width: right - left,
+            height: bottom - top,
+            radius,
+          });
+        };
+
+        if (floatingPanelOverlayRef.current) {
+          const panel = document.querySelector<HTMLElement>(
+            ".vertical-tab-tree.is-floating:not(.is-collapsed)",
+          );
+          if (panel) {
+            const targetWidth = Number.parseFloat(panel.style.width);
+            appendRegion(
+              panel,
+              { top: 0, right: 18, bottom: 0, left: 0 },
+              0,
+              Number.isFinite(targetWidth) ? targetWidth : undefined,
+            );
+          }
+        }
+
+        const popupOverlay = popupOverlayRef.current;
+        if (popupOverlay) {
+          const popup = document.querySelector<HTMLElement>(
+            `.${popupOverlay.popupClassName}`,
+          );
+          if (popup) {
+            const padding = popupOverlay.shadowPadding;
+            appendRegion(
+              popup,
+              { top: padding, right: padding, bottom: padding, left: padding },
+              14 + padding,
+            );
+          }
+        }
+
+        overlayRegionTabIdRef.current = rects.length > 0 ? tab.id : undefined;
+        void invokeNative("set_browser_overlay_regions", {
+          tabId: tab.id,
+          rects,
+          disableInput: Boolean(popupOverlay),
+        }).catch(() => undefined);
+      });
+    });
+  }, []);
+
+  const updateBrowserFloatingPanelRegion = useCallback((open: boolean) => {
+    floatingPanelOverlayRef.current = open;
+    refreshBrowserOverlayRegions();
+  }, [refreshBrowserOverlayRegions]);
+
   useEffect(() => {
     if (activeTab) activeTabRef.current = activeTab;
   }, [activeTab]);
+
+  useEffect(() => {
+    refreshBrowserOverlayRegions();
+  }, [activeId, refreshBrowserOverlayRegions]);
 
   useEffect(() => {
     const preventDefaultContextMenu = (event: Event) => event.preventDefault();
@@ -341,9 +454,11 @@ export default function App() {
     };
     boundsRef.current = bounds;
     if (isDesktopRuntime) {
-      void invokeNative("set_browser_bounds", { bounds }).catch(() => undefined);
+      void invokeNative("set_browser_bounds", { bounds })
+        .then(refreshBrowserOverlayRegions)
+        .catch(() => undefined);
     }
-  }, []);
+  }, [refreshBrowserOverlayRegions]);
 
   useEffect(() => {
     syncBrowserBounds();
@@ -886,21 +1001,13 @@ export default function App() {
     return ordered;
   }
 
-  function setBrowserPagesHiddenForPopup(hidden: boolean) {
-    if (!isDesktopRuntime) return;
-    if (hidden) {
-      void invokeNative("hide_browser_pages").catch(() => undefined);
-      return;
-    }
-
-    window.setTimeout(() => {
-      const tab = activeTabRef.current;
-      if (!tab.hasWebview || tab.sleeping) return;
-      void invokeNative("switch_browser_tab", {
-        tabId: tab.id,
-        bounds: boundsRef.current,
-      }).catch(() => undefined);
-    }, 0);
+  function updateBrowserPopupRegion(
+    open: boolean,
+    popupClassName: string,
+    shadowPadding = 6,
+  ) {
+    popupOverlayRef.current = open ? { popupClassName, shadowPadding } : null;
+    refreshBrowserOverlayRegions();
   }
 
   function renderTabContextScope(children: ReactNode) {
@@ -950,7 +1057,9 @@ export default function App() {
         popupClassName="browser-tab-context-popup"
         trigger={["contextMenu"]}
         placement="bottomLeft"
-        onOpenChange={(open) => setBrowserPagesHiddenForPopup(open)}
+        onOpenChange={(open) => {
+          updateBrowserPopupRegion(open, "browser-tab-context-popup");
+        }}
         menu={{
           items: menuItems,
           selectable: false,
@@ -1337,7 +1446,9 @@ export default function App() {
           popupClassName="browser-more-popup"
           trigger={["click"]}
           placement="bottomRight"
-          onOpenChange={(open) => setBrowserPagesHiddenForPopup(open)}
+          onOpenChange={(open) => {
+            updateBrowserPopupRegion(open, "browser-more-popup", 10);
+          }}
           menu={{
             selectable: false,
             items: [
@@ -1546,6 +1657,7 @@ export default function App() {
               onClearGroupData={confirmClearGroupData}
               onDeleteGroup={confirmDeleteGroup}
               onDeleteSmallGroup={confirmDeleteSmallGroup}
+              onFloatingOverlayChange={updateBrowserFloatingPanelRegion}
             />,
           )
         ) : null}

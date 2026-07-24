@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { Button, Dropdown, Icon, Tooltip } from "@sia-ui/react";
 import { ROOT_GROUP_ID, type BrowserGroup, type BrowserTab } from "../browserTypes";
@@ -20,6 +20,7 @@ interface VerticalTabTreeProps {
   onClearGroupData: (groupId: string, smallGroupId?: string) => void;
   onDeleteGroup: (groupId: string) => void;
   onDeleteSmallGroup: (groupId: string, smallGroupId: string) => void;
+  onFloatingOverlayChange?: (open: boolean) => void;
 }
 
 const COMPACT_PANEL_WIDTH = 56;
@@ -52,6 +53,7 @@ export default function VerticalTabTree({
   onClearGroupData,
   onDeleteGroup,
   onDeleteSmallGroup,
+  onFloatingOverlayChange,
 }: VerticalTabTreeProps) {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [collapsedSmallGroups, setCollapsedSmallGroups] = useState<Set<string>>(new Set());
@@ -73,6 +75,10 @@ export default function VerticalTabTree({
   const rootTabs = tabsByGroup.get(ROOT_GROUP_ID) ?? [];
   const activeTab = tabs.find((tab) => tab.id === activeId);
   const panelExpanded = !panelCollapsed && (panelPinned || floatingHovered);
+
+  useEffect(() => {
+    onFloatingOverlayChange?.(!panelPinned && panelExpanded);
+  }, [onFloatingOverlayChange, panelExpanded, panelPinned, panelWidth]);
 
   function toggle(setter: typeof setCollapsedGroups, key: string) {
     setter((current) => {
@@ -115,6 +121,7 @@ export default function VerticalTabTree({
   function togglePanelPinned() {
     if (panelPinned) {
       setPanelPinned(false);
+      setPanelCollapsed(false);
       setFloatingHovered(true);
       return;
     }
@@ -414,7 +421,6 @@ export default function VerticalTabTree({
         <div className="vertical-tab-tree__compact-scroll" aria-label="紧凑标签列表">
           {groups.map((group) => {
             const groupTabs = tabsByGroup.get(group.id) ?? [];
-            const groupCollapsed = collapsedGroups.has(group.id);
             return (
               <section
                 key={group.id}
@@ -427,16 +433,12 @@ export default function VerticalTabTree({
                   size="small"
                   title={group.name}
                   aria-label={`分组：${group.name}`}
-                  aria-expanded={!groupCollapsed}
-                  onClick={() => toggle(setCollapsedGroups, group.id)}
                 >
                   {compactGroupTitle(group.name)}
                 </Button>
-                {!groupCollapsed ? (
-                  <div className="vertical-tree-compact-group__tabs">
-                    {groupTabs.map(renderCompactTab)}
-                  </div>
-                ) : null}
+                <div className="vertical-tree-compact-group__tabs">
+                  {groupTabs.map(renderCompactTab)}
+                </div>
               </section>
             );
           })}

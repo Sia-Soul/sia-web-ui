@@ -10,7 +10,20 @@ use webview2_com::{
     Microsoft::Web::WebView2::Win32::{ICoreWebView2, ICoreWebView2_8},
 };
 #[cfg(windows)]
-use windows::core::{Interface, BOOL};
+use windows::{
+    core::{Interface, BOOL},
+    Win32::{
+        Foundation::{HWND, RECT},
+        Graphics::Gdi::{
+            CombineRgn, CreateRectRgn, CreateRoundRectRgn, DeleteObject, SetWindowRgn, HGDIOBJ,
+            RGN_DIFF,
+        },
+        UI::{
+            Input::KeyboardAndMouse::EnableWindow,
+            WindowsAndMessaging::GetClientRect,
+        },
+    },
+};
 
 const BROWSER_WEBVIEW_PREFIX: &str = "browser-tab-";
 const BROWSER_STATE_FILE: &str = "browser-state.json";
@@ -22,6 +35,16 @@ struct BrowserBounds {
     y: f64,
     width: f64,
     height: f64,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BrowserPopupRect {
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    radius: f64,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -219,8 +242,86 @@ fn hide_browser_webviews(app: &AppHandle, except_label: Option<&str>) -> Result<
 }
 
 #[tauri::command]
-fn hide_browser_pages(app: AppHandle) -> Result<(), String> {
-    hide_browser_webviews(&app, None)
+fn set_browser_overlay_regions(
+    app: AppHandle,
+    tab_id: String,
+    rects: Vec<BrowserPopupRect>,
+    disable_input: bool,
+) -> Result<(), String> {
+    let webview = app
+        .get_webview(&browser_label(&tab_id))
+        .ok_or_else(|| "当前标签页还没有打开网页".to_string())?;
+    #[cfg(windows)]
+    {
+        let scale_factor = app
+            .get_window("main")
+            .ok_or_else(|| "找不到浏览器主窗口".to_string())?
+            .scale_factor()
+            .map_err(|error| error.to_string())?;
+        webview
+            .with_webview(move |platform_webview| {
+                let controller = platform_webview.controller();
+                let mut hwnd = HWND::default();
+                if unsafe { controller.ParentWindow(&mut hwnd) }.is_err() {
+                    return;
+                }
+                if rects.is_empty() {
+                    unsafe {
+                        SetWindowRgn(hwnd, None, true);
+                        let _ = EnableWindow(hwnd, true);
+                    }
+                    return;
+                }
+                let mut client_rect = RECT::default();
+                if unsafe { GetClientRect(hwnd, &mut client_rect) }.is_err() {
+                    return;
+                }
+                let full_region = unsafe {
+                    CreateRectRgn(
+                        0,
+                        0,
+                        client_rect.right - client_rect.left,
+                        client_rect.bottom - client_rect.top,
+                    )
+                };
+                unsafe {
+                    for rect in rects {
+                        let left = (rect.x * scale_factor).floor() as i32;
+                        let top = (rect.y * scale_factor).floor() as i32;
+                        let right = ((rect.x + rect.width) * scale_factor).ceil() as i32;
+                        let bottom = ((rect.y + rect.height) * scale_factor).ceil() as i32;
+                        let exclusion_region = if rect.radius > 0.0 {
+                            let corner_radius = (rect.radius * scale_factor).round() as i32;
+                            CreateRoundRectRgn(
+                                left,
+                                top,
+                                right,
+                                bottom,
+                                corner_radius,
+                                corner_radius,
+                            )
+                        } else {
+                            CreateRectRgn(left, top, right, bottom)
+                        };
+                        CombineRgn(
+                            Some(full_region),
+                            Some(full_region),
+                            Some(exclusion_region),
+                            RGN_DIFF,
+                        );
+                        let _ = DeleteObject(HGDIOBJ(exclusion_region.0));
+                    }
+                    let _ = EnableWindow(hwnd, !disable_input);
+                    if SetWindowRgn(hwnd, Some(full_region), true) == 0 {
+                        let _ = DeleteObject(HGDIOBJ(full_region.0));
+                    }
+                }
+            })
+            .map_err(|error| error.to_string())?;
+    }
+    #[cfg(not(windows))]
+    let _ = (rects, disable_input);
+    Ok(())
 }
 
 #[tauri::command]
@@ -549,7 +650,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             open_browser_tab,
             switch_browser_tab,
-            hide_browser_pages,
+            set_browser_overlay_regions,
             close_browser_tab,
             set_browser_tab_muted,
             show_browser_more_menu,
