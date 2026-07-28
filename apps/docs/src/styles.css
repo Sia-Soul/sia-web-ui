@@ -110,6 +110,33 @@ h1 { margin: 0; font-size: clamp(32px, 3.3vw, 42px); line-height: 1.2; letter-sp
 .card-demo-surface p { margin: 0 0 12px; }
 .card-demo-scroll { background: var(--sia-color-background); scrollbar-gutter: stable; }
 .card-demo-scroll p { margin: 0 0 12px; }
+.work-plan-demo .demo-card__preview { padding: 26px clamp(20px, 5vw, 68px) 10px; background: color-mix(in srgb, var(--sia-color-primary) 3%, var(--sia-color-surface)); }
+.work-plan-input-panel { max-width: 820px; margin: 0 auto; padding: 16px; background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: calc(var(--sia-radius) + 2px); box-shadow: 0 4px 16px rgb(0 0 0 / 4%); }
+.work-plan-textarea .sia-textarea-control { min-height: 188px; }
+.work-plan-textarea .sia-textarea { font-family: "SFMono-Regular", Consolas, "Microsoft YaHei", monospace; line-height: 1.7; }
+.work-plan-preview-heading { display: flex; align-items: center; justify-content: space-between; max-width: 820px; margin: 28px auto 18px; }
+.work-plan-preview-heading > span:first-child { display: flex; align-items: center; gap: 8px; color: var(--sia-color-text); }
+.work-plan-preview-heading .sia-icon { color: var(--sia-color-primary); }
+.work-plan-empty { display: grid; place-items: center; align-content: center; max-width: 820px; min-height: 150px; margin: 0 auto 24px; gap: 10px; color: var(--sia-color-text-secondary); border: 1px dashed var(--sia-color-border); border-radius: var(--sia-radius); }
+.work-plan-timeline { max-width: 820px; margin: 0 auto; }
+.work-plan-timeline.sia-timeline--right .sia-timeline__item { grid-template-columns: 118px 38px minmax(0, 1fr); min-height: 96px; }
+.work-plan-timeline.sia-timeline--right .sia-timeline__rail { grid-column: 2; }
+.work-plan-timeline.sia-timeline--right .sia-timeline__content { grid-column: 3; padding: 0 0 22px 14px; }
+.work-plan-timeline .sia-timeline__label { display: block; grid-column: 1; padding: 2px 14px 0 0; }
+.work-plan-timeline .sia-timeline__rail::after { top: 28px; bottom: -5px; width: 2px; background: color-mix(in srgb, var(--sia-color-primary) 22%, var(--sia-color-border)); }
+.work-plan-timeline .sia-timeline__dot:not(:empty) { width: 32px; height: 32px; margin-top: 0; color: var(--sia-color-primary); background: var(--sia-color-surface); border: 2px solid currentColor; box-shadow: 0 0 0 4px color-mix(in srgb, var(--sia-color-primary) 10%, transparent); }
+.work-plan-date { display: grid; gap: 2px; }
+.work-plan-date strong { color: var(--sia-color-text); font-size: 15px; line-height: 1.4; white-space: nowrap; }
+.work-plan-date small { color: var(--sia-color-text-secondary); font-size: 12px; line-height: 1.4; }
+.work-plan-card { border-color: color-mix(in srgb, var(--sia-color-primary) 12%, var(--sia-color-border)); box-shadow: 0 4px 14px rgb(0 0 0 / 4%); }
+.work-plan-card__body { padding: 15px 16px; }
+.work-plan-card__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.work-plan-card__heading > strong { min-width: 0; color: var(--sia-color-text); font-size: 15px; line-height: 1.65; }
+.work-plan-card__heading > .sia-tag { flex: 0 0 auto; margin-top: 1px; }
+.work-plan-task-list { display: grid; gap: 10px; margin: 13px 0 0; padding: 12px 0 0; list-style: none; border-top: 1px solid var(--sia-color-border); }
+.work-plan-task-list li { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: start; gap: 8px; }
+.work-plan-task-list li > span { display: grid; place-items: center; width: 22px; height: 22px; color: var(--sia-color-primary); background: color-mix(in srgb, var(--sia-color-primary) 10%, transparent); border-radius: 50%; font-size: 12px; font-weight: 650; }
+.work-plan-task-list p { margin: 0; color: var(--sia-color-text-secondary); font-size: 14px; line-height: 1.6; }
 .tabs-demo-stack { display: grid; gap: 28px; }
 .tabs-demo-stack .sia-tabs__panel p, .sia-tabs__panel > p { margin: 0; color: var(--sia-color-text-secondary); }
 .tabs-position-demo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
@@ -242,6 +269,15 @@ pre code { color: inherit; }
   .component-demo { align-items: stretch; flex-direction: column; }
   .component-demo > .sia-input-number, .component-demo > .sia-select { width: 100%; }
   .demo-grid { grid-template-columns: 1fr; }
+  .work-plan-demo .demo-card__preview { padding: 22px 14px 6px; }
+  .work-plan-input-panel { padding: 13px; }
+  .work-plan-preview-heading { margin-top: 24px; }
+  .work-plan-timeline.sia-timeline--right .sia-timeline__item { grid-template-columns: 34px minmax(0, 1fr); grid-template-rows: auto auto; min-height: 112px; }
+  .work-plan-timeline.sia-timeline--right .sia-timeline__rail { grid-column: 1; grid-row: 1 / span 2; }
+  .work-plan-timeline.sia-timeline--right .sia-timeline__label { display: flex; align-items: baseline; grid-column: 2; grid-row: 1; gap: 7px; padding: 2px 0 9px 10px; text-align: left; }
+  .work-plan-timeline.sia-timeline--right .sia-timeline__content { grid-column: 2; grid-row: 2; padding: 0 0 22px 10px; }
+  .work-plan-card__heading { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .work-plan-card__heading > .sia-tag { margin-top: 0; }
   .window-frame-demo { padding: 8px; }
   .window-frame-demo__body aside { display: none; }
   .window-frame-demo__brand strong { display: none; }

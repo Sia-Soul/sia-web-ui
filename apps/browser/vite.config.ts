@@ -19,6 +19,16 @@ export default defineConfig({
     ],
   },
   clearScreen: false,
+  build: {
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL("./index.html", import.meta.url)),
+        menu: fileURLToPath(new URL("./menu.html", import.meta.url)),
+        overlay: fileURLToPath(new URL("./overlay.html", import.meta.url)),
+        tabPanel: fileURLToPath(new URL("./tab-panel.html", import.meta.url)),
+      },
+    },
+  },
   server: {
     host: host || "127.0.0.1",
     port: 1440,

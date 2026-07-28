@@ -30,7 +30,7 @@ fn overlay_window(app: &AppHandle) -> Result<WebviewWindow, String> {
     let builder = WebviewWindowBuilder::new(
         app,
         BROWSER_OVERLAY_LABEL,
-        WebviewUrl::App("index.html?browser-overlay=1".into()),
+        WebviewUrl::App("overlay.html".into()),
     )
     .title("Sia Browser Overlay")
     .inner_size(640.0, 480.0)
@@ -60,8 +60,8 @@ fn overlay_window(app: &AppHandle) -> Result<WebviewWindow, String> {
     builder.build().map_err(|error| error.to_string())
 }
 
-pub fn initialize(app: &AppHandle) -> Result<(), String> {
-    overlay_window(app).map(|_| ())
+pub fn initialize(_app: &AppHandle) -> Result<(), String> {
+    Ok(())
 }
 
 fn sync_overlay_bounds(app: &AppHandle, overlay: &WebviewWindow) -> Result<(), String> {
@@ -78,6 +78,16 @@ fn sync_overlay_bounds(app: &AppHandle, overlay: &WebviewWindow) -> Result<(), S
         .map_err(|error| error.to_string())
 }
 
+fn present_overlay(app: &AppHandle, payload: Value) -> Result<(), String> {
+    let overlay = overlay_window(app)?;
+    sync_overlay_bounds(app, &overlay)?;
+    overlay
+        .emit("sia://browser-overlay-state", payload)
+        .map_err(|error| error.to_string())?;
+    overlay.show().map_err(|error| error.to_string())?;
+    overlay.set_focus().map_err(|error| error.to_string())
+}
+
 #[tauri::command]
 pub fn open_browser_overlay(
     app: AppHandle,
@@ -92,13 +102,18 @@ pub fn open_browser_overlay(
         *state = Some(payload.clone());
     }
 
-    let overlay = overlay_window(&app)?;
-    sync_overlay_bounds(&app, &overlay)?;
-    overlay
-        .emit("sia://browser-overlay-state", payload)
-        .map_err(|error| error.to_string())?;
-    overlay.show().map_err(|error| error.to_string())?;
-    overlay.set_focus().map_err(|error| error.to_string())
+    if app.get_webview_window(BROWSER_OVERLAY_LABEL).is_some() {
+        return present_overlay(&app, payload);
+    }
+
+    let create_app = app.clone();
+    app.run_on_main_thread(move || {
+        if let Err(error) = present_overlay(&create_app, payload) {
+            eprintln!("无法显示浏览器覆盖层：{error}");
+            let _ = create_app.emit("sia://browser-overlay-error", error);
+        }
+    })
+    .map_err(|error| error.to_string())
 }
 
 #[tauri::command]

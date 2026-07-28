@@ -112,7 +112,9 @@ function demoAudit(
   sql: string,
   options: Partial<SqlExecutionDetail> = {},
 ): SqlExecutionDetail {
-  const startedAt = new Date().toISOString();
+  const finishedAt = new Date();
+  const durationMs = options.durationMs ?? 1;
+  const startedAt = new Date(finishedAt.getTime() - durationMs).toISOString();
   return {
     id: `demo-audit-${Date.now()}`,
     operation,
@@ -126,8 +128,8 @@ function demoAudit(
     sql,
     highRisk: false,
     startedAt,
-    finishedAt: startedAt,
-    durationMs: 1,
+    finishedAt: finishedAt.toISOString(),
+    durationMs,
     success: true,
     ...options,
   };

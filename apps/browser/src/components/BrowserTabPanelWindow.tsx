@@ -10,6 +10,11 @@ export interface FloatingTabPanelPayload {
   activeId: string;
   darkMode: boolean;
   closedTabCount: number;
+  panelExpanded: boolean;
+  panelPinned: boolean;
+  panelWidth: number;
+  collapsedGroupIds: string[];
+  collapsedSmallGroupIds: string[];
 }
 
 interface FloatingTabPanelAction {
@@ -28,16 +33,29 @@ export default function BrowserTabPanelWindow() {
   useEffect(() => {
     let disposed = false;
     let unlisten: (() => void) | undefined;
-    void invokeNative<FloatingTabPanelPayload | null>("get_floating_tab_panel_state")
-      .then((state) => {
-        if (!disposed && state) setPayload(state);
-      })
-      .catch(() => undefined);
+    let pollTimer: number | undefined;
+    let lastPayloadSignature = "";
+    const acceptPayload = (nextPayload: FloatingTabPanelPayload) => {
+      if (disposed) return;
+      const signature = JSON.stringify(nextPayload);
+      if (signature === lastPayloadSignature) return;
+      lastPayloadSignature = signature;
+      setPayload(nextPayload);
+    };
+    const readCurrentState = () => {
+      void invokeNative<FloatingTabPanelPayload | null>("get_floating_tab_panel_state")
+        .then((state) => {
+          if (state) acceptPayload(state);
+        })
+        .catch(() => undefined);
+    };
+    readCurrentState();
+    pollTimer = window.setInterval(readCurrentState, 200);
     if (window.__TAURI__) {
       void window.__TAURI__.event.listen<FloatingTabPanelPayload>(
         "sia://floating-tab-panel-state",
         ({ payload: nextPayload }) => {
-          setPayload(nextPayload);
+          acceptPayload(nextPayload);
         },
       ).then((dispose) => {
         if (disposed) dispose();
@@ -46,6 +64,7 @@ export default function BrowserTabPanelWindow() {
     }
     return () => {
       disposed = true;
+      if (pollTimer !== undefined) window.clearInterval(pollTimer);
       unlisten?.();
     };
   }, []);
@@ -96,7 +115,7 @@ export default function BrowserTabPanelWindow() {
       disableCloseFollowing: contextIndex < 0 || contextIndex >= orderedTabs.length - 1,
       disableReopenClosed: payload.closedTabCount === 0,
       darkMode: payload.darkMode,
-      sourceWindow: "browser-tab-panel",
+      sourceWindow: "sia-tab-panel-window",
       x,
       y,
     }).catch((error) => {
@@ -121,9 +140,14 @@ export default function BrowserTabPanelWindow() {
     >
       <VerticalTabTree
         floatingWindow
+        panelExpanded={payload.panelExpanded}
+        panelPinned={payload.panelPinned}
+        panelWidth={payload.panelWidth}
         groups={payload.groups}
         tabs={payload.tabs}
         activeId={payload.activeId}
+        collapsedGroupIds={payload.collapsedGroupIds ?? []}
+        collapsedSmallGroupIds={payload.collapsedSmallGroupIds ?? []}
         onSelect={(tabId) => sendAction("select", tabId)}
         onClose={(tabId) => sendAction("close", tabId)}
         onToggleAudio={(tabId) => sendAction("toggle-audio", tabId)}
@@ -132,22 +156,22 @@ export default function BrowserTabPanelWindow() {
         }}
         onNewRootTab={() => sendAction("new-root-tab")}
         onNewGroup={() => sendAction("new-group")}
+        onToggleGroup={(groupId) => sendAction("toggle-group", groupId)}
+        onToggleSmallGroup={(smallGroupId) => sendAction("toggle-small-group", smallGroupId)}
         onTreeActionsOpen={(groupId, smallGroupId, x, y) => {
           void invokeNative("show_browser_tree_menu", {
             groupId,
             smallGroupId,
             darkMode: payload.darkMode,
-            sourceWindow: "browser-tab-panel",
+            sourceWindow: "sia-tab-panel-window",
             x,
             y,
           }).catch((error) => {
             message.error(error instanceof Error ? error.message : String(error));
           });
         }}
-        onPinPanel={() => sendAction("pin")}
-        onPanelMouseLeave={() => {
-          void invokeNative("close_floating_tab_panel").catch(() => undefined);
-        }}
+        onPinPanel={() => sendAction("toggle-panel-pin")}
+        onPanelWidthChange={(width) => sendAction("resize-panel", String(width))}
       />
     </div>
   );

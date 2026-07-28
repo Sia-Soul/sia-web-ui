@@ -42,6 +42,7 @@ export interface TableColumn<T = Record<string, unknown>> {
   fixed?: TableFixed | boolean;
   hidden?: boolean;
   ellipsis?: boolean;
+  showTitle?: boolean;
   sortable?: boolean;
   filterable?: boolean;
   editable?: boolean | TableEditableCellConfig<T>;
@@ -161,6 +162,12 @@ export interface TableProps<T extends Record<string, unknown> = Record<string, u
   stickyHeader?: boolean;
   onRowClick?: (record: T, index: number) => void;
   onRowDoubleClick?: (record: T, index: number) => void;
+  onCellContextMenu?: (
+    record: T,
+    column: TableColumn<T>,
+    index: number,
+    event: ReactMouseEvent<HTMLTableCellElement>,
+  ) => void;
   rowClassName?: string | ((record: T, index: number) => string);
   tableStyle?: CSSProperties;
 }

@@ -26,6 +26,16 @@ export interface QueryResult {
   execution?: SqlExecutionDetail;
 }
 
+export interface QueryExecutionMessage extends Record<string, unknown> {
+  id: string;
+  startedAt: string;
+  finishedAt: string;
+  durationMs: number;
+  status: "success" | "error";
+  result: string;
+  sql: string;
+}
+
 export interface QueryEditMetadata {
   table: string;
   primaryKeys: string[];

@@ -54,6 +54,7 @@ import type {
   DatabaseUserInput,
   DatabaseUserSnapshot,
   ExecutionHistoryPage,
+  QueryExecutionMessage,
   QueryResult,
   SchemaSnapshot,
   SqlExecutionDetail,
@@ -90,6 +91,10 @@ interface QueryContext {
 
 function errorText(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function createExecutionMessageId() {
+  return `query-message-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function showError(title: string, error: unknown) {
@@ -179,6 +184,7 @@ export default function App() {
   const [queryContext, setQueryContext] = useState<QueryContext>(() => loadQueryContext(profiles));
   const [sql, setSql] = useState(DEFAULT_SQL);
   const [result, setResult] = useState<QueryResult>(EMPTY_QUERY_RESULT);
+  const [executionMessages, setExecutionMessages] = useState<QueryExecutionMessage[]>([]);
   const [historyState, setHistoryState] = useState<ExecutionHistoryPage>({ items: DEMO_HISTORY, total: DEMO_HISTORY.length });
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
@@ -264,6 +270,10 @@ export default function App() {
     syncTheme();
     media.addEventListener("change", syncTheme);
     return () => media.removeEventListener("change", syncTheme);
+  }, []);
+
+  const appendExecutionMessage = useCallback((entry: QueryExecutionMessage) => {
+    setExecutionMessages((current) => [entry, ...current].slice(0, 200));
   }, []);
 
   useEffect(() => {
@@ -601,6 +611,8 @@ export default function App() {
       showError("SQL 执行失败", messageText);
       return;
     }
+    const attemptStartedAt = new Date().toISOString();
+    let sqlStartedAt = attemptStartedAt;
     setRunning(true);
     setError("");
     let connectionMessage: ReturnType<typeof message.loading> | undefined;
@@ -624,7 +636,17 @@ export default function App() {
           });
         } catch (connectionError) {
           const text = errorText(connectionError);
+          const finishedAt = new Date().toISOString();
           setError(text);
+          appendExecutionMessage({
+            id: createExecutionMessageId(),
+            startedAt: attemptStartedAt,
+            finishedAt,
+            durationMs: Math.max(0, Date.parse(finishedAt) - Date.parse(attemptStartedAt)),
+            status: "error",
+            result: `自动连接失败：${text}`,
+            sql: statementSql,
+          });
           connectionMessage.update({
             type: "error",
             content: `自动连接失败：${text}`,
@@ -637,9 +659,22 @@ export default function App() {
         }
       }
 
+      sqlStartedAt = new Date().toISOString();
       const nextResult = await executeSql(queryExecutionProfile, statementSql, safety);
       setResult(nextResult);
       recordExecution(nextResult.execution);
+      const execution = nextResult.execution;
+      const finishedAt = execution?.finishedAt ?? new Date().toISOString();
+      appendExecutionMessage({
+        id: execution?.id ?? createExecutionMessageId(),
+        startedAt: execution?.startedAt ?? sqlStartedAt,
+        finishedAt,
+        durationMs: execution?.durationMs
+          ?? Math.max(0, Date.parse(finishedAt) - Date.parse(sqlStartedAt)),
+        status: "success",
+        result: nextResult.message,
+        sql: statementSql,
+      });
       connectionMessage?.update({
         type: "success",
         content: "连接成功，SQL 已执行完成。",
@@ -666,13 +701,23 @@ export default function App() {
       }
       connectionMessage?.close();
       const text = queryError instanceof Error ? queryError.message : String(queryError);
+      const finishedAt = new Date().toISOString();
       setError(text);
+      appendExecutionMessage({
+        id: createExecutionMessageId(),
+        startedAt: sqlStartedAt,
+        finishedAt,
+        durationMs: Math.max(0, Date.parse(finishedAt) - Date.parse(sqlStartedAt)),
+        status: "error",
+        result: text,
+        sql: statementSql,
+      });
       showError("SQL 执行失败", text);
       void refreshExecutionHistory();
     } finally {
       setRunning(false);
     }
-  }, [executionProfile, recordExecution, refreshExecutionHistory, sql]);
+  }, [appendExecutionMessage, executionProfile, recordExecution, refreshExecutionHistory, sql]);
 
   const saveResultCell = useCallback(async (
     column: string,
@@ -681,23 +726,48 @@ export default function App() {
     safety: SqlSafetyOptions = {},
   ): Promise<boolean> => {
     if (!executionProfile) return false;
+    const attemptStartedAt = new Date().toISOString();
     if (!executionProfile.connected) {
-      showError("结果更新失败", "当前数据库连接已断开，请重新连接后再修改结果。");
+      const text = "当前数据库连接已断开，请重新连接后再修改结果。";
+      const finishedAt = new Date().toISOString();
+      appendExecutionMessage({
+        id: createExecutionMessageId(),
+        startedAt: attemptStartedAt,
+        finishedAt,
+        durationMs: Math.max(0, Date.parse(finishedAt) - Date.parse(attemptStartedAt)),
+        status: "error",
+        result: text,
+        sql: `-- 更新结果单元格：${column}`,
+      });
+      showError("结果更新失败", text);
       return false;
     }
     try {
       const updated = await updateResultCell(executionProfile, result, column, rowIndex, value, safety);
+      const successMessage = updated.execution?.backupSkipped
+        ? "UPDATE 执行成功；用户已确认无备份执行。"
+        : `UPDATE 执行成功；已备份 ${updated.execution?.backupRowCount ?? 0} 行。`;
       setResult((current) => ({
         ...current,
         rows: updated.rows,
         execution: updated.execution,
         durationMs: updated.execution?.durationMs ?? current.durationMs,
         executedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
-        message: updated.execution?.backupSkipped
-          ? "UPDATE 执行成功；用户已确认无备份执行。"
-          : `UPDATE 执行成功；已备份 ${updated.execution?.backupRowCount ?? 0} 行。`,
+        message: successMessage,
       }));
       recordExecution(updated.execution);
+      const execution = updated.execution;
+      const finishedAt = execution?.finishedAt ?? new Date().toISOString();
+      appendExecutionMessage({
+        id: execution?.id ?? createExecutionMessageId(),
+        startedAt: execution?.startedAt ?? attemptStartedAt,
+        finishedAt,
+        durationMs: execution?.durationMs
+          ?? Math.max(0, Date.parse(finishedAt) - Date.parse(attemptStartedAt)),
+        status: "success",
+        result: successMessage,
+        sql: execution?.sql ?? `-- 更新结果单元格：${column}`,
+      });
       if (updated.execution?.backupSkipped) message.warning("已按确认执行 UPDATE，本次没有备份。");
       else message.success(`已执行 UPDATE，并备份 ${updated.execution?.backupRowCount ?? 0} 行。`);
       return true;
@@ -721,11 +791,22 @@ export default function App() {
           });
         });
       }
-      showError("结果更新失败", updateError);
+      const text = errorText(updateError);
+      const finishedAt = new Date().toISOString();
+      appendExecutionMessage({
+        id: createExecutionMessageId(),
+        startedAt: attemptStartedAt,
+        finishedAt,
+        durationMs: Math.max(0, Date.parse(finishedAt) - Date.parse(attemptStartedAt)),
+        status: "error",
+        result: text,
+        sql: `-- 更新结果单元格：${column}`,
+      });
+      showError("结果更新失败", text);
       void refreshExecutionHistory();
       return false;
     }
-  }, [executionProfile, recordExecution, refreshExecutionHistory, result]);
+  }, [appendExecutionMessage, executionProfile, recordExecution, refreshExecutionHistory, result]);
 
   async function saveAndConnect(profile: ConnectionProfile) {
     setConnectingId(profile.id);
@@ -1218,6 +1299,7 @@ export default function App() {
             <QueryWorkspace
               sql={sql}
               result={result}
+              executionMessages={executionMessages}
               running={running}
               error={error}
               connectionOptions={connectionOptions}

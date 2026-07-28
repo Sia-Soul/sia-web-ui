@@ -28,17 +28,34 @@ static PASSWORD_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 pub const PASSWORD_AUTOFILL_SCRIPT: &str = r#"
 (() => {
-  if (!window.chrome?.webview) return;
+  if (window.__siaPasswordManagerInstalled) return;
+  window.__siaPasswordManagerInstalled = true;
 
-  const postMessage = window.chrome.webview.postMessage.bind(window.chrome.webview);
+  let webviewBridge;
+  let webviewMessageHandler;
+  const ensureWebviewBridge = () => {
+    const nextBridge = window.chrome?.webview;
+    if (!nextBridge) return false;
+    if (webviewBridge !== nextBridge) {
+      webviewBridge = nextBridge;
+      if (webviewMessageHandler) {
+        webviewBridge.addEventListener("message", webviewMessageHandler);
+      }
+    }
+    return true;
+  };
+  const postMessage = (message) => {
+    if (ensureWebviewBridge()) webviewBridge.postMessage(JSON.stringify(message));
+  };
   let queryTimer;
   let activeInput;
   let suggestionHost;
   let suggestionRoot;
   let suggestionSheet;
-  let suggestionDatalist;
-  let datalistUsernameInput;
+  let allSuggestionOptions = [];
   let suggestionOptions = [];
+  let suggestionsDismissedForFocus = false;
+  let fillingCredential = false;
   let lastSubmission = "";
   let lastSubmissionAt = 0;
   const suggestionContentStyles = `
@@ -110,6 +127,22 @@ pub const PASSWORD_AUTOFILL_SCRIPT: &str = r#"
     if (suggestionHost) suggestionHost.hidden = true;
   };
 
+  const filterSuggestionOptions = () => {
+    const { username } = findFields();
+    const query = (username?.value || "").trim().toLocaleLowerCase();
+    if (!query) {
+      suggestionOptions = [...allSuggestionOptions];
+      return;
+    }
+    suggestionOptions = allSuggestionOptions
+      .filter((option) => (option.username || "").toLocaleLowerCase().includes(query))
+      .sort((left, right) => {
+        const leftStartsWith = (left.username || "").toLocaleLowerCase().startsWith(query);
+        const rightStartsWith = (right.username || "").toLocaleLowerCase().startsWith(query);
+        return Number(rightStartsWith) - Number(leftStartsWith);
+      });
+  };
+
   const applySuggestionStyles = (left = 8, top = 8, width = 320) => {
     suggestionSheet?.replaceSync(`
       :host {
@@ -155,6 +188,20 @@ pub const PASSWORD_AUTOFILL_SCRIPT: &str = r#"
   };
 
   const renderSuggestions = () => {
+    if (
+      suggestionsDismissedForFocus
+      || !activeInput?.isConnected
+      || document.activeElement !== activeInput
+      || !isCredentialInput(activeInput)
+    ) {
+      hideSuggestions();
+      return;
+    }
+    filterSuggestionOptions();
+    if (suggestionOptions.length === 0) {
+      hideSuggestions();
+      return;
+    }
     ensureSuggestionPanel();
     suggestionRoot.replaceChildren();
     const panel = document.createElement("div");
@@ -170,6 +217,7 @@ pub const PASSWORD_AUTOFILL_SCRIPT: &str = r#"
       button.className = "option";
       button.addEventListener("pointerdown", (event) => event.preventDefault());
       button.addEventListener("click", () => {
+        suggestionsDismissedForFocus = true;
         postMessage({ kind: "password-fill-request", credentialId: option.id });
         hideSuggestions();
       });
@@ -198,50 +246,21 @@ pub const PASSWORD_AUTOFILL_SCRIPT: &str = r#"
     requestAnimationFrame(positionSuggestions);
   };
 
-  const installNativeSuggestions = () => {
-    const { username } = findFields();
-    if (!username) return;
-    if (!suggestionDatalist?.isConnected) {
-      suggestionDatalist = document.createElement("datalist");
-      suggestionDatalist.id = `sia-password-options-${Math.random().toString(36).slice(2)}`;
-      document.documentElement.append(suggestionDatalist);
-    }
-    suggestionDatalist.replaceChildren();
-    for (const option of suggestionOptions) {
-      const entry = document.createElement("option");
-      entry.value = option.username || "";
-      entry.label = option.name || location.host;
-      suggestionDatalist.append(entry);
-    }
-    username.setAttribute("list", suggestionDatalist.id);
-    if (datalistUsernameInput === username) return;
-    datalistUsernameInput = username;
-    username.addEventListener("change", () => {
-      const selected = suggestionOptions.find((option) => option.username === username.value);
-      if (selected) {
-        postMessage({ kind: "password-fill-request", credentialId: selected.id });
-      }
-    });
-  };
-
   const queryCredentials = (input) => {
     window.clearTimeout(queryTimer);
     activeInput = input;
     queryTimer = window.setTimeout(() => {
-      if (!activeInput?.isConnected || !isCredentialInput(activeInput)) {
+      if (
+        suggestionsDismissedForFocus
+        || !activeInput?.isConnected
+        || document.activeElement !== activeInput
+        || !isCredentialInput(activeInput)
+      ) {
         hideSuggestions();
         return;
       }
-      const rect = activeInput.getBoundingClientRect();
       postMessage({
         kind: "password-options-query",
-        inputBounds: {
-          x: rect.left,
-          y: rect.top,
-          width: rect.width,
-          height: rect.height,
-        },
-        darkMode: window.matchMedia?.("(prefers-color-scheme: dark)")?.matches === true,
       });
     }, 80);
   };
@@ -263,13 +282,18 @@ pub const PASSWORD_AUTOFILL_SCRIPT: &str = r#"
     });
   };
 
-  window.chrome.webview.addEventListener("message", (event) => {
+  webviewMessageHandler = (event) => {
     const message = event.data;
     if (!message || message.origin !== location.origin) return;
     if (message.kind === "sia-password-options") {
-      suggestionOptions = Array.isArray(message.credentials) ? message.credentials : [];
-      if (suggestionOptions.length > 0 && activeInput?.isConnected && isCredentialInput(activeInput)) {
-        installNativeSuggestions();
+      allSuggestionOptions = Array.isArray(message.credentials) ? message.credentials : [];
+      if (
+        allSuggestionOptions.length > 0
+        && !suggestionsDismissedForFocus
+        && activeInput?.isConnected
+        && document.activeElement === activeInput
+        && isCredentialInput(activeInput)
+      ) {
         renderSuggestions();
       } else {
         hideSuggestions();
@@ -279,25 +303,81 @@ pub const PASSWORD_AUTOFILL_SCRIPT: &str = r#"
     if (message.kind === "sia-password-fill") {
       const { password, username } = findFields();
       if (!password) return;
-      setInputValue(username, message.username);
-      setInputValue(password, message.password);
+      fillingCredential = true;
+      try {
+        setInputValue(username, message.username);
+        setInputValue(password, message.password);
+      } finally {
+        fillingCredential = false;
+      }
+      suggestionsDismissedForFocus = true;
       hideSuggestions();
     }
-  });
+  };
+  ensureWebviewBridge();
 
   document.addEventListener("focusin", (event) => {
     if (isCredentialInput(event.target)) {
+      suggestionsDismissedForFocus = false;
       queryCredentials(event.target);
     } else {
+      suggestionsDismissedForFocus = true;
+      activeInput = undefined;
       hideSuggestions();
     }
   }, true);
+  document.addEventListener("focusout", () => {
+    window.setTimeout(() => {
+      if (!isCredentialInput(document.activeElement)) {
+        suggestionsDismissedForFocus = true;
+        activeInput = undefined;
+        hideSuggestions();
+      }
+    }, 0);
+  }, true);
+  document.addEventListener("input", (event) => {
+    if (
+      fillingCredential
+      || !isCredentialInput(event.target)
+      || document.activeElement !== event.target
+    ) {
+      return;
+    }
+    activeInput = event.target;
+    if (suggestionsDismissedForFocus) return;
+    if (allSuggestionOptions.length > 0) {
+      renderSuggestions();
+    } else {
+      queryCredentials(event.target);
+    }
+  }, true);
   document.addEventListener("pointerdown", (event) => {
-    if (suggestionHost && event.target !== suggestionHost) hideSuggestions();
+    const eventPath = typeof event.composedPath === "function" ? event.composedPath() : [];
+    const insideSuggestionPanel = suggestionHost
+      && (event.target === suggestionHost || eventPath.includes(suggestionHost));
+    if (insideSuggestionPanel) return;
+    if (isCredentialInput(event.target)) {
+      if (suggestionsDismissedForFocus || activeInput !== event.target) {
+        suggestionsDismissedForFocus = false;
+        queryCredentials(event.target);
+      }
+      return;
+    }
+    suggestionsDismissedForFocus = true;
+    activeInput = undefined;
+    hideSuggestions();
   }, true);
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") hideSuggestions();
+    if (event.key === "Escape") {
+      suggestionsDismissedForFocus = true;
+      hideSuggestions();
+    }
   }, true);
+  window.addEventListener("blur", () => {
+    suggestionsDismissedForFocus = true;
+    activeInput = undefined;
+    hideSuggestions();
+  });
   document.addEventListener("submit", (event) => submitCredential(event.target), true);
   document.addEventListener("click", (event) => {
     const target = event.target instanceof Element
@@ -310,7 +390,10 @@ pub const PASSWORD_AUTOFILL_SCRIPT: &str = r#"
   window.addEventListener("scroll", positionSuggestions, true);
 
   const startWatching = () => {
-    if (isCredentialInput(document.activeElement)) queryCredentials(document.activeElement);
+    if (isCredentialInput(document.activeElement)) {
+      suggestionsDismissedForFocus = false;
+      queryCredentials(document.activeElement);
+    }
   };
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", startWatching, { once: true });
@@ -379,17 +462,6 @@ struct PasswordWebMessage {
     credential_id: Option<String>,
     username: Option<String>,
     password: Option<String>,
-    input_bounds: Option<PasswordInputBounds>,
-    dark_mode: Option<bool>,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct PasswordInputBounds {
-    x: f64,
-    y: f64,
-    width: f64,
-    height: f64,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -812,7 +884,7 @@ pub fn attach_password_bridge(
                             Err(_) => return Ok(()),
                         };
                         let mut raw_message = PWSTR::null();
-                        if unsafe { args.WebMessageAsJson(&mut raw_message) }.is_err() {
+                        if unsafe { args.TryGetWebMessageAsString(&mut raw_message) }.is_err() {
                             return Ok(());
                         }
                         let raw_message = CoTaskMemPWSTR::from(raw_message).to_string();
@@ -832,72 +904,6 @@ pub fn attach_password_bridge(
                                     .cmp(&left.updated_at)
                                     .then_with(|| left.username.cmp(&right.username))
                             });
-                            if !credentials.is_empty() {
-                                if let (Some(input_bounds), Some(tab_webview), Some(main_window)) = (
-                                    message.input_bounds,
-                                    handler_app.get_webview(&crate::browser_label(&handler_tab_id)),
-                                    handler_app.get_window("main"),
-                                ) {
-                                    if let (Ok(webview_position), Ok(scale_factor)) =
-                                        (tab_webview.position(), main_window.scale_factor())
-                                    {
-                                        let visible_credentials =
-                                            credentials.iter().take(8).collect::<Vec<_>>();
-                                        let items = visible_credentials
-                                            .iter()
-                                            .map(|credential| {
-                                                serde_json::json!({
-                                                    "key": format!(
-                                                        "password-fill|{}|{}",
-                                                        handler_tab_id,
-                                                        credential.id
-                                                    ),
-                                                    "label": if credential.username.is_empty() {
-                                                        "未填写用户名"
-                                                    } else {
-                                                        credential.username.as_str()
-                                                    },
-                                                    "subtitle": if credential.name.is_empty() {
-                                                        credential.origin.as_str()
-                                                    } else {
-                                                        credential.name.as_str()
-                                                    }
-                                                })
-                                            })
-                                            .collect::<Vec<_>>();
-                                        let payload = serde_json::json!({
-                                            "darkMode": message.dark_mode.unwrap_or(false),
-                                            "heading": format!(
-                                                "当前站点保存的密码（{}）",
-                                                credentials.len()
-                                            ),
-                                            "items": items
-                                        });
-                                        let menu_store = handler_app
-                                            .state::<crate::floating_windows::BrowserMenuStore>();
-                                        let menu_result = crate::floating_windows::show_menu(
-                                            &handler_app,
-                                            &menu_store,
-                                            payload,
-                                            "main".to_string(),
-                                            crate::floating_windows::FloatingWindowBounds {
-                                                x: webview_position.x as f64 / scale_factor
-                                                    + input_bounds.x,
-                                                y: webview_position.y as f64 / scale_factor
-                                                    + input_bounds.y
-                                                    + input_bounds.height
-                                                    + 6.0,
-                                                width: input_bounds.width.clamp(280.0, 380.0),
-                                                height: 46.0
-                                                    + visible_credentials.len() as f64 * 52.0,
-                                            },
-                                        );
-                                        if menu_result.is_ok() {
-                                            return Ok(());
-                                        }
-                                    }
-                                }
-                            }
                             let response = PasswordOptionsMessage {
                                 kind: "sia-password-options",
                                 origin,

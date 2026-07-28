@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  Badge, Button, Calendar, Card, Carousel, Collapse, Icon, Image as SiaImage, Popover, Rate, Space, Tag, Timeline, Tooltip, Tree,
+  Badge, Button, Calendar, Card, Carousel, Collapse, Icon, Image as SiaImage, Popover, Rate, Space, Tag, TextArea, Timeline, Tooltip, Tree,
 } from "@sia-ui/react";
 import type { CollapseKey, TreeKey, TreeNode } from "@sia-ui/react";
 import { ComponentDocPage } from "./ComponentDocPage";
@@ -152,19 +152,158 @@ export function PopoverPage() {
   </ComponentDocPage>;
 }
 
+const DEFAULT_WORK_PLAN_TEXT = `2026/7/28	品牌中台一品一审批量导入
+2026/7/29	批量导入上UAT前的演示
+2026/7/30	"1、跟极狐对一下数据大屏的目前进度情况
+2、对比一下现有的项目，看看新版需要哪些其他接口，不清楚的话跟枫叶了解下"
+2026/7/31	开始KDS项目开发`;
+
+const WORK_PLAN_WEEKDAYS = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"] as const;
+const WORK_PLAN_ICONS = ["upload", "desktop", "bar-chart", "code", "calendar"] as const;
+
+type WorkPlanEntry = {
+  year: number;
+  month: number;
+  day: number;
+  tasks: string[];
+};
+
+function parseWorkPlanTasks(value: string) {
+  const cleaned = value
+    .trim()
+    .replace(/^["“”]+/, "")
+    .replace(/["“”]+$/, "")
+    .replace(/[ \t]+(?=\d+[、.．)）]\s*)/g, "\n");
+  const lines = cleaned.split("\n").map((line) => line.trim()).filter(Boolean);
+  const hasNumberedTask = lines.some((line) => /^\d+[、.．)）]\s*/.test(line));
+
+  if (!hasNumberedTask) return lines.length ? [lines.join(" ")] : [];
+
+  return lines.reduce<string[]>((tasks, line) => {
+    const numberedTask = line.match(/^\d+[、.．)）]\s*(.*)$/);
+    if (numberedTask) {
+      if (numberedTask[1]) tasks.push(numberedTask[1]);
+    } else if (tasks.length) {
+      tasks[tasks.length - 1] = `${tasks[tasks.length - 1]} ${line}`;
+    } else {
+      tasks.push(line);
+    }
+    return tasks;
+  }, []);
+}
+
+function parseWorkPlanText(value: string): WorkPlanEntry[] {
+  const entries: WorkPlanEntry[] = [];
+  let current: { year: number; month: number; day: number; content: string[] } | null = null;
+
+  function pushCurrent() {
+    if (!current) return;
+    const date = new Date(current.year, current.month - 1, current.day, 12);
+    const isValidDate = date.getFullYear() === current.year
+      && date.getMonth() === current.month - 1
+      && date.getDate() === current.day;
+    const tasks = parseWorkPlanTasks(current.content.join("\n"));
+    if (isValidDate && tasks.length) entries.push({ ...current, tasks });
+  }
+
+  value.replace(/\r\n?/g, "\n").split("\n").forEach((rawLine) => {
+    const line = rawLine.replace(/^\uFEFF/, "");
+    const row = line.match(/^\s*(\d{4})[/-](\d{1,2})[/-](\d{1,2})[ \t]+(.*)$/);
+    if (row) {
+      pushCurrent();
+      current = {
+        year: Number(row[1]),
+        month: Number(row[2]),
+        day: Number(row[3]),
+        content: [row[4]],
+      };
+    } else if (current && line.trim()) {
+      current.content.push(line);
+    }
+  });
+  pushCurrent();
+
+  return entries;
+}
+
 export function TimelinePage() {
+  const [workPlanText, setWorkPlanText] = useState(DEFAULT_WORK_PLAN_TEXT);
+  const workPlanEntries = parseWorkPlanText(workPlanText);
+  const workPlanTaskCount = workPlanEntries.reduce((count, entry) => count + entry.tasks.length, 0);
+  const hasParseError = Boolean(workPlanText.trim()) && workPlanEntries.length === 0;
+
   return <ComponentDocPage eyebrow="组件 / 数据展示 / Timeline" title="Timeline 时间轴" description="按时间顺序垂直展示事件、状态和阶段信息。" name="Timeline" apiRows={[
     { property: "items", description: "节点内容、标签、颜色和自定义圆点", type: "TimelineItem[]", defaultValue: "[]" },
     { property: "mode", description: "内容位置", type: "left | right | alternate", defaultValue: "left" },
     { property: "pending / pendingDot", description: "尾部待处理节点", type: "ReactNode | boolean", defaultValue: "false" },
     { property: "reverse", description: "反转节点顺序", type: "boolean", defaultValue: "false" },
   ]}>
-    <DemoCard title="项目发布记录" description="颜色用于区分成功、异常和普通节点。" code={`<Timeline items={[{ children: "创建项目" }, { color: "green", children: "构建完成" }]} pending="等待发布" />`}>
-      <Timeline pending="等待生产发布" items={[
-        { children: <><strong>创建项目</strong><div>2026-07-18 09:30</div></> },
-        { color: "green", children: <><strong>测试构建完成</strong><div>2026-07-19 14:20</div></> },
-        { color: "red", children: <><strong>安全扫描发现 1 个问题</strong><div>2026-07-20 10:10</div></> },
-      ]} />
+    <DemoCard
+      className="work-plan-demo"
+      title="工作排期时间轴"
+      description="把“日期 + Tab + 工作内容”的表格文本粘贴到下方，时间轴会实时生成。"
+      code={`const [text, setText] = useState("");
+const entries = parseWorkPlanText(text);
+
+<TextArea
+  rows={8}
+  value={text}
+  onChange={(event) => setText(event.target.value)}
+/>
+<Timeline mode="right" items={entries.map(toTimelineItem)} />`}
+    >
+      <div className="work-plan-input-panel">
+        <TextArea
+          className="work-plan-textarea"
+          label="粘贴排期内容"
+          hint={hasParseError
+            ? "暂未识别到排期，请按“2026/7/28 + Tab + 工作内容”的格式输入。"
+            : workPlanEntries.length
+              ? `已识别 ${workPlanEntries.length} 天、${workPlanTaskCount} 项工作，修改内容后会实时更新。`
+              : "粘贴排期后，下方会自动生成时间轴。"}
+          status={hasParseError ? "error" : "default"}
+          rows={8}
+          value={workPlanText}
+          placeholder={"2026/7/28\t工作内容\n2026/7/29\t工作内容"}
+          spellCheck={false}
+          onChange={(event) => setWorkPlanText(event.target.value)}
+        />
+      </div>
+      <div className="work-plan-preview-heading">
+        <span><Icon name="calendar" size={16} /><strong>时间轴预览</strong></span>
+        <Tag compact status="processing">实时更新</Tag>
+      </div>
+      {workPlanEntries.length ? <Timeline
+        className="work-plan-timeline"
+        mode="right"
+        items={workPlanEntries.map((entry, index) => {
+          const taskCount = entry.tasks.length;
+          const weekday = WORK_PLAN_WEEKDAYS[new Date(entry.year, entry.month - 1, entry.day, 12).getDay()];
+          return {
+            label: <span className="work-plan-date">
+              <strong>{entry.month} 月 {entry.day} 日</strong>
+              <small>{entry.year} · {weekday}</small>
+            </span>,
+            dot: <Icon name={WORK_PLAN_ICONS[index % WORK_PLAN_ICONS.length]} size={15} />,
+            children: <Card className="work-plan-card" bodyClassName="work-plan-card__body">
+              <div className="work-plan-card__heading">
+                <strong>{taskCount > 1 ? "当日工作安排" : entry.tasks[0]}</strong>
+                <Tag compact status={taskCount > 1 ? "processing" : "default"}>
+                  {taskCount > 1 ? `${taskCount} 项任务` : "工作安排"}
+                </Tag>
+              </div>
+              {taskCount > 1 ? <ol className="work-plan-task-list">
+                {entry.tasks.map((task, taskIndex) => <li key={`${entry.year}-${entry.month}-${entry.day}-${taskIndex}`}>
+                  <span>{taskIndex + 1}</span><p>{task}</p>
+                </li>)}
+              </ol> : null}
+            </Card>,
+          };
+        })}
+      /> : <div className="work-plan-empty">
+        <Icon name="calendar" size={24} />
+        <span>等待粘贴排期内容</span>
+      </div>}
     </DemoCard>
   </ComponentDocPage>;
 }

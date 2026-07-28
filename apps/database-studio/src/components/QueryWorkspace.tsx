@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
+  Dropdown,
   Editor,
   Icon,
   Modal,
@@ -37,7 +38,7 @@ import {
   saveQueryWorkspace,
   type QueryDocument,
 } from "../services/queryWorkspaceRepository";
-import type { DatabaseKind, DatabaseSchema, QueryResult } from "../types";
+import type { DatabaseKind, DatabaseSchema, QueryExecutionMessage, QueryResult } from "../types";
 
 interface ResultTableRow extends Record<string, unknown> {
   __siaRowIndex: number;
@@ -47,6 +48,7 @@ interface ResultTableRow extends Record<string, unknown> {
 interface QueryWorkspaceProps {
   sql: string;
   result: QueryResult;
+  executionMessages: readonly QueryExecutionMessage[];
   running: boolean;
   error: string;
   connectionOptions: readonly { label: string; value: string }[];
@@ -84,6 +86,43 @@ function displayValue(value: unknown) {
   if (value === null) return <span className="result-null">NULL</span>;
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
+}
+
+function formatExecutionTimestamp(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const parts = new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    fractionalSecondDigits: 3,
+    hour12: false,
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")} ${part("hour")}:${part("minute")}:${part("second")}.${part("fractionalSecond")}`;
+}
+
+function executionMessageCellText(messageRecord: QueryExecutionMessage, columnKey: string) {
+  if (columnKey === "startedAt") return formatExecutionTimestamp(messageRecord.startedAt);
+  if (columnKey === "finishedAt") return formatExecutionTimestamp(messageRecord.finishedAt);
+  if (columnKey === "durationMs") return `${messageRecord.durationMs} ms`;
+  if (columnKey === "status") return messageRecord.status === "success" ? "成功" : "失败";
+  return String(messageRecord[columnKey] ?? "");
+}
+
+function executionMessageRowText(messageRecord: QueryExecutionMessage) {
+  return [
+    `状态：${executionMessageCellText(messageRecord, "status")}`,
+    `开始时间：${executionMessageCellText(messageRecord, "startedAt")}`,
+    `结束时间：${executionMessageCellText(messageRecord, "finishedAt")}`,
+    `耗时：${executionMessageCellText(messageRecord, "durationMs")}`,
+    `执行结果：${messageRecord.result}`,
+    `SQL：\n${messageRecord.sql}`,
+  ].join("\n");
 }
 
 function quoteSqlIdentifier(kind: DatabaseKind, identifier: string) {
@@ -141,6 +180,7 @@ function nextQuerySequence(queries: readonly QueryDocument[]) {
 export function QueryWorkspace({
   sql,
   result,
+  executionMessages,
   running,
   error,
   connectionOptions,
@@ -164,6 +204,10 @@ export function QueryWorkspace({
 }: QueryWorkspaceProps) {
   const [resultTab, setResultTab] = useState("result");
   const [selectedCellCount, setSelectedCellCount] = useState(0);
+  const [messageContextTarget, setMessageContextTarget] = useState<{
+    record: QueryExecutionMessage;
+    columnKey: string;
+  }>();
   const [editorSelection, setEditorSelection] = useState<EditorSelectionChange>({
     range: { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1 },
     text: "",
@@ -239,6 +283,97 @@ export function QueryWorkspace({
     { key: "select-all", label: "全选", command: "selectAll" },
   ], [activeStatement, onRun]);
 
+  const messageColumns = useMemo<TableColumn<QueryExecutionMessage>[]>(() => [
+    {
+      key: "status",
+      title: "状态",
+      dataIndex: "status",
+      width: 86,
+      render: (value) => (
+        <Tag status={value === "success" ? "success" : "error"}>
+          {value === "success" ? "成功" : "失败"}
+        </Tag>
+      ),
+    },
+    {
+      key: "startedAt",
+      title: "开始时间",
+      dataIndex: "startedAt",
+      width: 190,
+      render: (value) => formatExecutionTimestamp(String(value)),
+    },
+    {
+      key: "finishedAt",
+      title: "结束时间",
+      dataIndex: "finishedAt",
+      width: 190,
+      render: (value) => formatExecutionTimestamp(String(value)),
+    },
+    {
+      key: "durationMs",
+      title: "耗时",
+      dataIndex: "durationMs",
+      width: 96,
+      align: "right",
+      render: (value) => `${Number(value) || 0} ms`,
+    },
+    {
+      key: "result",
+      title: "执行结果",
+      dataIndex: "result",
+      minWidth: 320,
+      ellipsis: true,
+    },
+    {
+      key: "sql",
+      title: "SQL",
+      dataIndex: "sql",
+      minWidth: 360,
+      ellipsis: true,
+    },
+  ], []);
+  const messagePlugins = useMemo<readonly AnyTablePlugin<QueryExecutionMessage>[]>(() => [
+    createResizePlugin<QueryExecutionMessage>(),
+    createSortPlugin<QueryExecutionMessage>({ scope: "all" }),
+    createPaginationPlugin<QueryExecutionMessage>({
+      defaultPageSize: 20,
+      pageSizeOptions: [20, 50, 100],
+    }),
+  ], []);
+
+  async function copyExecutionMessage(text: string, successText: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      message.success(successText);
+    } catch (copyError) {
+      Modal.error({
+        title: "复制失败",
+        centered: true,
+        children: copyError instanceof Error ? copyError.message : String(copyError),
+      });
+    }
+  }
+
+  function handleMessageMenuClick(key: string) {
+    if (key === "copy-cell" && messageContextTarget) {
+      void copyExecutionMessage(
+        executionMessageCellText(messageContextTarget.record, messageContextTarget.columnKey),
+        "已复制当前单元格内容。",
+      );
+      return;
+    }
+    if (key === "copy-row" && messageContextTarget) {
+      void copyExecutionMessage(executionMessageRowText(messageContextTarget.record), "已复制当前执行记录。");
+      return;
+    }
+    if (key === "copy-all" && executionMessages.length > 0) {
+      void copyExecutionMessage(
+        executionMessages.map(executionMessageRowText).join("\n\n--------------------\n\n"),
+        `已复制全部 ${executionMessages.length} 条执行记录。`,
+      );
+    }
+  }
+
   useEffect(() => {
     let cancelled = false;
     void loadQueryWorkspace().then((snapshot) => {
@@ -286,6 +421,10 @@ export function QueryWorkspace({
   useEffect(() => {
     setQueries((items) => items.map((item) => item.key === activeQueryKey && item.sql !== sql ? { ...item, sql } : item));
   }, [activeQueryKey, sql]);
+
+  useEffect(() => {
+    if (error) setResultTab("message");
+  }, [error]);
 
   function changeActiveQuery(key: string) {
     const query = queries.find((item) => item.key === key);
@@ -548,18 +687,27 @@ export function QueryWorkspace({
               onChange={setResultTab}
               items={[
                 { key: "result", label: `结果 ${result.rows.length}` },
-                { key: "message", label: "消息" },
+                { key: "message", label: `消息 ${executionMessages.length}` },
                 { key: "plan", label: "执行计划" },
               ]}
               tabBarExtraContent={(
                 <div className="result-actions">
                   <div className="result-inline-info">
-                    <span>{result.rows.length} 行 · {result.durationMs} ms{selectedCellCount > 0 ? ` · 已选 ${selectedCellCount} 个单元格` : ""}</span>
-                    <span>{result.rows.length === 0
-                      ? "运行 SQL 后将在下方显示结果"
-                      : result.editable
-                        ? "双击编辑非主键列 · 确认 SQL 后自动备份并执行 UPDATE"
-                        : "当前结果只读：仅包含主键的单表查询可写回"}</span>
+                    {resultTab === "message" ? (
+                      <>
+                        <span>{executionMessages.length} 条执行消息</span>
+                        <span>右键单元格可复制当前内容、整条记录或全部记录</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>{result.rows.length} 行 · {result.durationMs} ms{selectedCellCount > 0 ? ` · 已选 ${selectedCellCount} 个单元格` : ""}</span>
+                        <span>{result.rows.length === 0
+                          ? "运行 SQL 后将在下方显示结果"
+                          : result.editable
+                            ? "双击编辑非主键列 · 确认 SQL 后自动备份并执行 UPDATE"
+                            : "当前结果只读：仅包含主键的单表查询可写回"}</span>
+                      </>
+                    )}
                   </div>
                   <Tooltip title="选择路径并导出全部结果为 CSV"><Button variant="text" size="small" icon={<Icon name="download" size={15} />} aria-label="导出结果" disabled={result.rows.length === 0} onClick={() => void exportResults()} /></Tooltip>
                 </div>
@@ -583,10 +731,42 @@ export function QueryWorkspace({
                 />
               </div>
             ) : resultTab === "message" ? (
-              <div className={`query-message${error ? " is-error" : ""}`}>
-                <Icon name={error ? "circle-close" : "circle-check"} size={18} />
-                <div><strong>{error ? "执行失败" : "执行完成"}</strong><p>{error || result.message}</p></div>
-              </div>
+              <Dropdown
+                className="message-table-context"
+                trigger={["contextMenu"]}
+                menu={{
+                  items: [
+                    { key: "copy-cell", label: "复制当前单元格", icon: <Icon name="copy" size={14} />, disabled: !messageContextTarget },
+                    { key: "copy-row", label: "复制当前执行记录", icon: <Icon name="copy" size={14} />, disabled: !messageContextTarget },
+                    { type: "divider", key: "message-copy-divider" },
+                    { key: "copy-all", label: "复制全部执行记录", icon: <Icon name="copy" size={14} />, disabled: executionMessages.length === 0 },
+                  ],
+                  onClick: ({ key }) => handleMessageMenuClick(String(key)),
+                }}
+                onContextMenu={(event) => {
+                  const target = event.target;
+                  if (!(target instanceof Element) || !target.closest(".sia-table__cell")) {
+                    setMessageContextTarget(undefined);
+                  }
+                }}
+              >
+                <div className="message-table-wrap">
+                  <Table<QueryExecutionMessage>
+                    dataSource={executionMessages}
+                    columns={messageColumns}
+                    plugins={messagePlugins}
+                    rowKey="id"
+                    size="small"
+                    bordered
+                    stickyHeader
+                    height="100%"
+                    emptyText="运行 SQL 后将在这里显示开始时间、结束时间和执行结果"
+                    onCellContextMenu={(record, column) => {
+                      setMessageContextTarget({ record, columnKey: column.key });
+                    }}
+                  />
+                </div>
+              </Dropdown>
             ) : (
               <div className="query-empty-state"><Icon name="code" size={28} /><p>运行 EXPLAIN 查询后显示执行计划。</p></div>
             )}

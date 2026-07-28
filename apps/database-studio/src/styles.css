@@ -583,6 +583,25 @@ dt {
   justify-content: center;
 }
 
+.message-table-context,
+.message-table-wrap {
+  display: block;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.message-table-wrap .sia-table {
+  height: 100%;
+  border-radius: 0;
+}
+
+.message-table-wrap .sia-tag {
+  min-width: 52px;
+  justify-content: center;
+}
+
 .result-null {
   color: var(--sia-color-text-secondary);
   font-family: "Cascadia Code", Consolas, monospace;
@@ -803,7 +822,25 @@ dt {
 }
 
 .history-table-sql {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font: 12px/1.45 "Cascadia Code", Consolas, monospace;
+}
+
+.history-table-sql-trigger.sia-floating {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.sia-floating__overlay.history-sql-tooltip-overlay {
+  max-width: min(520px, calc(100vw - 24px));
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .execution-detail {

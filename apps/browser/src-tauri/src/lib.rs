@@ -116,6 +116,10 @@ fn parse_browser_url(value: &str) -> Result<tauri::Url, String> {
 }
 
 fn emit_browser_event(app: &AppHandle, event: BrowserEvent) {
+    eprintln!(
+        "[browser-event] tab={} kind={} loading={:?} url={:?}",
+        event.tab_id, event.kind, event.loading, event.url
+    );
     let _ = app.emit("sia://browser-event", event);
 }
 
@@ -225,6 +229,7 @@ fn attach_audio_monitor(
 fn hide_browser_webviews(app: &AppHandle, except_label: Option<&str>) -> Result<(), String> {
     for (label, webview) in app.webviews() {
         if label.starts_with(BROWSER_WEBVIEW_PREFIX) && Some(label.as_str()) != except_label {
+            eprintln!("[browser-view] hide label={label}");
             webview.hide().map_err(|error| error.to_string())?;
         }
     }
@@ -246,9 +251,14 @@ async fn open_browser_tab(
 ) -> Result<(), String> {
     let parsed_url = parse_browser_url(&url)?;
     let label = browser_label(&tab_id);
+    eprintln!(
+        "[browser-view] open tab={tab_id} label={label} bounds=({}, {}, {}, {})",
+        bounds.x, bounds.y, bounds.width, bounds.height
+    );
     hide_browser_webviews(&app, Some(&label))?;
 
     if let Some(webview) = app.get_webview(&label) {
+        eprintln!("[browser-view] reuse label={label}");
         webview
             .set_bounds(logical_rect(bounds))
             .map_err(|error| error.to_string())?;
@@ -343,25 +353,74 @@ async fn open_browser_tab(
             LogicalPosition::new(bounds.x, bounds.y),
             LogicalSize::new(bounds.width.max(1.0), bounds.height.max(1.0)),
         )
-        .map_err(|error| error.to_string())?;
-    attach_audio_monitor(&app, &webview, tab_id.clone(), group_id)?;
-    attach_password_bridge(&app, &webview, tab_id)?;
+        .map_err(|error| {
+            eprintln!("创建网页 WebView 失败：tab={tab_id} error={error}");
+            error.to_string()
+        })?;
+    eprintln!("[browser-view] created label={}", browser_label(&tab_id));
     webview.set_focus().map_err(|error| error.to_string())?;
+
+    let audio_app = app.clone();
+    let audio_webview = webview.clone();
+    let audio_tab_id = tab_id.clone();
+    let audio_group_id = group_id.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Err(error) = attach_audio_monitor(
+            &audio_app,
+            &audio_webview,
+            audio_tab_id.clone(),
+            audio_group_id.clone(),
+        ) {
+            emit_browser_event(
+                &audio_app,
+                BrowserEvent {
+                    tab_id: audio_tab_id,
+                    group_id: audio_group_id,
+                    kind: "error",
+                    url: None,
+                    title: None,
+                    loading: None,
+                    audible: None,
+                    muted: None,
+                    message: Some(format!("无法初始化网页声音监听：{error}")),
+                },
+            );
+        }
+    });
+
+    let password_app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Err(error) = attach_password_bridge(&password_app, &webview, tab_id) {
+            eprintln!("无法初始化密码表单桥接：{error}");
+        }
+    });
     Ok(())
 }
 
 #[tauri::command]
-fn switch_browser_tab(app: AppHandle, tab_id: String, bounds: BrowserBounds) -> Result<(), String> {
+async fn switch_browser_tab(
+    app: AppHandle,
+    tab_id: String,
+    bounds: BrowserBounds,
+) -> Result<bool, String> {
     let label = browser_label(&tab_id);
-    hide_browser_webviews(&app, Some(&label))?;
+    eprintln!(
+        "[browser-view] switch tab={tab_id} label={label} bounds=({}, {}, {}, {})",
+        bounds.x, bounds.y, bounds.width, bounds.height
+    );
     if let Some(webview) = app.get_webview(&label) {
+        hide_browser_webviews(&app, Some(&label))?;
+        eprintln!("[browser-view] show label={label}");
         webview
             .set_bounds(logical_rect(bounds))
             .map_err(|error| error.to_string())?;
         webview.show().map_err(|error| error.to_string())?;
         webview.set_focus().map_err(|error| error.to_string())?;
+        Ok(true)
+    } else {
+        eprintln!("[browser-view] missing label={label}");
+        Ok(false)
     }
-    Ok(())
 }
 
 #[tauri::command]
@@ -437,6 +496,10 @@ fn show_browser_more_menu(
     x: f64,
     y: f64,
 ) -> Result<(), String> {
+    eprintln!("[browser-menu] show more x={x} y={y}");
+    if floating_windows::menu_is_visible(&app) {
+        return floating_windows::close_browser_menu(app);
+    }
     let layout_label = if tab_layout == "vertical" {
         "切换到横向标签"
     } else {
@@ -688,13 +751,17 @@ fn save_browser_state(app: AppHandle, state: serde_json::Value) -> Result<(), St
 }
 
 #[tauri::command]
-fn set_browser_bounds(app: AppHandle, bounds: BrowserBounds) -> Result<(), String> {
+async fn set_browser_bounds(app: AppHandle, bounds: BrowserBounds) -> Result<(), String> {
+    eprintln!(
+        "[browser-view] bounds=({}, {}, {}, {})",
+        bounds.x, bounds.y, bounds.width, bounds.height
+    );
     let bounds = logical_rect(bounds);
     for (label, webview) in app.webviews() {
         if label.starts_with(BROWSER_WEBVIEW_PREFIX) {
-            webview
-                .set_bounds(bounds)
-                .map_err(|error| error.to_string())?;
+            webview.set_bounds(bounds).map_err(|error| {
+                format!("同步网页 WebView 边界失败：label={label} error={error}")
+            })?;
         }
     }
     Ok(())
@@ -718,9 +785,14 @@ fn browser_page_action(app: AppHandle, tab_id: String, action: String) -> Result
 
 #[tauri::command]
 fn browser_window_action(app: AppHandle, action: String) -> Result<(), String> {
+    eprintln!("[window-action] {action}");
     let window = app
         .get_window("main")
         .ok_or_else(|| "找不到浏览器主窗口".to_string())?;
+
+    if matches!(action.as_str(), "minimize" | "toggle-maximize" | "close") {
+        floating_windows::close_browser_menu(app.clone())?;
+    }
 
     match action.as_str() {
         "start-dragging" => window.start_dragging(),
@@ -736,6 +808,11 @@ fn browser_window_action(app: AppHandle, action: String) -> Result<(), String> {
         _ => return Err(format!("未知窗口操作：{action}")),
     }
     .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn current_window_label(window: tauri::Window) -> String {
+    window.label().to_string()
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -768,6 +845,7 @@ pub fn run() {
             set_browser_bounds,
             browser_page_action,
             browser_window_action,
+            current_window_label,
             browser_overlay::open_browser_overlay,
             browser_overlay::get_browser_overlay_state,
             browser_overlay::close_browser_overlay,

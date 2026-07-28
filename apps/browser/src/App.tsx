@@ -12,10 +12,10 @@ import {
   type WindowAction,
 } from "@sia-ui/react";
 import HorizontalTabStrip from "./components/HorizontalTabStrip";
+import VerticalTabTree from "./components/VerticalTabTree";
 import type { BrowserOverlayPayload } from "./components/BrowserOverlayWindow";
 import type { FloatingTabPanelPayload } from "./components/BrowserTabPanelWindow";
 import type { PasswordSubmission } from "./components/PasswordManagerModal";
-import VerticalTabTree from "./components/VerticalTabTree";
 import {
   BROWSER_GROUPS,
   DEFAULT_GROUP_ID,
@@ -53,6 +53,8 @@ interface BrowserPersistedState {
   layoutPreferenceSet?: boolean;
   bookmarks?: Bookmark[];
   showBookmarksBar?: boolean;
+  verticalPanelPinned?: boolean;
+  verticalPanelWidth?: number;
 }
 
 interface Bookmark {
@@ -107,6 +109,8 @@ const GROUP_COLOR_PALETTE = [
 ] as const;
 
 const TAB_SLEEP_DELAY_MS = 30 * 60 * 1000;
+const COMPACT_VERTICAL_PANEL_WIDTH = 56;
+const DEFAULT_VERTICAL_PANEL_WIDTH = 292;
 
 function createTabId() {
   return `tab-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -176,15 +180,25 @@ export default function App() {
   const [showBookmarksBar, setShowBookmarksBar] = useState(true);
   const [closedTabs, setClosedTabs] = useState<BrowserTab[]>([]);
   const [windowMaximized, setWindowMaximized] = useState(false);
-  const [floatingPanelPinVersion, setFloatingPanelPinVersion] = useState(0);
+  const [verticalPanelPinned, setVerticalPanelPinned] = useState(true);
+  const [verticalPanelWidth, setVerticalPanelWidth] = useState(DEFAULT_VERTICAL_PANEL_WIDTH);
+  const [collapsedGroupIds, setCollapsedGroupIds] = useState<string[]>([]);
+  const [collapsedSmallGroupIds, setCollapsedSmallGroupIds] = useState<string[]>([]);
   const pageHostRef = useRef<HTMLDivElement | null>(null);
+  const verticalPanelAnchorRef = useRef<HTMLDivElement | null>(null);
   const addressInputRef = useRef<HTMLInputElement | null>(null);
   const addressFocusedRef = useRef(false);
   const previewNoticeShownRef = useRef(false);
   const boundsRef = useRef<BrowserBounds>({ x: 0, y: 126, width: 1200, height: 700 });
   const floatingPanelOpenRef = useRef(false);
-  const floatingPanelWidthRef = useRef(292);
   const activeTabRef = useRef<BrowserTab>(FIRST_TAB);
+  const nativeMenuActionHandlerRef = useRef<(action: string) => void>(() => undefined);
+  const browserOverlayActionHandlerRef = useRef<(payload: BrowserOverlayAction) => void>(
+    () => undefined,
+  );
+  const floatingPanelActionHandlerRef = useRef<(payload: BrowserOverlayAction) => void>(
+    () => undefined,
+  );
 
   const activeTab = useMemo(
     () => tabs.find((tab) => tab.id === activeId) ?? tabs[0],
@@ -247,6 +261,46 @@ export default function App() {
     message.info("当前是 Web 界面预览；运行 pnpm browser:dev 后会使用原生 WebView2 加载网页。");
   }, []);
 
+  const activateNativeTab = useCallback(async (tab: BrowserTab, forceOpen = false) => {
+    if (!isDesktopRuntime) return;
+
+    const openWebview = async () => {
+      if (!tab.url) {
+        await invokeNative("hide_browser_pages");
+        return;
+      }
+      updateTab(tab.id, {
+        loading: true,
+        hasWebview: true,
+        sleeping: false,
+      });
+      await invokeNative("open_browser_tab", {
+        tabId: tab.id,
+        groupId: tab.groupId,
+        url: tab.url,
+        bounds: boundsRef.current,
+      });
+      if (tab.muted) {
+        await invokeNative("set_browser_tab_muted", { tabId: tab.id, muted: true });
+      }
+    };
+
+    if (forceOpen) {
+      await openWebview();
+      return;
+    }
+
+    const found = await invokeNative<boolean>("switch_browser_tab", {
+      tabId: tab.id,
+      bounds: boundsRef.current,
+    });
+    if (found) return;
+
+    // 持久化状态中的 hasWebview 只代表上次运行时的状态。
+    // 应用重启后原生子 WebView 不存在，切换时必须按当前 URL 自动重建。
+    await openWebview();
+  }, [updateTab]);
+
   const openTab = useCallback((url?: string, groupId?: string, smallGroupId?: string) => {
     const currentTab = activeTabRef.current;
     const resolvedGroupId = groupId ?? currentTab.groupId ?? DEFAULT_GROUP_ID;
@@ -270,15 +324,11 @@ export default function App() {
       return;
     }
 
-    const command = targetUrl ? "open_browser_tab" : "switch_browser_tab";
-    const args = targetUrl
-      ? { tabId: nextTab.id, groupId: nextTab.groupId, url: targetUrl, bounds: boundsRef.current }
-      : { tabId: nextTab.id, bounds: boundsRef.current };
-    void invokeNative(command, args).catch((error) => {
+    void activateNativeTab(nextTab, Boolean(targetUrl)).catch((error) => {
       updateTab(nextTab.id, { loading: false, title: "加载失败" });
       message.error(error instanceof Error ? error.message : String(error));
     });
-  }, [showPreviewNotice, updateTab]);
+  }, [activateNativeTab, showPreviewNotice, updateTab]);
 
   function openAdjacentTab(sourceId: string, duplicate = false) {
     const source = tabs.find((tab) => tab.id === sourceId);
@@ -309,24 +359,7 @@ export default function App() {
       if (nextTab.url) showPreviewNotice();
       return;
     }
-    if (!nextTab.url) {
-      void invokeNative("switch_browser_tab", {
-        tabId: nextTab.id,
-        bounds: boundsRef.current,
-      }).catch(() => undefined);
-      return;
-    }
-    void invokeNative("open_browser_tab", {
-      tabId: nextTab.id,
-      groupId: nextTab.groupId,
-      url: nextTab.url,
-      bounds: boundsRef.current,
-    }).then(() => {
-      if (nextTab.muted) {
-        return invokeNative("set_browser_tab_muted", { tabId: nextTab.id, muted: true });
-      }
-      return undefined;
-    }).catch((error) => {
+    void activateNativeTab(nextTab, Boolean(nextTab.url)).catch((error) => {
       updateTab(nextTab.id, { loading: false, hasWebview: false, sleeping: true });
       message.error(error instanceof Error ? error.message : String(error));
     });
@@ -355,32 +388,50 @@ export default function App() {
       activeId,
       darkMode,
       closedTabCount: closedTabs.length,
+      panelExpanded: true,
+      panelPinned: false,
+      panelWidth: verticalPanelWidth,
+      collapsedGroupIds,
+      collapsedSmallGroupIds,
     };
   }
 
-  function updateFloatingTabPanel(open: boolean, panelWidth: number) {
-    if (!isDesktopRuntime) return;
-    floatingPanelWidthRef.current = panelWidth;
-    if (!open) {
-      floatingPanelOpenRef.current = false;
-      void invokeNative("close_floating_tab_panel").catch(() => undefined);
+  function showIndependentTabPanel() {
+    if (
+      !isDesktopRuntime
+      || tabLayout !== "vertical"
+      || verticalPanelPinned
+      || floatingPanelOpenRef.current
+    ) {
       return;
     }
-    const workspace = document.querySelector<HTMLElement>(".browser-workspace");
-    if (!workspace) return;
-    const rect = workspace.getBoundingClientRect();
+    const panelAnchor = verticalPanelAnchorRef.current;
+    if (!panelAnchor) return;
+    const rect = panelAnchor.getBoundingClientRect();
     floatingPanelOpenRef.current = true;
     void invokeNative("open_floating_tab_panel", {
       payload: createFloatingTabPanelPayload(),
       bounds: {
         x: Math.round(rect.left),
         y: Math.round(rect.top),
-        width: panelWidth,
+        width: verticalPanelWidth,
         height: Math.max(1, Math.round(rect.height)),
       },
     }).catch((error) => {
+      floatingPanelOpenRef.current = false;
       message.error(error instanceof Error ? error.message : String(error));
     });
+  }
+
+  function hideIndependentTabPanel() {
+    floatingPanelOpenRef.current = false;
+    void invokeNative("close_floating_tab_panel").catch(() => undefined);
+  }
+
+  function toggleVerticalPanelPinned() {
+    floatingPanelOpenRef.current = false;
+    void invokeNative("close_floating_tab_panel").catch(() => undefined);
+    setVerticalPanelPinned((current) => !current);
   }
 
   useEffect(() => {
@@ -388,13 +439,35 @@ export default function App() {
     void invokeNative("update_floating_tab_panel", {
       payload: createFloatingTabPanelPayload(),
     }).catch(() => undefined);
-  }, [activeId, closedTabs.length, darkMode, groups, tabs]);
+  }, [
+    activeId,
+    closedTabs.length,
+    collapsedGroupIds,
+    collapsedSmallGroupIds,
+    darkMode,
+    groups,
+    tabs,
+    verticalPanelWidth,
+  ]);
 
   useEffect(() => {
-    if (!isDesktopRuntime || tabLayout === "vertical") return;
-    floatingPanelOpenRef.current = false;
-    void invokeNative("close_floating_tab_panel").catch(() => undefined);
-  }, [tabLayout]);
+    if (!isDesktopRuntime) return undefined;
+    if (tabLayout !== "vertical" || verticalPanelPinned) {
+      floatingPanelOpenRef.current = false;
+      void invokeNative("close_floating_tab_panel").catch(() => undefined);
+      return undefined;
+    }
+    const handleWindowResize = () => {
+      if (floatingPanelOpenRef.current) showIndependentTabPanel();
+    };
+    window.addEventListener("resize", handleWindowResize);
+    return () => window.removeEventListener("resize", handleWindowResize);
+  }, [
+    stateHydrated,
+    tabLayout,
+    verticalPanelPinned,
+    verticalPanelWidth,
+  ]);
 
   useEffect(() => {
     syncBrowserBounds();
@@ -446,6 +519,14 @@ export default function App() {
         setLayoutPreferenceSet(Boolean(state.layoutPreferenceSet));
         if (Array.isArray(state.bookmarks)) setBookmarks(state.bookmarks);
         setShowBookmarksBar(state.showBookmarksBar !== false);
+        const restoredPanelPinned = state.verticalPanelPinned !== false;
+        setVerticalPanelPinned(restoredPanelPinned);
+        setVerticalPanelWidth(
+          Math.min(
+            440,
+            Math.max(220, state.verticalPanelWidth ?? DEFAULT_VERTICAL_PANEL_WIDTH),
+          ),
+        );
         activeTabRef.current = restoredActiveTab;
 
         if (restoredActiveTab.url) {
@@ -499,6 +580,8 @@ export default function App() {
         groups,
         bookmarks,
         showBookmarksBar,
+        verticalPanelPinned,
+        verticalPanelWidth,
         tabs: tabs.map((tab) => ({
           ...tab,
           loading: false,
@@ -511,7 +594,18 @@ export default function App() {
       void invokeNative("save_browser_state", { state }).catch(() => undefined);
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [activeId, bookmarks, groups, layoutPreferenceSet, showBookmarksBar, stateHydrated, tabLayout, tabs]);
+  }, [
+    activeId,
+    bookmarks,
+    groups,
+    layoutPreferenceSet,
+    showBookmarksBar,
+    stateHydrated,
+    tabLayout,
+    tabs,
+    verticalPanelPinned,
+    verticalPanelWidth,
+  ]);
 
   useEffect(() => {
     if (!isDesktopRuntime || !window.__TAURI__) return;
@@ -528,6 +622,10 @@ export default function App() {
         if (payload.message) message.warning(payload.message);
         return;
       }
+      const eventUrl = payload.url?.trim();
+      const usableEventUrl = eventUrl && eventUrl !== "about:blank"
+        ? eventUrl
+        : undefined;
       setTabs((current) => current.map((tab) => {
         if (tab.id !== payload.tabId) return tab;
         if (payload.kind === "title") {
@@ -542,7 +640,7 @@ export default function App() {
         }
         return {
           ...tab,
-          url: payload.url ?? tab.url,
+          url: usableEventUrl ?? tab.url,
           loading: payload.loading ?? tab.loading,
           hasWebview: true,
           sleeping: false,
@@ -581,8 +679,20 @@ export default function App() {
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(syncBrowserBounds);
-    return () => window.cancelAnimationFrame(frame);
-  }, [syncBrowserBounds, tabLayout]);
+    const transitionTimer = window.setTimeout(syncBrowserBounds, 220);
+    const settledTimer = window.setTimeout(syncBrowserBounds, 700);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(transitionTimer);
+      window.clearTimeout(settledTimer);
+    };
+  }, [
+    stateHydrated,
+    syncBrowserBounds,
+    tabLayout,
+    verticalPanelPinned,
+    verticalPanelWidth,
+  ]);
 
   function navigate(rawValue: string, tabId = activeId) {
     const targetUrl = resolveAddress(rawValue);
@@ -642,26 +752,9 @@ export default function App() {
     setActiveId(tabId);
     setAddressDraft(selected?.url ?? "");
     if (isDesktopRuntime) {
-      const command = shouldRestore ? "open_browser_tab" : "switch_browser_tab";
-      const args = shouldRestore
-        ? {
-            tabId,
-            groupId: selected.groupId,
-            url: selected.url,
-            bounds: boundsRef.current,
-          }
-        : { tabId, bounds: boundsRef.current };
-      void invokeNative(command, args)
-        .then(() => {
-          if (shouldRestore && selected.muted) {
-            return invokeNative("set_browser_tab_muted", { tabId, muted: true });
-          }
-          return undefined;
-        })
+      void activateNativeTab(activatedTab, shouldRestore)
         .catch((error) => {
-          if (shouldRestore) {
-            updateTab(tabId, { loading: false, hasWebview: false, sleeping: true });
-          }
+          updateTab(tabId, { loading: false, hasWebview: false, sleeping: Boolean(selected.url) });
           message.error(error instanceof Error ? error.message : String(error));
         });
     }
@@ -711,25 +804,7 @@ export default function App() {
     setAddressDraft(activatedTab.url);
     if (!isDesktopRuntime) return;
 
-    const command = shouldRestore ? "open_browser_tab" : "switch_browser_tab";
-    const args = shouldRestore
-      ? {
-          tabId: activatedTab.id,
-          groupId: activatedTab.groupId,
-          url: activatedTab.url,
-          bounds: boundsRef.current,
-        }
-      : { tabId: activatedTab.id, bounds: boundsRef.current };
-    void invokeNative(command, args)
-      .then(() => {
-        if (shouldRestore && activatedTab.muted) {
-          return invokeNative("set_browser_tab_muted", {
-            tabId: activatedTab.id,
-            muted: true,
-          });
-        }
-        return undefined;
-      })
+    void activateNativeTab(activatedTab, shouldRestore)
       .catch(() => undefined);
   }
 
@@ -886,24 +961,7 @@ export default function App() {
     setActiveId(restored.id);
     setAddressDraft(restored.url);
     if (!isDesktopRuntime) return;
-    if (!restored.url) {
-      void invokeNative("switch_browser_tab", {
-        tabId: restored.id,
-        bounds: boundsRef.current,
-      }).catch(() => undefined);
-      return;
-    }
-    void invokeNative("open_browser_tab", {
-      tabId: restored.id,
-      groupId: restored.groupId,
-      url: restored.url,
-      bounds: boundsRef.current,
-    }).then(() => {
-      if (restored.muted) {
-        return invokeNative("set_browser_tab_muted", { tabId: restored.id, muted: true });
-      }
-      return undefined;
-    }).catch((error) => {
+    void activateNativeTab(restored, Boolean(restored.url)).catch((error) => {
       updateTab(restored.id, { loading: false, hasWebview: false, sleeping: true });
       message.error(error instanceof Error ? error.message : String(error));
     });
@@ -977,12 +1035,35 @@ export default function App() {
     else if (action === "new-tab") {
       const [groupId, smallGroupId] = value.split("|");
       if (groupId) openTab(undefined, groupId, smallGroupId || undefined);
-    } else if (action === "pin") {
+    } else if (action === "collapse-panel") {
+      hideIndependentTabPanel();
+    } else if (action === "toggle-group" && value) {
+      setCollapsedGroupIds((current) => (
+        current.includes(value)
+          ? current.filter((id) => id !== value)
+          : [...current, value]
+      ));
+    } else if (action === "toggle-small-group" && value) {
+      setCollapsedSmallGroupIds((current) => (
+        current.includes(value)
+          ? current.filter((id) => id !== value)
+          : [...current, value]
+      ));
+    } else if (action === "toggle-panel-pin") {
       floatingPanelOpenRef.current = false;
+      setVerticalPanelPinned(true);
       void invokeNative("close_floating_tab_panel").catch(() => undefined);
-      setFloatingPanelPinVersion((current) => current + 1);
+    } else if (action === "resize-panel") {
+      const nextWidth = Number(value);
+      if (Number.isFinite(nextWidth)) {
+        setVerticalPanelWidth(Math.min(440, Math.max(220, Math.round(nextWidth))));
+      }
     }
   }
+
+  nativeMenuActionHandlerRef.current = handleNativeMenuAction;
+  browserOverlayActionHandlerRef.current = handleBrowserOverlayAction;
+  floatingPanelActionHandlerRef.current = handleFloatingTabPanelAction;
 
   function getLayoutOrderedTabs() {
     if (tabLayout === "horizontal") return [...tabs];
@@ -1026,6 +1107,24 @@ export default function App() {
       disableCloseOthers: tabs.length <= 1,
       disableCloseFollowing: contextTabIndex < 0 || contextTabIndex >= orderedTabs.length - 1,
       disableReopenClosed: closedTabs.length === 0,
+      darkMode,
+      sourceWindow: "main",
+      x,
+      y,
+    }).catch((error) => {
+      message.error(error instanceof Error ? error.message : String(error));
+    });
+  }
+
+  function openTreeActionMenu(
+    groupId: string,
+    smallGroupId: string | undefined,
+    x: number,
+    y: number,
+  ) {
+    void invokeNative("show_browser_tree_menu", {
+      groupId,
+      smallGroupId,
       darkMode,
       sourceWindow: "main",
       x,
@@ -1149,24 +1248,6 @@ export default function App() {
     });
   }
 
-  function openTreeActionMenu(
-    groupId: string,
-    smallGroupId: string | undefined,
-    x: number,
-    y: number,
-  ) {
-    void invokeNative("show_browser_tree_menu", {
-      groupId,
-      smallGroupId,
-      darkMode,
-      sourceWindow: "main",
-      x,
-      y,
-    }).catch((error) => {
-      message.error(error instanceof Error ? error.message : String(error));
-    });
-  }
-
   function submitTreeEdit(treeEditDialog: TreeEditDialog, nameValue: string) {
     const name = nameValue.trim();
     if (!name) {
@@ -1253,25 +1334,7 @@ export default function App() {
       setActiveId(activatedTab.id);
       setAddressDraft(activatedTab.url);
       if (isDesktopRuntime) {
-        const command = shouldRestore ? "open_browser_tab" : "switch_browser_tab";
-        const args = shouldRestore
-          ? {
-              tabId: activatedTab.id,
-              groupId: activatedTab.groupId,
-              url: activatedTab.url,
-              bounds: boundsRef.current,
-            }
-          : { tabId: activatedTab.id, bounds: boundsRef.current };
-        void invokeNative(command, args)
-          .then(() => {
-            if (shouldRestore && activatedTab?.muted) {
-              return invokeNative("set_browser_tab_muted", {
-                tabId: activatedTab.id,
-                muted: true,
-              });
-            }
-            return undefined;
-          })
+        void activateNativeTab(activatedTab, shouldRestore)
           .catch(() => undefined);
       }
     }
@@ -1403,9 +1466,11 @@ export default function App() {
     let unlistenNative: (() => void) | undefined;
     let unlistenOverlay: (() => void) | undefined;
     let unlistenFloatingPanel: (() => void) | undefined;
+    let unlistenFloatingPanelVisibility: (() => void) | undefined;
+    let unlistenFloatingPanelError: (() => void) | undefined;
     let disposed = false;
     void window.__TAURI__.event.listen<string>("sia://native-menu-action", ({ payload }) => {
-      handleNativeMenuAction(payload);
+      nativeMenuActionHandlerRef.current(payload);
     }).then((dispose) => {
       if (disposed) dispose();
       else unlistenNative = dispose;
@@ -1413,7 +1478,7 @@ export default function App() {
     void window.__TAURI__.event.listen<BrowserOverlayAction>(
       "sia://browser-overlay-action",
       ({ payload }) => {
-        handleBrowserOverlayAction(payload);
+        browserOverlayActionHandlerRef.current(payload);
       },
     ).then((dispose) => {
       if (disposed) dispose();
@@ -1422,28 +1487,40 @@ export default function App() {
     void window.__TAURI__.event.listen<BrowserOverlayAction>(
       "sia://floating-tab-panel-action",
       ({ payload }) => {
-        handleFloatingTabPanelAction(payload);
+        floatingPanelActionHandlerRef.current(payload);
       },
     ).then((dispose) => {
       if (disposed) dispose();
       else unlistenFloatingPanel = dispose;
+    });
+    void window.__TAURI__.event.listen<boolean>(
+      "sia://floating-tab-panel-visibility",
+      ({ payload }) => {
+        floatingPanelOpenRef.current = payload;
+      },
+    ).then((dispose) => {
+      if (disposed) dispose();
+      else unlistenFloatingPanelVisibility = dispose;
+    });
+    void window.__TAURI__.event.listen<string>(
+      "sia://floating-tab-panel-error",
+      ({ payload }) => {
+        floatingPanelOpenRef.current = false;
+        message.error(payload);
+      },
+    ).then((dispose) => {
+      if (disposed) dispose();
+      else unlistenFloatingPanelError = dispose;
     });
     return () => {
       disposed = true;
       unlistenNative?.();
       unlistenOverlay?.();
       unlistenFloatingPanel?.();
+      unlistenFloatingPanelVisibility?.();
+      unlistenFloatingPanelError?.();
     };
-  }, [
-    activeId,
-    bookmarks.length,
-    closedTabs,
-    darkMode,
-    groups,
-    showBookmarksBar,
-    tabLayout,
-    tabs,
-  ]);
+  }, []);
 
   useEffect(() => {
     function handleKeyboardShortcut(event: KeyboardEvent) {
@@ -1677,23 +1754,59 @@ export default function App() {
 
       <div className="browser-workspace">
         {tabLayout === "vertical" ? (
-          renderTabContextScope(
-            <VerticalTabTree
-              key={`vertical-tab-tree-${floatingPanelPinVersion}`}
-              groups={groups}
-              tabs={tabs}
-              activeId={activeId}
-              onSelect={selectTab}
-              onClose={closeTab}
-              onToggleAudio={toggleTabAudio}
-              onNewTab={(groupId, smallGroupId) => openTab(undefined, groupId, smallGroupId)}
-              onNewRootTab={() => openTab(undefined, ROOT_GROUP_ID)}
-              onNewGroup={openNewGroupModal}
-              onTreeActionsOpen={openTreeActionMenu}
-              forcePinnedVersion={floatingPanelPinVersion}
-              onFloatingOverlayChange={updateFloatingTabPanel}
-            />,
-          )
+          <div
+            ref={verticalPanelAnchorRef}
+            className="vertical-tab-panel-main"
+            style={{
+              width: verticalPanelPinned
+                ? verticalPanelWidth
+                : COMPACT_VERTICAL_PANEL_WIDTH,
+              minWidth: verticalPanelPinned
+                ? verticalPanelWidth
+                : COMPACT_VERTICAL_PANEL_WIDTH,
+            }}
+            onMouseEnter={showIndependentTabPanel}
+            onPointerEnter={showIndependentTabPanel}
+            onMouseMove={showIndependentTabPanel}
+          >
+            {renderTabContextScope(
+              <VerticalTabTree
+                groups={groups}
+                tabs={tabs}
+                activeId={activeId}
+                collapsedGroupIds={collapsedGroupIds}
+                collapsedSmallGroupIds={collapsedSmallGroupIds}
+                panelExpanded={verticalPanelPinned}
+                panelPinned={verticalPanelPinned}
+                panelWidth={verticalPanelWidth}
+                onSelect={selectTab}
+                onClose={closeTab}
+                onToggleAudio={toggleTabAudio}
+                onNewTab={(groupId, smallGroupId) => openTab(undefined, groupId, smallGroupId)}
+                onNewRootTab={() => openTab(undefined, ROOT_GROUP_ID)}
+                onNewGroup={openNewGroupModal}
+                onToggleGroup={(groupId) => {
+                  setCollapsedGroupIds((current) => (
+                    current.includes(groupId)
+                      ? current.filter((id) => id !== groupId)
+                      : [...current, groupId]
+                  ));
+                }}
+                onToggleSmallGroup={(smallGroupId) => {
+                  setCollapsedSmallGroupIds((current) => (
+                    current.includes(smallGroupId)
+                      ? current.filter((id) => id !== smallGroupId)
+                      : [...current, smallGroupId]
+                  ));
+                }}
+                onTreeActionsOpen={openTreeActionMenu}
+                onPinPanel={toggleVerticalPanelPinned}
+                onPanelWidthChange={(width) => {
+                  setVerticalPanelWidth(Math.min(440, Math.max(220, Math.round(width))));
+                }}
+              />,
+            )}
+          </div>
         ) : null}
         <div className="browser-content">
           {showBookmarksBar ? (

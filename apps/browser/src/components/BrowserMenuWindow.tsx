@@ -37,17 +37,30 @@ export default function BrowserMenuWindow() {
   useEffect(() => {
     let disposed = false;
     let unlisten: (() => void) | undefined;
-    void invokeNative<BrowserMenuPayload | null>("get_browser_menu_state")
-      .then((state) => {
-        if (!disposed && state) setPayload(state);
-      })
-      .catch(() => undefined);
+    let pollTimer: number | undefined;
+    const acceptPayload = (nextPayload: BrowserMenuPayload) => {
+      if (disposed) return;
+      if (pollTimer !== undefined) {
+        window.clearInterval(pollTimer);
+        pollTimer = undefined;
+      }
+      setSubmenu(null);
+      setPayload(nextPayload);
+    };
+    const readCurrentState = () => {
+      void invokeNative<BrowserMenuPayload | null>("get_browser_menu_state")
+        .then((state) => {
+          if (state) acceptPayload(state);
+        })
+        .catch(() => undefined);
+    };
+    readCurrentState();
+    pollTimer = window.setInterval(readCurrentState, 200);
     if (window.__TAURI__) {
       void window.__TAURI__.event.listen<BrowserMenuPayload>(
         "sia://browser-menu-state",
         ({ payload: nextPayload }) => {
-          setSubmenu(null);
-          setPayload(nextPayload);
+          acceptPayload(nextPayload);
         },
       ).then((dispose) => {
         if (disposed) dispose();
@@ -56,6 +69,7 @@ export default function BrowserMenuWindow() {
     }
     return () => {
       disposed = true;
+      if (pollTimer !== undefined) window.clearInterval(pollTimer);
       unlisten?.();
     };
   }, []);

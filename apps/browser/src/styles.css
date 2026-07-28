@@ -37,7 +37,7 @@ html.browser-tab-panel-document,
 body.browser-tab-panel-document__body,
 .browser-tab-panel-document #root {
   min-width: 0;
-  background: var(--sia-color-surface);
+  background: transparent !important;
 }
 
 .browser-window-menu {
@@ -65,6 +65,15 @@ body.browser-tab-panel-document__body,
 .browser-window-menu__item.sia-button:hover:not(:disabled) {
   color: var(--sia-color-text);
   background: color-mix(in srgb, var(--sia-color-primary) 9%, transparent);
+}
+
+.browser-window-menu__item.sia-button > span:last-child {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  gap: 8px;
 }
 
 .browser-window-menu__item.has-subtitle.sia-button {
@@ -174,16 +183,22 @@ body.browser-tab-panel-document__body,
 }
 
 .browser-floating-tab-panel {
-  width: 100%;
+  position: fixed;
+  inset: 0 18px 0 0;
+  width: auto;
   height: 100%;
   overflow: hidden;
   background: var(--sia-color-surface);
+  border-right: 1px solid color-mix(in srgb, var(--sia-color-border) 88%, transparent);
+  box-shadow: 10px 0 16px rgb(26 42 66 / 18%);
 }
 
 .vertical-tab-tree.is-floating-window {
-  width: 100%;
+  position: fixed;
+  inset: 0 18px 0 0;
+  width: auto;
   height: 100%;
-  min-width: 100%;
+  min-width: 0;
 }
 
 .browser-overlay-document .sia-modal-root {
@@ -638,8 +653,12 @@ input {
   overflow: hidden;
 }
 
-.browser-workspace:has(.vertical-tab-tree.is-floating) {
-  padding-left: 56px;
+.vertical-tab-panel-main {
+  position: relative;
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex: 0 0 auto;
 }
 
 .browser-content {
@@ -810,11 +829,6 @@ input {
   flex-direction: column;
   background: color-mix(in srgb, var(--sia-color-surface) 98%, var(--sia-color-background));
   border-right: 1px solid var(--browser-toolbar-border);
-  transition: width 180ms ease, min-width 180ms ease;
-}
-
-.vertical-tab-tree.is-resizing {
-  transition: none;
 }
 
 .vertical-tab-tree.is-floating {
@@ -843,10 +857,20 @@ input {
 
 .vertical-tab-tree__actions {
   display: flex;
-  width: 100%;
   align-items: center;
   justify-content: flex-end;
   gap: 2px;
+  margin-left: auto;
+}
+
+.vertical-tab-tree__cookie-note {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--sia-color-text-tertiary);
+  font-size: 11px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .vertical-tree-header-action.sia-button {
@@ -925,6 +949,42 @@ input {
   display: grid;
   justify-items: center;
   gap: 2px;
+}
+
+.vertical-tree-compact-group__content,
+.vertical-tree-compact-small-group {
+  display: grid;
+  justify-items: center;
+  gap: 0;
+}
+
+.vertical-tree-compact-small-group__title.sia-button {
+  width: 46px;
+  min-width: 46px;
+  height: 30px;
+  justify-content: flex-start;
+  gap: 1px;
+  padding: 0 2px;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--group-color) 72%, var(--sia-color-text-secondary));
+  font-size: 10px;
+  font-weight: 650;
+  text-overflow: clip;
+  white-space: nowrap;
+  border-radius: 7px;
+}
+
+.vertical-tree-compact-small-group__title.sia-button:hover:not(:disabled) {
+  color: var(--group-color);
+  background: color-mix(in srgb, var(--group-color) 10%, transparent);
+}
+
+.vertical-tree-compact-small-group__title.is-current-ancestor.sia-button {
+  color: var(--group-color);
+}
+
+.vertical-tree-compact-small-group__title.is-current-ancestor.sia-button > span:last-child {
+  border-bottom: 1.5px solid var(--group-color);
 }
 
 .vertical-tree-compact-root-tabs {

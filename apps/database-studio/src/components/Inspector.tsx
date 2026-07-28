@@ -42,7 +42,7 @@ function HistoryCard({ item, connectionName }: { item: QueryHistoryItem; connect
         {item.highRisk ? <Tag status="warning">高危</Tag> : null}
         {item.backupSkipped ? <Tag status="error">无备份</Tag> : item.backupPath ? <Tag status="success">已备份</Tag> : null}
       </header>
-      <Tooltip title={item.sql} placement="left">
+      <Tooltip title={item.sql} placement="left" overlayClassName="history-sql-tooltip-overlay">
         <code>{item.sql}</code>
       </Tooltip>
       <dl>
@@ -124,7 +124,17 @@ export function Inspector({ profile, history, historyTotal, onLoadHistoryPage }:
       dataIndex: "sql",
       minWidth: 280,
       ellipsis: true,
-      render: (value) => <Tooltip title={String(value)}><code className="history-table-sql">{String(value)}</code></Tooltip>,
+      showTitle: false,
+      render: (value) => (
+        <Tooltip
+          title={String(value)}
+          placement="top"
+          className="history-table-sql-trigger"
+          overlayClassName="history-sql-tooltip-overlay"
+        >
+          <code className="history-table-sql">{String(value)}</code>
+        </Tooltip>
+      ),
     },
     {
       key: "result",

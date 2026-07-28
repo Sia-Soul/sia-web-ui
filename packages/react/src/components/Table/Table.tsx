@@ -85,6 +85,7 @@ interface BodyRowProps<T> {
   onCellMouseEnter: (column: TableColumn<T>) => void;
   onCellMouseLeave: (column: TableColumn<T>) => void;
   onCellClick: (column: TableColumn<T>, event: ReactMouseEvent<HTMLTableCellElement>) => void;
+  onCellContextMenu: (column: TableColumn<T>, event: ReactMouseEvent<HTMLTableCellElement>) => void;
   onCellPointerDown: (column: TableColumn<T>, event: ReactPointerEvent<HTMLTableCellElement>) => void;
   onCellPointerMove: (column: TableColumn<T>, event: ReactPointerEvent<HTMLTableCellElement>) => void;
 }
@@ -108,6 +109,7 @@ const TableBodyRow = memo(function TableBodyRow<T>({
   onCellMouseEnter,
   onCellMouseLeave,
   onCellClick,
+  onCellContextMenu,
   onCellPointerDown,
   onCellPointerMove,
 }: BodyRowProps<T>) {
@@ -142,10 +144,14 @@ const TableBodyRow = memo(function TableBodyRow<T>({
             onMouseEnter={() => onCellMouseEnter(column)}
             onMouseLeave={() => onCellMouseLeave(column)}
             onClick={(event) => onCellClick(column, event)}
+            onContextMenu={(event) => onCellContextMenu(column, event)}
             onPointerDown={(event) => onCellPointerDown(column, event)}
             onPointerMove={(event) => onCellPointerMove(column, event)}
           >
-            <div className="sia-table__cell-content" title={column.ellipsis !== false && typeof value === "string" ? value : undefined}>
+            <div
+              className="sia-table__cell-content"
+              title={column.showTitle !== false && column.ellipsis !== false && typeof value === "string" ? value : undefined}
+            >
               {pluginCellProps.content !== undefined
                 ? pluginCellProps.content
                 : column.render ? column.render(value, row.record, row.sourceIndex, { row, rowIndex, column }) : value as ReactNode}
@@ -177,6 +183,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     stickyHeader = true,
     onRowClick,
     onRowDoubleClick,
+    onCellContextMenu,
     rowClassName,
     tableStyle,
     className = "",
@@ -596,6 +603,9 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
                 }}
                 onCellClick={(column, event) => {
                   for (const plugin of sortedPlugins) plugin.onCellClick?.(row, column, event, getContext(plugin));
+                }}
+                onCellContextMenu={(column, event) => {
+                  onCellContextMenu?.(row.record, column, row.sourceIndex, event);
                 }}
                 onCellPointerDown={(column, event) => {
                   for (const plugin of sortedPlugins) plugin.onCellPointerDown?.(row, column, event, getContext(plugin));
