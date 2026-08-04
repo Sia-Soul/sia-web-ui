@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Sia 记事本主窗口权限","local":true,"windows":["main"],"permissions":["core:default","clipboard-manager:allow-read-text"]}}

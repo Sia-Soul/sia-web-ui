@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="chroma" x1="7" y1="12" x2="57" y2="48" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00d9ff"/>
+      <stop offset=".32" stop-color="#675cff"/>
+      <stop offset=".66" stop-color="#f725b8"/>
+      <stop offset="1" stop-color="#ff9f1c"/>
+    </linearGradient>
+  </defs>
+  <text x="32" y="35" text-anchor="middle" fill="url(#chroma)" font-family="Segoe UI,Arial,sans-serif" font-size="18" font-weight="900" letter-spacing="-.55">NOTE</text>
+  <path d="M8 43h48" fill="none" stroke="url(#chroma)" stroke-width="3" stroke-linecap="round"/>
+</svg>

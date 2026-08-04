@@ -1,36 +1,36 @@
 use std::sync::{
-    atomic::{AtomicU64, Ordering},
+    atomic::{AtomicBool, AtomicU64, Ordering},
     Mutex,
 };
-#[cfg(windows)]
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{
-    AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, Position, Size, State, WebviewUrl,
-    WebviewWindow, WebviewWindowBuilder, WindowEvent,
+    AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, PhysicalPosition, PhysicalSize,
+    Position, Rect, Size, State, Webview, WebviewBuilder, WebviewUrl, WebviewWindow,
+    WebviewWindowBuilder, WindowEvent,
 };
 #[cfg(windows)]
 use windows::Win32::Foundation::{POINT, RECT};
-#[cfg(windows)]
-use windows::Win32::Graphics::Gdi::{
-    GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
-};
 #[cfg(windows)]
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     GetAsyncKeyState, VK_LBUTTON, VK_MBUTTON, VK_RBUTTON,
 };
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetCursorPos, GetWindowRect, IsChild, SetWindowPos, WindowFromPoint, HWND_NOTOPMOST,
-    HWND_TOPMOST, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
+    GetCursorPos, GetWindowRect, SetWindowPos, HWND_NOTOPMOST, HWND_TOP, HWND_TOPMOST,
+    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
 };
 
 const TAB_PANEL_LABEL: &str = "sia-tab-panel-window";
 const MENU_LABEL: &str = "browser-menu";
-const TAB_PANEL_SHADOW_SPACE: f64 = 18.0;
+const TAB_PANEL_SHADOW_SPACE: f64 = 8.0;
+const MENU_SHADOW_SPACE: f64 = 8.0;
+const TAB_PANEL_TRANSITION_DURATION: Duration = Duration::from_millis(190);
+static TAB_PANEL_VISIBLE: AtomicBool = AtomicBool::new(false);
 static TAB_PANEL_VISIBILITY_GENERATION: AtomicU64 = AtomicU64::new(0);
+static TAB_PANEL_MENU_HOLD: AtomicBool = AtomicBool::new(false);
 static MENU_VISIBILITY_GENERATION: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
@@ -119,16 +119,27 @@ fn owned_window(
     Ok(window)
 }
 
-fn tab_panel_window(app: &AppHandle) -> Result<WebviewWindow, String> {
-    owned_window(
-        app,
-        TAB_PANEL_LABEL,
-        "tab-panel.html",
-        "Sia Browser Tab Panel",
-        true,
-        false,
-        false,
-    )
+fn tab_panel_webview(app: &AppHandle) -> Result<Webview, String> {
+    if let Some(webview) = app.get_webview(TAB_PANEL_LABEL) {
+        return Ok(webview);
+    }
+
+    let main = app
+        .get_window("main")
+        .ok_or_else(|| "找不到浏览器主窗口".to_string())?;
+    let builder = WebviewBuilder::new(TAB_PANEL_LABEL, WebviewUrl::App("tab-panel.html".into()))
+        .transparent(true)
+        .focused(false)
+        .initialization_script("window.__SIA_WINDOW_MODE__ = 'browser-tab-panel';");
+    let webview = main
+        .add_child(
+            builder,
+            LogicalPosition::new(0.0, 0.0),
+            LogicalSize::new(1.0, 1.0),
+        )
+        .map_err(|error| format!("无法创建标签面板子 WebView：{error}"))?;
+    webview.hide().map_err(|error| error.to_string())?;
+    Ok(webview)
 }
 
 fn menu_window(app: &AppHandle) -> Result<WebviewWindow, String> {
@@ -148,16 +159,23 @@ fn resolve_window_geometry(
     source_window: &str,
     bounds: FloatingWindowBounds,
 ) -> Result<(i32, i32, u32, u32), String> {
-    let source = app
-        .get_window(source_window)
-        .ok_or_else(|| format!("找不到浮层来源窗口：{source_window}"))?;
-    let source_position = source.inner_position().map_err(|error| error.to_string())?;
-    let scale_factor = source.scale_factor().map_err(|error| error.to_string())?;
     let main = app
         .get_window("main")
         .ok_or_else(|| "找不到浏览器主窗口".to_string())?;
     let main_position = main.inner_position().map_err(|error| error.to_string())?;
     let main_size = main.inner_size().map_err(|error| error.to_string())?;
+    let scale_factor = main.scale_factor().map_err(|error| error.to_string())?;
+    let source_position = if let Some(source) = app.get_window(source_window) {
+        source.inner_position().map_err(|error| error.to_string())?
+    } else if let Some(source) = app.get_webview(source_window) {
+        let child_position = source.position().map_err(|error| error.to_string())?;
+        PhysicalPosition::new(
+            main_position.x.saturating_add(child_position.x),
+            main_position.y.saturating_add(child_position.y),
+        )
+    } else {
+        return Err(format!("找不到浮层来源窗口或子 WebView：{source_window}"));
+    };
 
     let width = (bounds.width.max(1.0) * scale_factor).round() as u32;
     let height = (bounds.height.max(1.0) * scale_factor).round() as u32;
@@ -190,49 +208,48 @@ fn sync_window_bounds(
         .map_err(|error| error.to_string())
 }
 
-#[cfg(windows)]
-fn monitor_left_for_window(hwnd: windows::Win32::Foundation::HWND) -> Option<i32> {
-    let monitor = unsafe { MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) };
-    let mut info = MONITORINFO {
-        cbSize: std::mem::size_of::<MONITORINFO>() as u32,
-        ..Default::default()
-    };
-    unsafe { GetMonitorInfoW(monitor, &mut info) }
-        .as_bool()
-        .then_some(info.rcMonitor.left)
+fn sync_tab_panel_bounds(webview: &Webview, bounds: FloatingWindowBounds) -> Result<(), String> {
+    let outer_bounds = tab_panel_outer_bounds(bounds);
+    webview
+        .set_bounds(Rect {
+            position: Position::Logical(LogicalPosition::new(outer_bounds.x, outer_bounds.y)),
+            size: Size::Logical(LogicalSize::new(
+                outer_bounds.width.max(1.0),
+                outer_bounds.height.max(1.0),
+            )),
+        })
+        .map_err(|error| error.to_string())
 }
 
-fn sync_tab_panel_bounds(
-    app: &AppHandle,
-    window: &WebviewWindow,
-    bounds: FloatingWindowBounds,
-) -> Result<(), String> {
-    let outer_bounds = tab_panel_outer_bounds(bounds);
-    #[cfg(windows)]
-    {
-        let (mut x, y, mut width, height) = resolve_window_geometry(app, "main", outer_bounds)?;
-        let main = app
-            .get_window("main")
-            .ok_or_else(|| "找不到浏览器主窗口".to_string())?;
-        if main.is_maximized().map_err(|error| error.to_string())? {
-            let hwnd = main.hwnd().map_err(|error| error.to_string())?;
-            if let Some(monitor_left) = monitor_left_for_window(hwnd) {
-                if x > monitor_left {
-                    width = width.saturating_add((x - monitor_left) as u32);
-                    x = monitor_left;
-                }
+#[cfg(windows)]
+fn raise_tab_panel_webview(webview: &Webview) -> Result<(), String> {
+    webview
+        .with_webview(|platform_webview| {
+            let mut hwnd = windows::Win32::Foundation::HWND::default();
+            let controller = platform_webview.controller();
+            let result = unsafe {
+                controller.ParentWindow(&mut hwnd).and_then(|_| {
+                    SetWindowPos(
+                        hwnd,
+                        Some(HWND_TOP),
+                        0,
+                        0,
+                        0,
+                        0,
+                        SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE,
+                    )
+                })
+            };
+            if let Err(error) = result {
+                eprintln!("无法提升标签面板子 WebView 层级：{error}");
             }
-        }
-        window
-            .set_size(Size::Physical(PhysicalSize::new(width, height)))
-            .map_err(|error| error.to_string())?;
-        return window
-            .set_position(Position::Physical(PhysicalPosition::new(x, y)))
-            .map_err(|error| error.to_string());
-    }
+        })
+        .map_err(|error| error.to_string())
+}
 
-    #[cfg(not(windows))]
-    sync_window_bounds(app, window, "main", outer_bounds)
+#[cfg(not(windows))]
+fn raise_tab_panel_webview(_webview: &Webview) -> Result<(), String> {
+    Ok(())
 }
 
 #[cfg(windows)]
@@ -268,50 +285,6 @@ fn clear_owned_window_topmost(window: &WebviewWindow) {
             SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE,
         )
     };
-}
-
-#[cfg(windows)]
-fn cursor_is_inside_tab_panel(app: &AppHandle, panel: &WebviewWindow) -> bool {
-    let Ok(panel_hwnd) = panel.hwnd() else {
-        return false;
-    };
-    let Ok(main_hwnd) = app
-        .get_window("main")
-        .ok_or(())
-        .and_then(|window| window.hwnd().map_err(|_| ()))
-    else {
-        return false;
-    };
-    let mut cursor = POINT::default();
-    let mut panel_rect = RECT::default();
-    let mut main_rect = RECT::default();
-    unsafe {
-        if GetCursorPos(&mut cursor).is_err()
-            || GetWindowRect(panel_hwnd, &mut panel_rect).is_err()
-            || GetWindowRect(main_hwnd, &mut main_rect).is_err()
-        {
-            return false;
-        }
-    }
-
-    let hit_window = unsafe { WindowFromPoint(cursor) };
-    let main_maximized = app
-        .get_window("main")
-        .and_then(|window| window.is_maximized().ok())
-        .unwrap_or(false);
-    let left_edge = if main_maximized {
-        monitor_left_for_window(main_hwnd).unwrap_or(main_rect.left)
-    } else {
-        main_rect.left
-    }
-    .min(panel_rect.left);
-    let inside_rect_or_left_gutter = cursor.x >= left_edge
-        && cursor.x < panel_rect.right
-        && cursor.y >= panel_rect.top
-        && cursor.y < panel_rect.bottom;
-    let inside_window = hit_window == panel_hwnd
-        || (!hit_window.is_invalid() && unsafe { IsChild(panel_hwnd, hit_window).as_bool() });
-    inside_rect_or_left_gutter || inside_window
 }
 
 fn show_and_sync_window(
@@ -352,35 +325,80 @@ fn tab_panel_outer_bounds(bounds: FloatingWindowBounds) -> FloatingWindowBounds 
     }
 }
 
-fn hide_tab_panel(app: &AppHandle) -> Result<(), String> {
-    TAB_PANEL_VISIBILITY_GENERATION.fetch_add(1, Ordering::SeqCst);
-    if let Some(panel) = app.get_webview_window(TAB_PANEL_LABEL) {
-        eprintln!("[tab-panel] hide");
-        #[cfg(windows)]
-        {
-            // 透明的独立 WebView2 窗体在 Windows 上直接 Hide 时会出现系统合成的
-            // 淡出/缩放残影。先瞬时移出可视区域，再隐藏，用户侧看到的是立即消失；
-            // 下次 present_tab_panel 会在 show 前恢复正确的位置和尺寸。
-            if let Ok(hwnd) = panel.hwnd() {
-                let _ = unsafe {
-                    SetWindowPos(
-                        hwnd,
-                        None,
-                        -32_000,
-                        -32_000,
-                        0,
-                        0,
-                        SWP_NOACTIVATE | SWP_NOSIZE | SWP_NOZORDER,
-                    )
-                };
-            }
-        }
-        panel.hide().map_err(|error| error.to_string())?;
-        #[cfg(windows)]
-        clear_owned_window_topmost(&panel);
+fn menu_outer_bounds(bounds: FloatingWindowBounds) -> FloatingWindowBounds {
+    FloatingWindowBounds {
+        x: bounds.x - MENU_SHADOW_SPACE,
+        y: bounds.y - MENU_SHADOW_SPACE,
+        width: bounds.width + MENU_SHADOW_SPACE * 2.0,
+        height: bounds.height + MENU_SHADOW_SPACE * 2.0,
     }
+}
+
+fn hide_tab_panel(app: &AppHandle) -> Result<(), String> {
+    if TAB_PANEL_MENU_HOLD.load(Ordering::SeqCst) {
+        return Ok(());
+    }
+    if !TAB_PANEL_VISIBLE.load(Ordering::SeqCst) {
+        return app
+            .emit("sia://floating-tab-panel-visibility", false)
+            .map_err(|error| error.to_string());
+    }
+
+    let generation = TAB_PANEL_VISIBILITY_GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
     app.emit("sia://floating-tab-panel-visibility", false)
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())?;
+
+    let hide_app = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(TAB_PANEL_TRANSITION_DURATION);
+        if TAB_PANEL_VISIBILITY_GENERATION.load(Ordering::SeqCst) != generation {
+            return;
+        }
+        let main_thread_app = hide_app.clone();
+        let _ = hide_app.run_on_main_thread(move || {
+            if TAB_PANEL_VISIBILITY_GENERATION.load(Ordering::SeqCst) != generation {
+                return;
+            }
+            if let Some(panel) = main_thread_app.get_webview(TAB_PANEL_LABEL) {
+                eprintln!("[tab-panel] hide");
+                if let Err(error) = panel.hide() {
+                    eprintln!("无法隐藏标签面板子 WebView：{error}");
+                    return;
+                }
+            }
+            TAB_PANEL_VISIBLE.store(false, Ordering::SeqCst);
+        });
+    });
+    Ok(())
+}
+
+#[cfg(windows)]
+fn cursor_inside_tab_panel(app: &AppHandle) -> bool {
+    let Some(main) = app.get_window("main") else {
+        return false;
+    };
+    let Some(panel) = app.get_webview(TAB_PANEL_LABEL) else {
+        return false;
+    };
+    let (Ok(main_position), Ok(panel_position), Ok(panel_size)) =
+        (main.inner_position(), panel.position(), panel.size())
+    else {
+        return false;
+    };
+    let mut cursor = POINT::default();
+    if unsafe { GetCursorPos(&mut cursor) }.is_err() {
+        return false;
+    }
+    let left = main_position.x.saturating_add(panel_position.x);
+    let top = main_position.y.saturating_add(panel_position.y);
+    let right = left.saturating_add(panel_size.width as i32);
+    let bottom = top.saturating_add(panel_size.height as i32);
+    cursor.x >= left && cursor.x < right && cursor.y >= top && cursor.y < bottom
+}
+
+#[cfg(not(windows))]
+fn cursor_inside_tab_panel(_app: &AppHandle) -> bool {
+    false
 }
 
 fn hide_menu(app: &AppHandle) -> Result<(), String> {
@@ -390,6 +408,14 @@ fn hide_menu(app: &AppHandle) -> Result<(), String> {
         #[cfg(windows)]
         clear_owned_window_topmost(&menu);
         menu.hide().map_err(|error| error.to_string())?;
+    }
+    if TAB_PANEL_MENU_HOLD.swap(false, Ordering::SeqCst) {
+        if cursor_inside_tab_panel(app) {
+            app.emit("sia://floating-tab-panel-visibility", true)
+                .map_err(|error| error.to_string())?;
+        } else {
+            hide_tab_panel(app)?;
+        }
     }
     Ok(())
 }
@@ -468,53 +494,10 @@ fn start_menu_pointer_watcher(app: &AppHandle) {
 #[cfg(not(windows))]
 fn start_menu_pointer_watcher(_app: &AppHandle) {}
 
-#[cfg(windows)]
-fn start_tab_panel_pointer_watcher(app: &AppHandle) {
-    let generation = TAB_PANEL_VISIBILITY_GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
-    let watcher_app = app.clone();
-    std::thread::spawn(move || loop {
-        std::thread::sleep(Duration::from_millis(16));
-        if TAB_PANEL_VISIBILITY_GENERATION.load(Ordering::SeqCst) != generation {
-            return;
-        }
-
-        let Some(panel) = watcher_app.get_webview_window(TAB_PANEL_LABEL) else {
-            return;
-        };
-        if !panel.is_visible().unwrap_or(false) {
-            return;
-        }
-        if cursor_is_inside_tab_panel(&watcher_app, &panel) {
-            continue;
-        }
-
-        if TAB_PANEL_VISIBILITY_GENERATION
-            .compare_exchange(
-                generation,
-                generation + 1,
-                Ordering::SeqCst,
-                Ordering::SeqCst,
-            )
-            .is_err()
-        {
-            return;
-        }
-        let close_app = watcher_app.clone();
-        let _ = watcher_app.run_on_main_thread(move || {
-            let _ = hide_tab_panel(&close_app);
-        });
-        return;
-    });
-}
-
-#[cfg(not(windows))]
-fn start_tab_panel_pointer_watcher(_app: &AppHandle) {}
-
 pub fn initialize(app: &AppHandle) -> Result<(), String> {
-    // 提前创建并保持隐藏，避免首次使用时在命令处理期间同步初始化 WebView2 窗口。
-    // 这里必须同时预创建标签面板和菜单，否则首次打开菜单会阻塞主事件队列，
-    // 导致菜单以及后续的最小化、最大化、关闭命令全部失去响应。
-    tab_panel_window(app)?;
+    // 标签面板使用主窗口内部的子 WebView，网页和面板由同一个窗口托管。
+    // 这样面板不会出现在任务栏或 Alt+Tab，也不再需要同步屏幕坐标和窗口焦点。
+    tab_panel_webview(app)?;
     menu_window(app)?;
 
     let sync_app = app.clone();
@@ -522,41 +505,6 @@ pub fn initialize(app: &AppHandle) -> Result<(), String> {
         .get_window("main")
         .ok_or_else(|| "找不到浏览器主窗口".to_string())?;
     main.on_window_event(move |event| {
-        if matches!(event, WindowEvent::Focused(false)) {
-            #[cfg(windows)]
-            {
-                let focus_app = sync_app.clone();
-                std::thread::spawn(move || {
-                    // 点击辅助面板时主窗口也会短暂失焦，等待焦点稳定后再判断。
-                    std::thread::sleep(Duration::from_millis(100));
-                    let main_focused = focus_app
-                        .get_window("main")
-                        .and_then(|window| window.is_focused().ok())
-                        .unwrap_or(false);
-                    let panel_focused = focus_app
-                        .get_webview_window(TAB_PANEL_LABEL)
-                        .and_then(|window| window.is_focused().ok())
-                        .unwrap_or(false);
-                    if main_focused || panel_focused {
-                        return;
-                    }
-                    let pointer_inside_panel = focus_app
-                        .get_webview_window(TAB_PANEL_LABEL)
-                        .map(|panel| cursor_is_inside_tab_panel(&focus_app, &panel))
-                        .unwrap_or(false);
-                    if pointer_inside_panel {
-                        return;
-                    }
-                    let close_app = focus_app.clone();
-                    let _ = focus_app.run_on_main_thread(move || {
-                        let _ = hide_tab_panel(&close_app);
-                    });
-                });
-            }
-            #[cfg(not(windows))]
-            let _ = hide_tab_panel(&sync_app);
-            return;
-        }
         let should_hide = matches!(
             event,
             WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed
@@ -571,20 +519,18 @@ pub fn initialize(app: &AppHandle) -> Result<(), String> {
         }
         if !matches!(
             event,
-            WindowEvent::Moved(_)
-                | WindowEvent::Resized(_)
-                | WindowEvent::ScaleFactorChanged { .. }
+            WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. }
         ) {
+            return;
+        }
+        if !TAB_PANEL_VISIBLE.load(Ordering::SeqCst) {
             return;
         }
         let tab_store = sync_app.state::<TabPanelStore>();
         if let Ok(Some(state)) = read_tab_panel_state(&tab_store) {
-            if let Some(panel) = sync_app.get_webview_window(TAB_PANEL_LABEL) {
-                if panel.is_visible().unwrap_or(false) {
-                    let _ = sync_tab_panel_bounds(&sync_app, &panel, state.bounds);
-                    #[cfg(windows)]
-                    let _ = raise_owned_window(&panel);
-                }
+            if let Some(panel) = sync_app.get_webview(TAB_PANEL_LABEL) {
+                let _ = sync_tab_panel_bounds(&panel, state.bounds);
+                let _ = raise_tab_panel_webview(&panel);
             }
         }
     });
@@ -596,22 +542,31 @@ fn present_tab_panel(
     payload: Value,
     bounds: FloatingWindowBounds,
 ) -> Result<(), String> {
-    let panel = tab_panel_window(app)?;
+    TAB_PANEL_VISIBILITY_GENERATION.fetch_add(1, Ordering::SeqCst);
+    let panel = tab_panel_webview(app)?;
     eprintln!(
         "[tab-panel] show x={} y={} width={} height={}",
         bounds.x, bounds.y, bounds.width, bounds.height
     );
-    sync_tab_panel_bounds(app, &panel, bounds)?;
-    panel.show().map_err(|error| error.to_string())?;
-    #[cfg(windows)]
-    raise_owned_window(&panel)?;
+    sync_tab_panel_bounds(&panel, bounds)?;
     panel
         .emit("sia://floating-tab-panel-state", payload)
         .map_err(|error| error.to_string())?;
     app.emit("sia://floating-tab-panel-visibility", true)
         .map_err(|error| error.to_string())?;
-    start_tab_panel_pointer_watcher(app);
+    panel.show().map_err(|error| error.to_string())?;
+    TAB_PANEL_VISIBLE.store(true, Ordering::SeqCst);
+    raise_tab_panel_webview(&panel)?;
     Ok(())
+}
+
+pub fn raise_tab_panel_if_visible(app: &AppHandle) {
+    if !TAB_PANEL_VISIBLE.load(Ordering::SeqCst) {
+        return;
+    }
+    if let Some(panel) = app.get_webview(TAB_PANEL_LABEL) {
+        let _ = raise_tab_panel_webview(&panel);
+    }
 }
 
 #[tauri::command]
@@ -631,14 +586,14 @@ pub fn open_floating_tab_panel(
             bounds,
         });
     }
-    if app.get_webview_window(TAB_PANEL_LABEL).is_some() {
+    if app.get_webview(TAB_PANEL_LABEL).is_some() {
         return present_tab_panel(&app, payload, bounds);
     }
 
     let create_app = app.clone();
     app.run_on_main_thread(move || {
         if let Err(error) = present_tab_panel(&create_app, payload, bounds) {
-            eprintln!("无法显示独立标签窗口：{error}");
+            eprintln!("无法显示标签面板子 WebView：{error}");
             let _ = create_app.emit("sia://floating-tab-panel-error", error);
         }
     })
@@ -660,10 +615,11 @@ pub fn update_floating_tab_panel(
             current.payload = payload.clone();
         }
     }
-    if let Some(panel) = app.get_webview_window(TAB_PANEL_LABEL) {
+    if let Some(panel) = app.get_webview(TAB_PANEL_LABEL) {
         panel
             .emit("sia://floating-tab-panel-state", payload)
             .map_err(|error| error.to_string())?;
+        raise_tab_panel_if_visible(&app);
     }
     Ok(())
 }
@@ -677,6 +633,14 @@ pub fn get_floating_tab_panel_state(
 
 #[tauri::command]
 pub fn close_floating_tab_panel(app: AppHandle) -> Result<(), String> {
+    hide_tab_panel(&app)
+}
+
+#[tauri::command]
+pub fn close_floating_tab_panel_if_pointer_outside(app: AppHandle) -> Result<(), String> {
+    if cursor_inside_tab_panel(&app) {
+        return Ok(());
+    }
     hide_tab_panel(&app)
 }
 
@@ -707,9 +671,7 @@ pub fn floating_tab_panel_action(
                     current.payload.clone()
                 })
             };
-            if let (Some(panel), Some(payload)) =
-                (app.get_webview_window(TAB_PANEL_LABEL), next_payload)
-            {
+            if let (Some(panel), Some(payload)) = (app.get_webview(TAB_PANEL_LABEL), next_payload) {
                 panel
                     .emit("sia://floating-tab-panel-state", payload)
                     .map_err(|error| error.to_string())?;
@@ -727,6 +689,15 @@ pub fn show_menu(
     source_window: String,
     bounds: FloatingWindowBounds,
 ) -> Result<(), String> {
+    if source_window == TAB_PANEL_LABEL {
+        TAB_PANEL_MENU_HOLD.store(true, Ordering::SeqCst);
+        TAB_PANEL_VISIBILITY_GENERATION.fetch_add(1, Ordering::SeqCst);
+        if TAB_PANEL_VISIBLE.load(Ordering::SeqCst) {
+            app.emit("sia://floating-tab-panel-visibility", true)
+                .map_err(|error| error.to_string())?;
+            raise_tab_panel_if_visible(app);
+        }
+    }
     {
         let mut state = store
             .0
@@ -738,7 +709,7 @@ pub fn show_menu(
         });
     }
     if let Some(menu) = app.get_webview_window(MENU_LABEL) {
-        show_and_sync_window(app, &menu, &source_window, bounds)?;
+        show_and_sync_window(app, &menu, &source_window, menu_outer_bounds(bounds))?;
         menu.emit("sia://browser-menu-state", payload)
             .map_err(|error| error.to_string())?;
         start_menu_pointer_watcher(app);
@@ -749,7 +720,12 @@ pub fn show_menu(
     app.run_on_main_thread(move || {
         let result: Result<(), String> = (|| {
             let menu = menu_window(&create_app)?;
-            show_and_sync_window(&create_app, &menu, &source_window, bounds)?;
+            show_and_sync_window(
+                &create_app,
+                &menu,
+                &source_window,
+                menu_outer_bounds(bounds),
+            )?;
             menu.emit("sia://browser-menu-state", payload)
                 .map_err(|error| error.to_string())?;
             start_menu_pointer_watcher(&create_app);

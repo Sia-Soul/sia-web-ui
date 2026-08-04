@@ -14,7 +14,7 @@ export type { CascaderFieldNames, CascaderOption, CascaderProps, CascaderValue }
 export { Badge, Calendar, Carousel, Collapse, Image, Rate } from "./components/DataDisplay";
 export type { BadgeProps, BadgeRibbonProps, BadgeStatus, CalendarProps, CarouselProps, CarouselRef, CollapseItem, CollapseKey, CollapseProps, ImagePreviewConfig, ImageProps, RateProps } from "./components/DataDisplay";
 export { Popover, Timeline, Tooltip, Tree } from "./components/FloatingDisplay";
-export type { FloatingPlacement, FloatingTrigger, PopoverProps, TimelineItem, TimelineProps, TooltipProps, TreeKey, TreeNode, TreeProps } from "./components/FloatingDisplay";
+export type { FloatingPlacement, FloatingTrigger, PopoverProps, TimelineItem, TimelineProps, TooltipProps, TreeDropPosition, TreeKey, TreeNode, TreeProps } from "./components/FloatingDisplay";
 export { notification, Popconfirm, Progress, Spin, Tour, Watermark } from "./components/Feedback";
 export type { NotificationConfig, NotificationPlacement, NotificationType, PopconfirmProps, ProgressProps, ProgressStatus, SpinProps, TourProps, TourStep, WatermarkFont, WatermarkProps } from "./components/Feedback";
 export { Button } from "./components/Button";
@@ -78,6 +78,8 @@ export type {
   EditorSelectionChange,
   EditorTheme,
 } from "./components/Editor";
+export { Markdown } from "./components/Markdown";
+export type { MarkdownProps } from "./components/Markdown";
 export { InputNumber } from "./components/InputNumber";
 export type { InputNumberProps } from "./components/InputNumber";
 export { Select } from "./components/Select";

@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type * as Monaco from "monaco-editor";
 import EditorWorker from "monaco-editor/editor/editor.worker.js?worker";
 import { Dropdown } from "./Dropdown";
+import { registerJsonLanguage } from "./jsonLanguage";
 import type { MenuItem } from "./Navigation";
 import { registerSqlLanguages, type SqlDialectLanguage } from "./sqlLanguages";
 
@@ -85,9 +86,17 @@ export interface EditorContextMenuItem {
   key: string;
   label: string;
   command?: EditorCommand;
+  shortcut?: string;
   disabled?: boolean | ((api: EditorHandle | null) => boolean);
   onClick?: (api: EditorHandle) => void;
 }
+
+const EDITOR_COMMAND_SHORTCUTS: Record<EditorCommand, string> = {
+  cut: "Ctrl+X",
+  copy: "Ctrl+C",
+  paste: "Ctrl+V",
+  selectAll: "Ctrl+A",
+};
 
 export interface EditorHandle {
   focus(): void;
@@ -133,13 +142,63 @@ monacoGlobal.MonacoEnvironment ??= {
 };
 
 async function loadMonaco() {
+  await import("monaco-editor/nls/lang/zh-cn.js");
   await Promise.all([
+    import("monaco-editor/languages/definitions/bat/register.js"),
+    import("monaco-editor/languages/definitions/clojure/register.js"),
+    import("monaco-editor/languages/definitions/coffee/register.js"),
+    import("monaco-editor/languages/definitions/cpp/register.js"),
+    import("monaco-editor/languages/definitions/csharp/register.js"),
+    import("monaco-editor/languages/definitions/css/register.js"),
+    import("monaco-editor/languages/definitions/dart/register.js"),
+    import("monaco-editor/languages/definitions/dockerfile/register.js"),
+    import("monaco-editor/languages/definitions/fsharp/register.js"),
+    import("monaco-editor/languages/definitions/go/register.js"),
+    import("monaco-editor/languages/definitions/graphql/register.js"),
+    import("monaco-editor/languages/definitions/handlebars/register.js"),
+    import("monaco-editor/languages/definitions/html/register.js"),
+    import("monaco-editor/languages/definitions/ini/register.js"),
+    import("monaco-editor/languages/definitions/java/register.js"),
+    import("monaco-editor/languages/definitions/javascript/register.js"),
+    import("monaco-editor/languages/definitions/julia/register.js"),
+    import("monaco-editor/languages/definitions/kotlin/register.js"),
+    import("monaco-editor/languages/definitions/less/register.js"),
+    import("monaco-editor/languages/definitions/lua/register.js"),
     import("monaco-editor/languages/definitions/markdown/register.js"),
+    import("monaco-editor/languages/definitions/mips/register.js"),
+    import("monaco-editor/languages/definitions/objective-c/register.js"),
+    import("monaco-editor/languages/definitions/pascal/register.js"),
+    import("monaco-editor/languages/definitions/perl/register.js"),
+    import("monaco-editor/languages/definitions/php/register.js"),
+    import("monaco-editor/languages/definitions/powershell/register.js"),
+    import("monaco-editor/languages/definitions/protobuf/register.js"),
+    import("monaco-editor/languages/definitions/pug/register.js"),
+    import("monaco-editor/languages/definitions/python/register.js"),
+    import("monaco-editor/languages/definitions/r/register.js"),
+    import("monaco-editor/languages/definitions/razor/register.js"),
+    import("monaco-editor/languages/definitions/restructuredtext/register.js"),
+    import("monaco-editor/languages/definitions/ruby/register.js"),
+    import("monaco-editor/languages/definitions/rust/register.js"),
+    import("monaco-editor/languages/definitions/scala/register.js"),
+    import("monaco-editor/languages/definitions/scss/register.js"),
+    import("monaco-editor/languages/definitions/shell/register.js"),
+    import("monaco-editor/languages/definitions/solidity/register.js"),
+    import("monaco-editor/languages/definitions/sql/register.js"),
+    import("monaco-editor/languages/definitions/swift/register.js"),
+    import("monaco-editor/languages/definitions/systemverilog/register.js"),
+    import("monaco-editor/languages/definitions/tcl/register.js"),
+    import("monaco-editor/languages/definitions/typescript/register.js"),
+    import("monaco-editor/languages/definitions/vb/register.js"),
+    import("monaco-editor/languages/definitions/wgsl/register.js"),
+    import("monaco-editor/languages/definitions/xml/register.js"),
+    import("monaco-editor/languages/definitions/yaml/register.js"),
     import("monaco-editor/editor/contrib/clipboard/browser/clipboard.js"),
     import("monaco-editor/editor/contrib/contextmenu/browser/contextmenu.js"),
+    import("monaco-editor/editor/contrib/find/browser/findController.js"),
     import("monaco-editor/editor/contrib/suggest/browser/suggestController.js"),
   ]);
   const monaco = await import("monaco-editor/editor/editor.api.js");
+  registerJsonLanguage(monaco);
   registerSqlLanguages(monaco);
   return monaco;
 }
@@ -169,6 +228,7 @@ export function Editor({
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const modelRef = useRef<Monaco.editor.ITextModel | null>(null);
   const apiRef = useRef<EditorHandle | null>(null);
+  const applyingControlledValueRef = useRef(false);
   const updateHighlightRef = useRef<() => void>(() => undefined);
   const changeHandlerRef = useRef(onChange);
   const readyHandlerRef = useRef(onReady);
@@ -186,6 +246,12 @@ export function Editor({
   const [loading, setLoading] = useState(true);
   const [, setSelectionVersion] = useState(0);
 
+  // Monaco 按需异步加载；挂载完成前受控属性可能已经变化，初始化时必须使用最新值。
+  initialValueRef.current = value;
+  initialLanguageRef.current = language;
+  initialPathRef.current = path;
+  initialThemeRef.current = theme;
+  initialOptionsRef.current = options;
   changeHandlerRef.current = onChange;
   readyHandlerRef.current = onReady;
   selectionHandlerRef.current = onSelectionChange;
@@ -220,6 +286,7 @@ export function Editor({
         minimap: { enabled: false },
         padding: { top: 18, bottom: 18 },
         renderWhitespace: "selection",
+        dragAndDrop: true,
         scrollBeyondLastLine: false,
         smoothScrolling: true,
         stickyScroll: { enabled: true },
@@ -232,8 +299,49 @@ export function Editor({
       modelRef.current = model;
       let refreshSuggestionAfterSpace = false;
       let refreshSuggestionTimer: number | undefined;
+      let selectionClickCandidate: {
+        x: number;
+        y: number;
+        moved: boolean;
+        position: Monaco.Position;
+        selection: Monaco.Selection;
+        text: string;
+        modelVersionId: number;
+      } | null = null;
+      let selectionDragTargetPosition: Monaco.Position | null = null;
+      const selectionDragTargetElement = document.createElement("span");
+      selectionDragTargetElement.className = "sia-editor-control__selection-drop-caret";
+      const selectionDragTargetWidget: Monaco.editor.IContentWidget = {
+        suppressMouseDown: true,
+        getId: () => `${generatedId}-selection-drop-caret`,
+        getDomNode: () => selectionDragTargetElement,
+        getPosition: () => selectionDragTargetPosition ? {
+          position: selectionDragTargetPosition,
+          preference: [monaco.editor.ContentWidgetPositionPreference.EXACT],
+        } : null,
+      };
+      editor.addContentWidget(selectionDragTargetWidget);
+      const clearSelectionDragTarget = () => {
+        if (!selectionDragTargetPosition) return;
+        selectionDragTargetPosition = null;
+        editor.layoutContentWidget(selectionDragTargetWidget);
+      };
+      const updateSelectionDragTarget = (clientX: number, clientY: number) => {
+        const candidate = selectionClickCandidate;
+        if (!candidate?.moved) {
+          clearSelectionDragTarget();
+          return;
+        }
+        const position = editor.getTargetAtClientPoint(clientX, clientY)?.position;
+        if (!position || candidate.selection.containsPosition(position)) {
+          clearSelectionDragTarget();
+          return;
+        }
+        selectionDragTargetPosition = position;
+        editor.layoutContentWidget(selectionDragTargetWidget);
+      };
       subscriptions.push(editor.onDidChangeModelContent(() => {
-        changeHandlerRef.current?.(model.getValue());
+        if (!applyingControlledValueRef.current) changeHandlerRef.current?.(model.getValue());
         if (!refreshSuggestionAfterSpace) return;
         refreshSuggestionAfterSpace = false;
         window.clearTimeout(refreshSuggestionTimer);
@@ -242,6 +350,146 @@ export function Editor({
             editor.trigger("sia-editor", "editor.action.triggerSuggest", null);
           }
         }, 0);
+      }));
+      subscriptions.push(editor.onMouseDown((event) => {
+        clearSelectionDragTarget();
+        const selection = editor.getSelection();
+        const position = event.target.position;
+        if (event.event.leftButton
+          && position
+          && !event.event.ctrlKey
+          && !event.event.metaKey
+          && !event.event.altKey
+          && !event.event.shiftKey
+          && event.target.type === monaco.editor.MouseTargetType.GUTTER_LINE_NUMBERS
+          && editor.getOption(monaco.editor.EditorOption.selectOnLineNumbers)) {
+          const lineNumber = position.lineNumber;
+          const endPosition = lineNumber < model.getLineCount()
+            ? new monaco.Position(lineNumber + 1, 1)
+            : new monaco.Position(lineNumber, model.getLineMaxColumn(lineNumber));
+          editor.setSelection(new monaco.Selection(lineNumber, 1, endPosition.lineNumber, endPosition.column));
+          editor.focus();
+          selectionClickCandidate = null;
+          return;
+        }
+        selectionClickCandidate = event.event.leftButton
+          && !event.event.ctrlKey
+          && !event.event.metaKey
+          && !event.event.altKey
+          && !event.event.shiftKey
+          && position
+          && selection
+          && !selection.isEmpty()
+          && selection.containsPosition(position)
+          ? {
+            x: event.event.posx,
+            y: event.event.posy,
+            moved: false,
+            position,
+            selection,
+            text: model.getValueInRange(selection),
+            modelVersionId: model.getVersionId(),
+          }
+          : null;
+      }));
+      const trackSelectionDrag = (clientX: number, clientY: number) => {
+        if (!selectionClickCandidate) return;
+        const horizontalDistance = clientX - selectionClickCandidate.x;
+        const verticalDistance = clientY - selectionClickCandidate.y;
+        // WebView 在按住鼠标移动时不一定持续报告 buttons=1，因此只按位移判断真实拖动。
+        // Monaco 会把很小的手部抖动也识别为选区拖放；超过 4px 才视为用户确实在拖动。
+        if (horizontalDistance * horizontalDistance + verticalDistance * verticalDistance > 16) {
+          if (!selectionClickCandidate.moved) {
+            // 与 VS Code / Monaco 原生选区拖放一致：开始拖动后由文本光标切换为箭头。
+            editor.updateOptions({ mouseStyle: "default" });
+          }
+          selectionClickCandidate.moved = true;
+        }
+        if (selectionClickCandidate.moved) updateSelectionDragTarget(clientX, clientY);
+      };
+      subscriptions.push(editor.onMouseMove((event) => {
+        trackSelectionDrag(event.event.posx, event.event.posy);
+      }));
+      const handlePointerMove = (event: PointerEvent) => {
+        trackSelectionDrag(event.clientX, event.clientY);
+      };
+      const finishSelectionPointerInteraction = (
+        clientX: number,
+        clientY: number,
+        fallbackPosition?: Monaco.Position | null,
+      ) => {
+        const candidate = selectionClickCandidate;
+        selectionClickCandidate = null;
+        clearSelectionDragTarget();
+        if (!candidate) return;
+
+        editor.updateOptions({ mouseStyle: "text" });
+        if (!candidate.moved) {
+          const clickPosition = editor.getTargetAtClientPoint(clientX, clientY)?.position
+            ?? fallbackPosition
+            ?? candidate.position;
+          window.setTimeout(() => {
+            // 在 Monaco 自己的 pointerup/mouseup 处理完成后再折叠选区，避免被拖放控制器覆盖。
+            if (disposed || model.isDisposed() || model.getVersionId() !== candidate.modelVersionId) return;
+            editor.setSelection(monaco.Selection.fromPositions(clickPosition));
+            editor.focus();
+          }, 0);
+          return;
+        }
+
+        window.setTimeout(() => {
+          // Monaco 原生拖放成功时模型版本已经变化，此处不能重复移动。
+          if (disposed || model.isDisposed() || model.getVersionId() !== candidate.modelVersionId) return;
+          const targetPosition = editor.getTargetAtClientPoint(clientX, clientY)?.position;
+          if (!targetPosition) return;
+          const sourceRange = model.validateRange(candidate.selection);
+          const sourceStartOffset = model.getOffsetAt(sourceRange.getStartPosition());
+          const sourceEndOffset = model.getOffsetAt(sourceRange.getEndPosition());
+          const targetOffset = model.getOffsetAt(targetPosition);
+          if (targetOffset >= sourceStartOffset && targetOffset <= sourceEndOffset) return;
+
+          editor.pushUndoStop();
+          editor.executeEdits("sia-editor-selection-drag", [
+            { range: sourceRange, text: "", forceMoveMarkers: true },
+            { range: monaco.Range.fromPositions(targetPosition), text: candidate.text, forceMoveMarkers: true },
+          ]);
+          const insertedStartOffset = targetOffset > sourceEndOffset
+            ? targetOffset - candidate.text.length
+            : targetOffset;
+          editor.setSelection(monaco.Selection.fromPositions(
+            model.getPositionAt(insertedStartOffset),
+            model.getPositionAt(insertedStartOffset + candidate.text.length),
+          ));
+          editor.pushUndoStop();
+          editor.focus();
+        }, 0);
+      };
+      const handlePointerUp = (event: PointerEvent) => {
+        finishSelectionPointerInteraction(event.clientX, event.clientY);
+      };
+      const handlePointerCancel = () => {
+        selectionClickCandidate = null;
+        clearSelectionDragTarget();
+        editor.updateOptions({ mouseStyle: "text" });
+      };
+      window.addEventListener("pointermove", handlePointerMove, true);
+      window.addEventListener("pointerup", handlePointerUp, true);
+      window.addEventListener("pointercancel", handlePointerCancel, true);
+      subscriptions.push({
+        dispose: () => {
+          editor.removeContentWidget(selectionDragTargetWidget);
+          window.removeEventListener("pointermove", handlePointerMove, true);
+          window.removeEventListener("pointerup", handlePointerUp, true);
+          window.removeEventListener("pointercancel", handlePointerCancel, true);
+        },
+      });
+      subscriptions.push(editor.onMouseUp((event) => {
+        finishSelectionPointerInteraction(event.event.posx, event.event.posy, event.target.position);
+      }));
+      subscriptions.push(editor.onDidBlurEditorWidget(() => {
+        selectionClickCandidate = null;
+        clearSelectionDragTarget();
+        editor.updateOptions({ mouseStyle: "text" });
       }));
       subscriptions.push(editor.onKeyDown((event) => {
         const browserEvent = event.browserEvent;
@@ -402,15 +650,22 @@ export function Editor({
 
   useEffect(() => {
     const model = modelRef.current;
-    if (model && model.getValue() !== value) model.setValue(value);
-  }, [value]);
+    if (!model || model.getValue() === value) return;
+    applyingControlledValueRef.current = true;
+    try {
+      model.setValue(value);
+    } finally {
+      applyingControlledValueRef.current = false;
+    }
+  }, [loading, value]);
 
   useEffect(() => {
+    if (loading) return;
     void loadMonaco().then((monaco) => {
       const model = modelRef.current;
       if (model) monaco.editor.setModelLanguage(model, language);
     });
-  }, [language]);
+  }, [language, loading]);
 
   const completionEnabled = Boolean(completionProvider);
   const completionTriggerKey = completionTriggerCharacters.join("\u0000");
@@ -493,17 +748,19 @@ export function Editor({
   }, [completionEnabled, completionTriggerKey, language, loading]);
 
   useEffect(() => {
+    if (loading) return;
     void loadMonaco().then((monaco) => {
       if (editorRef.current) monaco.editor.setTheme(theme === "dark" ? "vs-dark" : "vs");
     });
-  }, [theme]);
+  }, [loading, theme]);
 
   useEffect(() => {
+    if (loading) return;
     editorRef.current?.updateOptions({
       ...(options ?? {}),
       contextmenu: contextMenuItems.length === 0 ? (options?.contextmenu ?? true) : false,
     });
-  }, [contextMenuItems.length, options]);
+  }, [contextMenuItems.length, loading, options]);
 
   useEffect(() => {
     updateHighlightRef.current();
@@ -522,6 +779,7 @@ export function Editor({
   const menuItems: MenuItem[] = contextMenuItems.map((item) => ({
     key: item.key,
     label: item.label,
+    extra: item.shortcut ?? (item.command ? EDITOR_COMMAND_SHORTCUTS[item.command] : undefined),
     disabled: typeof item.disabled === "function" ? item.disabled(apiRef.current) : item.disabled,
   }));
 
@@ -530,6 +788,7 @@ export function Editor({
     const editor = editorRef.current;
     const api = apiRef.current;
     if (!item || !editor || !api) return;
+    editor.focus();
     if (item.command) {
       const commandId: Record<EditorCommand, string> = {
         cut: "editor.action.clipboardCutAction",
@@ -541,7 +800,6 @@ export function Editor({
     } else {
       item.onClick?.(api);
     }
-    editor.focus();
   }
 
   return (

@@ -2,6 +2,8 @@ import { cloneElement, useEffect, useId, useLayoutEffect, useMemo, useRef, useSt
 import type { CSSProperties, HTMLAttributes, ReactElement, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Checkbox } from "./Checkbox";
+import { Dropdown } from "./Dropdown";
+import type { DropdownMenuProps } from "./Dropdown";
 import { Icon } from "./Icon";
 import { useControllableState } from "./shared";
 
@@ -232,6 +234,7 @@ export function Timeline({ items = [], mode = "left", pending = false, pendingDo
 }
 
 export type TreeKey = string | number;
+export type TreeDropPosition = "before" | "inside" | "after";
 export interface TreeNode {
   key: TreeKey;
   title: ReactNode;
@@ -245,6 +248,10 @@ export interface TreeNode {
   loaded?: boolean;
   icon?: ReactNode;
   loadingText?: ReactNode;
+  draggable?: boolean;
+  droppable?: boolean;
+  contextMenu?: DropdownMenuProps;
+  contextMenuPopupClassName?: string;
   rowProps?: Omit<HTMLAttributes<HTMLDivElement>, "children"> & Partial<Record<`data-${string}`, string | number>>;
   children?: readonly TreeNode[];
   [key: string]: unknown;
@@ -275,7 +282,7 @@ export interface TreeProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSelec
   onSelect?: (keys: TreeKey[], info: { selected: boolean; node: TreeNode; nativeEvent: React.MouseEvent }) => void;
   onCheck?: (keys: TreeKey[], info: { checked: boolean; node: TreeNode }) => void;
   onExpand?: (keys: TreeKey[], info: { expanded: boolean; node: TreeNode }) => void;
-  onDrop?: (info: { dragNode: TreeNode; node: TreeNode }) => void;
+  onDrop?: (info: { dragNode: TreeNode; node: TreeNode; dropPosition: TreeDropPosition }) => void;
 }
 
 function collectKeys(nodes: readonly TreeNode[], branchOnly = false, result: TreeKey[] = []) {
@@ -295,7 +302,28 @@ export function Tree({
   const [checked, setChecked] = useControllableState<readonly TreeKey[]>({ value: checkedKeys, defaultValue: defaultCheckedKeys });
   const [loading, setLoading] = useState<Set<TreeKey>>(new Set());
   const controlledLoading = useMemo(() => new Set(loadingKeys), [loadingKeys]);
-  const [dragNode, setDragNode] = useState<TreeNode>();
+  const selectedKeySet = useMemo(() => new Set(selected), [selected]);
+  const selectedAncestorKeys = useMemo(() => {
+    const ancestors = new Set<TreeKey>();
+    const visit = (nodes: readonly TreeNode[], parentKeys: readonly TreeKey[]) => {
+      nodes.forEach((node) => {
+        if (selectedKeySet.has(node.key)) parentKeys.forEach((key) => ancestors.add(key));
+        if (node.children?.length) visit(node.children, [...parentKeys, node.key]);
+      });
+    };
+    visit(treeData, []);
+    return ancestors;
+  }, [selectedKeySet, treeData]);
+  const dragNodeRef = useRef<TreeNode>();
+  const pointerDragRef = useRef<{
+    node: TreeNode;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    active: boolean;
+  }>();
+  const suppressClickRef = useRef(false);
+  const [dragOver, setDragOver] = useState<{ key: TreeKey; position: TreeDropPosition }>();
   const normalizedSwitcherWidth = Math.max(0, switcherWidth);
   async function toggleExpand(node: TreeNode) {
     const nextExpanded = !expanded.includes(node.key);
@@ -322,17 +350,91 @@ export function Tree({
     const next = multiple ? (exists ? selected.filter((key) => key !== node.key) : [...selected, node.key]) : (exists ? [] : [node.key]);
     setSelected(next); onSelect?.([...next], { selected: !exists, node, nativeEvent: event });
   }
+  function selectForContextMenu(node: TreeNode, event: React.MouseEvent) {
+    if (!selectable || node.selectable === false || node.disabled || selected.includes(node.key)) return;
+    const next = [node.key];
+    setSelected(next);
+    onSelect?.(next, { selected: true, node, nativeEvent: event });
+  }
+  function findNode(key: string, nodes: readonly TreeNode[] = treeData): TreeNode | undefined {
+    for (const node of nodes) {
+      if (String(node.key) === key) return node;
+      const child = node.children?.length ? findNode(key, node.children) : undefined;
+      if (child) return child;
+    }
+    return undefined;
+  }
+  function getPointerDropTarget(clientX: number, clientY: number, dragNode: TreeNode) {
+    const targetElement = document.elementFromPoint(clientX, clientY)?.closest<HTMLElement>("[data-sia-tree-drop-key]");
+    if (!targetElement) return undefined;
+    const targetNode = targetElement?.dataset.siaTreeDropKey ? findNode(targetElement.dataset.siaTreeDropKey) : undefined;
+    if (!targetNode || targetNode.key === dragNode.key || targetNode.disabled || targetNode.droppable === false) return undefined;
+    const bounds = targetElement.getBoundingClientRect();
+    const relativeY = bounds.height > 0 ? (clientY - bounds.top) / bounds.height : 0.5;
+    const dropPosition: TreeDropPosition = relativeY < 0.25
+      ? "before"
+      : relativeY > 0.75
+        ? "after"
+        : "inside";
+    return { node: targetNode, dropPosition };
+  }
+  function beginPointerDrag(node: TreeNode, event: React.PointerEvent<HTMLButtonElement>) {
+    if (event.button !== 0) return;
+    pointerDragRef.current = {
+      node,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      active: false,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+  function movePointerDrag(event: React.PointerEvent<HTMLButtonElement>) {
+    const pointerDrag = pointerDragRef.current;
+    if (!pointerDrag || pointerDrag.pointerId !== event.pointerId) return;
+    if (!pointerDrag.active && Math.hypot(event.clientX - pointerDrag.startX, event.clientY - pointerDrag.startY) < 5) return;
+    pointerDrag.active = true;
+    dragNodeRef.current = pointerDrag.node;
+    event.preventDefault();
+    const target = getPointerDropTarget(event.clientX, event.clientY, pointerDrag.node);
+    setDragOver(target ? { key: target.node.key, position: target.dropPosition } : undefined);
+  }
+  function finishPointerDrag(event: React.PointerEvent<HTMLButtonElement>) {
+    const pointerDrag = pointerDragRef.current;
+    if (!pointerDrag || pointerDrag.pointerId !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    if (pointerDrag.active) {
+      event.preventDefault();
+      suppressClickRef.current = true;
+      const target = getPointerDropTarget(event.clientX, event.clientY, pointerDrag.node);
+      if (target) onDrop?.({ dragNode: pointerDrag.node, node: target.node, dropPosition: target.dropPosition });
+      window.setTimeout(() => { suppressClickRef.current = false; }, 0);
+    }
+    pointerDragRef.current = undefined;
+    dragNodeRef.current = undefined;
+    setDragOver(undefined);
+  }
+  function cancelPointerDrag(event: React.PointerEvent<HTMLButtonElement>) {
+    const pointerDrag = pointerDragRef.current;
+    if (!pointerDrag || pointerDrag.pointerId !== event.pointerId) return;
+    pointerDragRef.current = undefined;
+    dragNodeRef.current = undefined;
+    setDragOver(undefined);
+  }
   function render(nodes: readonly TreeNode[], depth = 0): ReactNode {
     return nodes.map((node) => {
       const open = expanded.includes(node.key);
       const isSelected = selected.includes(node.key);
+      const isSelectedAncestor = selectedAncestorKeys.has(node.key);
       const isChecked = checked.includes(node.key);
       const hasChildren = Boolean(node.children?.length || node.isLeaf === false);
       const nodeLoading = loading.has(node.key) || controlledLoading.has(node.key);
       const sticky = stickyAncestors && hasChildren && open;
+      const canDrag = draggable && node.draggable !== false && !node.disabled;
       const { className: rowClassName = "", style: rowStyle, onClick: onRowClick, ...rowProps } = node.rowProps ?? {};
       const unloaded = hasChildren && node.loaded === false;
-      return <div className={`sia-tree__node${isSelected ? " is-selected" : ""}${node.disabled ? " is-disabled" : ""}${unloaded ? " is-unloaded" : ""}`} role="treeitem" aria-expanded={hasChildren ? open : undefined} aria-selected={isSelected} key={node.key}>
+      const dropPosition = dragOver?.key === node.key ? dragOver.position : undefined;
+      return <div className={`sia-tree__node${isSelected ? " is-selected" : ""}${isSelectedAncestor ? " is-selected-ancestor" : ""}${dropPosition ? ` is-drag-over-${dropPosition}` : ""}${node.disabled ? " is-disabled" : ""}${unloaded ? " is-unloaded" : ""}`} role="treeitem" aria-expanded={hasChildren ? open : undefined} aria-selected={isSelected} key={node.key}>
         <div {...rowProps} className={`sia-tree__row${blockNode ? " sia-tree__row--block" : ""}${sticky ? " sia-tree__row--sticky" : ""} ${rowClassName}`.trim()} style={{
           ...rowStyle,
           paddingInlineStart: depth * Math.max(0, indentSize),
@@ -340,23 +442,45 @@ export function Tree({
           zIndex: sticky ? Math.max(1, 100 - depth) : rowStyle?.zIndex,
         }}
           aria-busy={nodeLoading || undefined}
-          draggable={draggable && !node.disabled}
+          data-sia-tree-drop-key={String(node.key)}
+          data-sia-tree-draggable={canDrag || undefined}
           onClick={(event) => {
             onRowClick?.(event);
-            if (event.defaultPrevented || node.disabled) return;
+            if (event.defaultPrevented || suppressClickRef.current || node.disabled) return;
             select(node, event);
             if (hasChildren) void toggleExpand(node);
           }}
-          onDragStart={() => setDragNode(node)}
-          onDragOver={draggable ? (event) => event.preventDefault() : undefined}
-          onDrop={draggable ? () => { if (dragNode && dragNode.key !== node.key) onDrop?.({ dragNode, node }); setDragNode(undefined); } : undefined}>
-          {hasChildren ? <button type="button" className="sia-tree__switcher" style={{ width: normalizedSwitcherWidth, flexBasis: normalizedSwitcherWidth }} disabled={node.disabled} onClick={(event) => { event.stopPropagation(); void toggleExpand(node); }}>{nodeLoading ? <Icon name="loader" className="sia-spin-icon" size={13} /> : <Icon name={open ? "chevron-down" : "chevron-right"} size={13} />}</button> : <span className="sia-tree__switcher" style={{ width: normalizedSwitcherWidth, flexBasis: normalizedSwitcherWidth }} aria-hidden="true" />}
-          {checkable || node.checkable ? <span onClick={(event) => event.stopPropagation()}><Checkbox checked={isChecked} disabled={node.disabled || node.disableCheckbox} onChange={() => check(node)} /></span> : null}
-          {node.prefix ? <span className="sia-tree__prefix" onClick={(event) => event.stopPropagation()}>{node.prefix}</span> : null}
-          {showIcon ? <span className="sia-tree__icon">{node.icon ?? <Icon name={hasChildren ? "folder" : "file"} size={15} />}</span> : null}
-          <button type="button" className="sia-tree__title" disabled={node.disabled}>{node.title}</button>
-          {nodeLoading ? <span className="sia-tree__loading-text" role="status">{node.loadingText ?? "正在加载…"}</span> : null}
-          {node.extra ? <span className="sia-tree__extra" onClick={(event) => event.stopPropagation()}>{node.extra}</span> : null}
+        >
+          {(() => {
+            const content = <span className="sia-tree__context-content">
+              {hasChildren ? <button type="button" className="sia-tree__switcher" style={{ width: normalizedSwitcherWidth, flexBasis: normalizedSwitcherWidth }} disabled={node.disabled} onClick={(event) => { event.stopPropagation(); void toggleExpand(node); }}>{nodeLoading ? <Icon name="loader" className="sia-spin-icon" size={13} /> : <Icon name={open ? "chevron-down" : "chevron-right"} size={13} />}</button> : <span className="sia-tree__switcher" style={{ width: normalizedSwitcherWidth, flexBasis: normalizedSwitcherWidth }} aria-hidden="true" />}
+              {checkable || node.checkable ? <span onClick={(event) => event.stopPropagation()}><Checkbox checked={isChecked} disabled={node.disabled || node.disableCheckbox} onChange={() => check(node)} /></span> : null}
+              {node.prefix ? <span className="sia-tree__prefix" onClick={(event) => event.stopPropagation()}>{node.prefix}</span> : null}
+              {showIcon ? <span className="sia-tree__icon">{node.icon ?? <Icon name={hasChildren ? "folder" : "file"} size={15} />}</span> : null}
+              <button
+                type="button"
+                className="sia-tree__title"
+                disabled={node.disabled}
+                onPointerDown={canDrag ? (event) => beginPointerDrag(node, event) : undefined}
+                onPointerMove={canDrag ? movePointerDrag : undefined}
+                onPointerUp={canDrag ? finishPointerDrag : undefined}
+                onPointerCancel={canDrag ? cancelPointerDrag : undefined}
+              >
+                {node.title}
+              </button>
+              {nodeLoading ? <span className="sia-tree__loading-text" role="status">{node.loadingText ?? "正在加载…"}</span> : null}
+              {node.extra ? <span className="sia-tree__extra" onClick={(event) => event.stopPropagation()}>{node.extra}</span> : null}
+            </span>;
+            return node.contextMenu ? <Dropdown
+              className="sia-tree__context-trigger"
+              popupClassName={node.contextMenuPopupClassName}
+              trigger={["contextMenu"]}
+              menu={node.contextMenu}
+              onContextMenu={(event) => selectForContextMenu(node, event)}
+            >
+              {content}
+            </Dropdown> : content;
+          })()}
         </div>
         {open && node.children?.length ? <div className="sia-tree__children" role="group">{render(node.children, depth + 1)}</div> : null}
       </div>;

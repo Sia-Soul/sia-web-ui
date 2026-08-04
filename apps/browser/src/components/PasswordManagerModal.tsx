@@ -19,7 +19,7 @@ export interface PasswordSubmission {
   isUpdate: boolean;
 }
 
-interface PasswordCredentialSummary {
+export interface PasswordCredentialSummary {
   id: string;
   name: string;
   origin: string;
@@ -41,14 +41,14 @@ interface PasswordCredentialDraft {
   password: string;
 }
 
-interface PasswordImportEntry {
+export interface PasswordImportEntry {
   name?: string;
   origin: string;
   username: string;
   password: string;
 }
 
-interface PasswordImportResult {
+export interface PasswordImportResult {
   imported: number;
   updated: number;
   skipped: number;
@@ -122,7 +122,7 @@ function findHeader(headers: readonly string[], aliases: readonly string[]) {
   return headers.findIndex((header) => normalizedAliases.has(normalizeHeader(header)));
 }
 
-function parsePasswordCsv(source: string): PasswordImportEntry[] {
+export function parsePasswordCsv(source: string): PasswordImportEntry[] {
   const rows = parseCsvRows(source);
   if (rows.length < 2) throw new Error("CSV 文件中没有可导入的密码");
   const headers = rows[0];
@@ -147,7 +147,7 @@ function parsePasswordCsv(source: string): PasswordImportEntry[] {
   });
 }
 
-function formatUpdatedAt(value: number) {
+export function formatUpdatedAt(value: number) {
   if (!value) return "";
   return new Intl.DateTimeFormat("zh-CN", {
     year: "numeric",

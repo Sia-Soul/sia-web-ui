@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Icon,
   Input,
@@ -66,6 +66,7 @@ async function invokeNative<T>(command: string, args?: Record<string, unknown>) 
 export default function BrowserOverlayWindow() {
   const [payload, setPayload] = useState<BrowserOverlayPayload | null>(null);
   const [formValue, setFormValue] = useState("");
+  const formInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let disposed = false;
@@ -96,6 +97,17 @@ export default function BrowserOverlayWindow() {
     if (!payload) return;
     applySiaTheme(payload.darkMode ? "dark" : "light");
     if (payload.kind === "form") setFormValue(payload.initialValue ?? "");
+  }, [payload]);
+
+  useEffect(() => {
+    if (payload?.kind !== "form") return;
+    const focusTimer = window.setTimeout(() => {
+      const input = formInputRef.current;
+      if (!input) return;
+      input.focus({ preventScroll: true });
+      input.select();
+    }, 50);
+    return () => window.clearTimeout(focusTimer);
   }, [payload]);
 
   async function closeOverlay() {
@@ -194,6 +206,7 @@ export default function BrowserOverlayWindow() {
         <div className="browser-overlay-form">
           <label htmlFor="browser-overlay-form-value">{payload.label}</label>
           <Input
+            ref={formInputRef}
             id="browser-overlay-form-value"
             value={formValue}
             autoFocus

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { applySiaTheme, message } from "@sia-ui/react";
 import type { BrowserGroup, BrowserTab } from "../browserTypes";
 import { ROOT_GROUP_ID } from "../browserTypes";
@@ -29,6 +29,11 @@ async function invokeNative<T>(command: string, args?: Record<string, unknown>) 
 
 export default function BrowserTabPanelWindow() {
   const [payload, setPayload] = useState<FloatingTabPanelPayload | null>(null);
+  const [panelVisible, setPanelVisible] = useState(false);
+  const [panelFullyExpanded, setPanelFullyExpanded] = useState(false);
+  const [panelHovered, setPanelHovered] = useState(false);
+  const panelVisibleRef = useRef(false);
+  const panelOpeningRef = useRef(false);
 
   useEffect(() => {
     let disposed = false;
@@ -73,6 +78,79 @@ export default function BrowserTabPanelWindow() {
     if (!payload) return;
     applySiaTheme(payload.darkMode ? "dark" : "light");
   }, [payload]);
+
+  useEffect(() => {
+    if (!window.__TAURI__) return undefined;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    let openFrame: number | undefined;
+    let settleFrame: number | undefined;
+    void window.__TAURI__.event.listen<boolean>(
+      "sia://floating-tab-panel-visibility",
+      ({ payload: visible }) => {
+        if (disposed) return;
+        if (!visible) {
+          if (openFrame !== undefined) window.cancelAnimationFrame(openFrame);
+          if (settleFrame !== undefined) window.cancelAnimationFrame(settleFrame);
+          panelOpeningRef.current = false;
+          panelVisibleRef.current = false;
+          setPanelHovered(false);
+          setPanelFullyExpanded(false);
+          setPanelVisible(false);
+          return;
+        }
+        setPanelHovered(true);
+        if (panelVisibleRef.current || panelOpeningRef.current) return;
+        panelOpeningRef.current = true;
+        setPanelFullyExpanded(false);
+        setPanelVisible(false);
+        openFrame = window.requestAnimationFrame(() => {
+          settleFrame = window.requestAnimationFrame(() => {
+            if (!disposed) {
+              panelOpeningRef.current = false;
+              panelVisibleRef.current = true;
+              setPanelVisible(true);
+            }
+          });
+        });
+      },
+    ).then((dispose) => {
+      if (disposed) dispose();
+      else unlisten = dispose;
+    });
+    return () => {
+      disposed = true;
+      panelOpeningRef.current = false;
+      if (openFrame !== undefined) window.cancelAnimationFrame(openFrame);
+      if (settleFrame !== undefined) window.cancelAnimationFrame(settleFrame);
+      unlisten?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    const documentRoot = document.documentElement;
+    const handlePointerEnter = () => {
+      setPanelHovered(true);
+    };
+    const handlePointerLeave = () => {
+      setPanelHovered(false);
+      if (!payload?.panelPinned) {
+        void invokeNative("close_floating_tab_panel_if_pointer_outside").catch(() => undefined);
+      }
+    };
+    documentRoot.addEventListener("mouseenter", handlePointerEnter);
+    documentRoot.addEventListener("mouseleave", handlePointerLeave);
+    return () => {
+      documentRoot.removeEventListener("mouseenter", handlePointerEnter);
+      documentRoot.removeEventListener("mouseleave", handlePointerLeave);
+    };
+  }, [payload?.panelPinned]);
+
+  useEffect(() => {
+    if (payload?.panelPinned) {
+      setPanelFullyExpanded(true);
+    }
+  }, [payload?.panelPinned]);
 
   const orderedTabs = useMemo(() => {
     if (!payload) return [];
@@ -127,52 +205,66 @@ export default function BrowserTabPanelWindow() {
 
   return (
     <div
-      className="browser-floating-tab-panel"
-      onContextMenu={(event) => {
-        event.preventDefault();
-        const target = event.target;
-        const tabElement = target instanceof Element
-          ? target.closest<HTMLElement>("[data-browser-tab-id]")
-          : null;
-        const tabId = tabElement?.dataset.browserTabId;
-        if (tabId) openTabMenu(tabId, event.clientX, event.clientY);
-      }}
+      className={`browser-floating-tab-panel-host${payload.panelPinned ? " is-pinned" : ""}${panelFullyExpanded && panelHovered ? " is-scrollbar-visible" : ""}`}
     >
-      <VerticalTabTree
-        floatingWindow
-        panelExpanded={payload.panelExpanded}
-        panelPinned={payload.panelPinned}
-        panelWidth={payload.panelWidth}
-        groups={payload.groups}
-        tabs={payload.tabs}
-        activeId={payload.activeId}
-        collapsedGroupIds={payload.collapsedGroupIds ?? []}
-        collapsedSmallGroupIds={payload.collapsedSmallGroupIds ?? []}
-        onSelect={(tabId) => sendAction("select", tabId)}
-        onClose={(tabId) => sendAction("close", tabId)}
-        onToggleAudio={(tabId) => sendAction("toggle-audio", tabId)}
-        onNewTab={(groupId, smallGroupId) => {
-          sendAction("new-tab", [groupId, smallGroupId ?? ""].join("|"));
+      <div
+        className={`browser-floating-tab-panel${payload.panelPinned ? " is-pinned" : ""}${panelVisible ? " is-visible" : ""}`}
+        onTransitionEnd={(event) => {
+          if (
+            event.target === event.currentTarget
+            && event.propertyName === "width"
+            && panelVisible
+          ) {
+            setPanelFullyExpanded(true);
+          }
         }}
-        onNewRootTab={() => sendAction("new-root-tab")}
-        onNewGroup={() => sendAction("new-group")}
-        onToggleGroup={(groupId) => sendAction("toggle-group", groupId)}
-        onToggleSmallGroup={(smallGroupId) => sendAction("toggle-small-group", smallGroupId)}
-        onTreeActionsOpen={(groupId, smallGroupId, x, y) => {
-          void invokeNative("show_browser_tree_menu", {
-            groupId,
-            smallGroupId,
-            darkMode: payload.darkMode,
-            sourceWindow: "sia-tab-panel-window",
-            x,
-            y,
-          }).catch((error) => {
-            message.error(error instanceof Error ? error.message : String(error));
-          });
+        onContextMenu={(event) => {
+          event.preventDefault();
+          const target = event.target;
+          const tabElement = target instanceof Element
+            ? target.closest<HTMLElement>("[data-browser-tab-id]")
+            : null;
+          const tabId = tabElement?.dataset.browserTabId;
+          if (tabId) openTabMenu(tabId, event.clientX, event.clientY);
         }}
-        onPinPanel={() => sendAction("toggle-panel-pin")}
-        onPanelWidthChange={(width) => sendAction("resize-panel", String(width))}
-      />
+      >
+        <VerticalTabTree
+            floatingWindow={!payload.panelPinned}
+            panelExpanded={payload.panelExpanded}
+            panelPinned={payload.panelPinned}
+            panelWidth={payload.panelWidth}
+            showScrollbar={panelFullyExpanded && panelHovered}
+            groups={payload.groups}
+            tabs={payload.tabs}
+            activeId={payload.activeId}
+            collapsedGroupIds={payload.collapsedGroupIds ?? []}
+            collapsedSmallGroupIds={payload.collapsedSmallGroupIds ?? []}
+            onSelect={(tabId) => sendAction("select", tabId)}
+            onClose={(tabId) => sendAction("close", tabId)}
+            onToggleAudio={(tabId) => sendAction("toggle-audio", tabId)}
+            onNewTab={(groupId, smallGroupId) => {
+              sendAction("new-tab", [groupId, smallGroupId ?? ""].join("|"));
+            }}
+            onNewRootTab={() => sendAction("new-root-tab")}
+            onNewGroup={() => sendAction("new-group")}
+            onToggleGroup={(groupId) => sendAction("toggle-group", groupId)}
+            onToggleSmallGroup={(smallGroupId) => sendAction("toggle-small-group", smallGroupId)}
+            onTreeActionsOpen={(groupId, smallGroupId, x, y) => {
+              void invokeNative("show_browser_tree_menu", {
+                groupId,
+                smallGroupId,
+                darkMode: payload.darkMode,
+                sourceWindow: "sia-tab-panel-window",
+                x,
+                y,
+              }).catch((error) => {
+                message.error(error instanceof Error ? error.message : String(error));
+              });
+            }}
+            onPinPanel={() => sendAction("toggle-panel-pin")}
+            onPanelWidthChange={(width) => sendAction("resize-panel", String(width))}
+        />
+      </div>
     </div>
   );
 }

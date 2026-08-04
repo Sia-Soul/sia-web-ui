@@ -245,6 +245,7 @@ function DropdownRoot({
       aria-hidden="true"
     />
     <PopupPortal
+      key={contextPoint ? `context-${contextPoint.x}-${contextPoint.y}` : "trigger"}
       ref={popupRef}
       anchorRef={contextPoint ? contextAnchorRef : rootRef}
       open={mounted}

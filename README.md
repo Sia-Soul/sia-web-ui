@@ -10,6 +10,7 @@ apps/desktop/               Tauri 2 + React 桌面客户端
 apps/database-studio/       数据库连接与 SQL 工作台
 apps/browser/               无边框 Tauri 浏览器
 apps/disk-space/            实时磁盘空间探测器
+apps/notepad/               多标签、自动保存的轻量记事本
 packages/react/             @sia-ui/react 组件包
 packages/create-sia-web/    create-sia-web 项目生成器
 docs/design/                Web 端视觉基准
@@ -68,6 +69,18 @@ pnpm disk:dev
 
 ```powershell
 pnpm disk:web
+```
+
+启动轻量记事本：
+
+```powershell
+pnpm notepad:dev
+```
+
+只在浏览器中预览记事本（数据保存在浏览器本地）：
+
+```powershell
+pnpm notepad:web
 ```
 
 生成可直接运行的桌面程序：

@@ -4,6 +4,7 @@ import { Icon } from "./Icon";
 
 export interface SplitterPanelProps extends HTMLAttributes<HTMLDivElement> {
   defaultSize?: number;
+  defaultCollapsed?: boolean;
   min?: number;
   max?: number;
   collapsible?: boolean;
@@ -21,7 +22,8 @@ export interface SplitterProps extends Omit<HTMLAttributes<HTMLDivElement>, "onR
 }
 
 function SplitterPanel({
-  defaultSize: _defaultSize,
+    defaultSize: _defaultSize,
+    defaultCollapsed: _defaultCollapsed,
   min: _min,
   max: _max,
   collapsible: _collapsible,
@@ -35,12 +37,25 @@ function SplitterPanel({
   return <div className={`sia-splitter__panel ${className}`.trim()} {...props} />;
 }
 
-function normalizeSizes(panels: readonly ReactElement<SplitterPanelProps>[]) {
+function normalizeExpandedSizes(panels: readonly ReactElement<SplitterPanelProps>[]) {
   const specified = panels.map((panel) => panel.props.defaultSize);
   const totalSpecified = specified.reduce<number>((sum, value) => sum + (value ?? 0), 0);
   const unspecified = specified.filter((value) => value === undefined).length;
   const remaining = Math.max(0, 100 - totalSpecified);
   return specified.map((value) => value ?? (unspecified ? remaining / unspecified : 0));
+}
+
+function normalizeSizes(panels: readonly ReactElement<SplitterPanelProps>[]) {
+  const next = normalizeExpandedSizes(panels);
+  panels.forEach((panel, index) => {
+    if (!panel.props.defaultCollapsed) return;
+    const targetSize = collapsedSize(panel);
+    const released = next[index] - targetSize;
+    const sibling = index < panels.length - 1 ? index + 1 : index - 1;
+    next[index] = targetSize;
+    if (sibling >= 0) next[sibling] += released;
+  });
+  return next;
 }
 
 function clamp(value: number, min = 0, max = 100) {
@@ -62,7 +77,7 @@ function SplitterRoot({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const panels = useMemo(() => Children.toArray(children).filter(isValidElement) as ReactElement<SplitterPanelProps>[], [children]);
   const [sizes, setSizes] = useState(() => normalizeSizes(panels));
-  const expandedSizesRef = useRef(normalizeSizes(panels));
+  const expandedSizesRef = useRef(normalizeExpandedSizes(panels));
 
   function resizePair(index: number, deltaPercent: number, complete = false) {
     setSizes((current) => {

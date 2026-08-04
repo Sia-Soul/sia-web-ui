@@ -23,6 +23,10 @@
     "disk:build": "pnpm --filter @sia-ui/disk-space tauri:build:bin",
     "disk:bundle": "pnpm --filter @sia-ui/disk-space tauri:build",
     "disk:web": "pnpm --filter @sia-ui/disk-space dev",
+    "notepad:dev": "pnpm --filter @sia-ui/notepad tauri:dev",
+    "notepad:build": "pnpm --filter @sia-ui/notepad tauri:build:bin",
+    "notepad:bundle": "pnpm --filter @sia-ui/notepad tauri:build",
+    "notepad:web": "pnpm --filter @sia-ui/notepad dev",
     "typecheck": "pnpm -r typecheck",
     "check": "pnpm typecheck && pnpm build",
     "create:sia": "node packages/create-sia-web/cli.mjs"

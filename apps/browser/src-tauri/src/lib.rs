@@ -1,6 +1,20 @@
 mod browser_overlay;
+mod extensions;
 mod floating_windows;
 mod passwords;
+
+#[cfg(windows)]
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+    ffi::{OsStr, OsString},
+    os::windows::ffi::OsStrExt,
+    path::{Path, PathBuf},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Mutex,
+    },
+};
 
 use passwords::{attach_password_bridge, PASSWORD_AUTOFILL_SCRIPT};
 use serde::{Deserialize, Serialize};
@@ -11,14 +25,63 @@ use tauri::{
 };
 #[cfg(windows)]
 use webview2_com::{
-    IsDocumentPlayingAudioChangedEventHandler,
-    Microsoft::Web::WebView2::Win32::{ICoreWebView2, ICoreWebView2_8},
+    BytesReceivedChangedEventHandler, CallDevToolsProtocolMethodCompletedHandler, CoTaskMemPWSTR,
+    DownloadStartingEventHandler, IsDocumentPlayingAudioChangedEventHandler,
+    Microsoft::Web::WebView2::Win32::{
+        ICoreWebView2, ICoreWebView2Deferral, ICoreWebView2DownloadOperation,
+        ICoreWebView2DownloadStartingEventArgs, ICoreWebView2_4, ICoreWebView2_8,
+        COREWEBVIEW2_DOWNLOAD_STATE, COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED,
+        COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS,
+    },
+    StateChangedEventHandler,
 };
 #[cfg(windows)]
-use windows::core::{Interface, BOOL};
+use windows::core::{Interface, BOOL, PCWSTR, PWSTR};
+#[cfg(windows)]
+use windows::Win32::UI::{
+    Shell::ShellExecuteW,
+    WindowsAndMessaging::SW_SHOWNORMAL,
+};
 
 const BROWSER_WEBVIEW_PREFIX: &str = "browser-tab-";
 const BROWSER_STATE_FILE: &str = "browser-state.json";
+#[cfg(windows)]
+static NEXT_DOWNLOAD_ID: AtomicU64 = AtomicU64::new(1);
+
+#[cfg(windows)]
+#[derive(Clone, Debug, Default)]
+struct DownloadPreferences {
+    directory: PathBuf,
+    ask_before_download: bool,
+}
+
+#[cfg(windows)]
+#[derive(Clone, Debug, Default)]
+struct PendingDownloadMetadata {
+    file_name: String,
+}
+
+#[cfg(windows)]
+#[derive(Default)]
+struct DownloadRuntimeState {
+    preferences: Mutex<DownloadPreferences>,
+    pending: Mutex<HashMap<String, PendingDownloadMetadata>>,
+    open_after_completion: Mutex<HashSet<String>>,
+}
+
+#[cfg(windows)]
+struct PendingDownload {
+    args: ICoreWebView2DownloadStartingEventArgs,
+    deferral: ICoreWebView2Deferral,
+    operation: ICoreWebView2DownloadOperation,
+    tab_id: String,
+}
+
+#[cfg(windows)]
+thread_local! {
+    static PENDING_DOWNLOADS: RefCell<HashMap<String, PendingDownload>> =
+        RefCell::new(HashMap::new());
+}
 
 #[derive(Clone, Copy, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -49,6 +112,20 @@ struct BrowserEvent {
     audible: Option<bool>,
     muted: Option<bool>,
     message: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BrowserDownloadEvent {
+    id: String,
+    tab_id: String,
+    state: &'static str,
+    received_bytes: u64,
+    total_bytes: Option<u64>,
+    success: Option<bool>,
+    source_url: Option<String>,
+    file_path: Option<String>,
+    file_name: Option<String>,
 }
 
 fn sanitize_identifier(value: &str) -> String {
@@ -110,7 +187,7 @@ fn logical_rect(bounds: BrowserBounds) -> Rect {
 fn parse_browser_url(value: &str) -> Result<tauri::Url, String> {
     let url = tauri::Url::parse(value).map_err(|error| format!("网址无效：{error}"))?;
     match url.scheme() {
-        "http" | "https" => Ok(url),
+        "http" | "https" | "chrome-extension" | "about" => Ok(url),
         scheme => Err(format!("当前版本暂不支持 {scheme} 协议")),
     }
 }
@@ -121,6 +198,354 @@ fn emit_browser_event(app: &AppHandle, event: BrowserEvent) {
         event.tab_id, event.kind, event.loading, event.url
     );
     let _ = app.emit("sia://browser-event", event);
+}
+
+#[cfg(windows)]
+fn read_download_progress(
+    operation: &ICoreWebView2DownloadOperation,
+) -> windows::core::Result<(u64, Option<u64>)> {
+    let mut received_bytes = 0_i64;
+    let mut total_bytes = 0_i64;
+    unsafe {
+        operation.BytesReceived(&mut received_bytes)?;
+        operation.TotalBytesToReceive(&mut total_bytes)?;
+    }
+    Ok((
+        received_bytes.max(0) as u64,
+        (total_bytes > 0).then_some(total_bytes as u64),
+    ))
+}
+
+#[cfg(windows)]
+fn download_file_name(operation: &ICoreWebView2DownloadOperation) -> String {
+    let mut raw_file_path = PWSTR::null();
+    let file_path = unsafe { operation.ResultFilePath(&mut raw_file_path) }
+        .ok()
+        .map(|_| CoTaskMemPWSTR::from(raw_file_path).to_string())
+        .filter(|value| !value.is_empty());
+    file_path
+        .as_deref()
+        .and_then(|path| Path::new(path).file_name())
+        .map(|name| name.to_string_lossy().into_owned())
+        .filter(|name| !name.is_empty())
+        .unwrap_or_else(|| "download".to_string())
+}
+
+#[cfg(windows)]
+fn unique_download_path(directory: &Path, file_name: &str) -> Result<PathBuf, String> {
+    std::fs::create_dir_all(directory)
+        .map_err(|error| format!("无法创建下载目录 {}：{error}", directory.display()))?;
+    let original = directory.join(file_name);
+    if !original.exists() {
+        return Ok(original);
+    }
+
+    let file_path = Path::new(file_name);
+    let stem = file_path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or("download");
+    let extension = file_path.extension().and_then(|value| value.to_str());
+    for index in 1..10_000 {
+        let candidate_name = match extension {
+            Some(extension) if !extension.is_empty() => format!("{stem} ({index}).{extension}"),
+            _ => format!("{stem} ({index})"),
+        };
+        let candidate = directory.join(candidate_name);
+        if !candidate.exists() {
+            return Ok(candidate);
+        }
+    }
+    Err("无法为下载文件生成可用的文件名".to_string())
+}
+
+#[cfg(windows)]
+fn set_download_result_path(
+    args: &ICoreWebView2DownloadStartingEventArgs,
+    path: &Path,
+) -> windows::core::Result<()> {
+    let wide_path = path
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect::<Vec<_>>();
+    unsafe { args.SetResultFilePath(PCWSTR(wide_path.as_ptr())) }
+}
+
+#[cfg(windows)]
+fn wide_null(value: &OsStr) -> Vec<u16> {
+    value
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect()
+}
+
+#[cfg(windows)]
+fn shell_execute(
+    file: &OsStr,
+    parameters: Option<&OsStr>,
+    error_context: &str,
+) -> Result<(), String> {
+    let operation = wide_null(OsStr::new("open"));
+    let file = wide_null(file);
+    let parameters = parameters.map(wide_null);
+    let parameter_pointer = parameters
+        .as_ref()
+        .map(|value| PCWSTR(value.as_ptr()))
+        .unwrap_or(PCWSTR::null());
+    let result = unsafe {
+        ShellExecuteW(
+            None,
+            PCWSTR(operation.as_ptr()),
+            PCWSTR(file.as_ptr()),
+            parameter_pointer,
+            PCWSTR::null(),
+            SW_SHOWNORMAL,
+        )
+    };
+    let status = result.0 as isize;
+    if status <= 32 {
+        Err(format!("{error_context}（ShellExecute 错误码：{status}）"))
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(windows)]
+fn open_download_path(path: &Path) {
+    if let Err(error) = shell_execute(
+        path.as_os_str(),
+        None,
+        "Windows 无法使用默认应用打开该文件",
+    ) {
+        eprintln!("无法自动打开下载文件 {}：{error}", path.display());
+    }
+}
+
+#[cfg(windows)]
+fn emit_download_event(
+    app: &AppHandle,
+    tab_id: &str,
+    download_id: &str,
+    state: &'static str,
+    operation: &ICoreWebView2DownloadOperation,
+    success: Option<bool>,
+) -> windows::core::Result<()> {
+    let (received_bytes, total_bytes) = read_download_progress(operation)?;
+    let mut raw_source_url = PWSTR::null();
+    let source_url = unsafe { operation.Uri(&mut raw_source_url) }
+        .ok()
+        .map(|_| CoTaskMemPWSTR::from(raw_source_url).to_string())
+        .filter(|value| !value.is_empty());
+    let mut raw_file_path = PWSTR::null();
+    let file_path = unsafe { operation.ResultFilePath(&mut raw_file_path) }
+        .ok()
+        .map(|_| CoTaskMemPWSTR::from(raw_file_path).to_string())
+        .filter(|value| !value.is_empty());
+    let file_name = file_path.as_ref().and_then(|path| {
+        std::path::Path::new(path)
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+    });
+    eprintln!(
+        "[browser-download] id={download_id} tab={tab_id} state={state} received={received_bytes} total={total_bytes:?}"
+    );
+    let _ = app.emit(
+        "sia://browser-download",
+        BrowserDownloadEvent {
+            id: download_id.to_string(),
+            tab_id: tab_id.to_string(),
+            state,
+            received_bytes,
+            total_bytes,
+            success,
+            source_url,
+            file_path,
+            file_name,
+        },
+    );
+    Ok(())
+}
+
+#[cfg(windows)]
+fn attach_download_operation(
+    app: &AppHandle,
+    tab_id: &str,
+    download_id: &str,
+    operation: &ICoreWebView2DownloadOperation,
+) -> windows::core::Result<()> {
+    let progress_app = app.clone();
+    let progress_tab_id = tab_id.to_string();
+    let progress_download_id = download_id.to_string();
+    let progress_handler =
+        BytesReceivedChangedEventHandler::create(Box::new(move |sender, _args| {
+            if let Some(operation) = sender {
+                emit_download_event(
+                    &progress_app,
+                    &progress_tab_id,
+                    &progress_download_id,
+                    "progress",
+                    &operation,
+                    None,
+                )?;
+            }
+            Ok(())
+        }));
+    let mut progress_token = 0;
+    unsafe {
+        operation.add_BytesReceivedChanged(&progress_handler, &mut progress_token)?;
+    }
+
+    let state_app = app.clone();
+    let state_tab_id = tab_id.to_string();
+    let state_download_id = download_id.to_string();
+    let state_handler = StateChangedEventHandler::create(Box::new(move |sender, _args| {
+        if let Some(operation) = sender {
+            let mut download_state = COREWEBVIEW2_DOWNLOAD_STATE::default();
+            unsafe {
+                operation.State(&mut download_state)?;
+            }
+            if download_state != COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS {
+                let completed = download_state == COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED;
+                emit_download_event(
+                    &state_app,
+                    &state_tab_id,
+                    &state_download_id,
+                    "finished",
+                    &operation,
+                    Some(completed),
+                )?;
+                let should_open = state_app
+                    .state::<DownloadRuntimeState>()
+                    .open_after_completion
+                    .lock()
+                    .map(|mut entries| entries.remove(&state_download_id))
+                    .unwrap_or(false);
+                if completed && should_open {
+                    let mut raw_file_path = PWSTR::null();
+                    if unsafe { operation.ResultFilePath(&mut raw_file_path) }.is_ok() {
+                        let path = CoTaskMemPWSTR::from(raw_file_path).to_string();
+                        if !path.is_empty() {
+                            open_download_path(Path::new(&path));
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }));
+    let mut state_token = 0;
+    unsafe {
+        operation.add_StateChanged(&state_handler, &mut state_token)?;
+    }
+
+    emit_download_event(app, tab_id, download_id, "started", operation, None)
+}
+
+#[cfg(windows)]
+fn attach_download_monitor(
+    app: &AppHandle,
+    webview: &tauri::Webview,
+    tab_id: String,
+) -> Result<(), String> {
+    let monitor_app = app.clone();
+    webview
+        .with_webview(move |platform_webview| {
+            let setup = (|| -> windows::core::Result<()> {
+                let core_webview: ICoreWebView2 =
+                    unsafe { platform_webview.controller().CoreWebView2()? };
+                let core_webview_4: ICoreWebView2_4 = core_webview.cast()?;
+                let event_app = monitor_app.clone();
+                let event_tab_id = tab_id.clone();
+                let handler =
+                    DownloadStartingEventHandler::create(Box::new(move |_sender, args| {
+                        if let Some(args) = args {
+                            let operation = unsafe { args.DownloadOperation()? };
+                            let download_id = format!(
+                                "download-{}",
+                                NEXT_DOWNLOAD_ID.fetch_add(1, Ordering::Relaxed)
+                            );
+                            let preferences = event_app
+                                .state::<DownloadRuntimeState>()
+                                .preferences
+                                .lock()
+                                .map(|preferences| preferences.clone())
+                                .unwrap_or_default();
+                            unsafe {
+                                args.SetHandled(true)?;
+                            }
+                            if preferences.ask_before_download {
+                                let deferral = unsafe { args.GetDeferral()? };
+                                let file_name = download_file_name(&operation);
+                                if let Ok(mut pending) =
+                                    event_app.state::<DownloadRuntimeState>().pending.lock()
+                                {
+                                    pending.insert(
+                                        download_id.clone(),
+                                        PendingDownloadMetadata {
+                                            file_name: file_name.clone(),
+                                        },
+                                    );
+                                }
+                                PENDING_DOWNLOADS.with(|pending| {
+                                    pending.borrow_mut().insert(
+                                        download_id.clone(),
+                                        PendingDownload {
+                                            args: args.clone(),
+                                            deferral,
+                                            operation: operation.clone(),
+                                            tab_id: event_tab_id.clone(),
+                                        },
+                                    );
+                                });
+                                emit_download_event(
+                                    &event_app,
+                                    &event_tab_id,
+                                    &download_id,
+                                    "waiting",
+                                    &operation,
+                                    None,
+                                )?;
+                            } else {
+                                if !preferences.directory.as_os_str().is_empty() {
+                                    if let Ok(path) = unique_download_path(
+                                        &preferences.directory,
+                                        &download_file_name(&operation),
+                                    ) {
+                                        set_download_result_path(&args, &path)?;
+                                    }
+                                }
+                                attach_download_operation(
+                                    &event_app,
+                                    &event_tab_id,
+                                    &download_id,
+                                    &operation,
+                                )?;
+                            }
+                        }
+                        Ok(())
+                    }));
+                let mut token = 0;
+                unsafe {
+                    core_webview_4.add_DownloadStarting(&handler, &mut token)?;
+                }
+                Ok(())
+            })();
+
+            if let Err(error) = setup {
+                eprintln!("无法监听网页下载状态：{error}");
+            }
+        })
+        .map_err(|error| error.to_string())
+}
+
+#[cfg(not(windows))]
+fn attach_download_monitor(
+    _app: &AppHandle,
+    _webview: &tauri::Webview,
+    _tab_id: String,
+) -> Result<(), String> {
+    Ok(())
 }
 
 #[cfg(windows)]
@@ -267,6 +692,7 @@ async fn open_browser_tab(
             .map_err(|error| error.to_string())?;
         webview.show().map_err(|error| error.to_string())?;
         webview.set_focus().map_err(|error| error.to_string())?;
+        floating_windows::raise_tab_panel_if_visible(&app);
         return Ok(());
     }
 
@@ -274,6 +700,7 @@ async fn open_browser_tab(
         .get_window("main")
         .ok_or_else(|| "找不到浏览器主窗口".to_string())?;
     let data_directory = browser_group_data_directory(&app, &group_id)?;
+    let extensions_directory = extensions::enabled_extensions_directory(&app)?;
 
     let page_event_app = app.clone();
     let page_event_tab_id = tab_id.clone();
@@ -287,12 +714,15 @@ async fn open_browser_tab(
 
     let builder = WebviewBuilder::new(label, WebviewUrl::External(parsed_url))
         .data_directory(data_directory)
+        .browser_extensions_enabled(true)
+        .extensions_path(extensions_directory)
+        .devtools(true)
         .initialization_script(PASSWORD_AUTOFILL_SCRIPT)
         .zoom_hotkeys_enabled(true)
         .on_navigation(|next_url| {
             matches!(
                 next_url.scheme(),
-                "http" | "https" | "about" | "data" | "blob"
+                "http" | "https" | "chrome-extension" | "about" | "data" | "blob"
             )
         })
         .on_page_load(move |_webview, payload| {
@@ -359,6 +789,7 @@ async fn open_browser_tab(
         })?;
     eprintln!("[browser-view] created label={}", browser_label(&tab_id));
     webview.set_focus().map_err(|error| error.to_string())?;
+    floating_windows::raise_tab_panel_if_visible(&app);
 
     let audio_app = app.clone();
     let audio_webview = webview.clone();
@@ -385,6 +816,17 @@ async fn open_browser_tab(
                     message: Some(format!("无法初始化网页声音监听：{error}")),
                 },
             );
+        }
+    });
+
+    let download_app = app.clone();
+    let download_webview = webview.clone();
+    let download_tab_id = tab_id.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Err(error) =
+            attach_download_monitor(&download_app, &download_webview, download_tab_id)
+        {
+            eprintln!("无法初始化网页下载监听：{error}");
         }
     });
 
@@ -416,6 +858,7 @@ async fn switch_browser_tab(
             .map_err(|error| error.to_string())?;
         webview.show().map_err(|error| error.to_string())?;
         webview.set_focus().map_err(|error| error.to_string())?;
+        floating_windows::raise_tab_panel_if_visible(&app);
         Ok(true)
     } else {
         eprintln!("[browser-view] missing label={label}");
@@ -430,6 +873,15 @@ fn close_browser_tab(app: AppHandle, tab_id: String) -> Result<(), String> {
         webview.hide().map_err(|error| error.to_string())?;
         webview.close().map_err(|error| error.to_string())?;
     }
+    Ok(())
+}
+
+#[tauri::command]
+fn open_browser_devtools(app: AppHandle, tab_id: String) -> Result<(), String> {
+    let webview = app
+        .get_webview(&browser_label(&tab_id))
+        .ok_or_else(|| "当前标签页还没有打开网页".to_string())?;
+    webview.open_devtools();
     Ok(())
 }
 
@@ -510,7 +962,7 @@ fn show_browser_more_menu(
         "items": [
             { "key": "more:tab-layout", "label": layout_label },
             { "type": "divider" },
-            { "key": "more:bookmarks", "label": "书签" },
+            { "key": "more:bookmarks", "label": "收藏夹" },
             {
                 "key": "more:bookmark-bar",
                 "label": "显示书签栏",
@@ -540,6 +992,32 @@ fn show_browser_more_menu(
             y,
             width: 276.0,
             height: 354.0,
+        },
+    )
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+fn show_browser_panel(
+    app: AppHandle,
+    menu_store: tauri::State<'_, floating_windows::BrowserMenuStore>,
+    payload: serde_json::Value,
+    source_window: String,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
+    floating_windows::show_menu(
+        &app,
+        &menu_store,
+        payload,
+        source_window,
+        floating_windows::FloatingWindowBounds {
+            x,
+            y,
+            width,
+            height,
         },
     )
 }
@@ -773,14 +1251,271 @@ fn browser_page_action(app: AppHandle, tab_id: String, action: String) -> Result
         .get_webview(&browser_label(&tab_id))
         .ok_or_else(|| "当前标签页还没有打开网页".to_string())?;
 
+    #[cfg(windows)]
+    if action == "reload-clear-cache" {
+        webview
+            .with_webview(move |platform_webview| {
+                let result = (|| -> windows::core::Result<()> {
+                    let core_webview: ICoreWebView2 =
+                        unsafe { platform_webview.controller().CoreWebView2()? };
+                    let reload_webview = core_webview.clone();
+                    let handler = CallDevToolsProtocolMethodCompletedHandler::create(Box::new(
+                        move |_error, _result| unsafe { reload_webview.Reload() },
+                    ));
+                    let method = "Network.clearBrowserCache"
+                        .encode_utf16()
+                        .chain(std::iter::once(0))
+                        .collect::<Vec<_>>();
+                    let parameters = "{}"
+                        .encode_utf16()
+                        .chain(std::iter::once(0))
+                        .collect::<Vec<_>>();
+                    unsafe {
+                        core_webview.CallDevToolsProtocolMethod(
+                            PCWSTR::from_raw(method.as_ptr()),
+                            PCWSTR::from_raw(parameters.as_ptr()),
+                            &handler,
+                        )
+                    }
+                })();
+                if let Err(error) = result {
+                    eprintln!("清空网页缓存并硬刷新失败：{error}");
+                }
+            })
+            .map_err(|error| error.to_string())?;
+        return Ok(());
+    }
+
     match action.as_str() {
         "back" => webview.eval("history.back()"),
         "forward" => webview.eval("history.forward()"),
         "reload" => webview.reload(),
+        "reload-hard" => webview.eval("location.reload()"),
+        #[cfg(not(windows))]
+        "reload-clear-cache" => webview.reload(),
+        action if action.starts_with("history-go:") => {
+            let offset = action
+                .trim_start_matches("history-go:")
+                .parse::<i32>()
+                .map_err(|_| "后退历史偏移量无效".to_string())?;
+            webview.eval(&format!("history.go({offset})"))
+        }
         "stop" => webview.eval("window.stop()"),
         _ => return Err(format!("未知网页操作：{action}")),
     }
     .map_err(|error| error.to_string())
+}
+
+#[cfg(windows)]
+#[tauri::command]
+fn get_default_download_directory(app: AppHandle) -> Result<String, String> {
+    app.path()
+        .download_dir()
+        .map(|path| path.to_string_lossy().into_owned())
+        .map_err(|error| format!("无法获取系统下载目录：{error}"))
+}
+
+#[cfg(windows)]
+#[tauri::command]
+fn set_download_preferences(
+    state: tauri::State<'_, DownloadRuntimeState>,
+    directory: String,
+    ask_before_download: bool,
+) -> Result<(), String> {
+    let directory = PathBuf::from(directory);
+    if !directory.as_os_str().is_empty() {
+        std::fs::create_dir_all(&directory)
+            .map_err(|error| format!("无法创建下载目录 {}：{error}", directory.display()))?;
+    }
+    let mut preferences = state
+        .preferences
+        .lock()
+        .map_err(|_| "无法更新下载设置".to_string())?;
+    preferences.directory = directory;
+    preferences.ask_before_download = ask_before_download;
+    Ok(())
+}
+
+#[cfg(windows)]
+#[tauri::command]
+async fn choose_download_directory(current: String) -> Result<Option<String>, String> {
+    let mut dialog = rfd::AsyncFileDialog::new().set_title("选择下载文件夹");
+    let current = PathBuf::from(current);
+    if current.is_dir() {
+        dialog = dialog.set_directory(current);
+    }
+    Ok(dialog
+        .pick_folder()
+        .await
+        .map(|folder| folder.path().to_string_lossy().into_owned()))
+}
+
+#[cfg(windows)]
+#[tauri::command]
+async fn resolve_pending_download(
+    app: AppHandle,
+    state: tauri::State<'_, DownloadRuntimeState>,
+    id: String,
+    choice: String,
+) -> Result<bool, String> {
+    let metadata = state
+        .pending
+        .lock()
+        .map_err(|_| "无法读取待处理下载".to_string())?
+        .get(&id)
+        .cloned()
+        .ok_or_else(|| "找不到待处理的下载任务".to_string())?;
+    let preferences = state
+        .preferences
+        .lock()
+        .map_err(|_| "无法读取下载设置".to_string())?
+        .clone();
+
+    let target_path = match choice.as_str() {
+        "cancel" => None,
+        "open" => {
+            let directory = std::env::temp_dir().join("SiaBrowser").join("downloads");
+            Some(unique_download_path(&directory, &metadata.file_name)?)
+        }
+        "save" => {
+            let directory = if preferences.directory.as_os_str().is_empty() {
+                app.path()
+                    .download_dir()
+                    .map_err(|error| format!("无法获取系统下载目录：{error}"))?
+            } else {
+                preferences.directory.clone()
+            };
+            Some(unique_download_path(&directory, &metadata.file_name)?)
+        }
+        "save-as" => {
+            let mut dialog = rfd::AsyncFileDialog::new()
+                .set_title("另存为")
+                .set_file_name(&metadata.file_name);
+            if preferences.directory.is_dir() {
+                dialog = dialog.set_directory(&preferences.directory);
+            }
+            let Some(file) = dialog.save_file().await else {
+                return Ok(false);
+            };
+            Some(file.path().to_path_buf())
+        }
+        _ => return Err(format!("未知的下载处理方式：{choice}")),
+    };
+
+    let should_open = choice == "open";
+    let (sender, receiver) = tokio::sync::oneshot::channel::<Result<(), String>>();
+    let callback_app = app.clone();
+    let callback_id = id.clone();
+    app.run_on_main_thread(move || {
+        let result = PENDING_DOWNLOADS.with(|pending| {
+            let Some(download) = pending.borrow_mut().remove(&callback_id) else {
+                return Err("找不到待处理的 WebView2 下载任务".to_string());
+            };
+            let action_result = (|| -> windows::core::Result<()> {
+                if choice == "cancel" {
+                    unsafe {
+                        download.args.SetCancel(true)?;
+                    }
+                } else if let Some(path) = target_path.as_deref() {
+                    set_download_result_path(&download.args, path)?;
+                    if should_open {
+                        if let Ok(mut entries) = callback_app
+                            .state::<DownloadRuntimeState>()
+                            .open_after_completion
+                            .lock()
+                        {
+                            entries.insert(callback_id.clone());
+                        }
+                    }
+                    attach_download_operation(
+                        &callback_app,
+                        &download.tab_id,
+                        &callback_id,
+                        &download.operation,
+                    )?;
+                }
+                Ok(())
+            })();
+            let complete_result = unsafe { download.deferral.Complete() };
+            action_result
+                .and(complete_result)
+                .map_err(|error| format!("无法继续下载：{error}"))
+        });
+        let _ = sender.send(result);
+    })
+    .map_err(|error| format!("无法切换到浏览器主线程：{error}"))?;
+
+    receiver
+        .await
+        .map_err(|_| "下载处理流程意外中断".to_string())??;
+    if let Ok(mut pending) = state.pending.lock() {
+        pending.remove(&id);
+    }
+    Ok(true)
+}
+
+#[tauri::command]
+fn open_download_file(path: String) -> Result<(), String> {
+    let path = std::path::PathBuf::from(path);
+    if !path.is_file() {
+        return Err("下载文件不存在或已被移动".to_string());
+    }
+    #[cfg(windows)]
+    {
+        return shell_execute(
+            path.as_os_str(),
+            None,
+            "Windows 无法使用默认应用打开该文件",
+        );
+    }
+    #[cfg(not(windows))]
+    {
+        Err("当前平台暂不支持打开下载文件".to_string())
+    }
+}
+
+#[tauri::command]
+fn show_download_in_folder(path: String) -> Result<(), String> {
+    let path = std::path::PathBuf::from(path);
+    if !path.exists() {
+        return Err("下载文件不存在或已被移动".to_string());
+    }
+    #[cfg(windows)]
+    {
+        let mut parameters = OsString::from("/select,\"");
+        parameters.push(path.as_os_str());
+        parameters.push("\"");
+        return shell_execute(
+            OsStr::new("explorer.exe"),
+            Some(parameters.as_os_str()),
+            "Windows 无法在文件夹中定位该下载文件",
+        );
+    }
+    #[cfg(not(windows))]
+    {
+        Err("当前平台暂不支持在文件夹中显示下载文件".to_string())
+    }
+}
+
+#[tauri::command]
+fn delete_download_file(path: String) -> Result<(), String> {
+    let path = std::path::PathBuf::from(path);
+    if !path.exists() {
+        return Err("下载文件不存在或已被移动".to_string());
+    }
+    if !path.is_file() {
+        return Err("只能删除下载记录对应的文件".to_string());
+    }
+    std::fs::remove_file(&path).map_err(|error| format!("无法删除下载文件：{error}"))
+}
+
+#[tauri::command]
+fn open_default_browser_settings() -> Result<(), String> {
+    std::process::Command::new("explorer.exe")
+        .arg("ms-settings:defaultapps")
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| format!("无法打开 Windows 默认应用设置：{error}"))
 }
 
 #[tauri::command]
@@ -821,7 +1556,14 @@ pub fn run() {
         .manage(browser_overlay::BrowserOverlayStore::default())
         .manage(floating_windows::TabPanelStore::default())
         .manage(floating_windows::BrowserMenuStore::default())
+        .manage(DownloadRuntimeState::default())
         .setup(|app| {
+            if let Ok(directory) = app.path().download_dir() {
+                if let Ok(mut preferences) = app.state::<DownloadRuntimeState>().preferences.lock()
+                {
+                    preferences.directory = directory;
+                }
+            }
             if let Err(error) = browser_overlay::initialize(app.handle()) {
                 eprintln!("无法预加载浏览器模态窗口：{error}");
             }
@@ -835,8 +1577,10 @@ pub fn run() {
             switch_browser_tab,
             hide_browser_pages,
             close_browser_tab,
+            open_browser_devtools,
             set_browser_tab_muted,
             show_browser_more_menu,
+            show_browser_panel,
             show_browser_tab_menu,
             show_browser_tree_menu,
             clear_browser_tabs_data,
@@ -844,6 +1588,14 @@ pub fn run() {
             save_browser_state,
             set_browser_bounds,
             browser_page_action,
+            get_default_download_directory,
+            set_download_preferences,
+            choose_download_directory,
+            resolve_pending_download,
+            open_download_file,
+            show_download_in_folder,
+            delete_download_file,
+            open_default_browser_settings,
             browser_window_action,
             current_window_label,
             browser_overlay::open_browser_overlay,
@@ -854,6 +1606,7 @@ pub fn run() {
             floating_windows::update_floating_tab_panel,
             floating_windows::get_floating_tab_panel_state,
             floating_windows::close_floating_tab_panel,
+            floating_windows::close_floating_tab_panel_if_pointer_outside,
             floating_windows::floating_tab_panel_action,
             floating_windows::get_browser_menu_state,
             floating_windows::close_browser_menu,
@@ -863,6 +1616,13 @@ pub fn run() {
             passwords::save_browser_password,
             passwords::delete_browser_password,
             passwords::import_browser_passwords,
+            extensions::list_browser_extensions,
+            extensions::scan_browser_extensions,
+            extensions::pick_browser_extension_folder,
+            extensions::install_browser_extension,
+            extensions::set_browser_extension_enabled,
+            extensions::resolve_browser_extension_id,
+            extensions::remove_browser_extension,
         ])
         .run(tauri::generate_context!())
         .expect("启动 Sia Browser 失败");

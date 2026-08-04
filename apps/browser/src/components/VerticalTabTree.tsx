@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { Button, Icon, Tooltip } from "@sia-ui/react";
 import { ROOT_GROUP_ID, type BrowserGroup, type BrowserTab } from "../browserTypes";
@@ -24,6 +24,7 @@ interface VerticalTabTreeProps {
   panelExpanded?: boolean;
   panelPinned?: boolean;
   panelWidth?: number;
+  showScrollbar?: boolean;
   collapsedGroupIds?: readonly string[];
   collapsedSmallGroupIds?: readonly string[];
   onToggleGroup?: (groupId: string) => void;
@@ -61,6 +62,7 @@ export default function VerticalTabTree({
   panelExpanded = true,
   panelPinned = true,
   panelWidth = 292,
+  showScrollbar = false,
   collapsedGroupIds = [],
   collapsedSmallGroupIds = [],
   onToggleGroup,
@@ -69,7 +71,18 @@ export default function VerticalTabTree({
   onPanelWidthChange,
 }: VerticalTabTreeProps) {
   const [resizing, setResizing] = useState(false);
+  const [scrollbarMetrics, setScrollbarMetrics] = useState({
+    visible: false,
+    thumbHeight: 0,
+    thumbTop: 0,
+  });
   const resizeStateRef = useRef<{ pointerId: number; startX: number; startWidth: number } | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const scrollbarDragRef = useRef<{
+    pointerId: number;
+    startY: number;
+    startScrollTop: number;
+  } | null>(null);
   const collapsedGroups = useMemo(() => new Set(collapsedGroupIds), [collapsedGroupIds]);
   const collapsedSmallGroups = useMemo(
     () => new Set(collapsedSmallGroupIds),
@@ -86,6 +99,60 @@ export default function VerticalTabTree({
   }, [tabs]);
   const rootTabs = tabsByGroup.get(ROOT_GROUP_ID) ?? [];
   const activeTab = tabs.find((tab) => tab.id === activeId);
+
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!panelExpanded || !scrollContainer) {
+      setScrollbarMetrics({ visible: false, thumbHeight: 0, thumbTop: 0 });
+      return undefined;
+    }
+
+    let frame: number | undefined;
+    const updateScrollbar = () => {
+      if (frame !== undefined) window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const { clientHeight, scrollHeight, scrollTop } = scrollContainer;
+        const trackHeight = Math.max(0, clientHeight - 8);
+        if (scrollHeight <= clientHeight + 1 || trackHeight <= 0) {
+          setScrollbarMetrics({ visible: false, thumbHeight: 0, thumbTop: 0 });
+          return;
+        }
+        const thumbHeight = Math.max(28, trackHeight * (clientHeight / scrollHeight));
+        const maxThumbTop = Math.max(0, trackHeight - thumbHeight);
+        const maxScrollTop = Math.max(1, scrollHeight - clientHeight);
+        setScrollbarMetrics({
+          visible: true,
+          thumbHeight,
+          thumbTop: 4 + (scrollTop / maxScrollTop) * maxThumbTop,
+        });
+      });
+    };
+
+    const resizeObserver = new ResizeObserver(updateScrollbar);
+    resizeObserver.observe(scrollContainer);
+    const mutationObserver = new MutationObserver(updateScrollbar);
+    mutationObserver.observe(scrollContainer, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+    });
+    scrollContainer.addEventListener("scroll", updateScrollbar, { passive: true });
+    updateScrollbar();
+
+    return () => {
+      if (frame !== undefined) window.cancelAnimationFrame(frame);
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      scrollContainer.removeEventListener("scroll", updateScrollbar);
+    };
+  }, [
+    collapsedGroupIds,
+    collapsedSmallGroupIds,
+    groups,
+    panelExpanded,
+    panelWidth,
+    tabs,
+  ]);
 
   function handleResizeStart(event: ReactPointerEvent<HTMLDivElement>) {
     if (!panelExpanded || event.button !== 0) return;
@@ -120,6 +187,38 @@ export default function VerticalTabTree({
 
   function togglePanelPinned() {
     onPinPanel?.();
+  }
+
+  function handleScrollbarDragStart(event: ReactPointerEvent<HTMLSpanElement>) {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer || event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    scrollbarDragRef.current = {
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      startScrollTop: scrollContainer.scrollTop,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function handleScrollbarDragMove(event: ReactPointerEvent<HTMLSpanElement>) {
+    const drag = scrollbarDragRef.current;
+    const scrollContainer = scrollContainerRef.current;
+    if (!drag || !scrollContainer || drag.pointerId !== event.pointerId) return;
+    const trackHeight = Math.max(0, scrollContainer.clientHeight - 8);
+    const maxThumbTop = Math.max(1, trackHeight - scrollbarMetrics.thumbHeight);
+    const maxScrollTop = Math.max(0, scrollContainer.scrollHeight - scrollContainer.clientHeight);
+    scrollContainer.scrollTop = drag.startScrollTop
+      + ((event.clientY - drag.startY) / maxThumbTop) * maxScrollTop;
+  }
+
+  function finishScrollbarDrag(event: ReactPointerEvent<HTMLSpanElement>) {
+    if (scrollbarDragRef.current?.pointerId !== event.pointerId) return;
+    scrollbarDragRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
   }
 
   function renderTab(tab: BrowserTab) {
@@ -169,16 +268,41 @@ export default function VerticalTabTree({
 
   function renderCompactTab(tab: BrowserTab) {
     const active = tab.id === activeId;
+    const statusText = [
+      tab.sleeping ? "休眠" : "",
+      tab.muted ? "已静音" : tab.audible ? "正在播放声音" : "",
+    ].filter(Boolean).join("，");
+    const accessibleTitle = statusText ? `${tab.title} · ${statusText}` : tab.title;
     return (
       <Button
         key={tab.id}
         className={`vertical-tree-compact-tab${active ? " is-active" : ""}`}
         variant="text"
         size="small"
-        icon={<BrowserFavicon url={tab.url} loading={tab.loading} size={16} />}
+        icon={(
+          <span className="vertical-tree-compact-tab__visual">
+            <BrowserFavicon url={tab.url} loading={tab.loading} size={16} />
+            {tab.sleeping ? (
+              <span
+                className="vertical-tree-compact-tab__state vertical-tree-compact-tab__state--sleeping"
+                aria-hidden="true"
+              >
+                <Icon name="moon" size={6} />
+              </span>
+            ) : null}
+            {tab.muted || tab.audible ? (
+              <span
+                className={`vertical-tree-compact-tab__state vertical-tree-compact-tab__state--${tab.muted ? "muted" : "audible"}`}
+                aria-hidden="true"
+              >
+                <Icon name={tab.muted ? "speaker-muted" : "speaker-wave"} size={6} />
+              </span>
+            ) : null}
+          </span>
+        )}
         data-browser-tab-id={tab.id}
-        aria-label={tab.title}
-        title={tab.title}
+        aria-label={accessibleTitle}
+        title={accessibleTitle}
         onClick={() => onSelect(tab.id)}
       />
     );
@@ -186,19 +310,17 @@ export default function VerticalTabTree({
 
   return (
     <aside
-      className={`vertical-tab-tree${panelExpanded ? "" : " is-collapsed"}${floatingWindow ? " is-floating-window" : panelPinned ? " is-pinned" : " is-floating"}${resizing ? " is-resizing" : ""}`}
+      className={`vertical-tab-tree${panelExpanded ? "" : " is-collapsed"}${floatingWindow ? " is-floating-window" : panelPinned ? " is-pinned" : " is-floating"}${resizing ? " is-resizing" : ""}${showScrollbar ? " has-overlay-scrollbar" : ""}`}
       style={{
-        width: floatingWindow ? "calc(100% - 18px)" : panelExpanded ? panelWidth : COMPACT_PANEL_WIDTH,
-        minWidth: floatingWindow ? "calc(100% - 18px)" : panelExpanded ? panelWidth : COMPACT_PANEL_WIDTH,
+        width: floatingWindow ? "calc(100vw - 8px)" : panelExpanded ? panelWidth : COMPACT_PANEL_WIDTH,
+        minWidth: floatingWindow ? "calc(100vw - 8px)" : panelExpanded ? panelWidth : COMPACT_PANEL_WIDTH,
       }}
       aria-label="垂直标签页"
     >
       <div className="vertical-tab-tree__header">
         {panelExpanded ? (
           <>
-            {floatingWindow ? (
-              <span className="vertical-tab-tree__cookie-note">分组间cookie不共享</span>
-            ) : null}
+            <span className="vertical-tab-tree__cookie-note">分组间cookie不共享</span>
             <div className="vertical-tab-tree__actions">
               <Tooltip title="新建页签" placement="bottom" mouseEnterDelay={0.2}>
                 <Button
@@ -254,8 +376,10 @@ export default function VerticalTabTree({
         )}
       </div>
 
-      <div className="vertical-tab-tree__scroll">
-        {groups.map((group) => {
+      {panelExpanded ? (
+        <div className="vertical-tab-tree__scroll-shell">
+          <div ref={scrollContainerRef} className="vertical-tab-tree__scroll">
+            {groups.map((group) => {
           const groupCollapsed = collapsedGroups.has(group.id);
           const activeGroupParent = activeTab?.groupId === group.id;
           const groupTabs = tabsByGroup.get(group.id) ?? [];
@@ -358,13 +482,31 @@ export default function VerticalTabTree({
               ) : null}
             </section>
           );
-        })}
-        {rootTabs.length > 0 ? (
-          <div className="vertical-tab-tree__root-tabs" aria-label="根级标签页">
-            {rootTabs.map(renderTab)}
+          })}
+            {rootTabs.length > 0 ? (
+              <div className="vertical-tab-tree__root-tabs" aria-label="根级标签页">
+                {rootTabs.map(renderTab)}
+              </div>
+            ) : null}
           </div>
-        ) : null}
-      </div>
+          <div
+            className={`vertical-tab-tree__overlay-scrollbar${scrollbarMetrics.visible ? " is-visible" : ""}`}
+            aria-hidden="true"
+          >
+            <span
+              className="vertical-tab-tree__overlay-scrollbar-thumb"
+              style={{
+                height: scrollbarMetrics.thumbHeight,
+                transform: `translateY(${scrollbarMetrics.thumbTop}px)`,
+              }}
+              onPointerDown={handleScrollbarDragStart}
+              onPointerMove={handleScrollbarDragMove}
+              onPointerUp={finishScrollbarDrag}
+              onPointerCancel={finishScrollbarDrag}
+            />
+          </div>
+        </div>
+      ) : null}
       {!panelExpanded ? (
         <div className="vertical-tab-tree__compact-scroll" aria-label="紧凑标签列表">
           {groups.map((group) => {
@@ -406,12 +548,6 @@ export default function VerticalTabTree({
                             className={`vertical-tree-compact-small-group__title${activeSmallGroupParent ? " is-current-ancestor" : ""}`}
                             variant="text"
                             size="small"
-                            icon={(
-                              <Icon
-                                name={smallGroupCollapsed ? "chevron-right" : "chevron-down"}
-                                size={10}
-                              />
-                            )}
                             title={`小分组：${smallGroup.name}`}
                             aria-label={`小分组：${smallGroup.name}`}
                             aria-expanded={!smallGroupCollapsed}

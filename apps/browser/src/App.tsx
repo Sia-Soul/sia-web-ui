@@ -15,6 +15,15 @@ import HorizontalTabStrip from "./components/HorizontalTabStrip";
 import VerticalTabTree from "./components/VerticalTabTree";
 import type { BrowserOverlayPayload } from "./components/BrowserOverlayWindow";
 import type { FloatingTabPanelPayload } from "./components/BrowserTabPanelWindow";
+import type {
+  BrowserMenuItem,
+  BrowserMenuPayload,
+  BrowserPanelEntry,
+} from "./components/BrowserMenuWindow";
+import BrowserSettingsPage, {
+  type BrowserExtensionRecord,
+  type BrowserSettingsSection,
+} from "./components/BrowserSettingsPage";
 import type { PasswordSubmission } from "./components/PasswordManagerModal";
 import {
   BROWSER_GROUPS,
@@ -44,8 +53,22 @@ interface BrowserNativeEvent {
   message?: string;
 }
 
+interface BrowserDownloadNativeEvent {
+  id: string;
+  tabId: string;
+  state: "waiting" | "started" | "progress" | "finished";
+  receivedBytes: number;
+  totalBytes?: number;
+  success?: boolean;
+  sourceUrl?: string;
+  filePath?: string;
+  fileName?: string;
+  unsafe?: boolean;
+  fileDeleted?: boolean;
+}
+
 interface BrowserPersistedState {
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   tabs: BrowserTab[];
   groups: BrowserGroup[];
   activeId: string;
@@ -55,11 +78,33 @@ interface BrowserPersistedState {
   showBookmarksBar?: boolean;
   verticalPanelPinned?: boolean;
   verticalPanelWidth?: number;
+  history?: BrowserHistoryEntry[];
+  downloads?: BrowserDownloadNativeEvent[];
+  alwaysOpenDownloadExtensions?: string[];
+  downloadDirectory?: string;
+  askBeforeDownload?: boolean;
 }
 
 interface Bookmark {
   title: string;
   url: string;
+}
+
+interface BrowserHistoryEntry {
+  id: string;
+  tabId: string;
+  title: string;
+  url: string;
+  visitedAt: number;
+}
+
+interface BrowserNavigationStack {
+  entries: Array<{
+    id: string;
+    title: string;
+    url: string;
+  }>;
+  index: number;
 }
 
 interface QuickLink extends Bookmark {
@@ -81,6 +126,11 @@ interface BrowserOverlayAction {
 }
 
 const isDesktopRuntime = Boolean(window.__TAURI__);
+const SETTINGS_URL = "sia://settings";
+
+function isInternalBrowserUrl(url?: string) {
+  return url === SETTINGS_URL;
+}
 
 const DEFAULT_BOOKMARKS: readonly Bookmark[] = [
   { title: "Sia WebUI", url: "https://github.com" },
@@ -111,6 +161,7 @@ const GROUP_COLOR_PALETTE = [
 const TAB_SLEEP_DELAY_MS = 30 * 60 * 1000;
 const COMPACT_VERTICAL_PANEL_WIDTH = 56;
 const DEFAULT_VERTICAL_PANEL_WIDTH = 292;
+const FLOATING_TAB_PANEL_SHADOW_SPACE = 8;
 
 function createTabId() {
   return `tab-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -144,7 +195,7 @@ const FIRST_TAB = createBlankTab();
 function resolveAddress(rawValue: string) {
   const value = rawValue.trim();
   if (!value) return "";
-  if (/^https?:\/\//i.test(value)) return value;
+  if (/^(https?|chrome-extension):\/\//i.test(value) || /^about:/i.test(value)) return value;
   if (/^(localhost|127\.0\.0\.1)(:\d+)?(\/.*)?$/i.test(value)) return `http://${value}`;
   if (!/\s/.test(value) && (/^[\w.-]+\.[a-z]{2,}(?::\d+)?(?:\/.*)?$/i.test(value) || /^\d{1,3}(?:\.\d{1,3}){3}/.test(value))) {
     return `https://${value}`;
@@ -159,6 +210,13 @@ function hostLabel(url: string) {
   } catch {
     return url;
   }
+}
+
+function downloadFileExtension(fileNameOrPath?: string) {
+  if (!fileNameOrPath) return "";
+  const name = fileNameOrPath.split(/[\\/]/).at(-1) ?? "";
+  const separator = name.lastIndexOf(".");
+  return separator > 0 ? name.slice(separator).toLocaleLowerCase() : "";
 }
 
 async function invokeNative<T>(command: string, args?: Record<string, unknown>) {
@@ -184,14 +242,28 @@ export default function App() {
   const [verticalPanelWidth, setVerticalPanelWidth] = useState(DEFAULT_VERTICAL_PANEL_WIDTH);
   const [collapsedGroupIds, setCollapsedGroupIds] = useState<string[]>([]);
   const [collapsedSmallGroupIds, setCollapsedSmallGroupIds] = useState<string[]>([]);
+  const [downloadTasks, setDownloadTasks] = useState<Record<string, BrowserDownloadNativeEvent>>({});
+  const [alwaysOpenDownloadExtensions, setAlwaysOpenDownloadExtensions] = useState<string[]>([]);
+  const [downloadDirectory, setDownloadDirectory] = useState("");
+  const [askBeforeDownload, setAskBeforeDownload] = useState(false);
+  const [historyEntries, setHistoryEntries] = useState<BrowserHistoryEntry[]>([]);
+  const [downloadPulseToken, setDownloadPulseToken] = useState(0);
+  const [settingsSection, setSettingsSection] = useState<BrowserSettingsSection>("general");
   const pageHostRef = useRef<HTMLDivElement | null>(null);
+  const downloadButtonRef = useRef<HTMLButtonElement | null>(null);
   const verticalPanelAnchorRef = useRef<HTMLDivElement | null>(null);
   const addressInputRef = useRef<HTMLInputElement | null>(null);
   const addressFocusedRef = useRef(false);
   const previewNoticeShownRef = useRef(false);
   const boundsRef = useRef<BrowserBounds>({ x: 0, y: 126, width: 1200, height: 700 });
   const floatingPanelOpenRef = useRef(false);
+  const alwaysOpenDownloadExtensionsRef = useRef<string[]>([]);
+  const autoOpenedDownloadIdsRef = useRef(new Set<string>());
+  const showDownloadsPanelRef = useRef<() => void>(() => undefined);
   const activeTabRef = useRef<BrowserTab>(FIRST_TAB);
+  const tabsRef = useRef<BrowserTab[]>([FIRST_TAB]);
+  const navigationStacksRef = useRef<Record<string, BrowserNavigationStack>>({});
+  const navigationTargetRef = useRef<Record<string, number | undefined>>({});
   const nativeMenuActionHandlerRef = useRef<(action: string) => void>(() => undefined);
   const browserOverlayActionHandlerRef = useRef<(payload: BrowserOverlayAction) => void>(
     () => undefined,
@@ -204,11 +276,34 @@ export default function App() {
     () => tabs.find((tab) => tab.id === activeId) ?? tabs[0],
     [activeId, tabs],
   );
-  const activeBookmarked = Boolean(activeTab?.url && bookmarks.some((bookmark) => bookmark.url === activeTab.url));
+  const activeBookmarked = Boolean(
+    activeTab?.url
+    && !isInternalBrowserUrl(activeTab.url)
+    && bookmarks.some((bookmark) => bookmark.url === activeTab.url),
+  );
+  alwaysOpenDownloadExtensionsRef.current = alwaysOpenDownloadExtensions;
+  const allDownloadTasks = Object.values(downloadTasks);
+  const activeDownloadTasks = allDownloadTasks.filter((task) => task.state !== "finished");
+  const downloadHasUnknownSize = activeDownloadTasks.some((task) => !task.totalBytes);
+  const downloadTotalBytes = activeDownloadTasks.reduce(
+    (total, task) => total + (task.totalBytes ?? 0),
+    0,
+  );
+  const downloadReceivedBytes = activeDownloadTasks.reduce(
+    (total, task) => total + Math.min(task.receivedBytes, task.totalBytes ?? task.receivedBytes),
+    0,
+  );
+  const downloadProgress = downloadTotalBytes > 0
+    ? Math.min(1, downloadReceivedBytes / downloadTotalBytes)
+    : 0;
 
   useEffect(() => {
     if (activeTab) activeTabRef.current = activeTab;
   }, [activeTab]);
+
+  useEffect(() => {
+    tabsRef.current = tabs;
+  }, [tabs]);
 
   useEffect(() => {
     const preventDefaultContextMenu = (event: Event) => event.preventDefault();
@@ -263,6 +358,15 @@ export default function App() {
 
   const activateNativeTab = useCallback(async (tab: BrowserTab, forceOpen = false) => {
     if (!isDesktopRuntime) return;
+    if (isInternalBrowserUrl(tab.url)) {
+      updateTab(tab.id, {
+        loading: false,
+        hasWebview: false,
+        sleeping: false,
+      });
+      await invokeNative("hide_browser_pages");
+      return;
+    }
 
     const openWebview = async () => {
       if (!tab.url) {
@@ -330,17 +434,93 @@ export default function App() {
     });
   }, [activateNativeTab, showPreviewNotice, updateTab]);
 
+  const openExtensionOptionsTab = useCallback(async (
+    extension: BrowserExtensionRecord,
+  ): Promise<string | undefined> => {
+    const optionsPage = extension.optionsPage?.trim();
+    if (!optionsPage) throw new Error(`扩展“${extension.name}”没有提供配置页面`);
+
+    const absoluteOptionsUrl = /^[a-z][a-z\d+.-]*:\/\//i.test(optionsPage);
+    const currentTab = activeTabRef.current;
+    const nextTab = {
+      ...createBlankTab(
+        currentTab.groupId ?? DEFAULT_GROUP_ID,
+        currentTab.smallGroupId,
+      ),
+      title: `${extension.name} - 选项`,
+      url: absoluteOptionsUrl ? optionsPage : "about:blank",
+      loading: true,
+      hasWebview: true,
+    };
+    const inactiveSince = Date.now();
+    setTabs((current) => [
+      ...current.map((item) => (
+        item.id === currentTab.id ? { ...item, inactiveSince } : item
+      )),
+      nextTab,
+    ]);
+    activeTabRef.current = nextTab;
+    setActiveId(nextTab.id);
+    setAddressDraft(nextTab.url);
+
+    if (!isDesktopRuntime) {
+      showPreviewNotice();
+      return extension.browserId;
+    }
+
+    try {
+      await activateNativeTab(nextTab, true);
+      if (absoluteOptionsUrl) return extension.browserId;
+
+      const browserId = extension.browserId ?? await invokeNative<string>(
+        "resolve_browser_extension_id",
+        {
+          id: extension.id,
+          name: extension.name,
+        },
+      );
+      if (!browserId) throw new Error(`无法获取扩展“${extension.name}”的运行时标识`);
+
+      const optionsUrl = `chrome-extension://${browserId}/${optionsPage.replace(/^\/+/, "")}`;
+      const optionsTab: BrowserTab = {
+        ...nextTab,
+        url: optionsUrl,
+        loading: true,
+        hasWebview: true,
+      };
+      activeTabRef.current = optionsTab;
+      updateTab(nextTab.id, {
+        url: optionsUrl,
+        title: `${extension.name} - 选项`,
+        loading: true,
+        hasWebview: true,
+        sleeping: false,
+      });
+      setAddressDraft(optionsUrl);
+      await activateNativeTab(optionsTab, true);
+      return browserId;
+    } catch (error) {
+      void invokeNative("close_browser_tab", { tabId: nextTab.id }).catch(() => undefined);
+      setTabs((current) => current.filter((tab) => tab.id !== nextTab.id));
+      activeTabRef.current = currentTab;
+      setActiveId(currentTab.id);
+      setAddressDraft(currentTab.url);
+      throw error;
+    }
+  }, [activateNativeTab, showPreviewNotice, updateTab]);
+
   function openAdjacentTab(sourceId: string, duplicate = false) {
     const source = tabs.find((tab) => tab.id === sourceId);
     if (!source) return;
     const blankTab = createBlankTab(source.groupId, source.smallGroupId);
+    const internalSource = isInternalBrowserUrl(source.url);
     const nextTab: BrowserTab = duplicate && source.url
       ? {
           ...blankTab,
           title: source.title,
           url: source.url,
-          loading: true,
-          hasWebview: true,
+          loading: !internalSource,
+          hasWebview: !internalSource,
           muted: source.muted,
         }
       : blankTab;
@@ -359,7 +539,7 @@ export default function App() {
       if (nextTab.url) showPreviewNotice();
       return;
     }
-    void activateNativeTab(nextTab, Boolean(nextTab.url)).catch((error) => {
+    void activateNativeTab(nextTab, Boolean(nextTab.url) && !internalSource).catch((error) => {
       updateTab(nextTab.id, { loading: false, hasWebview: false, sleeping: true });
       message.error(error instanceof Error ? error.message : String(error));
     });
@@ -389,11 +569,31 @@ export default function App() {
       darkMode,
       closedTabCount: closedTabs.length,
       panelExpanded: true,
-      panelPinned: false,
+      panelPinned: verticalPanelPinned,
       panelWidth: verticalPanelWidth,
       collapsedGroupIds,
       collapsedSmallGroupIds,
     };
+  }
+
+  function presentIndependentTabPanel() {
+    const panelAnchor = verticalPanelAnchorRef.current;
+    if (!panelAnchor) return;
+    const rect = panelAnchor.getBoundingClientRect();
+    void invokeNative("open_floating_tab_panel", {
+      payload: createFloatingTabPanelPayload(),
+      bounds: {
+        x: Math.max(0, Math.floor(rect.left)),
+        y: Math.round(rect.top),
+        width: verticalPanelPinned
+          ? Math.max(1, verticalPanelWidth - FLOATING_TAB_PANEL_SHADOW_SPACE)
+          : verticalPanelWidth,
+        height: Math.max(1, Math.round(rect.height)),
+      },
+    }).catch((error) => {
+      floatingPanelOpenRef.current = false;
+      message.error(error instanceof Error ? error.message : String(error));
+    });
   }
 
   function showIndependentTabPanel() {
@@ -405,22 +605,8 @@ export default function App() {
     ) {
       return;
     }
-    const panelAnchor = verticalPanelAnchorRef.current;
-    if (!panelAnchor) return;
-    const rect = panelAnchor.getBoundingClientRect();
     floatingPanelOpenRef.current = true;
-    void invokeNative("open_floating_tab_panel", {
-      payload: createFloatingTabPanelPayload(),
-      bounds: {
-        x: Math.round(rect.left),
-        y: Math.round(rect.top),
-        width: verticalPanelWidth,
-        height: Math.max(1, Math.round(rect.height)),
-      },
-    }).catch((error) => {
-      floatingPanelOpenRef.current = false;
-      message.error(error instanceof Error ? error.message : String(error));
-    });
+    presentIndependentTabPanel();
   }
 
   function hideIndependentTabPanel() {
@@ -429,13 +615,24 @@ export default function App() {
   }
 
   function toggleVerticalPanelPinned() {
-    floatingPanelOpenRef.current = false;
-    void invokeNative("close_floating_tab_panel").catch(() => undefined);
-    setVerticalPanelPinned((current) => !current);
+    if (verticalPanelPinned) {
+      floatingPanelOpenRef.current = false;
+      void invokeNative("close_floating_tab_panel").catch(() => undefined);
+      setVerticalPanelPinned(false);
+      return;
+    }
+    floatingPanelOpenRef.current = true;
+    setVerticalPanelPinned(true);
   }
 
   useEffect(() => {
-    if (!isDesktopRuntime || !floatingPanelOpenRef.current) return;
+    if (
+      !isDesktopRuntime
+      || tabLayout !== "vertical"
+      || (!verticalPanelPinned && !floatingPanelOpenRef.current)
+    ) {
+      return;
+    }
     void invokeNative("update_floating_tab_panel", {
       payload: createFloatingTabPanelPayload(),
     }).catch(() => undefined);
@@ -446,22 +643,37 @@ export default function App() {
     collapsedSmallGroupIds,
     darkMode,
     groups,
+    tabLayout,
     tabs,
+    verticalPanelPinned,
     verticalPanelWidth,
   ]);
 
   useEffect(() => {
     if (!isDesktopRuntime) return undefined;
-    if (tabLayout !== "vertical" || verticalPanelPinned) {
+    if (!stateHydrated || tabLayout !== "vertical") {
       floatingPanelOpenRef.current = false;
       void invokeNative("close_floating_tab_panel").catch(() => undefined);
       return undefined;
     }
+    let presentFrame = 0;
+    if (verticalPanelPinned) {
+      floatingPanelOpenRef.current = true;
+      presentFrame = window.requestAnimationFrame(presentIndependentTabPanel);
+    } else {
+      floatingPanelOpenRef.current = false;
+      void invokeNative("close_floating_tab_panel").catch(() => undefined);
+    }
     const handleWindowResize = () => {
-      if (floatingPanelOpenRef.current) showIndependentTabPanel();
+      if (verticalPanelPinned || floatingPanelOpenRef.current) {
+        presentIndependentTabPanel();
+      }
     };
     window.addEventListener("resize", handleWindowResize);
-    return () => window.removeEventListener("resize", handleWindowResize);
+    return () => {
+      window.cancelAnimationFrame(presentFrame);
+      window.removeEventListener("resize", handleWindowResize);
+    };
   }, [
     stateHydrated,
     tabLayout,
@@ -494,11 +706,12 @@ export default function App() {
           : state.tabs[0].id;
         const restoredTabs = state.tabs.map((tab) => {
           const active = tab.id === savedActiveId;
+          const internal = isInternalBrowserUrl(tab.url);
           return {
             ...tab,
-            loading: active && Boolean(tab.url),
-            hasWebview: active && Boolean(tab.url),
-            sleeping: !active && Boolean(tab.url),
+            loading: active && Boolean(tab.url) && !internal,
+            hasWebview: active && Boolean(tab.url) && !internal,
+            sleeping: !active && Boolean(tab.url) && !internal,
             inactiveSince: active ? undefined : tab.inactiveSince,
             audible: false,
             muted: Boolean(tab.muted),
@@ -518,6 +731,28 @@ export default function App() {
         );
         setLayoutPreferenceSet(Boolean(state.layoutPreferenceSet));
         if (Array.isArray(state.bookmarks)) setBookmarks(state.bookmarks);
+        if (Array.isArray(state.history)) setHistoryEntries(state.history.slice(0, 1000));
+        if (Array.isArray(state.downloads)) {
+          setDownloadTasks(Object.fromEntries(
+            state.downloads
+              .filter((item) => item?.id)
+              .map((item) => [
+                item.id,
+                item.state === "finished"
+                  ? item
+                  : { ...item, state: "finished" as const, success: false },
+              ]),
+          ));
+        }
+        if (Array.isArray(state.alwaysOpenDownloadExtensions)) {
+          setAlwaysOpenDownloadExtensions(
+            state.alwaysOpenDownloadExtensions.filter((extension) => typeof extension === "string"),
+          );
+        }
+        if (typeof state.downloadDirectory === "string") {
+          setDownloadDirectory(state.downloadDirectory);
+        }
+        setAskBeforeDownload(Boolean(state.askBeforeDownload));
         setShowBookmarksBar(state.showBookmarksBar !== false);
         const restoredPanelPinned = state.verticalPanelPinned !== false;
         setVerticalPanelPinned(restoredPanelPinned);
@@ -529,7 +764,7 @@ export default function App() {
         );
         activeTabRef.current = restoredActiveTab;
 
-        if (restoredActiveTab.url) {
+        if (restoredActiveTab.url && !isInternalBrowserUrl(restoredActiveTab.url)) {
           firstFrame = window.requestAnimationFrame(() => {
             secondFrame = window.requestAnimationFrame(() => {
               if (cancelled) return;
@@ -573,12 +808,17 @@ export default function App() {
     if (!isDesktopRuntime || !stateHydrated) return undefined;
     const timer = window.setTimeout(() => {
       const state: BrowserPersistedState = {
-        version: 2,
+        version: 3,
         activeId,
         tabLayout,
         layoutPreferenceSet,
         groups,
         bookmarks,
+        history: historyEntries,
+        downloads: allDownloadTasks.filter((task) => task.state === "finished").slice(-200),
+        alwaysOpenDownloadExtensions,
+        downloadDirectory,
+        askBeforeDownload,
         showBookmarksBar,
         verticalPanelPinned,
         verticalPanelWidth,
@@ -586,7 +826,7 @@ export default function App() {
           ...tab,
           loading: false,
           hasWebview: false,
-          sleeping: tab.id !== activeId && Boolean(tab.url),
+          sleeping: tab.id !== activeId && Boolean(tab.url) && !isInternalBrowserUrl(tab.url),
           inactiveSince: tab.id === activeId ? undefined : tab.inactiveSince,
           audible: false,
         })),
@@ -596,16 +836,39 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [
     activeId,
+    alwaysOpenDownloadExtensions,
+    askBeforeDownload,
     bookmarks,
+    downloadDirectory,
     groups,
+    historyEntries,
     layoutPreferenceSet,
     showBookmarksBar,
     stateHydrated,
     tabLayout,
     tabs,
+    allDownloadTasks,
     verticalPanelPinned,
     verticalPanelWidth,
   ]);
+
+  useEffect(() => {
+    if (!isDesktopRuntime || !stateHydrated) return;
+    if (!downloadDirectory) {
+      void invokeNative<string>("get_default_download_directory")
+        .then((directory) => {
+          if (directory) setDownloadDirectory(directory);
+        })
+        .catch(() => undefined);
+      return;
+    }
+    void invokeNative("set_download_preferences", {
+      directory: downloadDirectory,
+      askBeforeDownload,
+    }).catch((error) => {
+      message.warning(error instanceof Error ? error.message : String(error));
+    });
+  }, [askBeforeDownload, downloadDirectory, stateHydrated]);
 
   useEffect(() => {
     if (!isDesktopRuntime || !window.__TAURI__) return;
@@ -615,7 +878,12 @@ export default function App() {
 
     void window.__TAURI__.event.listen<BrowserNativeEvent>("sia://browser-event", ({ payload }) => {
       if (payload.kind === "new-window" && payload.url) {
-        openTab(payload.url, payload.groupId);
+        const sourceTab = tabsRef.current.find((tab) => tab.id === payload.tabId);
+        openTab(
+          payload.url,
+          sourceTab?.groupId ?? payload.groupId,
+          sourceTab?.smallGroupId,
+        );
         return;
       }
       if (payload.kind === "error") {
@@ -626,6 +894,59 @@ export default function App() {
       const usableEventUrl = eventUrl && eventUrl !== "about:blank"
         ? eventUrl
         : undefined;
+      if (payload.kind === "load" && payload.loading === false && usableEventUrl) {
+        const tab = tabsRef.current.find((item) => item.id === payload.tabId);
+        const stack = navigationStacksRef.current[payload.tabId] ?? {
+          entries: [],
+          index: -1,
+        };
+        const targetIndex = navigationTargetRef.current[payload.tabId];
+        if (
+          targetIndex !== undefined &&
+          stack.entries[targetIndex]?.url === usableEventUrl
+        ) {
+          stack.index = targetIndex;
+        } else if (stack.entries[stack.index]?.url !== usableEventUrl) {
+          stack.entries = stack.entries.slice(0, stack.index + 1);
+          stack.entries.push({
+            id: `navigation-${payload.tabId}-${Date.now()}`,
+            title: tab?.title || hostLabel(usableEventUrl) || usableEventUrl,
+            url: usableEventUrl,
+          });
+          stack.index = stack.entries.length - 1;
+        }
+        navigationTargetRef.current[payload.tabId] = undefined;
+        navigationStacksRef.current[payload.tabId] = stack;
+
+        const visitedAt = Date.now();
+        setHistoryEntries((current) => {
+          const latest = current[0];
+          if (
+            latest?.url === usableEventUrl &&
+            visitedAt - latest.visitedAt < 2_000
+          ) {
+            return current;
+          }
+          return [{
+            id: `history-${payload.tabId}-${visitedAt}`,
+            tabId: payload.tabId,
+            title: tab?.title || hostLabel(usableEventUrl) || usableEventUrl,
+            url: usableEventUrl,
+            visitedAt,
+          }, ...current].slice(0, 1000);
+        });
+      } else if (payload.kind === "title" && payload.title?.trim()) {
+        const title = payload.title.trim();
+        const stack = navigationStacksRef.current[payload.tabId];
+        if (stack?.entries[stack.index]) stack.entries[stack.index].title = title;
+        setHistoryEntries((current) => {
+          const index = current.findIndex((entry) => entry.tabId === payload.tabId);
+          if (index < 0 || current[index].title === title) return current;
+          const next = [...current];
+          next[index] = { ...next[index], title };
+          return next;
+        });
+      }
       setTabs((current) => current.map((tab) => {
         if (tab.id !== payload.tabId) return tab;
         if (payload.kind === "title") {
@@ -672,6 +993,77 @@ export default function App() {
       unlistenPassword?.();
     };
   }, [darkMode, openTab]);
+
+  useEffect(() => {
+    if (!isDesktopRuntime || !window.__TAURI__) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void window.__TAURI__.event.listen<BrowserDownloadNativeEvent>(
+      "sia://browser-download",
+      ({ payload }) => {
+        if (payload.state === "waiting" || payload.state === "started") {
+          setDownloadPulseToken((current) => current + 1);
+        }
+        setDownloadTasks((current) => {
+          return {
+            ...current,
+            [payload.id]: {
+              ...current[payload.id],
+              ...payload,
+            },
+          };
+        });
+        if (payload.state === "waiting") {
+          window.requestAnimationFrame(() => showDownloadsPanelRef.current());
+        }
+        if (
+          payload.state === "finished"
+          && payload.success !== false
+          && payload.filePath
+          && !autoOpenedDownloadIdsRef.current.has(payload.id)
+        ) {
+          const extension = downloadFileExtension(payload.fileName || payload.filePath);
+          if (extension && alwaysOpenDownloadExtensionsRef.current.includes(extension)) {
+            autoOpenedDownloadIdsRef.current.add(payload.id);
+            void invokeNative("open_download_file", { path: payload.filePath }).catch(() => undefined);
+          }
+        }
+      },
+    ).then((dispose) => {
+      if (disposed) dispose();
+      else unlisten = dispose;
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isDesktopRuntime || !window.__TAURI__) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void window.__TAURI__.event.listen("sia://extensions-changed", () => {
+      setTabs((current) => current.map((tab) => (
+        isInternalBrowserUrl(tab.url)
+          ? tab
+          : {
+              ...tab,
+              hasWebview: false,
+              sleeping: Boolean(tab.url),
+              loading: false,
+              audible: false,
+            }
+      )));
+    }).then((dispose) => {
+      if (disposed) dispose();
+      else unlisten = dispose;
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
 
   useEffect(() => {
     if (!addressFocusedRef.current) setAddressDraft(activeTab?.url ?? "");
@@ -734,12 +1126,12 @@ export default function App() {
   function selectTab(tabId: string) {
     const selected = tabs.find((tab) => tab.id === tabId);
     if (!selected || tabId === activeId) return;
-    const shouldRestore = selected.sleeping && Boolean(selected.url);
+    const shouldRestore = selected.sleeping && Boolean(selected.url) && !isInternalBrowserUrl(selected.url);
     const inactiveSince = Date.now();
     const activatedTab: BrowserTab = {
       ...selected,
       loading: shouldRestore ? true : selected.loading,
-      hasWebview: shouldRestore ? true : selected.hasWebview,
+      hasWebview: isInternalBrowserUrl(selected.url) ? false : (shouldRestore ? true : selected.hasWebview),
       sleeping: false,
       inactiveSince: undefined,
     };
@@ -789,11 +1181,11 @@ export default function App() {
 
     const nextIndex = Math.min(firstClosedIndex, remaining.length - 1);
     const nextTab = remaining[nextIndex];
-    const shouldRestore = nextTab.sleeping && Boolean(nextTab.url);
+    const shouldRestore = nextTab.sleeping && Boolean(nextTab.url) && !isInternalBrowserUrl(nextTab.url);
     const activatedTab: BrowserTab = {
       ...nextTab,
       loading: shouldRestore ? true : nextTab.loading,
-      hasWebview: shouldRestore ? true : nextTab.hasWebview,
+      hasWebview: isInternalBrowserUrl(nextTab.url) ? false : (shouldRestore ? true : nextTab.hasWebview),
       sleeping: false,
       inactiveSince: undefined,
     };
@@ -831,10 +1223,18 @@ export default function App() {
     }
   }
 
-  function runPageAction(action: "back" | "forward" | "reload" | "stop") {
+  function runPageAction(
+    action: "back" | "forward" | "reload" | "reload-hard" | "reload-clear-cache" | "stop",
+  ) {
     if (!activeTab?.hasWebview) return;
     if (action === "stop") updateTab(activeTab.id, { loading: false });
-    if (action === "reload") updateTab(activeTab.id, { loading: true });
+    if (action.startsWith("reload")) updateTab(activeTab.id, { loading: true });
+    const stack = navigationStacksRef.current[activeTab.id];
+    if (action === "back" && stack && stack.index > 0) {
+      navigationTargetRef.current[activeTab.id] = stack.index - 1;
+    } else if (action === "forward" && stack && stack.index < stack.entries.length - 1) {
+      navigationTargetRef.current[activeTab.id] = stack.index + 1;
+    }
     if (!isDesktopRuntime) {
       showPreviewNotice();
       return;
@@ -842,6 +1242,168 @@ export default function App() {
     void invokeNative("browser_page_action", { tabId: activeTab.id, action }).catch((error) => {
       message.warning(error instanceof Error ? error.message : String(error));
     });
+  }
+
+  function showBrowserPanel(
+    payload: BrowserMenuPayload,
+    anchor: { x: number; y: number },
+    size: { width: number; height: number },
+  ) {
+    if (!isDesktopRuntime) {
+      showPreviewNotice();
+      return;
+    }
+    const width = Math.min(size.width, Math.max(260, window.innerWidth - 20));
+    const height = Math.min(size.height, Math.max(160, window.innerHeight - 20));
+    const x = Math.max(0, Math.min(anchor.x, window.innerWidth - width));
+    const y = Math.max(0, Math.min(anchor.y, window.innerHeight - height));
+    void invokeNative("show_browser_panel", {
+      payload,
+      sourceWindow: "main",
+      x,
+      y,
+      width,
+      height,
+    }).catch((error) => {
+      message.error(error instanceof Error ? error.message : String(error));
+    });
+  }
+
+  function showBackHistoryPanel(x: number, y: number) {
+    if (!activeTab) return;
+    const stack = navigationStacksRef.current[activeTab.id];
+    const backEntries = stack
+      ? stack.entries.slice(0, Math.max(0, stack.index)).map((entry, index) => ({
+          entry,
+          index,
+        })).reverse()
+      : [];
+    const items: BrowserMenuItem[] = backEntries.length
+      ? backEntries.map(({ entry, index }) => ({
+          key: `navigation|back|${activeTab.id}|${index}`,
+          label: entry.title || hostLabel(entry.url) || entry.url,
+          subtitle: entry.url,
+        }))
+      : [{
+          label: "当前页面没有可后退的地址",
+          disabled: true,
+        }];
+    showBrowserPanel(
+      {
+        darkMode,
+        kind: "back-history",
+        heading: "后退历史",
+        items,
+      },
+      { x, y },
+      {
+        width: 380,
+        height: Math.min(430, 54 + Math.max(1, items.length) * 50),
+      },
+    );
+  }
+
+  function showRefreshPanel(x: number, y: number) {
+    showBrowserPanel(
+      {
+        darkMode,
+        kind: "menu",
+        items: [
+          { key: "refresh|normal", label: "正常刷新", shortcut: "Ctrl+R" },
+          { key: "refresh|hard", label: "硬刷新", shortcut: "Ctrl+Shift+R" },
+          { key: "refresh|clear-cache", label: "清空缓存并进行硬刷新" },
+        ],
+      },
+      { x, y },
+      { width: 310, height: 136 },
+    );
+  }
+
+  function downloadPanelEntries(): BrowserPanelEntry[] {
+    return allDownloadTasks
+      .slice()
+      .reverse()
+      .map((task) => ({
+        id: task.id,
+        title: task.fileName || task.sourceUrl || "未命名下载",
+        fileName: task.fileName,
+        filePath: task.filePath,
+        url: task.sourceUrl,
+        state: task.state,
+        receivedBytes: task.receivedBytes,
+        totalBytes: task.totalBytes,
+        success: task.success,
+        alwaysOpen: alwaysOpenDownloadExtensions.includes(
+          downloadFileExtension(task.fileName || task.filePath),
+        ),
+        unsafe: task.unsafe,
+        fileDeleted: task.fileDeleted,
+      }));
+  }
+
+  function showDownloadsPanel(x: number, y: number) {
+    showBrowserPanel(
+      {
+        darkMode,
+        kind: "downloads",
+        items: [],
+        entries: downloadPanelEntries(),
+      },
+      { x, y },
+      { width: 440, height: 720 },
+    );
+  }
+  showDownloadsPanelRef.current = () => {
+    const rect = downloadButtonRef.current?.getBoundingClientRect();
+    showDownloadsPanel(
+      rect ? rect.right - 440 : Math.max(12, window.innerWidth - 460),
+      rect ? rect.bottom : 76,
+    );
+  };
+
+  function showHistoryPanel(x = window.innerWidth - 520, y = 48) {
+    const entries: BrowserPanelEntry[] = historyEntries.map((entry) => ({
+      id: entry.id,
+      title: entry.title,
+      url: entry.url,
+      timestamp: entry.visitedAt,
+      timeLabel: new Date(entry.visitedAt).toLocaleTimeString("zh-CN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }),
+    }));
+    showBrowserPanel(
+      {
+        darkMode,
+        kind: "history",
+        items: [],
+        entries,
+      },
+      { x, y },
+      { width: 500, height: 760 },
+    );
+  }
+
+  function showBookmarksPanel(x = window.innerWidth - 520, y = 48) {
+    const entries: BrowserPanelEntry[] = bookmarks.map((bookmark, index) => ({
+      id: `bookmark-${index}`,
+      title: bookmark.title,
+      url: bookmark.url,
+      active: bookmark.url === activeTab?.url,
+    }));
+    showBrowserPanel(
+      {
+        darkMode,
+        kind: "bookmarks",
+        items: [],
+        entries,
+        currentTitle: activeTab?.title,
+        currentUrl: activeTab?.url,
+      },
+      { x, y },
+      { width: 500, height: 760 },
+    );
   }
 
   function toggleTabAudio(tabId: string) {
@@ -938,12 +1500,13 @@ export default function App() {
     const groupId = groups.some((group) => group.id === closed.groupId)
       ? closed.groupId
       : DEFAULT_GROUP_ID;
+    const internal = isInternalBrowserUrl(closed.url);
     const restored: BrowserTab = {
       ...closed,
       id: createTabId(),
       groupId,
-      loading: Boolean(closed.url),
-      hasWebview: Boolean(closed.url),
+      loading: Boolean(closed.url) && !internal,
+      hasWebview: Boolean(closed.url) && !internal,
       sleeping: false,
       inactiveSince: undefined,
       audible: false,
@@ -961,28 +1524,193 @@ export default function App() {
     setActiveId(restored.id);
     setAddressDraft(restored.url);
     if (!isDesktopRuntime) return;
-    void activateNativeTab(restored, Boolean(restored.url)).catch((error) => {
+    void activateNativeTab(restored, Boolean(restored.url) && !internal).catch((error) => {
       updateTab(restored.id, { loading: false, hasWebview: false, sleeping: true });
       message.error(error instanceof Error ? error.message : String(error));
     });
   }
 
   function handleNativeMenuAction(action: string) {
+    if (action.startsWith("navigation|back|")) {
+      const [, , tabId, targetIndexValue] = action.split("|");
+      const targetIndex = Number(targetIndexValue);
+      const stack = navigationStacksRef.current[tabId];
+      if (
+        !stack ||
+        !Number.isInteger(targetIndex) ||
+        targetIndex < 0 ||
+        targetIndex >= stack.index
+      ) return;
+      const offset = targetIndex - stack.index;
+      navigationTargetRef.current[tabId] = targetIndex;
+      void invokeNative("browser_page_action", {
+        tabId,
+        action: `history-go:${offset}`,
+      }).catch((error) => {
+        navigationTargetRef.current[tabId] = undefined;
+        message.warning(error instanceof Error ? error.message : String(error));
+      });
+      return;
+    }
+
+    if (action.startsWith("refresh|")) {
+      const key = action.slice("refresh|".length);
+      if (key === "normal") runPageAction("reload");
+      else if (key === "hard") runPageAction("reload-hard");
+      else if (key === "clear-cache") runPageAction("reload-clear-cache");
+      return;
+    }
+
+    if (action.startsWith("panel|downloads|")) {
+      const [, , key, id] = action.split("|");
+      const task = id ? downloadTasks[id] : undefined;
+      if (key === "open" && id) {
+        if (!task?.filePath || task.fileDeleted) {
+          message.warning("找不到这个下载文件的位置。");
+          return;
+        }
+        void invokeNative("open_download_file", { path: task.filePath }).catch((error) => {
+          message.warning(error instanceof Error ? error.message : String(error));
+        });
+      } else if (key === "folder") {
+        const target = task ?? allDownloadTasks.slice().reverse().find((item) => item.filePath && !item.fileDeleted);
+        if (!target?.filePath || target.fileDeleted) {
+          message.info("暂无可定位的下载文件。");
+          return;
+        }
+        void invokeNative("show_download_in_folder", { path: target.filePath }).catch((error) => {
+          message.warning(error instanceof Error ? error.message : String(error));
+        });
+      } else if (key === "always-open" && task) {
+        const extension = downloadFileExtension(task.fileName || task.filePath);
+        if (!extension) {
+          message.warning("无法识别这个下载文件的类型。");
+          return;
+        }
+        setAlwaysOpenDownloadExtensions((current) => {
+          const enabled = current.includes(extension);
+          message.success(enabled
+            ? `已取消自动打开 ${extension} 文件`
+            : `以后下载完成后将自动打开 ${extension} 文件`);
+          return enabled
+            ? current.filter((item) => item !== extension)
+            : [...current, extension];
+        });
+      } else if (key === "copy-link" && task?.sourceUrl) {
+        void navigator.clipboard.writeText(task.sourceUrl)
+          .then(() => message.success("下载链接已复制"))
+          .catch(() => message.warning("无法复制下载链接"));
+      } else if (key === "report-unsafe" && task) {
+        setDownloadTasks((current) => ({
+          ...current,
+          [task.id]: { ...current[task.id], unsafe: true },
+        }));
+        message.warning("已在 Sia 中将该下载标记为不安全");
+      } else if (key === "delete-file" && task?.filePath && !task.fileDeleted) {
+        void invokeNative("delete_download_file", { path: task.filePath })
+          .then(() => {
+            setDownloadTasks((current) => ({
+              ...current,
+              [task.id]: { ...current[task.id], fileDeleted: true },
+            }));
+            message.success("下载文件已删除");
+          })
+          .catch((error) => {
+            message.warning(error instanceof Error ? error.message : String(error));
+          });
+      } else if (key === "remove" && task) {
+        if (task.state === "waiting") {
+          void invokeNative("resolve_pending_download", {
+            id: task.id,
+            choice: "cancel",
+          }).catch(() => undefined);
+        }
+        setDownloadTasks((current) => {
+          const next = { ...current };
+          delete next[task.id];
+          return next;
+        });
+      } else if (
+        task
+        && task.state === "waiting"
+        && ["confirm-open", "confirm-save-as", "confirm-save"].includes(key)
+      ) {
+        const choice = key.replace("confirm-", "");
+        void invokeNative<boolean>("resolve_pending_download", {
+          id: task.id,
+          choice,
+        }).then((resolved) => {
+          if (!resolved) message.info("已取消选择保存位置，下载仍在等待确认。");
+        }).catch((error) => {
+          message.warning(error instanceof Error ? error.message : String(error));
+        });
+      } else {
+        message.info("完整下载管理页将在后续版本中提供。");
+      }
+      return;
+    }
+
+    if (action.startsWith("panel|history|")) {
+      const [, , key, id] = action.split("|");
+      if (key === "open" && id) {
+        const entry = historyEntries.find((item) => item.id === id);
+        if (entry) navigate(entry.url);
+      } else if (key === "clear") {
+        setHistoryEntries([]);
+        message.success("历史记录已清除");
+      } else {
+        message.info("更多历史记录操作将在后续版本中提供。");
+      }
+      return;
+    }
+
+    if (action.startsWith("panel|bookmarks|")) {
+      const [, , key, id] = action.split("|");
+      if (key === "open" && id) {
+        const index = Number(id.replace("bookmark-", ""));
+        const bookmark = bookmarks[index];
+        if (bookmark) navigate(bookmark.url);
+      } else if (key === "add-current") {
+        if (!activeTab?.url) {
+          message.info("请先打开一个网页。");
+        } else if (activeBookmarked) {
+          message.info("当前页面已经在收藏夹中。");
+        } else {
+          setBookmarks((current) => [
+            ...current,
+            {
+              title: activeTab.title || hostLabel(activeTab.url),
+              url: activeTab.url,
+            },
+          ]);
+          message.success("已添加到收藏夹");
+        }
+      } else if (key === "new-folder") {
+        message.info("收藏夹文件夹将在下一阶段接入。");
+      } else {
+        message.info("更多收藏夹操作将在后续版本中提供。");
+      }
+      return;
+    }
+
     if (action.startsWith("more:")) {
       const key = action.slice("more:".length);
       if (key === "tab-layout") {
         changeTabLayout(tabLayout === "horizontal" ? "vertical" : "horizontal");
       } else if (key === "bookmarks") {
-        if (!showBookmarksBar) setShowBookmarksBar(true);
-        message.info(`书签栏中有 ${bookmarks.length} 个书签`);
+        showBookmarksPanel();
       } else if (key === "bookmark-bar") {
         setShowBookmarksBar((current) => !current);
       } else if (key === "passwords") {
         openBrowserOverlay({ kind: "passwords", darkMode });
       } else if (key === "theme") {
         handleThemeChange(!darkMode);
+      } else if (key === "history") {
+        showHistoryPanel();
+      } else if (key === "settings") {
+        openSettingsTab();
       } else {
-        message.info(key === "history" ? "历史记录将在下一阶段接入。" : "设置中心将在下一阶段接入。");
+        message.info("设置中心将在下一阶段接入。");
       }
       return;
     }
@@ -1050,9 +1778,7 @@ export default function App() {
           : [...current, value]
       ));
     } else if (action === "toggle-panel-pin") {
-      floatingPanelOpenRef.current = false;
-      setVerticalPanelPinned(true);
-      void invokeNative("close_floating_tab_panel").catch(() => undefined);
+      toggleVerticalPanelPinned();
     } else if (action === "resize-panel") {
       const nextWidth = Number(value);
       if (Number.isFinite(nextWidth)) {
@@ -1087,6 +1813,39 @@ export default function App() {
     void invokeNative("open_browser_overlay", { payload }).catch((error) => {
       message.error(error instanceof Error ? error.message : String(error));
     });
+  }
+
+  function openSettingsTab(section: BrowserSettingsSection = "general") {
+    setSettingsSection(section);
+    const existing = tabs.find((tab) => tab.url === SETTINGS_URL);
+    if (existing) {
+      if (existing.id !== activeId) {
+        selectTab(existing.id);
+      } else if (isDesktopRuntime) {
+        void invokeNative("hide_browser_pages").catch(() => undefined);
+      }
+      return;
+    }
+
+    const currentTab = activeTabRef.current;
+    const settingsTab: BrowserTab = {
+      ...createBlankTab(currentTab.groupId, currentTab.smallGroupId),
+      title: "Sia设置",
+      url: SETTINGS_URL,
+    };
+    const inactiveSince = Date.now();
+    activeTabRef.current = settingsTab;
+    setTabs((current) => [
+      ...current.map((tab) => tab.id === currentTab.id ? { ...tab, inactiveSince } : tab),
+      settingsTab,
+    ]);
+    setActiveId(settingsTab.id);
+    setAddressDraft(SETTINGS_URL);
+    if (isDesktopRuntime) {
+      void invokeNative("hide_browser_pages").catch((error) => {
+        message.error(error instanceof Error ? error.message : String(error));
+      });
+    }
   }
 
   function openTabActionMenu(tabId: string, x: number, y: number) {
@@ -1311,11 +2070,11 @@ export default function App() {
     let shouldRestore = false;
     if (removedIds.has(activeId)) {
       const nextTab = nextTabs[0];
-      shouldRestore = nextTab.sleeping && Boolean(nextTab.url);
+      shouldRestore = nextTab.sleeping && Boolean(nextTab.url) && !isInternalBrowserUrl(nextTab.url);
       activatedTab = {
         ...nextTab,
         loading: shouldRestore ? true : nextTab.loading,
-        hasWebview: shouldRestore ? true : nextTab.hasWebview,
+        hasWebview: isInternalBrowserUrl(nextTab.url) ? false : (shouldRestore ? true : nextTab.hasWebview),
         sleeping: false,
         inactiveSince: undefined,
       };
@@ -1525,6 +2284,13 @@ export default function App() {
   useEffect(() => {
     function handleKeyboardShortcut(event: KeyboardEvent) {
       const commandKey = event.ctrlKey || event.metaKey;
+      if (event.key === "F12" || (commandKey && event.shiftKey && event.key.toLowerCase() === "i")) {
+        event.preventDefault();
+        void invokeNative("open_browser_devtools", { tabId: activeId }).catch((error) => {
+          message.warning(error instanceof Error ? error.message : String(error));
+        });
+        return;
+      }
       if (commandKey && event.shiftKey && event.key.toLowerCase() === "t") {
         event.preventDefault();
         reopenLastClosedTab();
@@ -1581,17 +2347,85 @@ export default function App() {
   }, [activeId, activeTab?.loading, openTab, tabs]);
 
   function renderTitlebarActions() {
+    const activeDownloadCount = activeDownloadTasks.length;
+    const downloadPercent = Math.round(downloadProgress * 100);
     return (
       <div className="browser-titlebar-actions">
         <Button
           className="toolbar-icon-button"
           variant="text"
           size="small"
-          icon={<Icon name="download" size={17} />}
-          aria-label="下载"
-          title="下载"
-          onClick={() => message.info("下载管理器将在下一阶段接入。")}
+          icon={<Icon name="puzzle" size={18} />}
+          aria-label="扩展"
+          title="扩展"
+          onClick={() => openSettingsTab("extensions")}
         />
+        <Button
+          className="toolbar-icon-button"
+          variant="text"
+          size="small"
+          icon={<Icon name="star" size={18} />}
+          aria-label="收藏夹"
+          title="收藏夹"
+          onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            showBookmarksPanel(rect.right - 500, rect.bottom);
+          }}
+        />
+        <Button
+          className="toolbar-icon-button"
+          variant="text"
+          size="small"
+          icon={<Icon name="clock" size={18} />}
+          aria-label="历史记录"
+          title="历史记录"
+          onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            showHistoryPanel(rect.right - 500, rect.bottom);
+          }}
+        />
+        <div
+          className={`browser-download-action${activeDownloadCount > 0 ? " is-active" : ""}${downloadHasUnknownSize ? " is-indeterminate" : ""}`}
+          aria-label={activeDownloadCount > 0
+            ? `${activeDownloadCount} 个下载任务，${downloadHasUnknownSize ? "正在下载" : `总进度 ${downloadPercent}%`}`
+            : "下载"}
+        >
+          {activeDownloadCount > 0 ? (
+            <svg className="browser-download-progress" viewBox="0 0 40 40" aria-hidden="true">
+              <circle className="browser-download-progress__track" cx="20" cy="20" r="18" pathLength="100" />
+              <circle
+                className="browser-download-progress__value"
+                cx="20"
+                cy="20"
+                r="18"
+                pathLength="100"
+                style={{ strokeDashoffset: 100 - downloadProgress * 100 }}
+              />
+            </svg>
+          ) : null}
+          {downloadPulseToken > 0 ? (
+            <span
+              key={downloadPulseToken}
+              className="browser-download-action__pulse"
+              aria-hidden="true"
+            />
+          ) : null}
+          <Button
+            ref={downloadButtonRef}
+            className="toolbar-icon-button"
+            variant="text"
+            size="small"
+            icon={<Icon name="download" size={17} />}
+            aria-label="下载"
+            title={activeDownloadCount > 0
+              ? `${activeDownloadCount} 个下载任务${downloadHasUnknownSize ? "" : ` · ${downloadPercent}%`}`
+              : "下载"}
+            onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
+              const rect = event.currentTarget.getBoundingClientRect();
+              showDownloadsPanel(rect.right - 440, rect.bottom);
+            }}
+          />
+        </div>
         <Button
           className="profile-button"
           variant="filled"
@@ -1640,6 +2474,11 @@ export default function App() {
             title="后退"
             disabled={!activeTab?.hasWebview}
             onClick={() => runPageAction("back")}
+            onContextMenu={(event: ReactMouseEvent<HTMLButtonElement>) => {
+              event.preventDefault();
+              const rect = event.currentTarget.getBoundingClientRect();
+              showBackHistoryPanel(rect.left, rect.bottom);
+            }}
           />
           <Button
             className="toolbar-icon-button"
@@ -1660,6 +2499,11 @@ export default function App() {
             title={activeTab?.loading ? "停止加载" : "重新加载"}
             disabled={!activeTab?.hasWebview}
             onClick={() => runPageAction(activeTab?.loading ? "stop" : "reload")}
+            onContextMenu={(event: ReactMouseEvent<HTMLButtonElement>) => {
+              event.preventDefault();
+              const rect = event.currentTarget.getBoundingClientRect();
+              showRefreshPanel(rect.left, rect.bottom);
+            }}
           />
           <Button
             className="toolbar-icon-button"
@@ -1698,9 +2542,13 @@ export default function App() {
             variant="text"
             size="small"
             icon={<Icon name="star" variant={activeBookmarked ? "filled" : "outline"} size={17} />}
-            aria-label={activeBookmarked ? "移除书签" : "添加书签"}
-            title={activeBookmarked ? "移除书签" : "添加书签"}
-            onClick={toggleBookmark}
+            aria-label="打开收藏夹"
+            title="打开收藏夹"
+            onClick={() => showBookmarksPanel()}
+            onContextMenu={(event: ReactMouseEvent<HTMLButtonElement>) => {
+              event.preventDefault();
+              toggleBookmark();
+            }}
           />
         </form>
         {activeTab?.loading ? <span className="browser-loading-line" aria-hidden="true" /> : null}
@@ -1756,7 +2604,7 @@ export default function App() {
         {tabLayout === "vertical" ? (
           <div
             ref={verticalPanelAnchorRef}
-            className="vertical-tab-panel-main"
+            className={`vertical-tab-panel-main${verticalPanelPinned ? " is-pinned" : " is-auto-hide"}`}
             style={{
               width: verticalPanelPinned
                 ? verticalPanelWidth
@@ -1765,11 +2613,9 @@ export default function App() {
                 ? verticalPanelWidth
                 : COMPACT_VERTICAL_PANEL_WIDTH,
             }}
-            onMouseEnter={showIndependentTabPanel}
             onPointerEnter={showIndependentTabPanel}
-            onMouseMove={showIndependentTabPanel}
           >
-            {renderTabContextScope(
+            {!verticalPanelPinned ? renderTabContextScope(
               <VerticalTabTree
                 groups={groups}
                 tabs={tabs}
@@ -1805,11 +2651,11 @@ export default function App() {
                   setVerticalPanelWidth(Math.min(440, Math.max(220, Math.round(width))));
                 }}
               />,
-            )}
+            ) : null}
           </div>
         ) : null}
         <div className="browser-content">
-          {showBookmarksBar ? (
+          {showBookmarksBar && activeTab?.url !== SETTINGS_URL ? (
             <nav className="bookmarks-bar" aria-label="书签栏">
               <span className="bookmarks-bar__label"><Icon name="star" size={13} />书签</span>
               {bookmarks.map((bookmark) => (
@@ -1828,7 +2674,34 @@ export default function App() {
           ) : null}
 
           <main ref={pageHostRef} className="browser-page-host">
-        {!activeTab?.hasWebview ? (
+        {activeTab?.url === SETTINGS_URL ? (
+          <BrowserSettingsPage
+            activeDownloadCount={activeDownloadTasks.length}
+            askBeforeDownload={askBeforeDownload}
+            downloadDirectory={downloadDirectory}
+            downloadCount={allDownloadTasks.length}
+            initialSection={settingsSection}
+            onAskBeforeDownloadChange={setAskBeforeDownload}
+            onChooseDownloadDirectory={() => {
+              void invokeNative<string | null>("choose_download_directory", {
+                current: downloadDirectory,
+              }).then((directory) => {
+                if (directory) setDownloadDirectory(directory);
+              }).catch((error) => {
+                message.error(error instanceof Error ? error.message : String(error));
+              });
+            }}
+            onOpenDefaultBrowserSettings={() => {
+              void invokeNative("open_default_browser_settings").catch((error) => {
+                message.error(error instanceof Error ? error.message : String(error));
+              });
+            }}
+            onOpenDownloads={() => {
+              showDownloadsPanel(Math.max(12, window.innerWidth - 460), 76);
+            }}
+            onOpenExtensionOptions={openExtensionOptionsTab}
+          />
+        ) : !activeTab?.hasWebview ? (
           <section className="new-tab-page">
             <div className="new-tab-page__ambient new-tab-page__ambient--one" />
             <div className="new-tab-page__ambient new-tab-page__ambient--two" />
@@ -1858,7 +2731,7 @@ export default function App() {
                     variant="text"
                     onClick={() => {
                       if (link.url) navigate(link.url);
-                      else message.info("设置中心将在下一阶段接入。");
+                      else openSettingsTab();
                     }}
                   >
                     <span className="quick-link__icon" style={{ "--quick-link-tone": link.tone } as React.CSSProperties}>
