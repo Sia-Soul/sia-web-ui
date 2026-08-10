@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import {
   Badge,
   Button,
@@ -19,6 +19,8 @@ import {
   applySiaTheme,
   message,
   type EditorContextMenuItem,
+  type EditorHandle,
+  type EditorMarker,
   type MenuItem,
   type TreeDropPosition,
   type TreeKey,
@@ -50,6 +52,7 @@ type SaveState = "idle" | "pending" | "saving" | "saved" | "error";
 
 const ROOT_TREE_PARENT_KEY = "tree:root";
 const MemoizedTree = memo(Tree);
+const EMPTY_EDITOR_MARKERS: readonly EditorMarker[] = [];
 
 interface DecodedText {
   content: string;
@@ -139,11 +142,20 @@ const EDITOR_CONTEXT_MENU: readonly EditorContextMenuItem[] = [
   { key: "selectAll", label: "全选", command: "selectAll", disabled: (editor) => !editor?.getValue() },
 ];
 
-const LANGUAGE_MENU_ITEMS: readonly MenuItem[] = LANGUAGE_OPTIONS.map(({ key, label }) => ({ key, label }));
 const MARKDOWN_VIEW_OPTIONS = [
   { label: "编辑", value: "edit" },
   { label: "预览", value: "preview" },
 ] as const;
+
+function statusCountColorClass(value: number) {
+  const digits = Math.trunc(Math.abs(value)).toString().length;
+  if (digits <= 4) return "";
+  if (digits === 5) return "status-count--blue";
+  if (digits === 6) return "status-count--green";
+  if (digits === 7) return "status-count--red";
+  if (digits === 8) return "status-count--purple";
+  return "status-count--pink";
+}
 
 function decodeTextBytes(bytes: Uint8Array): DecodedText {
   if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
@@ -280,9 +292,10 @@ const EDITOR_OPTIONS = {
   stickyScroll: { enabled: false },
   wordWrap: "on" as const,
   scrollBeyondLastLine: false,
-  fontFamily: '"Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif',
+  fontFamily: '"Cascadia Mono", "Cascadia Code", "JetBrains Mono", "Microsoft YaHei UI", monospace',
+  fontLigatures: true,
   fontSize: 14,
-  lineHeight: 28,
+  lineHeight: 22,
   tabSize: 2,
   insertSpaces: true,
   padding: { top: 0, bottom: 28 },
@@ -312,6 +325,84 @@ function noteFileExtension(note: Note): string {
   return defaultExtensionForLanguage(note.language ?? "plaintext");
 }
 
+function markdownOutlineTitle(source: string): string {
+  return source
+    .replace(/!\[([^\]]*)\]\([^)]*\)/gu, "$1")
+    .replace(/\[([^\]]+)\]\([^)]*\)/gu, "$1")
+    .replace(/<[^>]+>/gu, "")
+    .replace(/[`*_~]/gu, "")
+    .replace(/\\([#\[\]()`*_~>])/gu, "$1")
+    .trim();
+}
+
+function createMarkdownOutline(content: string): TreeNode[] {
+  type OutlineNode = TreeNode & { level: number; headingIndex: number; children: OutlineNode[] };
+  const roots: OutlineNode[] = [];
+  const stack: OutlineNode[] = [];
+  const lines = content.split(/\r?\n/u);
+  let fenced = false;
+  let headingIndex = 0;
+
+  const appendHeading = (level: number, rawTitle: string) => {
+    const title = markdownOutlineTitle(rawTitle.replace(/[ \t]+#+[ \t]*$/u, ""));
+    if (!title) return;
+    const node: OutlineNode = {
+      key: `markdown-heading:${headingIndex}`,
+      title,
+      level,
+      headingIndex,
+      children: [],
+    };
+    while (stack.length && stack[stack.length - 1].level >= level) stack.pop();
+    if (stack.length) stack[stack.length - 1].children.push(node);
+    else roots.push(node);
+    stack.push(node);
+    headingIndex += 1;
+  };
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (/^ {0,3}(```|~~~)/u.test(line)) {
+      fenced = !fenced;
+      continue;
+    }
+    if (fenced) continue;
+    const atx = line.match(/^ {0,3}(#{1,6})(?:[ \t]+|$)(.*)$/u);
+    if (atx) {
+      appendHeading(atx[1].length, atx[2]);
+      continue;
+    }
+    const setext = index + 1 < lines.length ? lines[index + 1].match(/^ {0,3}(=+|-+)[ \t]*$/u) : null;
+    if (setext && line.trim()) {
+      appendHeading(setext[1][0] === "=" ? 1 : 2, line);
+      index += 1;
+    }
+  }
+
+  const removeEmptyChildren = (nodes: OutlineNode[]): TreeNode[] => nodes.map(({ children, ...node }) => ({
+    ...node,
+    isLeaf: children.length === 0,
+    ...(children.length ? { children: removeEmptyChildren(children) } : {}),
+  }));
+  return removeEmptyChildren(roots);
+}
+
+function markdownOutlineMetadata(nodes: readonly TreeNode[]) {
+  const branchKeys: TreeKey[] = [];
+  const ancestorsByKey = new Map<TreeKey, TreeKey[]>();
+  const visit = (items: readonly TreeNode[], ancestors: TreeKey[]) => {
+    items.forEach((node) => {
+      ancestorsByKey.set(node.key, ancestors);
+      if (node.children?.length) {
+        branchKeys.push(node.key);
+        visit(node.children, [...ancestors, node.key]);
+      }
+    });
+  };
+  visit(nodes, []);
+  return { branchKeys, ancestorsByKey };
+}
+
 export default function App() {
   const initialSnapshot = useRef(createWelcomeSnapshot()).current;
   const initialWorkspaceFolderPaths = initialSnapshot.workspaceFolderPaths
@@ -332,6 +423,10 @@ export default function App() {
   const [hydrated, setHydrated] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [formattingNoteId, setFormattingNoteId] = useState<string | null>(null);
+  const [formatMarkersByNote, setFormatMarkersByNote] = useState<Record<string, EditorMarker[]>>({});
+  const [languageSearchText, setLanguageSearchText] = useState("");
+  const [activeMarkdownOutlineKey, setActiveMarkdownOutlineKey] = useState<TreeKey | null>(null);
+  const [markdownOutlineExpandedKeys, setMarkdownOutlineExpandedKeys] = useState<TreeKey[]>([]);
   const [windowMaximized, setWindowMaximized] = useState(false);
   const notesRef = useRef(notes);
   const saveGeneration = useRef(0);
@@ -340,6 +435,9 @@ export default function App() {
   const startupFilesHandledRef = useRef(false);
   const sourceDifferencesCheckedRef = useRef(false);
   const markdownImageCacheRef = useRef(new Map<string, Promise<string>>());
+  const markdownPreviewRef = useRef<HTMLDivElement>(null);
+  const markdownOutlineRef = useRef<HTMLElement>(null);
+  const editorApiRef = useRef<EditorHandle | null>(null);
   const folderLoadInFlightRef = useRef(new Set<string>());
 
   notesRef.current = notes;
@@ -916,31 +1014,50 @@ export default function App() {
   const saveDocument = useCallback(async (id: string) => {
     const note = noteMap.get(id);
     if (!note) return false;
-    if (!note.sourcePath) return saveNow();
     if (!window.__TAURI__?.core?.invoke) {
-      message.error("浏览器预览模式无法写入源文件");
+      message.error("浏览器预览模式无法打开系统保存窗口");
       return false;
     }
 
     setSaveState("saving");
     try {
-      const result = await window.__TAURI__.core.invoke<ExternalFileWriteResult>("write_external_file", {
-        path: note.sourcePath,
-        fileName: note.title.trim() || filenameFromPath(note.sourcePath),
-        content: note.content,
-        encoding: note.sourceEncoding ?? "utf-8",
-        expectedModifiedAt: note.sourceModifiedAt ?? null,
-      });
+      const extension = noteFileExtension(note);
+      const languageOption = LANGUAGE_OPTIONS.find(({ key }) => key === (note.language ?? "plaintext"));
+      const safeTitle = safeFilename(noteDisplayTitle(note));
+      const suggestedFileName = safeTitle.toLocaleLowerCase("en-US").endsWith(`.${extension.toLocaleLowerCase("en-US")}`)
+        ? safeTitle
+        : `${safeTitle}.${extension}`;
+      const result = note.sourcePath
+        ? await window.__TAURI__.core.invoke<ExternalFileWriteResult>("write_external_file", {
+          path: note.sourcePath,
+          fileName: note.title.trim() || filenameFromPath(note.sourcePath),
+          content: note.content,
+          encoding: note.sourceEncoding ?? "utf-8",
+          expectedModifiedAt: note.sourceModifiedAt ?? null,
+        })
+        : await window.__TAURI__.core.invoke<ExternalFileWriteResult | null>("save_new_external_file", {
+          fileName: suggestedFileName,
+          extension,
+          filterName: languageOption?.label ?? "当前格式",
+          filterExtensions: languageOption?.extensions.length ? [...languageOption.extensions] : [extension],
+          content: note.content,
+          encoding: note.sourceEncoding ?? "utf-8",
+        });
+      if (!result) {
+        setSaveState("idle");
+        return false;
+      }
       setNotes((current) => current.map((item) => item.id === id ? {
         ...item,
         sourceDirty: item.content !== note.content,
         sourcePath: result.path,
+        sourceEncoding: note.sourceEncoding ?? "utf-8",
         sourceModifiedAt: result.modifiedAt,
         sourceContentHash: contentHash(note.content),
         title: filenameFromPath(result.path),
         language: languageFromFilename(result.path),
       } : item));
-      if (normalizedSourcePath(result.path) !== normalizedSourcePath(note.sourcePath)) {
+      if (note.sourcePath && normalizedSourcePath(result.path) !== normalizedSourcePath(note.sourcePath)) {
         setFolderRoots((current) => current.map((root) => renameFolderTreeItem(root, note.sourcePath!, result.path)));
         const previousTreeKey = folderTreeKey(note.sourcePath);
         const nextTreeKey = folderTreeKey(result.path);
@@ -949,6 +1066,8 @@ export default function App() {
           childKeys: folder.childKeys.map((key) => key === previousTreeKey ? nextTreeKey : key),
         })));
       }
+      const workspacePath = workspaceFolderPaths.find((path) => isPathInsideFolder(result.path, path));
+      if (workspacePath) await loadWorkspaceFolder(workspacePath);
       setSaveState("saved");
       return true;
     } catch (error) {
@@ -956,14 +1075,14 @@ export default function App() {
       message.error(`保存源文件失败：${error instanceof Error ? error.message : String(error)}`);
       return false;
     }
-  }, [noteMap, saveNow]);
+  }, [loadWorkspaceFolder, noteMap, workspaceFolderPaths]);
 
   const handleNoteContextAction = useCallback(async (key: string, id: string) => {
     const note = noteMap.get(id);
     if (!note) return;
 
     if (key === "save") {
-      if (await saveDocument(id)) message.success(note.sourcePath ? "源文件已保存" : "笔记缓存已保存");
+      if (await saveDocument(id)) message.success("文件已保存");
       return;
     }
     if (key === "restore") {
@@ -1354,10 +1473,99 @@ export default function App() {
   const editorLanguage = activeNote?.language ?? "plaintext";
   const editorWordWrap = activeNote?.wordWrap ?? true;
   const markdownView = activeNote?.markdownView ?? "edit";
+  const filteredLanguageMenuItems = useMemo<readonly MenuItem[]>(() => {
+    const search = languageSearchText.trim().toLocaleLowerCase();
+    return LANGUAGE_OPTIONS
+      .filter((language) => {
+        if (!search) return true;
+        const filenames = "filenames" in language ? language.filenames : [];
+        return [language.label, language.key, ...language.extensions, ...filenames]
+          .some((value) => value.toLocaleLowerCase().includes(search));
+      })
+      .map(({ key, label }) => ({ key, label }));
+  }, [languageSearchText]);
+  const markdownOutline = useMemo(
+    () => createMarkdownOutline(activeNote?.content ?? ""),
+    [activeNote?.content],
+  );
+  const markdownOutlineMeta = useMemo(
+    () => markdownOutlineMetadata(markdownOutline),
+    [markdownOutline],
+  );
   const editorOptions = useMemo(() => ({
     ...EDITOR_OPTIONS,
     wordWrap: editorWordWrap ? "on" as const : "off" as const,
   }), [editorWordWrap]);
+  const handleMarkdownOutlineSelect = useCallback((_keys: TreeKey[], info: { node: TreeNode }) => {
+    const headingIndex = typeof info.node.headingIndex === "number" ? info.node.headingIndex : -1;
+    if (headingIndex < 0) return;
+    setActiveMarkdownOutlineKey(info.node.key);
+    const ancestors = markdownOutlineMeta.ancestorsByKey.get(info.node.key) ?? [];
+    setMarkdownOutlineExpandedKeys((current) => [...new Set([...current, ...ancestors])]);
+    const heading = markdownPreviewRef.current
+      ?.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6")
+      .item(headingIndex);
+    heading?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [markdownOutlineMeta]);
+
+  useEffect(() => {
+    if (editorLanguage !== "markdown" || markdownView !== "preview") return;
+    setMarkdownOutlineExpandedKeys(markdownOutlineMeta.branchKeys);
+    setActiveMarkdownOutlineKey(markdownOutline[0]?.key ?? null);
+  }, [activeNote?.id, editorLanguage, markdownOutline, markdownOutlineMeta, markdownView]);
+
+  useEffect(() => {
+    if (editorLanguage !== "markdown" || markdownView !== "preview") return undefined;
+    const preview = markdownPreviewRef.current;
+    if (!preview) return undefined;
+    let animationFrame = 0;
+    const updateActiveHeading = () => {
+      animationFrame = 0;
+      const headings = preview.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6");
+      if (!headings.length) {
+        setActiveMarkdownOutlineKey(null);
+        return;
+      }
+      const threshold = preview.getBoundingClientRect().top + 28;
+      let activeIndex = 0;
+      for (let index = 0; index < headings.length; index += 1) {
+        if (headings.item(index).getBoundingClientRect().top > threshold) break;
+        activeIndex = index;
+      }
+      const nextKey = `markdown-heading:${activeIndex}`;
+      setActiveMarkdownOutlineKey((current) => current === nextKey ? current : nextKey);
+      const ancestors = markdownOutlineMeta.ancestorsByKey.get(nextKey) ?? [];
+      setMarkdownOutlineExpandedKeys((current) => {
+        const missing = ancestors.filter((key) => !current.includes(key));
+        return missing.length ? [...current, ...missing] : current;
+      });
+    };
+    const handleScroll = () => {
+      if (!animationFrame) animationFrame = requestAnimationFrame(updateActiveHeading);
+    };
+    updateActiveHeading();
+    preview.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      preview.removeEventListener("scroll", handleScroll);
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+    };
+  }, [activeNote?.id, editorLanguage, markdownOutlineMeta, markdownView]);
+
+  useEffect(() => {
+    if (!activeMarkdownOutlineKey) return undefined;
+    const animationFrame = requestAnimationFrame(() => {
+      const tree = markdownOutlineRef.current?.querySelector<HTMLElement>(".markdown-outline__tree");
+      if (!tree) return;
+      const row = [...tree.querySelectorAll<HTMLElement>("[data-sia-tree-drop-key]")]
+        .find((item) => item.dataset.siaTreeDropKey === String(activeMarkdownOutlineKey));
+      if (!row) return;
+      const treeRect = tree.getBoundingClientRect();
+      const rowRect = row.getBoundingClientRect();
+      if (rowRect.top < treeRect.top) tree.scrollBy({ top: rowRect.top - treeRect.top - 4, behavior: "smooth" });
+      else if (rowRect.bottom > treeRect.bottom) tree.scrollBy({ top: rowRect.bottom - treeRect.bottom + 4, behavior: "smooth" });
+    });
+    return () => cancelAnimationFrame(animationFrame);
+  }, [activeMarkdownOutlineKey, markdownOutlineExpandedKeys]);
   const viewportWidth = Math.max(window.innerWidth, 720);
   const sidebarMinPercent = Math.min(45, 210 / viewportWidth * 100);
   const sidebarMaxPercent = Math.max(sidebarMinPercent, Math.min(48, 480 / viewportWidth * 100));
@@ -1369,27 +1577,45 @@ export default function App() {
     const languageLabel = LANGUAGE_LABELS.get(editorLanguage) ?? editorLanguage;
     setFormattingNoteId(noteId);
     try {
-      const formatted = await formatText(editorLanguage, source, activeNote.sourcePath ?? activeNote.title);
+      const formatResult = await formatText(editorLanguage, source, activeNote.sourcePath ?? activeNote.title);
+      const formatted = formatResult.content;
+      const formattedLanguage = formatResult.formattedAs ?? editorLanguage;
+      const formattedLanguageLabel = LANGUAGE_LABELS.get(formattedLanguage) ?? formattedLanguage;
+      const formatMarkers: EditorMarker[] = formatResult.diagnostics.map((diagnostic) => ({
+        ...diagnostic,
+        severity: "error",
+        source: `${formattedLanguageLabel} 格式化`,
+      }));
       const latestNote = notesRef.current.find((note) => note.id === noteId);
       if (!latestNote || latestNote.content !== source) {
         message.warning("格式化期间内容已经改变，已保留当前文本");
         return;
       }
+      if (formatResult.formattedAs
+        && formatResult.formattedAs !== editorLanguage
+        && (latestNote.language ?? "plaintext") === editorLanguage) {
+        setNotes((current) => current.map((note) => note.id === noteId
+          ? { ...note, language: formatResult.formattedAs }
+          : note));
+      }
       if (formatted === source) {
-        message.info(`${languageLabel} 内容已经是格式化状态`);
+        setFormatMarkersByNote((current) => ({ ...current, [noteId]: formatMarkers }));
+        if (formatResult.partial) message.warning(`${formattedLanguageLabel} 存在语法错误，没有可安全调整的内容`);
+        else message.info(`${formattedLanguageLabel} 内容已经是格式化状态`);
         return;
       }
-      setNotes((current) => current.map((note) => note.id === noteId ? {
-        ...note,
-        content: formatted,
-        sourceDirty: note.sourcePath
-          ? note.sourceContentHash
-            ? contentHash(formatted) !== note.sourceContentHash
-            : true
-          : note.sourceDirty,
-        updatedAt: Date.now(),
-      } : note));
-      message.success(`${languageLabel} 已格式化`);
+      const editorApi = editorApiRef.current;
+      if (!editorApi || editorApi.getValue() !== source) {
+        message.warning("编辑器尚未准备好，已保留当前文本，请稍后重试");
+        return;
+      }
+      editorApi.replaceValue(formatted);
+      setFormatMarkersByNote((current) => ({ ...current, [noteId]: formatMarkers }));
+      if (formatResult.partial) {
+        message.warning(`${formatResult.formattedAs ? `已识别为 ${formattedLanguageLabel}，` : ""}已完成容错格式化，无法解析的片段已保留`);
+      } else {
+        message.success(`${formatResult.formattedAs ? `已识别为 ${formattedLanguageLabel}，` : ""}${formattedLanguageLabel} 已格式化`);
+      }
     } catch (error) {
       const detail = (error instanceof Error ? error.message : String(error))
         .replace(/\s+/gu, " ")
@@ -1413,6 +1639,27 @@ export default function App() {
     markdownImageCacheRef.current.set(src, request);
     return request;
   }, []);
+
+  const handleMarkdownPreviewClick = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    if (event.defaultPrevented || event.button !== 0 || !(event.target instanceof Element)) return;
+    const anchor = event.target.closest<HTMLAnchorElement>("a[href]");
+    if (!anchor || !event.currentTarget.contains(anchor)) return;
+    const href = anchor.getAttribute("href")?.trim();
+    if (!href || href.startsWith("#")) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    if (!window.__TAURI__?.core?.invoke) {
+      message.error("当前环境无法调用系统默认程序打开链接");
+      return;
+    }
+    void window.__TAURI__.core.invoke<void>("open_external_link", {
+      href,
+      sourcePath: activeNote?.sourcePath ?? null,
+    }).catch((error) => {
+      message.error(`无法打开链接：${error instanceof Error ? error.message : String(error)}`);
+    });
+  }, [activeNote?.sourcePath]);
 
   const treeActionHandlersRef = useRef({
     handleNoteContextAction,
@@ -1925,13 +2172,55 @@ export default function App() {
                 </div>
               </div>
               {editorLanguage === "markdown" && markdownView === "preview" ? (
-                <div className="note-markdown-preview" aria-label="Markdown 预览">
-                  <Markdown
-                    content={activeNote.content}
-                    emptyText="开始输入 Markdown 后，这里会显示预览。"
-                    resolveImageSrc={resolveMarkdownImageSrc}
-                  />
-                </div>
+                <Splitter className="markdown-preview-splitter" orientation="horizontal">
+                  <Splitter.Panel defaultSize={78} min={55}>
+                    <div
+                      ref={markdownPreviewRef}
+                      className="note-markdown-preview"
+                      aria-label="Markdown 预览"
+                      onClick={handleMarkdownPreviewClick}
+                    >
+                      <Markdown
+                        content={activeNote.content}
+                        emptyText="开始输入 Markdown 后，这里会显示预览。"
+                        resolveImageSrc={resolveMarkdownImageSrc}
+                      />
+                    </div>
+                  </Splitter.Panel>
+                  <Splitter.Panel
+                    className="markdown-outline-panel"
+                    defaultSize={22}
+                    min={14}
+                    max={40}
+                    collapsible
+                    collapsedSize={3.5}
+                    collapsedAriaLabel="展开 Markdown 大纲"
+                    collapsedContent={<span className="markdown-outline-rail"><Icon name="menu" size={14} /><span>大纲</span></span>}
+                  >
+                    <aside ref={markdownOutlineRef} className="markdown-outline" aria-label="Markdown 大纲">
+                      <header className="markdown-outline__header">
+                        <Icon name="menu" size={14} />
+                        <strong>大纲</strong>
+                      </header>
+                      {markdownOutline.length ? (
+                        <Tree
+                          key={`markdown-outline:${activeNote.id}`}
+                          className="markdown-outline__tree"
+                          treeData={markdownOutline}
+                          selectedKeys={activeMarkdownOutlineKey === null ? [] : [activeMarkdownOutlineKey]}
+                          expandedKeys={markdownOutlineExpandedKeys}
+                          blockNode
+                          indentSize={14}
+                          switcherWidth={18}
+                          onSelect={handleMarkdownOutlineSelect}
+                          onExpand={setMarkdownOutlineExpandedKeys}
+                        />
+                      ) : (
+                        <div className="markdown-outline__empty">当前文档没有标题</div>
+                      )}
+                    </aside>
+                  </Splitter.Panel>
+                </Splitter>
               ) : (
                 <Editor
                   className="note-content-editor"
@@ -1941,15 +2230,22 @@ export default function App() {
                   theme={darkMode ? "dark" : "light"}
                   options={editorOptions}
                   contextMenuItems={EDITOR_CONTEXT_MENU}
+                  markers={formatMarkersByNote[activeNote.id] ?? EMPTY_EDITOR_MARKERS}
                   ariaLabel="笔记内容编辑器"
                   loadingText="正在准备编辑器…"
-                  onChange={(content) => updateActiveNote({ content })}
+                  onReady={(api) => { editorApiRef.current = api; }}
+                  onChange={(content) => {
+                    setFormatMarkersByNote((current) => current[activeNote.id]?.length
+                      ? { ...current, [activeNote.id]: [] }
+                      : current);
+                    updateActiveNote({ content });
+                  }}
                 />
               )}
               <footer className="editor-statusbar">
                 <div>
-                  <span>{wordCount} 词</span>
-                  <span>{characterCount} 字符</span>
+                  <span><span className={statusCountColorClass(wordCount)}>{wordCount}</span> 词</span>
+                  <span><span className={statusCountColorClass(characterCount)}>{characterCount}</span> 字符</span>
                 </div>
                 <div>
                   {FORMATTABLE_LANGUAGES.has(editorLanguage) ? (
@@ -1977,9 +2273,33 @@ export default function App() {
                   <Dropdown
                     placement="topRight"
                     trigger={["click"]}
+                    autoFocus
                     popupClassName="language-dropdown"
+                    onOpenChange={(open) => {
+                      if (open) setLanguageSearchText("");
+                    }}
+                    popupRender={(menu) => (
+                      <div className="language-dropdown__content">
+                        <div className="language-dropdown__search-wrap">
+                          <Input
+                            className="language-dropdown__search"
+                            size="small"
+                            value={languageSearchText}
+                            data-sia-dropdown-autofocus=""
+                            allowClear
+                            prefix={<Icon name="search" size={13} />}
+                            placeholder="搜索语言或扩展名…"
+                            aria-label="搜索语言"
+                            onChange={(event) => setLanguageSearchText(event.target.value)}
+                          />
+                        </div>
+                        {filteredLanguageMenuItems.length > 0
+                          ? menu
+                          : <div className="language-dropdown__empty">未找到匹配的语言</div>}
+                      </div>
+                    )}
                     menu={{
-                      items: LANGUAGE_MENU_ITEMS,
+                      items: filteredLanguageMenuItems,
                       selectable: true,
                       selectedKeys: [editorLanguage],
                       onClick: ({ key }) => {

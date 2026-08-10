@@ -36,12 +36,14 @@ const apiRows = [
   { property: "language", description: "Monaco 语言标识", type: "string", defaultValue: "'plaintext'" },
   { property: "theme", description: "编辑器主题", type: "'light' | 'dark'", defaultValue: "'light'" },
   { property: "options", description: "Monaco 编辑器配置", type: "IStandaloneEditorConstructionOptions", defaultValue: "-" },
+  { property: "markers", description: "在指定文本范围显示错误、警告或信息波浪线", type: "readonly EditorMarker[]", defaultValue: "[]" },
   { property: "completionProvider", description: "按当前文本和光标上下文异步提供智能提示", type: "EditorCompletionProvider", defaultValue: "-" },
   { property: "completionTriggerCharacters", description: "主动触发智能提示的字符", type: "readonly string[]", defaultValue: "['.']" },
   { property: "refreshSuggestionOnSpace", description: "按空格时正常输入空格、关闭当前提示，并根据新的光标位置重新触发智能提示", type: "boolean", defaultValue: "false" },
   { property: "EditorCompletionItem.commitCharacters", description: "输入指定字符时接受当前选中的提示项", type: "readonly string[]", defaultValue: "-" },
   { property: "onKeyDown", description: "编辑器键盘事件，可拦截快捷键并执行自定义操作", type: "(event: EditorKeyDownEvent) => void", defaultValue: "-" },
   { property: "onReady", description: "返回选择区、插入、定位和聚焦命令", type: "(api: EditorHandle | null) => void", defaultValue: "-" },
+  { property: "EditorHandle.replaceValue", description: "以一次可撤销编辑替换全文，适用于格式化等操作", type: "(content: string) => void", defaultValue: "-" },
 ] as const;
 
 export function EditorPage() {

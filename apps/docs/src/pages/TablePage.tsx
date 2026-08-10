@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
   Icon,
@@ -39,6 +39,298 @@ interface ProductRow extends Record<string, unknown> {
   status: "在售" | "缺货" | "下架";
   owner: string;
   children?: ProductRow[];
+}
+
+interface BenchmarkRow extends Record<string, unknown> {
+  id: number;
+  settings?: Record<string, unknown>;
+}
+
+type BenchmarkRenderKind = "stage" | "bool" | "boolText" | "queueMode" | "json" | "deleted" | "runningMode" | "dataSyncMode" | "seconds" | "dateTime" | "job20Status";
+
+interface BenchmarkColumnDefinition {
+  code: string;
+  name: string;
+  width?: number;
+  sort?: boolean;
+  render?: BenchmarkRenderKind;
+  trueText?: string;
+  falseText?: string;
+}
+
+const benchmarkColumnDefinitions: readonly BenchmarkColumnDefinition[] = [
+  { code: "id", name: "id", width: 40 },
+  { code: "coId", name: "公司编号", sort: true },
+  { code: "coName", name: "公司名称", sort: true, width: 220 },
+  { code: "stage", name: "阶段", render: "stage", sort: true },
+  { code: "definitionId", name: "作业定义编号" },
+  { code: "isAllowDuplicates", name: "是否允许重复", render: "boolText", trueText: "可重复", falseText: "不可重复" },
+  { code: "isQueued", name: "是否使用队列", render: "boolText", trueText: "使用", falseText: "不使用" },
+  { code: "queueMode", name: "队列模式", render: "queueMode" },
+  { code: "status", name: "运行状态", render: "boolText", trueText: "运行中", falseText: "已停止" },
+  { code: "limitCount", name: "限定写入次数", sort: true },
+  { code: "name", name: "作业名称", width: 220 },
+  { code: "entityType", name: "业务单据类型" },
+  { code: "states", name: "实例状态", render: "json", width: 230 },
+  { code: "parameters", name: "参数", render: "json", width: 230 },
+  { code: "settings", name: "设置", render: "json", width: 260 },
+  { code: "remark", name: "备注", width: 180 },
+  { code: "group", name: "分组" },
+  { code: "isIntelligentModeEnabled", name: "是否启用智能模式", render: "bool" },
+  { code: "version", name: "执行器版本" },
+  { code: "isAllowNullableTask", name: "是否允许空任务", render: "bool" },
+  { code: "trigger", name: "触发器", render: "boolText", trueText: "KA", falseText: "标品" },
+  { code: "isEnabled", name: "是否启用", render: "boolText", trueText: "启用", falseText: "禁用" },
+  { code: "isDeleted", name: "是否已删除", render: "deleted" },
+  { code: "runningMode", name: "运行模式", render: "runningMode" },
+  { code: "dataSyncMode", name: "数据同步模式", render: "dataSyncMode" },
+  { code: "active", name: "是否激活", render: "bool" },
+  { code: "host", name: "执行环境", width: 180 },
+  { code: "ess", name: "急停信号", render: "bool" },
+  { code: "interval", name: "运行间隔", sort: true, render: "seconds" },
+  { code: "timeout", name: "超时时间", sort: true },
+  { code: "job20JobId", name: "JOB2.0作业编号" },
+  { code: "job20SplitId", name: "JOB2.0拆分ID", width: 180 },
+  { code: "job20NextRunTime", name: "JOB2.0下次运行时间", render: "dateTime", width: 180 },
+  { code: "job20Status", name: "JOB2.0状态", render: "job20Status" },
+  { code: "job20Enabled", name: "JOB2.0是否启用", render: "bool" },
+  { code: "job20GroupIndex", name: "JOB2.0分组号" },
+  { code: "job20JobTakeHost", name: "JOB2.0运行主机", width: 180 },
+  { code: "job20ApiInterval", name: "JOB2.0间隔时间", render: "seconds" },
+  { code: "job20ApiIntervalBase", name: "JOB2.0间隔时间基数" },
+  { code: "job20ApiTimeout", name: "JOB2.0超时时间" },
+  { code: "lastRunStartTime", name: "上次运行开始时间", render: "dateTime", width: 180 },
+  { code: "lastRunTotalDuration", name: "上次运行总耗时(ms)", sort: true },
+  { code: "lastFailureTime", name: "上次失败时间", render: "dateTime", width: 180 },
+  { code: "lastFailureMessage", name: "上次失败信息", width: 220 },
+  { code: "totalRuns", name: "总运行次数", sort: true },
+  { code: "totalSuccessRuns", name: "总运行成功次数", sort: true },
+  { code: "totalFailureRuns", name: "总运行失败次数", sort: true },
+  { code: "consecutiveFailureRuns", name: "连续失败次数", sort: true },
+  { code: "ts", name: "时间戳" },
+  { code: "responsibleUserId", name: "责任人用户编号" },
+  { code: "responsibleUserName", name: "责任人用户名" },
+  { code: "created", name: "创建时间", render: "dateTime", width: 180 },
+  { code: "creatorUserId", name: "创建人用户编号" },
+  { code: "creatorUserName", name: "创建人用户名称" },
+  { code: "modified", name: "修改时间", render: "dateTime", width: 180 },
+  { code: "modifierUserId", name: "修改人用户编号" },
+  { code: "modifierUserName", name: "修改人用户名称" },
+];
+
+const stageLabels: Record<number, string> = { 1: "历史", 2: "未来" };
+const queueModeLabels: Record<number, string> = { 1: "无队列模式", 2: "有队列模式", 4: "智能模式" };
+const runningModeLabels: Record<number, string> = { 1: "点动模式", 2: "常动模式" };
+const dataSyncModeLabels: Record<number, string> = { 1: "增量", 2: "全量", 4: "补拉" };
+const job20StatusLabels: Record<number, string> = { 0: "未授权", 1: "已过期", 2: "已授权" };
+
+function benchmarkBoolean(value: unknown) {
+  return value === true || value === 1 || value === "1" || value === "启用" || value === "有效";
+}
+
+function benchmarkBooleanTag(value: unknown, trueText = "是", falseText = "否") {
+  const active = benchmarkBoolean(value);
+  return <Tag compact status={active ? "success" : "default"}>{active ? trueText : falseText}</Tag>;
+}
+
+function benchmarkDateTime(value: unknown) {
+  if (!value) return "";
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return String(value);
+  const parts = new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")} ${part("hour")}:${part("minute")}:${part("second")}`;
+}
+
+function benchmarkSeconds(value: unknown) {
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds)) return "";
+  if (seconds < 0) return "0秒";
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor(seconds % 86400 / 3600);
+  const minutes = Math.floor(seconds % 3600 / 60);
+  const rest = Math.floor(seconds % 60);
+  return `${days ? `${days}天` : ""}${hours ? `${hours}小时` : ""}${minutes ? `${minutes}分` : ""}${rest || (!days && !hours && !minutes) ? `${rest}秒` : ""}`;
+}
+
+function benchmarkRender(definition: BenchmarkColumnDefinition, value: unknown, record: BenchmarkRow) {
+  switch (definition.render) {
+    case "stage": return stageLabels[Number(value)] ?? "";
+    case "bool": return benchmarkBooleanTag(value);
+    case "boolText": return benchmarkBooleanTag(value, definition.trueText, definition.falseText);
+    case "queueMode": return queueModeLabels[Number(value)] ?? "";
+    case "json": {
+      const json = value == null ? "" : JSON.stringify(value);
+      return <span className="table-benchmark__json" title={json}>{json}</span>;
+    }
+    case "deleted": return benchmarkBoolean(value)
+      ? <Tag compact status="error">已删除</Tag>
+      : <Tag compact status="default">未删除</Tag>;
+    case "runningMode": return runningModeLabels[Number(record.settings?.runningMode)] ?? "";
+    case "dataSyncMode": return dataSyncModeLabels[Number(record.settings?.dataSyncMode)] ?? "";
+    case "seconds": return benchmarkSeconds(value);
+    case "dateTime": return benchmarkDateTime(value);
+    case "job20Status": return value == null ? "" : <Tag compact status="processing">{job20StatusLabels[Number(value)] ?? String(value)}</Tag>;
+    default: return value == null ? "" : typeof value === "object" ? JSON.stringify(value) : String(value);
+  }
+}
+
+const benchmarkColumns: readonly TableColumn<BenchmarkRow>[] = benchmarkColumnDefinitions.map((definition) => ({
+  key: definition.code,
+  code: definition.code,
+  name: definition.name,
+  width: definition.width ?? Math.max(120, Math.min(220, Math.max(definition.name.length * 18 + 36, definition.code.length * 8 + 28))),
+  sortable: definition.sort,
+  ellipsis: true,
+  render: (value, record) => benchmarkRender(definition, value, record),
+}));
+
+const benchmarkCode = `import { useEffect, useState } from "react";
+import { Table, Tag, createSortPlugin } from "@sia-ui/react";
+
+const definitions = ${JSON.stringify(benchmarkColumnDefinitions, null, 2)};
+const labels = {
+  stage: { 1: "历史", 2: "未来" },
+  queueMode: { 1: "无队列模式", 2: "有队列模式", 4: "智能模式" },
+  runningMode: { 1: "点动模式", 2: "常动模式" },
+  dataSyncMode: { 1: "增量", 2: "全量", 4: "补拉" },
+  job20Status: { 0: "未授权", 1: "已过期", 2: "已授权" },
+};
+const isTrue = (value) => value === true || value === 1 || value === "1" || value === "启用" || value === "有效";
+const boolTag = (value, yes = "是", no = "否") => (
+  <Tag compact status={isTrue(value) ? "success" : "default"}>
+    {isTrue(value) ? yes : no}
+  </Tag>
+);
+const formatSeconds = (value) => {
+  const seconds = Number(value);
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor(seconds % 86400 / 3600);
+  const minutes = Math.floor(seconds % 3600 / 60);
+  const rest = Math.floor(seconds % 60);
+  return (days ? days + "天" : "") + (hours ? hours + "小时" : "")
+    + (minutes ? minutes + "分" : "") + (rest || (!days && !hours && !minutes) ? rest + "秒" : "");
+};
+function renderCell(column, value, record) {
+  if (column.render === "stage") return labels.stage[value] ?? "";
+  if (column.render === "queueMode") return labels.queueMode[value] ?? "";
+  if (column.render === "runningMode") return labels.runningMode[record.settings?.runningMode] ?? "";
+  if (column.render === "dataSyncMode") return labels.dataSyncMode[record.settings?.dataSyncMode] ?? "";
+  if (column.render === "bool") return boolTag(value);
+  if (column.render === "boolText") return boolTag(value, column.trueText, column.falseText);
+  if (column.render === "deleted") return isTrue(value)
+    ? <Tag compact status="error">已删除</Tag>
+    : <Tag compact status="default">未删除</Tag>;
+  if (column.render === "json") return value == null ? "" : JSON.stringify(value);
+  if (column.render === "seconds") return formatSeconds(value);
+  if (column.render === "dateTime") return value ? new Date(value).toLocaleString("zh-CN", { hour12: false }) : "";
+  if (column.render === "job20Status") return value == null ? "" : <Tag compact status="processing">{labels.job20Status[value] ?? value}</Tag>;
+  return value == null ? "" : String(value);
+}
+const columns = definitions.map((definition) => ({
+  key: definition.code,
+  code: definition.code,
+  name: definition.name,
+  width: definition.width,
+  sortable: definition.sort,
+  ellipsis: true,
+  render: (value, record) => renderCell(definition, value, record),
+}));
+
+export default function Demo() {
+  const [rows, setRows] = useState([]);
+  useEffect(() => {
+    fetch("/data/table-benchmark.json")
+      .then((response) => response.json())
+      .then((result) => setRows(result.data.items));
+  }, []);
+  return <Table rowKey="id" columns={columns} dataSource={rows}
+    plugins={[createSortPlugin()]} virtual height={420} rowHeight={38} />;
+}`;
+
+function JsonTableBenchmark() {
+  const [rows, setRows] = useState<BenchmarkRow[]>([]);
+  const [virtual, setVirtual] = useState(true);
+  const [loadMs, setLoadMs] = useState<number | null>(null);
+  const [parseMs, setParseMs] = useState<number | null>(null);
+  const [error, setError] = useState("");
+  const renderStartedAt = useRef(0);
+  const resultRef = useRef<HTMLSpanElement>(null);
+  const tableHostRef = useRef<HTMLDivElement>(null);
+  const plugins = useMemo<readonly AnyTablePlugin<BenchmarkRow>[]>(() => [createSortPlugin<BenchmarkRow>()], []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void (async () => {
+      const loadStartedAt = performance.now();
+      try {
+        const response = await fetch("/data/table-benchmark.json", { signal: controller.signal });
+        if (!response.ok) throw new Error(`数据文件加载失败（${response.status}）`);
+        const text = await response.text();
+        setLoadMs(performance.now() - loadStartedAt);
+        const parseStartedAt = performance.now();
+        const result = JSON.parse(text) as { data?: { items?: BenchmarkRow[] } };
+        setParseMs(performance.now() - parseStartedAt);
+        const items = result.data?.items;
+        if (!Array.isArray(items)) throw new Error("JSON 中没有找到 data.items 数组");
+        renderStartedAt.current = performance.now();
+        setRows(items);
+      } catch (reason) {
+        if (controller.signal.aborted) return;
+        setError(reason instanceof Error ? reason.message : "JSON 读取失败");
+      }
+    })();
+    return () => controller.abort();
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!rows.length || !renderStartedAt.current) return;
+    const elapsed = performance.now() - renderStartedAt.current;
+    const renderedRows = tableHostRef.current?.querySelectorAll("tbody tr").length ?? 0;
+    const renderedCells = tableHostRef.current?.querySelectorAll("tbody td").length ?? 0;
+    if (resultRef.current) resultRef.current.textContent = `${elapsed.toFixed(1)} ms（DOM 行 ${renderedRows}，单元格 ${renderedCells}）`;
+    renderStartedAt.current = 0;
+  }, [rows, virtual]);
+
+  function changeMode(nextVirtual: boolean) {
+    if (nextVirtual === virtual) return;
+    if (resultRef.current) resultRef.current.textContent = "测量中…";
+    renderStartedAt.current = performance.now();
+    setVirtual(nextVirtual);
+  }
+
+  return <div className="table-benchmark">
+    <div className="table-benchmark__toolbar">
+      <span>数据源：<code>/data/table-benchmark.json</code></span>
+      <Space wrap>
+        <Button variant={virtual ? "default" : "primary"} onClick={() => changeMode(false)}>完整 DOM</Button>
+        <Button variant={virtual ? "primary" : "default"} onClick={() => changeMode(true)}>虚拟滚动</Button>
+      </Space>
+    </div>
+    <div className="table-benchmark__metrics">
+      <span>数据：{rows.length} 行 × {benchmarkColumnDefinitions.length} 列</span>
+      <span>加载：{loadMs == null ? "—" : `${loadMs.toFixed(1)} ms`}</span>
+      <span>解析：{parseMs == null ? "—" : `${parseMs.toFixed(1)} ms`}</span>
+      <span>渲染：<strong ref={resultRef}>{rows.length ? "测量中…" : "—"}</strong></span>
+      <span>模式：{virtual ? "无分页 + 虚拟滚动" : "无分页 + 完整 DOM"}</span>
+    </div>
+    {error ? <p className="table-benchmark__error">{error}</p> : null}
+    {rows.length ? <div className="table-benchmark__host" ref={tableHostRef}>
+      <Table
+        className="table-demo table-benchmark__table"
+        rowKey="id"
+        columns={benchmarkColumns}
+        dataSource={rows}
+        plugins={plugins}
+        virtual={virtual}
+        height={420}
+        rowHeight={38}
+        overscan={8}
+      />
+    </div> : <div className="table-benchmark__empty">{error ? "数据加载失败" : "正在加载测试数据…"}</div>}
+  </div>;
 }
 
 const categories = ["办公用品", "数码设备", "家具", "耗材"];
@@ -508,6 +800,9 @@ export function TablePage() {
       </DemoCard>
       <DemoCard title="5000 行虚拟滚动" description="只渲染视口附近的行；排序和行选择仍可作为独立插件组合使用。" code={virtualCode}>
         <Table className="table-demo virtual-table-demo" rowKey="id" columns={advancedColumns} dataSource={virtualData} plugins={virtualPlugins} virtual height={360} rowHeight={38} overscan={6} />
+      </DemoCard>
+      <DemoCard title="真实 JSON 无分页压测" description="直接加载测试数据的 data.items，并按给定的 57 个业务列、中文列名、排序和格式化规则展示；可对比完整 DOM 与无分页虚拟滚动的实际开销。" code={benchmarkCode}>
+        <JsonTableBenchmark />
       </DemoCard>
       <section className="token-section"><h2>已迁移功能</h2><p>旧表格能力全部对应到独立模块，业务项目只加载需要的插件。</p><Space wrap>{["固定列", "分组表头", "列头说明", "虚拟滚动", "选择", "跨页保留选择", "Excel 式单元格框选", "排序", "分页", "行内编辑", "树形", "汇总", "列设置", "列宽拖拽", "工具栏", "连续单元格合并", "行列单元格高亮", "CSV 导出", "动态列转换", "权限过滤", "设置持久化", "Ref API"].map((name) => <Tag key={name} status="processing" variant="outlined">{name}</Tag>)}</Space></section>
     </div> : <ApiTable name="Table" rows={apiRows} />}

@@ -17,6 +17,9 @@ use winreg::{
 };
 
 #[cfg(target_os = "windows")]
+use std::{ffi::OsStr, os::windows::ffi::OsStrExt};
+
+#[cfg(target_os = "windows")]
 const FILE_ASSOCIATION_ICONS: &[(&str, &[u8])] = &[
     ("txt", include_bytes!("../filetype-icons/txt.ico")),
     ("json", include_bytes!("../filetype-icons/json.ico")),
@@ -59,6 +62,14 @@ extern "system" {
         item1: *const std::ffi::c_void,
         item2: *const std::ffi::c_void,
     );
+    fn ShellExecuteW(
+        window: *mut std::ffi::c_void,
+        operation: *const u16,
+        file: *const u16,
+        parameters: *const u16,
+        directory: *const u16,
+        show_command: i32,
+    ) -> isize;
 }
 
 const FILE_ASSOCIATION_EXTENSIONS: &[&str] = &[
@@ -73,6 +84,11 @@ const SUPPORTED_TEXT_EXTENSIONS: &[&str] = &[
     "ans",
     "mac",
     "asp",
+    "aspx",
+    "ascx",
+    "master",
+    "asmx",
+    "ashx",
     "cshtml",
     "razor",
     "asm",
@@ -235,6 +251,103 @@ const SUPPORTED_TEXT_EXTENSIONS: &[&str] = &[
     "xslt",
     "yaml",
     "yml",
+];
+const SAVE_FILE_FILTERS: &[(&str, &[&str])] = &[
+    ("纯文本与日志", &["txt", "log"]),
+    (
+        "Markdown 与文档",
+        &["md", "markdown", "jmd", "rst", "po", "pot"],
+    ),
+    (
+        "Web 页面与模板",
+        &[
+            "html",
+            "htm",
+            "asp",
+            "aspx",
+            "ascx",
+            "master",
+            "asmx",
+            "ashx",
+            "cshtml",
+            "razor",
+            "jsp",
+            "jspx",
+            "hbs",
+            "handlebars",
+            "pug",
+            "jade",
+            "vue",
+        ],
+    ),
+    ("样式表", &["css", "scss", "less"]),
+    (
+        "JavaScript 与 TypeScript",
+        &["js", "mjs", "cjs", "jsx", "ts", "tsx", "coffee"],
+    ),
+    ("JSON 数据", &["json", "jsonc", "jsonl", "ndjson"]),
+    ("XML、XAML 与 XSL", &["xml", "xaml", "xsl", "xslt"]),
+    (
+        "配置文件",
+        &["yaml", "yml", "toml", "ini", "properties", "env"],
+    ),
+    (
+        "C、C++ 与 CUDA",
+        &[
+            "c", "h", "cpp", "cc", "cxx", "hpp", "hh", "hxx", "cu", "cuh", "rc",
+        ],
+    ),
+    (
+        ".NET 源代码",
+        &["cs", "fs", "fsi", "fsx", "fsscript", "vb", "vbs"],
+    ),
+    (
+        "JVM 与 Clojure 源代码",
+        &[
+            "java", "jav", "kt", "kts", "scala", "sc", "groovy", "gradle", "clj", "cljs", "cljc",
+            "edn",
+        ],
+    ),
+    (
+        "脚本文件",
+        &[
+            "bat", "cmd", "sh", "bash", "zsh", "ksh", "ps1", "psm1", "psd1", "py", "pyw", "rb",
+            "pl", "pm", "php", "phtml", "lua", "r", "rprofile", "rhistory", "raku", "rakumod",
+            "p6", "pm6", "tcl",
+        ],
+    ),
+    (
+        "其他编程语言",
+        &[
+            "rs", "go", "d", "dart", "swift", "pas", "p", "pp", "jl", "m", "mm", "lisp", "lsp",
+            "cl", "sol",
+        ],
+    ),
+    (
+        "数据库与接口",
+        &["sql", "graphql", "gql", "proto", "edi", "edifact"],
+    ),
+    (
+        "工程与构建文件",
+        &["cmake", "mk", "mak", "dockerfile", "nsi", "nsh"],
+    ),
+    (
+        "汇编、硬件与着色器",
+        &[
+            "asm", "s", "v", "vh", "sv", "svh", "vhd", "vhdl", "hlsl", "fx", "fxh", "shader",
+            "wgsl", "wat", "wast",
+        ],
+    ),
+    (
+        "科学与工程文件",
+        &[
+            "apdl", "ans", "mac", "f", "for", "f90", "f95", "f03", "f08", "f77", "gcode", "nc",
+            "tap", "hex", "ihex", "spice", "cir", "pov",
+        ],
+    ),
+    ("TeX 与 BibTeX", &["tex", "latex", "bib"]),
+    ("差异与补丁", &["diff", "patch"]),
+    ("PostScript", &["ps", "eps"]),
 ];
 const MAX_REMOTE_IMAGE_BYTES: u64 = 15 * 1024 * 1024;
 
@@ -824,6 +937,63 @@ fn write_external_file(
 }
 
 #[tauri::command]
+async fn save_new_external_file(
+    app: AppHandle,
+    file_name: String,
+    extension: String,
+    filter_name: String,
+    filter_extensions: Vec<String>,
+    content: String,
+    encoding: String,
+) -> Result<Option<serde_json::Value>, String> {
+    let parent_window = app.get_webview_window("main");
+    tauri::async_runtime::spawn_blocking(move || -> Result<Option<serde_json::Value>, String> {
+        let trimmed_extension = extension.trim().trim_start_matches('.');
+        let current_extensions = filter_extensions
+            .iter()
+            .map(|item| item.trim().trim_start_matches('.'))
+            .filter(|item| !item.is_empty())
+            .collect::<Vec<_>>();
+        let mut dialog = rfd::FileDialog::new().set_file_name(file_name.trim());
+        if let Some(window) = parent_window.as_ref() {
+            dialog = dialog.set_parent(window);
+        }
+        if !current_extensions.is_empty() {
+            dialog = dialog.add_filter(filter_name.trim(), &current_extensions);
+        } else if !trimmed_extension.is_empty() {
+            dialog = dialog.add_filter(filter_name.trim(), &[trimmed_extension]);
+        }
+        for (name, extensions) in SAVE_FILE_FILTERS {
+            dialog = dialog.add_filter(*name, extensions);
+        }
+        dialog = dialog.add_filter("所有文件", &["*"]);
+
+        let Some(path) = dialog.save_file() else {
+            return Ok(None);
+        };
+        let bytes = encode_text(&content, &encoding)?;
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(&path)
+            .map_err(|error| format!("无法创建文件 {}：{error}", path.display()))?;
+        file.write_all(&bytes)
+            .and_then(|_| file.sync_all())
+            .map_err(|error| format!("无法保存文件 {}：{error}", path.display()))?;
+        let modified_at =
+            modified_at_millis(&path).ok_or_else(|| "无法读取保存后的文件修改时间".to_string())?;
+
+        Ok(Some(serde_json::json!({
+            "path": path.to_string_lossy(),
+            "modifiedAt": modified_at,
+        })))
+    })
+    .await
+    .map_err(|error| format!("无法打开保存文件窗口：{error}"))?
+}
+
+#[tauri::command]
 fn open_file_directory(path: String) -> Result<(), String> {
     let file_path = PathBuf::from(&path);
     if !file_path.exists() {
@@ -845,6 +1015,103 @@ fn open_file_directory(path: String) -> Result<(), String> {
         let _ = file_path;
         Err("当前平台暂不支持打开文件所在目录".to_string())
     }
+}
+
+fn resolve_external_link_target(href: &str, source_path: Option<&str>) -> Result<String, String> {
+    let href = href.trim();
+    if href.is_empty() || href.starts_with('#') {
+        return Err("链接地址为空".to_string());
+    }
+
+    let direct_path = PathBuf::from(href);
+    if direct_path.is_absolute() {
+        return if direct_path.exists() {
+            Ok(direct_path.to_string_lossy().into_owned())
+        } else {
+            Err(format!("链接指向的文件不存在：{}", direct_path.display()))
+        };
+    }
+
+    if let Ok(url) = reqwest::Url::parse(href) {
+        return match url.scheme() {
+            "http" | "https" | "mailto" | "ftp" => Ok(href.to_string()),
+            "file" => url
+                .to_file_path()
+                .map_err(|_| "无法解析本地文件链接".to_string())
+                .and_then(|path| {
+                    if path.exists() {
+                        Ok(path.to_string_lossy().into_owned())
+                    } else {
+                        Err(format!("链接指向的文件不存在：{}", path.display()))
+                    }
+                }),
+            scheme => Err(format!("不支持打开 {scheme} 类型的链接")),
+        };
+    }
+
+    let path_part = href.split(['#', '?']).next().unwrap_or(href).trim();
+    let path = PathBuf::from(path_part);
+    let resolved = if path.is_absolute() {
+        path
+    } else {
+        let source_path =
+            source_path.ok_or_else(|| "当前笔记没有源文件，无法解析相对链接".to_string())?;
+        PathBuf::from(source_path)
+            .parent()
+            .ok_or_else(|| "无法获取当前 Markdown 文件所在目录".to_string())?
+            .join(path)
+    };
+    if !resolved.exists() {
+        return Err(format!("链接指向的文件不存在：{}", resolved.display()));
+    }
+    Ok(resolved.to_string_lossy().into_owned())
+}
+
+#[cfg(target_os = "windows")]
+fn open_with_system_default(target: &str) -> Result<(), String> {
+    let operation = OsStr::new("open")
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect::<Vec<_>>();
+    let target = OsStr::new(target)
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect::<Vec<_>>();
+    let result = unsafe {
+        ShellExecuteW(
+            std::ptr::null_mut(),
+            operation.as_ptr(),
+            target.as_ptr(),
+            std::ptr::null(),
+            std::ptr::null(),
+            1,
+        )
+    };
+    if result > 32 {
+        Ok(())
+    } else {
+        Err(format!("系统默认程序启动失败，错误码：{result}"))
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn open_with_system_default(target: &str) -> Result<(), String> {
+    let program = if cfg!(target_os = "macos") {
+        "open"
+    } else {
+        "xdg-open"
+    };
+    Command::new(program)
+        .arg(target)
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| format!("无法调用系统默认程序：{error}"))
+}
+
+#[tauri::command]
+fn open_external_link(href: String, source_path: Option<String>) -> Result<(), String> {
+    let target = resolve_external_link_target(&href, source_path.as_deref())?;
+    open_with_system_default(&target)
 }
 
 #[tauri::command]
@@ -940,7 +1207,9 @@ pub fn run() {
             list_directory,
             rename_directory,
             write_external_file,
+            save_new_external_file,
             open_file_directory,
+            open_external_link,
             pick_text_files,
             pick_folder,
             notepad_window_action,
@@ -953,7 +1222,8 @@ pub fn run() {
 mod tests {
     use super::{
         encode_text, file_paths_from_args, list_directory, modified_at_millis,
-        remote_image_url_allowed, rename_directory, write_external_file,
+        remote_image_url_allowed, rename_directory, resolve_external_link_target,
+        write_external_file,
     };
     use std::{env, fs, path::PathBuf};
 
@@ -1103,5 +1373,24 @@ mod tests {
         assert!(!remote_image_url_allowed(
             &reqwest::Url::parse("http://192.168.1.10/image.png").unwrap()
         ));
+    }
+
+    #[test]
+    fn relative_markdown_link_resolves_from_source_file_directory() {
+        let directory = env::temp_dir().join(format!("Sia记事本-预览链接-{}", std::process::id()));
+        fs::create_dir_all(&directory).expect("应能创建预览链接测试目录");
+        let markdown_path = directory.join("产品文档.md");
+        let linked_path = directory.join("页面原型.html");
+        fs::write(&markdown_path, "[页面原型](页面原型.html)").expect("应能创建 Markdown 文件");
+        fs::write(&linked_path, "<h1>页面原型</h1>").expect("应能创建链接目标文件");
+
+        let resolved = resolve_external_link_target(
+            "页面原型.html",
+            Some(markdown_path.to_string_lossy().as_ref()),
+        )
+        .expect("应从 Markdown 源文件目录解析相对链接");
+
+        assert_eq!(PathBuf::from(resolved), linked_path);
+        let _ = fs::remove_dir_all(directory);
     }
 }

@@ -73,6 +73,7 @@ export type {
   EditorHandle,
   EditorKeyDownEvent,
   EditorLanguage,
+  EditorMarker,
   EditorProps,
   EditorRange,
   EditorSelectionChange,

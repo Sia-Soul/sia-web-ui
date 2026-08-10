@@ -159,10 +159,14 @@ function DropdownRoot({
   }, [visible]);
 
   useEffect(() => {
-    if (!visible || !autoFocus) return undefined;
-    const frame = window.requestAnimationFrame(() => popupRef.current?.querySelector<HTMLElement>(".sia-menu__item:not(:disabled)")?.focus());
+    if (!visible || !mounted || !autoFocus) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      popupRef.current?.querySelector<HTMLElement>(
+        "[data-sia-dropdown-autofocus], input:not(:disabled), textarea:not(:disabled), .sia-menu__item:not(:disabled)",
+      )?.focus();
+    });
     return () => window.cancelAnimationFrame(frame);
-  }, [autoFocus, visible]);
+  }, [autoFocus, mounted, visible]);
 
   function handleMenuClick(info: MenuClickInfo) {
     info.domEvent.stopPropagation();

@@ -493,7 +493,7 @@ textarea {
 }
 
 .editor-workspace {
-  --notepad-editor-gutter: clamp(20px, 2.5vw, 36px);
+  --notepad-editor-gutter: clamp(2px, .25vw, 4px);
   display: grid;
   width: 100%;
   height: 100%;
@@ -522,7 +522,7 @@ textarea {
   display: flex;
   max-height: 64px;
   align-items: center;
-  padding: 18px var(--notepad-editor-gutter) 2px;
+  padding: 4px var(--notepad-editor-gutter) 2px;
   opacity: 1;
   transform: translateY(0);
   transition: max-height 180ms ease, padding 180ms ease, opacity 140ms ease, transform 180ms ease;
@@ -541,7 +541,7 @@ textarea {
 .editor-heading.is-title-empty:hover .editor-header,
 .editor-heading.is-title-empty:focus-within .editor-header {
   max-height: 64px;
-  padding-top: 18px;
+  padding-top: 4px;
   padding-bottom: 2px;
   opacity: 1;
   pointer-events: auto;
@@ -614,10 +614,12 @@ textarea {
 }
 
 .note-markdown-preview {
+  width: 100%;
+  height: 100%;
   min-width: 0;
   min-height: 0;
   overflow: auto;
-  padding: 0 var(--notepad-editor-gutter) 28px;
+  padding: 14px clamp(20px, 2vw, 32px) 32px;
   user-select: text;
   -webkit-user-select: text;
   scrollbar-width: thin;
@@ -625,6 +627,94 @@ textarea {
 
 .note-markdown-preview .sia-markdown {
   max-width: 880px;
+}
+
+.markdown-preview-splitter.sia-splitter {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+}
+
+.markdown-preview-splitter.sia-splitter--horizontal > .sia-splitter__handle {
+  border-inline: 0;
+  background: var(--sia-color-surface, #fff);
+}
+
+.markdown-preview-splitter > .sia-splitter__panel,
+.markdown-preview-splitter > .sia-splitter__panel > .sia-splitter__panel-content {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.markdown-outline-panel {
+  background: var(--sia-color-surface, #fff);
+}
+
+.markdown-outline {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  background: var(--sia-color-surface, #fff);
+}
+
+.markdown-outline__header {
+  display: flex;
+  height: 34px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--notepad-divider-color);
+  color: var(--sia-color-text, #1f1f1f);
+  font-size: 12px;
+}
+
+.markdown-outline__tree {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 5px 4px 12px;
+  scrollbar-width: thin;
+}
+
+.markdown-outline__tree .sia-tree__title {
+  min-width: 0;
+  min-height: 26px;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markdown-outline__empty {
+  padding: 16px 12px;
+  color: var(--sia-color-text-tertiary, #999);
+  font-size: 11px;
+  text-align: center;
+}
+
+.markdown-preview-splitter .sia-splitter__collapsed-content {
+  border-left: 0;
+  background: var(--sia-color-surface, #fff);
+  color: var(--sia-color-text-secondary, #777);
+  box-shadow: none;
+}
+
+.markdown-outline-rail {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  writing-mode: vertical-rl;
+}
+
+.markdown-outline-rail .sia-icon {
+  transform: rotate(90deg);
 }
 
 .editor-statusbar {
@@ -642,6 +732,26 @@ textarea {
   display: flex;
   align-items: center;
   gap: 13px;
+}
+
+.status-count--blue {
+  color: #1677ff;
+}
+
+.status-count--green {
+  color: #16a34a;
+}
+
+.status-count--red {
+  color: #ef4444;
+}
+
+.status-count--purple {
+  color: #8b5cf6;
+}
+
+.status-count--pink {
+  color: #ec4899;
 }
 
 .json-format-button.sia-button {
@@ -686,8 +796,37 @@ textarea {
 .language-dropdown.sia-dropdown__popup {
   min-width: 136px;
   max-height: min(570px, calc(100vh - 82px));
+  overflow: hidden;
+}
+
+.language-dropdown__content {
+  display: flex;
+  flex-direction: column;
+  max-height: min(562px, calc(100vh - 90px));
+}
+
+.language-dropdown__search-wrap {
+  flex: 0 0 auto;
+  padding: 2px 2px 6px;
+}
+
+.language-dropdown__search.sia-field,
+.language-dropdown__search .sia-input-control {
+  width: 100%;
+}
+
+.language-dropdown .sia-dropdown__menu {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   scrollbar-width: thin;
+}
+
+.language-dropdown__empty {
+  padding: 18px 10px;
+  color: var(--sia-color-text-secondary);
+  font-size: 11px;
+  text-align: center;
 }
 
 .language-dropdown .sia-menu__item {
@@ -789,7 +928,7 @@ textarea {
 
 @media (max-width: 880px) {
   .editor-workspace {
-    --notepad-editor-gutter: 24px;
+    --notepad-editor-gutter: 2px;
   }
 }
 

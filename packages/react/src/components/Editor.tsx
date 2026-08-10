@@ -18,6 +18,12 @@ export interface EditorRange {
   endColumn: number;
 }
 
+export interface EditorMarker extends EditorRange {
+  message: string;
+  severity?: "error" | "warning" | "info";
+  source?: string;
+}
+
 export interface EditorSelectionChange {
   range: EditorRange;
   text: string;
@@ -105,6 +111,7 @@ export interface EditorHandle {
   getSelectedText(): string;
   insertBlock(content: string): void;
   prefixLines(prefix: string): void;
+  replaceValue(content: string): void;
   revealLine(line: number): void;
   setSelection(range: EditorRange): void;
   wrapSelection(prefix: string, suffix: string, placeholder?: string): void;
@@ -121,6 +128,7 @@ export interface EditorProps {
   theme?: EditorTheme;
   options?: Monaco.editor.IStandaloneEditorConstructionOptions;
   highlightRange?: EditorRange | null;
+  markers?: readonly EditorMarker[];
   contextMenuItems?: readonly EditorContextMenuItem[];
   completionProvider?: EditorCompletionProvider;
   completionTriggerCharacters?: readonly string[];
@@ -195,6 +203,8 @@ async function loadMonaco() {
     import("monaco-editor/editor/contrib/clipboard/browser/clipboard.js"),
     import("monaco-editor/editor/contrib/contextmenu/browser/contextmenu.js"),
     import("monaco-editor/editor/contrib/find/browser/findController.js"),
+    import("monaco-editor/editor/contrib/gotoError/browser/gotoError.js"),
+    import("monaco-editor/editor/contrib/hover/browser/hoverContribution.js"),
     import("monaco-editor/editor/contrib/suggest/browser/suggestController.js"),
   ]);
   const monaco = await import("monaco-editor/editor/editor.api.js");
@@ -214,6 +224,7 @@ export function Editor({
   theme = "light",
   options,
   highlightRange,
+  markers = [],
   contextMenuItems = [],
   completionProvider,
   completionTriggerCharacters = ["."],
@@ -235,6 +246,7 @@ export function Editor({
   const selectionHandlerRef = useRef(onSelectionChange);
   const keyDownHandlerRef = useRef(onKeyDown);
   const highlightRangeRef = useRef(highlightRange);
+  const markersRef = useRef(markers);
   const contextMenuItemsRef = useRef(contextMenuItems);
   const completionProviderRef = useRef(completionProvider);
   const refreshSuggestionOnSpaceRef = useRef(refreshSuggestionOnSpace);
@@ -257,6 +269,7 @@ export function Editor({
   selectionHandlerRef.current = onSelectionChange;
   keyDownHandlerRef.current = onKeyDown;
   highlightRangeRef.current = highlightRange;
+  markersRef.current = markers;
   contextMenuItemsRef.current = contextMenuItems;
   completionProviderRef.current = completionProvider;
   refreshSuggestionOnSpaceRef.current = refreshSuggestionOnSpace;
@@ -280,7 +293,7 @@ export function Editor({
         theme: initialThemeRef.current === "dark" ? "vs-dark" : "vs",
         automaticLayout: true,
         contextmenu: contextMenuItemsRef.current.length === 0,
-        fontFamily: '"Cascadia Code", Consolas, "Microsoft YaHei", monospace',
+        fontFamily: '"Cascadia Mono", "Cascadia Code", "JetBrains Mono", "Microsoft YaHei UI", monospace',
         fontSize: 14,
         lineHeight: 23,
         minimap: { enabled: false },
@@ -290,6 +303,7 @@ export function Editor({
         scrollBeyondLastLine: false,
         smoothScrolling: true,
         stickyScroll: { enabled: true },
+        hover: { enabled: "on", delay: 250, sticky: true },
         tabSize: 2,
         wordWrap: "on",
         ...initialOptionsRef.current,
@@ -556,6 +570,24 @@ export function Editor({
           editor.executeEdits("sia-editor", edits);
           editor.focus();
         },
+        replaceValue(content) {
+          if (model.getValue() === content) return;
+          const selection = editor.getSelection();
+          const startOffset = selection ? model.getOffsetAt(selection.getStartPosition()) : 0;
+          const endOffset = selection ? model.getOffsetAt(selection.getEndPosition()) : startOffset;
+          editor.pushUndoStop();
+          editor.executeEdits("sia-editor-replace-value", [{
+            range: model.getFullModelRange(),
+            text: content,
+            forceMoveMarkers: true,
+          }]);
+          editor.pushUndoStop();
+          editor.setSelection(monaco.Selection.fromPositions(
+            model.getPositionAt(Math.min(startOffset, content.length)),
+            model.getPositionAt(Math.min(endOffset, content.length)),
+          ));
+          editor.focus();
+        },
         revealLine(line) {
           editor.revealLineInCenter(line);
           editor.setPosition({ lineNumber: line, column: 1 });
@@ -765,6 +797,25 @@ export function Editor({
   useEffect(() => {
     updateHighlightRef.current();
   }, [highlightRange]);
+
+  useEffect(() => {
+    if (loading) return;
+    void loadMonaco().then((monaco) => {
+      const model = modelRef.current;
+      if (!model) return;
+      const severityMap = {
+        error: monaco.MarkerSeverity.Error,
+        warning: monaco.MarkerSeverity.Warning,
+        info: monaco.MarkerSeverity.Info,
+      } as const;
+      monaco.editor.setModelMarkers(model, `sia-editor-${generatedId}`, markers.map((marker) => ({
+        ...model.validateRange(marker),
+        message: marker.message,
+        severity: severityMap[marker.severity ?? "error"],
+        source: marker.source,
+      })));
+    });
+  }, [generatedId, loading, markers]);
 
   const editorNode = (
     <div className={`sia-editor-control ${className}`.trim()} data-loading={loading || undefined}>
