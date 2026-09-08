@@ -11,8 +11,8 @@ export { DEFAULT_PAGE_SIZE_OPTIONS, Pagination } from "./components/Pagination";
 export type { PaginationProps } from "./components/Pagination";
 export { Cascader } from "./components/Cascader";
 export type { CascaderFieldNames, CascaderOption, CascaderProps, CascaderValue } from "./components/Cascader";
-export { Badge, Calendar, Carousel, Collapse, Image, Rate } from "./components/DataDisplay";
-export type { BadgeProps, BadgeRibbonProps, BadgeStatus, CalendarProps, CarouselProps, CarouselRef, CollapseItem, CollapseKey, CollapseProps, ImagePreviewConfig, ImageProps, RateProps } from "./components/DataDisplay";
+export { Badge, Calendar, Carousel, Collapse, Image, ImagePreview, Rate } from "./components/DataDisplay";
+export type { BadgeProps, BadgeRibbonProps, BadgeStatus, CalendarProps, CarouselProps, CarouselRef, CollapseItem, CollapseKey, CollapseProps, ImagePreviewConfig, ImagePreviewProps, ImageProps, RateProps } from "./components/DataDisplay";
 export { Popover, Timeline, Tooltip, Tree } from "./components/FloatingDisplay";
 export type { FloatingPlacement, FloatingTrigger, PopoverProps, TimelineItem, TimelineProps, TooltipProps, TreeDropPosition, TreeKey, TreeNode, TreeProps } from "./components/FloatingDisplay";
 export { notification, Popconfirm, Progress, Spin, Tour, Watermark } from "./components/Feedback";
@@ -39,7 +39,7 @@ export type {
   WindowTitleBarProps,
 } from "./components/WindowFrame";
 export { Drawer } from "./components/Drawer";
-export type { DrawerOpenConfig, DrawerPlacement, DrawerProps } from "./components/Drawer";
+export type { DrawerOpenConfig, DrawerPlacement, DrawerProps, DrawerPush, DrawerPushConfig } from "./components/Drawer";
 export { Form, Switch, useForm } from "./components/Form";
 export type { FormErrorField, FormInstance, FormItemProps, FormListField, FormListOperation, FormListProps, FormProps, FormRule, FormValues, NamePath, SwitchProps, SwitchVariant } from "./components/Form";
 export { Checkbox } from "./components/Checkbox";
@@ -52,6 +52,10 @@ export { ColorPicker } from "./components/ColorPicker";
 export type { ColorPickerMode, ColorPickerPreset, ColorPickerProps } from "./components/ColorPicker";
 export { DatePicker } from "./components/DatePicker";
 export type { DatePickerDisabledInfo, DatePickerPreset, DatePickerProps, DatePickerShowTime, DatePickerType, DatePickerValue, DateRangePickerPreset, DateRangePickerProps } from "./components/DatePicker";
+export { DateRangeQuery } from "./components/DateRangeQuery";
+export type { DateRangeQueryProps, DateRangeQueryValue } from "./components/DateRangeQuery";
+export { SelectDateRange } from "./components/SelectDateRange";
+export type { SelectDateRangeProps, SelectDateRangeValue } from "./components/SelectDateRange";
 export { TimePicker } from "./components/TimePicker";
 export type { TimePickerProps, TimeRangePickerProps } from "./components/TimePicker";
 export { TreeSelect } from "./components/TreeSelect";
@@ -62,6 +66,10 @@ export { Input } from "./components/Input";
 export type { InputProps } from "./components/Input";
 export { TextArea } from "./components/TextArea";
 export type { TextAreaProps } from "./components/TextArea";
+export { RichTextContent, RichTextEditor } from "./components/RichTextEditor";
+export type { RichTextContentFormat, RichTextContentProps, RichTextEditorProps, RichTextImagePasteHandler, RichTextToolbar } from "./components/RichTextEditor";
+export { MarkdownEditor } from "./components/MarkdownEditor";
+export type { MarkdownEditorMode, MarkdownEditorProps } from "./components/MarkdownEditor";
 export { Editor } from "./components/Editor";
 export type {
   EditorCommand,
@@ -101,5 +109,7 @@ export type { TreemapNode, TreemapNodeClickInfo, TreemapNodeKind, TreemapProps }
 export * from "./components/Table";
 export { ThemeSwitch } from "./components/ThemeSwitch";
 export type { ThemeSwitchProps } from "./components/ThemeSwitch";
+export { FloatingScrollbarProvider } from "./components/FloatingScrollbarProvider";
+export type { FloatingScrollbarProviderProps } from "./components/FloatingScrollbarProvider";
 export { SIA_THEME, applySiaTheme } from "./theme";
 export type { SiaThemeMode } from "./theme";

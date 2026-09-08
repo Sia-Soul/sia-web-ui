@@ -27,6 +27,9 @@ export interface SelectProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
   allowClear?: boolean;
   loading?: boolean;
   showSearch?: boolean;
+  /** 允许将搜索框内容作为自定义选项提交。 */
+  allowInput?: boolean;
+  inputMaxLength?: number;
   searchPlaceholder?: string;
   onSearch?: (query: string) => void;
   filterOption?: (query: string, option: SelectOption) => boolean;
@@ -56,6 +59,8 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
     allowClear = false,
     loading = false,
     showSearch = false,
+    allowInput = false,
+    inputMaxLength,
     searchPlaceholder = "搜索选项",
     onSearch,
     filterOption = defaultFilterOption,
@@ -92,10 +97,13 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
     defaultValue: initialValue,
     onChange: (nextValue) => {
       if (Array.isArray(nextValue)) {
-        const valueSet = new Set(nextValue);
-        onChange?.(nextValue, options.filter((option) => valueSet.has(option.value)));
+        const selectedOptions = nextValue.map((selectedValue) => (
+          options.find((option) => option.value === selectedValue) ?? (allowInput ? { label: String(selectedValue), value: selectedValue } : undefined)
+        )).filter((option): option is SelectOption => option !== undefined);
+        onChange?.(nextValue, selectedOptions);
       } else {
-        onChange?.(nextValue, options.find((option) => option.value === nextValue) ?? null);
+        const selectedOption = nextValue === null ? null : options.find((option) => option.value === nextValue) ?? (allowInput ? { label: String(nextValue), value: nextValue } : null);
+        onChange?.(nextValue, selectedOption);
       }
     },
   });
@@ -105,8 +113,21 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
     return Array.isArray(currentValue) ? currentValue.slice(0, 1) : currentValue === null ? [] : [currentValue];
   }, [currentValue, mode]);
   const selectedValueSet = useMemo(() => new Set(selectedValues), [selectedValues]);
-  const selectedOptions = useMemo(() => options.filter((option) => selectedValueSet.has(option.value)), [options, selectedValueSet]);
-  const filteredOptions = useMemo(() => deferredQuery ? options.filter((option) => filterOption(deferredQuery, option)) : options, [deferredQuery, filterOption, options]);
+  const availableOptions = useMemo(() => {
+    if (!allowInput) return options;
+    const optionValueSet = new Set(options.map((option) => option.value));
+    const selectedCustomOptions: SelectOption[] = selectedValues
+      .filter((selectedValue) => !optionValueSet.has(selectedValue))
+      .map((selectedValue) => ({ label: String(selectedValue), value: selectedValue }));
+    return selectedCustomOptions.length ? [...selectedCustomOptions, ...options] : options;
+  }, [allowInput, options, selectedValues]);
+  const selectedOptions = useMemo(() => selectedValues.map((selectedValue) => (
+    availableOptions.find((option) => option.value === selectedValue)
+  )).filter((option): option is SelectOption => option !== undefined), [availableOptions, selectedValues]);
+  const filteredOptions = useMemo(() => deferredQuery ? availableOptions.filter((option) => filterOption(deferredQuery, option)) : availableOptions, [availableOptions, deferredQuery, filterOption]);
+  const inputValue = query.trim();
+  const exactInputOption = inputValue ? availableOptions.find((option) => String(option.value).toLowerCase() === inputValue.toLowerCase() || (typeof option.label === "string" && option.label.toLowerCase() === inputValue.toLowerCase())) : undefined;
+  const canSubmitInput = allowInput && Boolean(inputValue) && !exactInputOption;
   const multiple = mode === "multiple";
   const hasValue = selectedOptions.length > 0;
   const virtualEnabled = virtual && filteredOptions.length >= virtualThreshold;
@@ -129,8 +150,8 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
   }, [open]);
 
   useEffect(() => {
-    if (open && showSearch) searchRef.current?.focus();
-  }, [open, showSearch]);
+    if (open && (showSearch || allowInput)) searchRef.current?.focus();
+  }, [allowInput, open, showSearch]);
 
   function firstEnabledIndex() {
     return filteredOptions.findIndex((option) => !option.disabled);
@@ -196,6 +217,16 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
     setCurrentValue(nextValues);
   }
 
+  function submitInputValue() {
+    if (!allowInput || !inputValue) return;
+    selectOption(exactInputOption ?? { label: inputValue, value: inputValue });
+    if (multiple) {
+      setQuery("");
+      setActiveIndex(-1);
+      setScrollTop(0);
+    }
+  }
+
   function clearSelection() {
     setCurrentValue(multiple ? [] : null);
   }
@@ -209,6 +240,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
       event.preventDefault();
       if (!open) openDropdown();
       else if (activeIndex >= 0 && filteredOptions[activeIndex]) selectOption(filteredOptions[activeIndex]);
+      else if (fromSearch && allowInput) submitInputValue();
     } else if (event.key === "Escape") {
       closeDropdown();
     } else if (event.key === "Home" && open && !fromSearch) {
@@ -297,7 +329,8 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
       </button>
       {allowClear && hasValue && !disabled && !loading ? <button className="sia-select__clear" type="button" aria-label="清空选择" onClick={clearValue}><Icon name="circle-close" variant="filled" size={15} /></button> : null}
       <PopupPortal ref={popupRef} anchorRef={rootRef} open={open} className="sia-select__dropdown">
-        {showSearch ? <label className="sia-select__search"><Icon name="search" size={15} /><input ref={searchRef} value={query} onChange={handleSearchChange} onKeyDown={(event) => handleInteractionKeyDown(event, true)} placeholder={searchPlaceholder} aria-label={searchPlaceholder} /></label> : null}
+        {showSearch || allowInput ? <label className="sia-select__search"><Icon name="search" size={15} /><input ref={searchRef} value={query} maxLength={inputMaxLength} onChange={handleSearchChange} onKeyDown={(event) => handleInteractionKeyDown(event, true)} placeholder={searchPlaceholder} aria-label={searchPlaceholder} /></label> : null}
+        {canSubmitInput ? <button type="button" className="sia-select__input-option" onMouseDown={(event) => event.preventDefault()} onClick={submitInputValue}><Icon name="plus" size={14} /><span>使用“{inputValue}”</span></button> : null}
         {multiple && showSelectAll ? <div className="sia-select__actions">
           <button type="button" disabled={allFilteredSelected || enabledFilteredOptions.length === 0} onClick={selectAllFiltered}>全选</button>
           <button type="button" disabled={!hasValue} onClick={clearSelection}>清除</button>
@@ -315,7 +348,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
         >
           {filteredOptions.length > 0 ? virtualEnabled ? <div className="sia-select__virtual-space" style={{ height: filteredOptions.length * optionHeight }}>
             {renderedOptions.map(renderOption)}
-          </div> : renderedOptions.map(renderOption) : <div className="sia-select__empty">{notFoundContent}</div>}
+          </div> : renderedOptions.map(renderOption) : canSubmitInput ? null : <div className="sia-select__empty">{notFoundContent}</div>}
         </div>
       </PopupPortal>
     </div>

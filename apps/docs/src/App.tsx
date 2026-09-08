@@ -20,6 +20,10 @@ import { InputNumberPage } from "./pages/InputNumberPage";
 import { InputPage } from "./pages/InputPage";
 import { TextAreaPage } from "./pages/TextAreaPage";
 import { EditorPage } from "./pages/EditorPage";
+import { DateRangeQueryPage, SelectDateRangePage } from "./pages/DateRangeComponentsPages";
+import { FloatingScrollbarPage } from "./pages/FloatingScrollbarPage";
+import { MarkdownEditorPage } from "./pages/MarkdownEditorPage";
+import { MarkdownPage } from "./pages/MarkdownPage";
 import { MessagePage } from "./pages/MessagePage";
 import { ModalPage } from "./pages/ModalPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
@@ -28,8 +32,11 @@ import { SwitchPage } from "./pages/SwitchPage";
 import { TabsPage } from "./pages/TabsPage";
 import { TagPage } from "./pages/TagPage";
 import { TablePage } from "./pages/TablePage";
+import { ToolPanelPage } from "./pages/ToolPanelPage";
+import { TreemapPage } from "./pages/TreemapPage";
 import { TokensPage } from "./pages/TokensPage";
 import { WindowFramePage } from "./pages/WindowFramePage";
+import { RichTextEditorPage } from "./pages/RichTextEditorPage";
 
 function ScrollToTop({ scrollRef }: { scrollRef: React.RefObject<HTMLElement> }) {
   const { pathname } = useLocation();
@@ -115,6 +122,8 @@ export default function App() {
             <Route path="/components/grid" element={<GridPage />} />
             <Route path="/components/space" element={<SpacePage />} />
             <Route path="/components/splitter" element={<SplitterPage />} />
+            <Route path="/components/tool-panel" element={<ToolPanelPage />} />
+            <Route path="/components/floating-scrollbar" element={<FloatingScrollbarPage />} />
             <Route path="/components/window-frame" element={<WindowFramePage />} />
             <Route path="/components/drawer" element={<DrawerPage />} />
             <Route path="/components/dropdown" element={<DropdownPage />} />
@@ -125,6 +134,8 @@ export default function App() {
             <Route path="/components/input" element={<InputPage />} />
             <Route path="/components/textarea" element={<TextAreaPage />} />
             <Route path="/components/editor" element={<EditorPage />} />
+            <Route path="/components/rich-text-editor" element={<RichTextEditorPage />} />
+            <Route path="/components/markdown-editor" element={<MarkdownEditorPage />} />
             <Route path="/components/input-number" element={<InputNumberPage />} />
             <Route path="/components/cascader" element={<CascaderPage />} />
             <Route path="/components/checkbox" element={<CheckboxPage />} />
@@ -133,6 +144,8 @@ export default function App() {
             <Route path="/components/slider" element={<SliderPage />} />
             <Route path="/components/color-picker" element={<ColorPickerPage />} />
             <Route path="/components/date-picker" element={<DatePickerPage />} />
+            <Route path="/components/select-date-range" element={<SelectDateRangePage />} />
+            <Route path="/components/date-range-query" element={<DateRangeQueryPage />} />
             <Route path="/components/time-picker" element={<TimePickerPage />} />
             <Route path="/components/tree-select" element={<TreeSelectPage />} />
             <Route path="/components/upload" element={<UploadPage />} />
@@ -150,11 +163,13 @@ export default function App() {
             <Route path="/components/carousel" element={<CarouselPage />} />
             <Route path="/components/collapse" element={<CollapsePage />} />
             <Route path="/components/image" element={<ImagePage />} />
+            <Route path="/components/markdown" element={<MarkdownPage />} />
             <Route path="/components/popover" element={<PopoverPage />} />
             <Route path="/components/timeline" element={<TimelinePage />} />
             <Route path="/components/tooltip" element={<TooltipPage />} />
             <Route path="/components/tour" element={<TourPage />} />
             <Route path="/components/tree" element={<TreePage />} />
+            <Route path="/components/treemap" element={<TreemapPage />} />
             <Route path="/components/alert" element={<AlertPage />} />
             <Route path="/components/notification" element={<NotificationPage />} />
             <Route path="/components/popconfirm" element={<PopconfirmPage />} />

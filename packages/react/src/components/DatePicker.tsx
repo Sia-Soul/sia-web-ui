@@ -228,10 +228,12 @@ export function DatePicker({
       id={props.id ?? id}
       className="sia-picker__trigger"
       aria-label={triggerLabel}
+      aria-labelledby={props["aria-labelledby"]}
       aria-haspopup="dialog"
       aria-expanded={visible}
       aria-invalid={status === "error" || undefined}
       aria-describedby={props["aria-describedby"]}
+      aria-errormessage={props["aria-errormessage"]}
       disabled={disabled}
       onClick={() => changeOpen(!visible)}
       onKeyDown={(event) => {
@@ -421,9 +423,12 @@ function DateRangePicker({
       id={props.id ?? id}
       className="sia-picker__trigger"
       aria-label={props["aria-label"] ?? "日期范围选择器"}
+      aria-labelledby={props["aria-labelledby"]}
       aria-haspopup="dialog"
       aria-expanded={visible}
       aria-invalid={status === "error" || undefined}
+      aria-describedby={props["aria-describedby"]}
+      aria-errormessage={props["aria-errormessage"]}
       disabled={disabled}
       onClick={() => changeOpen(!visible)}
     >

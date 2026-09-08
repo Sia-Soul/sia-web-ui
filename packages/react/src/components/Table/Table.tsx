@@ -14,7 +14,8 @@ import type {
   TableRow,
   TableSummaryRow,
 } from "./types";
-import { createTableRows, flattenTableColumns, getTableValue, normalizeFixed, sortTableColumnsByFixed } from "./utils";
+import { createResizePlugin } from "./plugins";
+import { createTableRows, flattenTableColumns, getTableValue, isTableAutoWidthColumn, mapTableLeafColumns, normalizeFixed, sortTableColumnsByFixed } from "./utils";
 
 const EMPTY_DATA: readonly Record<string, unknown>[] = [];
 const EMPTY_COLUMNS: readonly TableColumn<Record<string, unknown>>[] = [];
@@ -64,6 +65,45 @@ function buildHeaderRows<T>(columns: readonly TableColumn<T>[]): HeaderCell<T>[]
 
 function resolveInitialState<T>(plugin: AnyTablePlugin<T>): unknown {
   return typeof plugin.initialState === "function" ? plugin.initialState() : plugin.initialState;
+}
+
+function measureTableCellContentWidth(cell: HTMLElement): number {
+  const content = cell.querySelector<HTMLElement>(":scope > .sia-table__cell-content");
+  const target = cell.classList.contains("sia-table__header-cell")
+    ? cell.querySelector<HTMLElement>(".sia-table__resizable-header > span:first-child, .sia-table__header-label-content")
+    : content;
+  let contentWidth = cell.scrollWidth;
+  if (target) {
+    const measurement = target.cloneNode(true) as HTMLElement;
+    Object.assign(measurement.style, {
+      position: "absolute",
+      top: "0",
+      left: "0",
+      width: "max-content",
+      minWidth: "max-content",
+      maxWidth: "none",
+      height: "auto",
+      overflow: "visible",
+      visibility: "hidden",
+      pointerEvents: "none",
+      whiteSpace: "nowrap",
+    });
+    measurement.setAttribute("aria-hidden", "true");
+    cell.appendChild(measurement);
+    contentWidth = Math.max(measurement.scrollWidth, measurement.getBoundingClientRect().width);
+    measurement.remove();
+  }
+  const style = window.getComputedStyle(cell);
+  return contentWidth
+    + (Number.parseFloat(style.paddingLeft) || 0)
+    + (Number.parseFloat(style.paddingRight) || 0)
+    + (Number.parseFloat(style.borderLeftWidth) || 0)
+    + (Number.parseFloat(style.borderRightWidth) || 0);
+}
+
+function getTableHorizontalMetrics(viewport: HTMLElement, table: HTMLTableElement | null) {
+  const contentWidth = Math.max(viewport.clientWidth, table?.getBoundingClientRect().width ?? viewport.clientWidth);
+  return { contentWidth, maxLeft: Math.max(0, contentWidth - viewport.clientWidth) };
 }
 
 interface BodyRowProps<T> {
@@ -134,12 +174,14 @@ const TableBodyRow = memo(function TableBodyRow<T>({
         const fixedEdgeClass = fixed === "left" && column.key === leftFixedEdgeKey
           ? " sia-table__cell--fixed-left-edge"
           : fixed === "right" && column.key === rightFixedEdgeKey ? " sia-table__cell--fixed-right-edge" : "";
+        const autoWidthClass = column.autoWidth ? " sia-table__cell--auto-width" : "";
         return (
           <td
             key={column.key}
+            data-column-key={column.key}
             rowSpan={pluginCellProps.rowSpan}
             colSpan={pluginCellProps.colSpan}
-            className={`sia-table__cell sia-table__cell--${column.align ?? "left"}${fixed ? ` sia-table__cell--fixed sia-table__cell--fixed-${fixed}` : ""}${fixedEdgeClass}${column.ellipsis !== false ? " sia-table__cell--ellipsis" : ""} ${cellClass} ${pluginCellProps.className ?? ""}`.trim()}
+            className={`sia-table__cell sia-table__cell--${column.align ?? "left"}${fixed ? ` sia-table__cell--fixed sia-table__cell--fixed-${fixed}` : ""}${fixedEdgeClass}${autoWidthClass}${column.ellipsis !== false ? " sia-table__cell--ellipsis" : ""} ${cellClass} ${pluginCellProps.className ?? ""}`.trim()}
             style={{ ...fixedStyle, ...pluginCellProps.style }}
             onMouseEnter={() => onCellMouseEnter(column)}
             onMouseLeave={() => onCellMouseLeave(column)}
@@ -168,7 +210,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     dataSource = EMPTY_DATA as readonly T[],
     columns: baseColumns = EMPTY_COLUMNS as readonly TableColumn<T>[],
     rowKey = "id",
-    plugins = EMPTY_PLUGINS as readonly AnyTablePlugin<T>[],
+    plugins: providedPlugins = EMPTY_PLUGINS as readonly AnyTablePlugin<T>[],
     loading = false,
     emptyText = "暂无数据",
     height,
@@ -181,6 +223,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     rowHeight = SIZE_ROW_HEIGHT[size],
     overscan = 6,
     stickyHeader = true,
+    resizable = true,
     onRowClick,
     onRowDoubleClick,
     onCellContextMenu,
@@ -203,10 +246,21 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
   const [internalLoading, setInternalLoading] = useState(false);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(420);
+  const [viewportWidth, setViewportWidth] = useState(0);
+  const [autoColumnWidths, setAutoColumnWidths] = useState<Record<string, number>>({});
   const getRowKey = useCallback((record: T, index: number) => typeof rowKey === "function"
     ? rowKey(record, index)
     : (record[String(rowKey)] as React.Key | undefined) ?? index, [rowKey]);
-  const sortedPlugins = useMemo(() => [...plugins].sort((a, b) => (a.order ?? 100) - (b.order ?? 100)), [plugins]);
+  const builtInResizePlugin = useMemo(() => createResizePlugin<T>(), []);
+  const activePlugins = useMemo(() => {
+    const plugins = providedPlugins.filter((plugin) => resizable || plugin.id !== "resize");
+    return resizable && !plugins.some((plugin) => plugin.id === "resize")
+      ? [...plugins, builtInResizePlugin]
+      : plugins;
+  }, [builtInResizePlugin, providedPlugins, resizable]);
+  const sortedPlugins = useMemo(() => [...activePlugins].sort((a, b) => (a.order ?? 100) - (b.order ?? 100)), [activePlugins]);
+  const pluginsByIdRef = useRef<Map<string, AnyTablePlugin<T>>>(new Map());
+  pluginsByIdRef.current = new Map(sortedPlugins.map((plugin) => [plugin.id, plugin]));
   const [pluginStates, setPluginStates] = useState<Record<string, unknown>>(() => Object.fromEntries(
     sortedPlugins.map((plugin) => [plugin.id, resolveInitialState(plugin)]),
   ));
@@ -219,7 +273,10 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
 
   const setPluginState = useCallback(<Value,>(pluginId: string, next: Value | ((previous: Value) => Value)) => {
     setPluginStates((previous) => {
-      const previousValue = previous[pluginId] as Value;
+      const plugin = pluginsByIdRef.current.get(pluginId);
+      const previousValue = (previous[pluginId] !== undefined
+        ? previous[pluginId]
+        : plugin ? resolveInitialState(plugin) : undefined) as Value;
       const nextValue = typeof next === "function" ? (next as (value: Value) => Value)(previousValue) : next;
       return Object.is(previousValue, nextValue) ? previous : { ...previous, [pluginId]: nextValue };
     });
@@ -256,6 +313,16 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     if (plugin.transformRows) pipeline.rows = plugin.transformRows(pipeline.rows, context);
     if (plugin.getApi) nextApis[plugin.id] = plugin.getApi(context);
   }
+  const resizeState = pluginStates.resize as { widths?: Record<string, number>; manualLayout?: boolean } | undefined;
+  const resizedWidths = resizeState?.widths ?? {};
+  const manualColumnLayout = Boolean(resizeState?.manualLayout);
+  pipeline.columns = mapTableLeafColumns(pipeline.columns, (column) => {
+    const autoWidth = isTableAutoWidthColumn(column);
+    const measuredWidth = autoColumnWidths[column.key];
+    return autoWidth
+      ? { ...column, autoWidth: true, width: measuredWidth !== undefined && resizedWidths[column.key] === undefined ? measuredWidth : column.width }
+      : column;
+  });
   pluginApisRef.current = nextApis;
   contextsRef.current = contexts;
 
@@ -281,25 +348,27 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     const root = rootRef.current;
     const element = scrollRef.current;
     if (!root || !element) return;
-    const maxLeft = Math.max(0, element.scrollWidth - element.clientWidth);
+    const { contentWidth: horizontalContentWidth, maxLeft } = getTableHorizontalMetrics(element, tableRef.current);
+    if (element.scrollLeft > maxLeft) element.scrollLeft = maxLeft > 1 ? maxLeft : 0;
+    const logicalScrollLeft = Math.min(element.scrollLeft, maxLeft);
     const maxTop = Math.max(0, element.scrollHeight - element.clientHeight);
     const horizontalTrack = Math.max(0, element.clientWidth - 8);
     const verticalTrack = Math.max(0, element.clientHeight - 8);
     const horizontalThumb = maxLeft > 1
-      ? Math.min(horizontalTrack, Math.max(36, horizontalTrack * element.clientWidth / element.scrollWidth))
+      ? Math.min(horizontalTrack, Math.max(36, horizontalTrack * element.clientWidth / horizontalContentWidth))
       : 0;
     const verticalThumb = maxTop > 1
       ? Math.min(verticalTrack, Math.max(36, verticalTrack * element.clientHeight / element.scrollHeight))
       : 0;
     const horizontalPosition = maxLeft > 0
-      ? element.scrollLeft / maxLeft * Math.max(0, horizontalTrack - horizontalThumb)
+      ? logicalScrollLeft / maxLeft * Math.max(0, horizontalTrack - horizontalThumb)
       : 0;
     const verticalPosition = maxTop > 0
       ? element.scrollTop / maxTop * Math.max(0, verticalTrack - verticalThumb)
       : 0;
 
-    root.dataset.scrolledLeft = String(element.scrollLeft > 1);
-    root.dataset.scrolledRight = String(maxLeft > 1 && element.scrollLeft < maxLeft - 1);
+    root.dataset.scrolledLeft = String(logicalScrollLeft > 1);
+    root.dataset.scrolledRight = String(maxLeft > 1 && logicalScrollLeft < maxLeft - 1);
     root.dataset.overflowX = String(maxLeft > 1);
     root.dataset.overflowY = String(maxTop > 1);
     const viewportRect = element.getBoundingClientRect();
@@ -324,6 +393,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     if (!element || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(() => {
       setViewportHeight(element.clientHeight);
+      setViewportWidth(element.clientWidth);
       updateScrollMetrics();
     });
     observer.observe(element);
@@ -339,21 +409,68 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
   const orderedColumns = useMemo(() => sortTableColumnsByFixed(pipeline.columns), [pipeline.columns]);
   const leafColumns = useMemo(() => flattenTableColumns(orderedColumns), [orderedColumns]);
   const headerRows = useMemo(() => buildHeaderRows(orderedColumns), [orderedColumns]);
-  const totalWidth = leafColumns.reduce((sum, column) => sum + (column.width ?? DEFAULT_WIDTH), 0);
+
+  useEffect(() => {
+    const autoWidthColumns = leafColumns.filter((column) => column.autoWidth && resizedWidths[column.key] === undefined);
+    const root = rootRef.current;
+    if (!root || autoWidthColumns.length === 0) return;
+    const frame = window.requestAnimationFrame(() => {
+      const measurements: Record<string, number> = {};
+      const cells = root.querySelectorAll<HTMLElement>("[data-column-key]");
+      for (const column of autoWidthColumns) {
+        let width = column.minWidth ?? 56;
+        for (const cell of cells) {
+          if (cell.dataset.columnKey !== column.key) continue;
+          width = Math.max(width, measureTableCellContentWidth(cell));
+        }
+        measurements[column.key] = Math.ceil(Math.min(column.maxWidth ?? Number.POSITIVE_INFINITY, width));
+      }
+      setAutoColumnWidths((previous) => {
+        let changed = false;
+        const next = { ...previous };
+        for (const [columnKey, width] of Object.entries(measurements)) {
+          if (Math.abs((previous[columnKey] ?? 0) - width) <= 1) continue;
+          next[columnKey] = width;
+          changed = true;
+        }
+        return changed ? next : previous;
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  });
+
+  const baseColumnWidths = new Map(leafColumns.map((column) => {
+    const width = column.width ?? DEFAULT_WIDTH;
+    return [column.key, Math.min(column.maxWidth ?? Number.POSITIVE_INFINITY, Math.max(column.minWidth ?? 1, width))] as const;
+  }));
+  const baseTotalWidth = leafColumns.reduce((sum, column) => sum + (baseColumnWidths.get(column.key) ?? DEFAULT_WIDTH), 0);
+  const explicitFlexColumns = leafColumns.filter((column) => (column.flex ?? 0) > 0);
+  const fallbackFlexColumn = explicitFlexColumns.length === 0
+    ? leafColumns.filter((column) => !normalizeFixed(column.fixed) && !column.autoWidth).sort((leftColumn, rightColumn) => (baseColumnWidths.get(rightColumn.key) ?? 0) - (baseColumnWidths.get(leftColumn.key) ?? 0))[0]
+    : undefined;
+  const flexColumns = explicitFlexColumns.length > 0 ? explicitFlexColumns : fallbackFlexColumn ? [fallbackFlexColumn] : [];
+  const flexTotal = flexColumns.reduce((sum, column) => sum + Math.max(0, column.flex ?? 1), 0);
+  const remainingWidth = !manualColumnLayout && flexTotal > 0 ? Math.max(0, viewportWidth - baseTotalWidth) : 0;
+  const columnWidths = new Map(baseColumnWidths);
+  for (const column of flexColumns) {
+    const flex = Math.max(0, column.flex ?? 1);
+    columnWidths.set(column.key, (baseColumnWidths.get(column.key) ?? DEFAULT_WIDTH) + remainingWidth * flex / flexTotal);
+  }
+  const totalWidth = leafColumns.reduce((sum, column) => sum + (columnWidths.get(column.key) ?? DEFAULT_WIDTH), 0);
   const leftOffsets = new Map<string, number>();
   const rightOffsets = new Map<string, number>();
   let left = 0;
   for (const column of leafColumns) {
     if (normalizeFixed(column.fixed) !== "left") continue;
     leftOffsets.set(column.key, left);
-    left += column.width ?? DEFAULT_WIDTH;
+    left += columnWidths.get(column.key) ?? DEFAULT_WIDTH;
   }
   let right = 0;
   for (let index = leafColumns.length - 1; index >= 0; index -= 1) {
     const column = leafColumns[index];
     if (normalizeFixed(column.fixed) !== "right") continue;
     rightOffsets.set(column.key, right);
-    right += column.width ?? DEFAULT_WIDTH;
+    right += columnWidths.get(column.key) ?? DEFAULT_WIDTH;
   }
   const leftFixedEdgeKey = [...leafColumns].reverse().find((column) => normalizeFixed(column.fixed) === "left")?.key;
   const rightFixedEdgeKey = leafColumns.find((column) => normalizeFixed(column.fixed) === "right")?.key;
@@ -406,7 +523,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     const trackLength = axis === "x" ? track.clientWidth : track.clientHeight;
     const thumbLength = axis === "x" ? event.currentTarget.offsetWidth : event.currentTarget.offsetHeight;
     const maxScroll = axis === "x"
-      ? element.scrollWidth - element.clientWidth
+      ? getTableHorizontalMetrics(element, tableRef.current).maxLeft
       : element.scrollHeight - element.clientHeight;
     scrollbarDragRef.current = {
       axis,
@@ -520,7 +637,8 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
       const fixedEdgeClass = fixed === "left" && column.key === leftFixedEdgeKey
         ? " sia-table__cell--fixed-left-edge"
         : fixed === "right" && column.key === rightFixedEdgeKey ? " sia-table__cell--fixed-right-edge" : "";
-      return <td key={column.key} className={`sia-table__cell sia-table__summary-cell${fixed ? ` sia-table__cell--fixed sia-table__cell--fixed-${fixed}` : ""}${fixedEdgeClass}`} style={getFixedStyle(column)}>{content}</td>;
+      const autoWidthClass = column.autoWidth ? " sia-table__cell--auto-width" : "";
+      return <td key={column.key} data-column-key={column.key} className={`sia-table__cell sia-table__summary-cell${fixed ? ` sia-table__cell--fixed sia-table__cell--fixed-${fixed}` : ""}${fixedEdgeClass}${autoWidthClass}`} style={getFixedStyle(column)}>{content}</td>;
     })}</tr>;
   }
 
@@ -538,8 +656,8 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
       {hasToolbar ? <div className="sia-table__toolbar"><div>{toolbarStart}</div><div>{toolbarEnd}</div></div> : null}
       <div className="sia-table__viewport-wrap">
         <div className="sia-table__viewport" ref={scrollRef} onScroll={handleScroll}>
-        <table ref={tableRef} className="sia-table__element" style={{ width: Math.max(totalWidth, 1), ...tableStyle }}>
-          <colgroup>{leafColumns.map((column) => <col key={column.key} style={{ width: column.width ?? DEFAULT_WIDTH }} />)}</colgroup>
+        <table ref={tableRef} className="sia-table__element" style={{ width: Math.max(totalWidth, 1), ...(manualColumnLayout ? { minWidth: 0 } : {}), ...tableStyle }}>
+          <colgroup>{leafColumns.map((column) => <col key={column.key} data-column-key={column.key} style={{ width: columnWidths.get(column.key) ?? DEFAULT_WIDTH }} />)}</colgroup>
           <thead className={stickyHeader ? "sia-table__head sia-table__head--sticky" : "sia-table__head"}>
             {headerRows.map((headerRow, depth) => <tr key={depth}>{headerRow.map((cell) => {
               const fixed = cell.leaf ? normalizeFixed(cell.column.fixed) : undefined;
@@ -547,11 +665,13 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
               const fixedEdgeClass = fixed === "left" && cell.column.key === leftFixedEdgeKey
                 ? " sia-table__cell--fixed-left-edge"
                 : fixed === "right" && cell.column.key === rightFixedEdgeKey ? " sia-table__cell--fixed-right-edge" : "";
+              const autoWidthClass = cell.column.autoWidth ? " sia-table__cell--auto-width" : "";
               return <th
                 key={`${cell.column.key}-${depth}`}
+                data-column-key={cell.column.key}
                 colSpan={cell.colSpan}
                 rowSpan={cell.rowSpan}
-                className={`sia-table__header-cell sia-table__cell--${cell.column.align ?? "left"}${fixed ? ` sia-table__cell--fixed sia-table__cell--fixed-${fixed}` : ""}${fixedEdgeClass} ${cell.column.headerClassName ?? ""} ${pluginHeaderProps.className ?? ""}`.trim()}
+                className={`sia-table__header-cell sia-table__cell--${cell.column.align ?? "left"}${fixed ? ` sia-table__cell--fixed sia-table__cell--fixed-${fixed}` : ""}${fixedEdgeClass}${autoWidthClass} ${cell.column.headerClassName ?? ""} ${pluginHeaderProps.className ?? ""}`.trim()}
                 style={{ ...getFixedStyle(cell.column), top: stickyHeader ? depth * rowHeight : undefined, ...pluginHeaderProps.style }}
                 scope="col"
                 onPointerDown={(event) => {
@@ -616,11 +736,11 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
               />;
             })}
             {bottomSpacer > 0 ? <tr aria-hidden="true"><td colSpan={leafColumns.length} style={{ height: bottomSpacer, padding: 0, border: 0 }} /></tr> : null}
-            {pipeline.rows.length === 0 ? <tr><td className="sia-table__empty" colSpan={Math.max(1, leafColumns.length)}>{emptyText}</td></tr> : null}
           </tbody>
           {summaries.length > 0 ? <tfoot className="sia-table__summary">{summaries.map(renderSummaryRow)}</tfoot> : null}
         </table>
         </div>
+        {pipeline.rows.length === 0 ? <div className="sia-table__empty" role="status">{emptyText}</div> : null}
         <div className="sia-table__scrollbar sia-table__scrollbar--horizontal" aria-hidden="true">
           <div
             className="sia-table__scrollbar-thumb"

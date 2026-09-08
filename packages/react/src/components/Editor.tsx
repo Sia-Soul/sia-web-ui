@@ -387,6 +387,7 @@ export function Editor({
           return;
         }
         selectionClickCandidate = event.event.leftButton
+          && event.event.detail === 1
           && !event.event.ctrlKey
           && !event.event.metaKey
           && !event.event.altKey

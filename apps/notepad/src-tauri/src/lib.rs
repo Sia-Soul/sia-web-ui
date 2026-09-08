@@ -74,9 +74,12 @@ extern "system" {
 
 const FILE_ASSOCIATION_EXTENSIONS: &[&str] = &[
     "txt", "json", "md", "markdown", "cs", "js", "jsx", "mjs", "cjs", "ts", "tsx", "html", "htm",
-    "css", "xml", "yaml", "yml", "ini", "sh", "bash", "zsh", "ps1", "bat", "cmd", "py", "sql",
-    "php", "rb", "pl", "lua",
+    "css", "xml", "yaml", "yml", "ini", "py", "sql", "php", "rb", "pl", "lua",
 ];
+
+#[cfg(target_os = "windows")]
+const COMMAND_LINE_ASSOCIATION_EXTENSIONS: &[&str] =
+    &["bat", "cmd", "sh", "bash", "zsh", "ksh", "ps1"];
 
 const SUPPORTED_TEXT_EXTENSIONS: &[&str] = &[
     "txt",
@@ -472,6 +475,31 @@ fn register_windows_file_associations() -> Result<(), String> {
         vtype: REG_NONE,
     };
 
+    // 命令行脚本仍可在应用内打开，但不主动加入 Windows“打开方式”候选，
+    // 同时清理旧版本可能留下的注册项，避免影响这些文件的系统默认行为。
+    for extension in COMMAND_LINE_ASSOCIATION_EXTENSIONS {
+        let extension_with_dot = format!(".{extension}");
+        let prog_id = format!("SiaDesktop.NotepadFile.{extension}");
+        let superseded_prog_id = format!("SiaNotepad.{extension}File");
+        let extension_key_path = format!(r"Software\Classes\{extension_with_dot}");
+
+        let _ = supported_types_key.delete_value(&extension_with_dot);
+        let _ = capability_associations_key.delete_value(&extension_with_dot);
+        if let Ok(open_with_prog_ids_key) = current_user.open_subkey_with_flags(
+            format!(r"{extension_key_path}\OpenWithProgids"),
+            winreg::enums::KEY_WRITE,
+        ) {
+            let _ = open_with_prog_ids_key.delete_value(LEGACY_PROG_ID);
+            let _ = open_with_prog_ids_key.delete_value(&superseded_prog_id);
+            let _ = open_with_prog_ids_key.delete_value(&prog_id);
+        }
+        let _ = current_user.delete_subkey_all(format!(
+            r"{extension_key_path}\OpenWithList\{executable_name}"
+        ));
+        let _ = current_user.delete_subkey_all(format!(r"Software\Classes\{prog_id}"));
+        let _ = current_user.delete_subkey_all(format!(r"Software\Classes\{superseded_prog_id}"));
+    }
+
     for extension in FILE_ASSOCIATION_EXTENSIONS {
         let extension_with_dot = format!(".{extension}");
         let prog_id = format!("SiaDesktop.NotepadFile.{extension}");
@@ -675,6 +703,22 @@ fn read_external_file(path: String) -> Result<serde_json::Value, String> {
         "bytes": bytes,
         "modifiedAt": modified_at_millis(&file_path),
     }))
+}
+
+#[tauri::command]
+fn stat_external_files(paths: Vec<String>) -> Vec<serde_json::Value> {
+    paths
+        .into_iter()
+        .map(|path| {
+            let file_path = PathBuf::from(&path);
+            let exists = file_path.is_file();
+            serde_json::json!({
+                "path": path,
+                "exists": exists,
+                "modifiedAt": if exists { modified_at_millis(&file_path) } else { None },
+            })
+        })
+        .collect()
 }
 
 fn remote_image_url_allowed(url: &reqwest::Url) -> bool {
@@ -1203,6 +1247,7 @@ pub fn run() {
             open_notebook_directory,
             take_pending_open_files,
             read_external_file,
+            stat_external_files,
             fetch_remote_image,
             list_directory,
             rename_directory,

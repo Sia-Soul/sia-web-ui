@@ -380,6 +380,7 @@ function FormItem({
   const errors = path ? form.getFieldError(path) : [];
   const status = validateStatus ?? (errors.length ? "error" : undefined);
   const helpContent = help ?? errors[0];
+  const labelId = label && !noStyle ? `${id}-label` : undefined;
   const errorId = `${id}-error`;
 
   useEffect(() => {
@@ -412,6 +413,10 @@ function FormItem({
         },
         "aria-invalid": status === "error" || undefined,
         "aria-errormessage": status === "error" && helpContent ? errorId : undefined,
+        "aria-labelledby": [
+          childProps["aria-labelledby"],
+          labelId,
+        ].filter(Boolean).join(" ") || undefined,
         "aria-describedby": [
           childProps["aria-describedby"],
           status === "error" && helpContent ? errorId : null,
@@ -427,7 +432,7 @@ function FormItem({
   const inputWrap = <div className="sia-form-item__input-wrap">{content}</div>;
   const hasError = status === "error" && Boolean(helpContent);
   return <div ref={itemRef} className={`sia-form-item${status ? ` sia-form-item--${status}` : ""} ${className}`.trim()} data-sia-form-field={key || undefined}>
-    {label ? <label className="sia-form-item__label" htmlFor={id}>{ruleRequired ? <span aria-hidden="true">*</span> : null}{label}</label> : null}
+    {label ? <div id={labelId} className="sia-form-item__label">{ruleRequired ? <span aria-hidden="true">*</span> : null}{label}</div> : null}
     <div className="sia-form-item__control">
       <Tooltip
         title={hasError ? <span id={errorId} className="sia-form-item__error-content">

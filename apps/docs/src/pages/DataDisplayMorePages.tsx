@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  Badge, Button, Calendar, Card, Carousel, Collapse, Icon, Image as SiaImage, Popover, Rate, Space, Tag, TextArea, Timeline, Tooltip, Tree,
+  Badge, Button, Calendar, Card, Carousel, Collapse, Icon, Image as SiaImage, ImagePreview, Popover, Rate, Space, Tag, TextArea, Timeline, Tooltip, Tree,
 } from "@sia-ui/react";
 import type { CollapseKey, TreeKey, TreeNode } from "@sia-ui/react";
 import { ComponentDocPage } from "./ComponentDocPage";
@@ -113,10 +113,14 @@ export function CollapsePage() {
 
 const imageSrc = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='720' height='400'%3E%3Cdefs%3E%3ClinearGradient id='g' x2='1' y2='1'%3E%3Cstop stop-color='%231677ff'/%3E%3Cstop offset='1' stop-color='%236f55d9'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='720' height='400' rx='24' fill='url(%23g)'/%3E%3Ccircle cx='590' cy='85' r='38' fill='%23fff' fill-opacity='.22'/%3E%3Cpath d='M0 330 190 160l130 120 95-80 305 200H0Z' fill='%23fff' fill-opacity='.2'/%3E%3Ctext x='42' y='72' font-size='34' font-family='sans-serif' fill='white'%3ESia Web UI%3C/text%3E%3C/svg%3E";
 export function ImagePage() {
+  const [previewOpen, setPreviewOpen] = useState(false);
   return <ComponentDocPage eyebrow="组件 / 数据展示 / Image" title="Image 图片" description="展示图片并提供占位、加载失败回退和遮罩预览。" name="Image" apiRows={[
     { property: "src / fallback", description: "图片地址和失败回退地址", type: "string", defaultValue: "-" },
     { property: "placeholder", description: "加载完成前的占位内容", type: "ReactNode", defaultValue: "-" },
     { property: "preview", description: "预览开关或配置", type: "boolean | ImagePreviewConfig", defaultValue: "true" },
+    { property: "ImagePreview.open", description: "独立图片预览层的受控显示状态", type: "boolean", defaultValue: "false" },
+    { property: "ImagePreview.src / alt", description: "预览图片地址和替代文本", type: "string", defaultValue: "-" },
+    { property: "ImagePreview.onOpenChange", description: "遮罩、关闭按钮或 Esc 触发的状态变化", type: "(open: boolean) => void", defaultValue: "-" },
     { property: "width / height", description: "继承原生图片尺寸属性", type: "number | string", defaultValue: "-" },
   ]}>
     <DemoCard title="点击预览" description="鼠标移入图片显示实色预览遮罩，遮罩、占位层和图片始终使用相同圆角。" code={`<Image
@@ -127,6 +131,19 @@ export function ImagePage() {
   placeholder={<span>图片加载中...</span>}
 />`}>
       <SiaImage width={420} style={{ borderRadius: 24 }} src={imageSrc} alt="Sia Web UI 渐变风景示意图" placeholder={<SpinPlaceholder />} />
+    </DemoCard>
+    <DemoCard title="独立控制预览层" description="ImagePreview 可以脱离缩略图单独使用，适合表格操作列、附件列表或自定义触发器。" code={`import { useState } from "react";
+import { Button, ImagePreview } from "@sia-ui/react";
+
+export default function Demo() {
+  const [open, setOpen] = useState(false);
+  return <>
+    <Button onClick={() => setOpen(true)}>预览原图</Button>
+    <ImagePreview open={open} src={imageSrc} alt="示意图" onOpenChange={setOpen} />
+  </>;
+}`}>
+      <Button icon={<Icon name="eye" />} onClick={() => setPreviewOpen(true)}>预览原图</Button>
+      <ImagePreview open={previewOpen} src={imageSrc} alt="Sia Web UI 渐变风景示意图" onOpenChange={setPreviewOpen} />
     </DemoCard>
   </ComponentDocPage>;
 }

@@ -36,6 +36,8 @@ export interface TableColumn<T = Record<string, unknown>> {
   description?: ReactNode;
   dataIndex?: keyof T | string | readonly string[];
   width?: number;
+  flex?: number;
+  autoWidth?: boolean;
   minWidth?: number;
   maxWidth?: number;
   align?: TableAlign;
@@ -160,6 +162,7 @@ export interface TableProps<T extends Record<string, unknown> = Record<string, u
   rowHeight?: number;
   overscan?: number;
   stickyHeader?: boolean;
+  resizable?: boolean;
   onRowClick?: (record: T, index: number) => void;
   onRowDoubleClick?: (record: T, index: number) => void;
   onCellContextMenu?: (

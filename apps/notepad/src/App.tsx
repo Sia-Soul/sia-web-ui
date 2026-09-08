@@ -64,6 +64,12 @@ interface ExternalFileReadResult {
   modifiedAt: number | null;
 }
 
+interface ExternalFileStatus {
+  path: string;
+  exists: boolean;
+  modifiedAt: number | null;
+}
+
 interface ExternalFileWriteResult {
   path: string;
   modifiedAt: number;
@@ -142,10 +148,31 @@ const EDITOR_CONTEXT_MENU: readonly EditorContextMenuItem[] = [
   { key: "selectAll", label: "全选", command: "selectAll", disabled: (editor) => !editor?.getValue() },
 ];
 
-const MARKDOWN_VIEW_OPTIONS = [
+const PREVIEW_VIEW_OPTIONS = [
   { label: "编辑", value: "edit" },
   { label: "预览", value: "preview" },
 ] as const;
+
+const HTML_PREVIEW_LINK_MESSAGE = "sia-notepad:open-html-preview-link";
+
+function createHtmlPreviewDocument(content: string) {
+  const linkBridge = `<script>
+    document.addEventListener("click", function (event) {
+      if (!(event.target instanceof Element)) return;
+      var anchor = event.target.closest("a[href]");
+      if (!anchor) return;
+      var href = (anchor.getAttribute("href") || "").trim();
+      if (!href || href.charAt(0) === "#" || /^javascript:/i.test(href)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      window.parent.postMessage({ type: "${HTML_PREVIEW_LINK_MESSAGE}", href: href }, "*");
+    }, true);
+  <\/script>`;
+  const head = /<head(?:\s[^>]*)?>/iu.exec(content);
+  if (!head || head.index === undefined) return `${linkBridge}${content}`;
+  const insertionIndex = head.index + head[0].length;
+  return `${content.slice(0, insertionIndex)}${linkBridge}${content.slice(insertionIndex)}`;
+}
 
 function statusCountColorClass(value: number) {
   const digits = Math.trunc(Math.abs(value)).toString().length;
@@ -434,9 +461,12 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const startupFilesHandledRef = useRef(false);
   const sourceDifferencesCheckedRef = useRef(false);
+  const externalChangePromptActiveRef = useRef(false);
+  const observedDirtySourceVersionRef = useRef(new Map<string, number>());
   const markdownImageCacheRef = useRef(new Map<string, Promise<string>>());
   const markdownPreviewRef = useRef<HTMLDivElement>(null);
   const markdownOutlineRef = useRef<HTMLElement>(null);
+  const htmlPreviewRef = useRef<HTMLIFrameElement>(null);
   const editorApiRef = useRef<EditorHandle | null>(null);
   const folderLoadInFlightRef = useRef(new Set<string>());
 
@@ -615,6 +645,128 @@ export default function App() {
 
     return () => { cancelled = true; };
   }, [hydrated, notes]);
+
+  useEffect(() => {
+    if (!hydrated || !openNoteIds.length || !window.__TAURI__?.core?.invoke) return undefined;
+    let cancelled = false;
+    let checking = false;
+
+    const checkExternalFileChanges = async () => {
+      if (document.visibilityState !== "visible" || !document.hasFocus()) return;
+      if (checking || externalChangePromptActiveRef.current) return;
+      const openIds = new Set(openNoteIds);
+      const sourceNotes = notesRef.current.filter((note) => openIds.has(note.id) && note.sourcePath);
+      if (!sourceNotes.length) return;
+      checking = true;
+      try {
+        const statuses = await window.__TAURI__!.core.invoke<ExternalFileStatus[]>("stat_external_files", {
+          paths: sourceNotes.map((note) => note.sourcePath!),
+        });
+        if (cancelled) return;
+        const statusByPath = new Map(statuses.map((status) => [normalizedSourcePath(status.path), status]));
+
+        for (const sourceNote of sourceNotes) {
+          const currentNote = notesRef.current.find((note) => note.id === sourceNote.id);
+          if (!currentNote?.sourcePath) continue;
+          const status = statusByPath.get(normalizedSourcePath(currentNote.sourcePath));
+          const modifiedAt = status?.modifiedAt;
+          if (!status?.exists || modifiedAt === null || modifiedAt === undefined) continue;
+          if (modifiedAt === currentNote.sourceModifiedAt) {
+            observedDirtySourceVersionRef.current.delete(currentNote.id);
+            continue;
+          }
+          if (observedDirtySourceVersionRef.current.get(currentNote.id) === modifiedAt) continue;
+
+          const result = await window.__TAURI__!.core.invoke<ExternalFileReadResult>("read_external_file", {
+            path: currentNote.sourcePath,
+          });
+          if (cancelled) return;
+          const decoded = decodeTextBytes(new Uint8Array(result.bytes));
+          const latestNote = notesRef.current.find((note) => note.id === currentNote.id);
+          if (!latestNote?.sourcePath
+            || normalizedSourcePath(latestNote.sourcePath) !== normalizedSourcePath(currentNote.sourcePath)) continue;
+          const sourceContentHash = contentHash(decoded.content);
+          const sourceDiffers = latestNote.content !== decoded.content;
+
+          if (!sourceDiffers) {
+            observedDirtySourceVersionRef.current.delete(latestNote.id);
+            setNotes((current) => current.map((note) => note.id === latestNote.id ? {
+              ...note,
+              sourceContentHash,
+              sourceModifiedAt: result.modifiedAt ?? undefined,
+              sourceDirty: false,
+            } : note));
+            continue;
+          }
+
+          if (latestNote.sourceDirty) {
+            observedDirtySourceVersionRef.current.set(latestNote.id, modifiedAt);
+            setNotes((current) => current.map((note) => note.id === latestNote.id ? {
+              ...note,
+              sourceContentHash,
+              sourceDirty: true,
+            } : note));
+            continue;
+          }
+
+          externalChangePromptActiveRef.current = true;
+          Modal.confirm({
+            title: "源文件已在外部修改",
+            children: `“${noteDisplayTitle(latestNote)}”已被其他程序修改。是否加载外部版本？保留当前缓存后，文件将标记为与源文件存在差异。`,
+            okText: "加载外部版本",
+            cancelText: "保留当前缓存",
+            onOk: async () => {
+              try {
+                const latestResult = await window.__TAURI__!.core.invoke<ExternalFileReadResult>("read_external_file", {
+                  path: latestNote.sourcePath,
+                });
+                const latestDecoded = decodeTextBytes(new Uint8Array(latestResult.bytes));
+                setNotes((current) => current.map((note) => note.id === latestNote.id ? {
+                  ...note,
+                  content: latestDecoded.content,
+                  sourceEncoding: latestDecoded.encoding,
+                  sourceContentHash: contentHash(latestDecoded.content),
+                  sourceModifiedAt: latestResult.modifiedAt ?? undefined,
+                  sourceDirty: false,
+                  updatedAt: note.content !== latestDecoded.content ? Date.now() : note.updatedAt,
+                } : note));
+                observedDirtySourceVersionRef.current.delete(latestNote.id);
+                externalChangePromptActiveRef.current = false;
+                message.success("已加载外部版本");
+              } catch (error) {
+                message.error(`加载外部版本失败：${error instanceof Error ? error.message : String(error)}`);
+                return false;
+              }
+            },
+            onCancel: () => {
+              setNotes((current) => current.map((note) => note.id === latestNote.id ? {
+                ...note,
+                sourceContentHash,
+                sourceModifiedAt: result.modifiedAt ?? undefined,
+                sourceDirty: true,
+              } : note));
+              observedDirtySourceVersionRef.current.delete(latestNote.id);
+              externalChangePromptActiveRef.current = false;
+              message.warning("已保留当前缓存，文件与源文件存在差异");
+            },
+          });
+          break;
+        }
+      } catch {
+        // 文件可能正被外部程序原子替换或短暂锁定，下一轮检测会自动重试。
+      } finally {
+        checking = false;
+      }
+    };
+
+    const initialTimer = window.setTimeout(() => { void checkExternalFileChanges(); }, 1000);
+    const interval = window.setInterval(() => { void checkExternalFileChanges(); }, 1800);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(initialTimer);
+      window.clearInterval(interval);
+    };
+  }, [hydrated, openNoteIds]);
 
   const openNote = useCallback((id: string) => {
     setOpenNoteIds((current) => current.includes(id) ? current : [...current, id]);
@@ -1473,6 +1625,10 @@ export default function App() {
   const editorLanguage = activeNote?.language ?? "plaintext";
   const editorWordWrap = activeNote?.wordWrap ?? true;
   const markdownView = activeNote?.markdownView ?? "edit";
+  const htmlPreviewDocument = useMemo(
+    () => editorLanguage === "html" ? createHtmlPreviewDocument(activeNote?.content ?? "") : "",
+    [activeNote?.content, editorLanguage],
+  );
   const filteredLanguageMenuItems = useMemo<readonly MenuItem[]>(() => {
     const search = languageSearchText.trim().toLocaleLowerCase();
     return LANGUAGE_OPTIONS
@@ -1660,6 +1816,28 @@ export default function App() {
       message.error(`无法打开链接：${error instanceof Error ? error.message : String(error)}`);
     });
   }, [activeNote?.sourcePath]);
+
+  useEffect(() => {
+    if (editorLanguage !== "html" || markdownView !== "preview") return undefined;
+    const handleHtmlPreviewMessage = (event: MessageEvent<unknown>) => {
+      if (event.source !== htmlPreviewRef.current?.contentWindow) return;
+      if (!event.data || typeof event.data !== "object") return;
+      const data = event.data as { type?: unknown; href?: unknown };
+      if (data.type !== HTML_PREVIEW_LINK_MESSAGE || typeof data.href !== "string") return;
+      if (!window.__TAURI__?.core?.invoke) {
+        message.error("当前环境无法调用系统默认程序打开链接");
+        return;
+      }
+      void window.__TAURI__.core.invoke<void>("open_external_link", {
+        href: data.href,
+        sourcePath: activeNote?.sourcePath ?? null,
+      }).catch((error) => {
+        message.error(`无法打开链接：${error instanceof Error ? error.message : String(error)}`);
+      });
+    };
+    window.addEventListener("message", handleHtmlPreviewMessage);
+    return () => window.removeEventListener("message", handleHtmlPreviewMessage);
+  }, [activeNote?.sourcePath, editorLanguage, markdownView]);
 
   const treeActionHandlersRef = useRef({
     handleNoteContextAction,
@@ -2221,6 +2399,14 @@ export default function App() {
                     </aside>
                   </Splitter.Panel>
                 </Splitter>
+              ) : editorLanguage === "html" && markdownView === "preview" ? (
+                <iframe
+                  ref={htmlPreviewRef}
+                  className="note-html-preview"
+                  title="HTML 预览"
+                  srcDoc={htmlPreviewDocument}
+                  sandbox="allow-scripts allow-forms allow-modals"
+                />
               ) : (
                 <Editor
                   className="note-content-editor"
@@ -2260,12 +2446,12 @@ export default function App() {
                       {formattingNoteId === activeNote.id ? "格式化中" : "格式化"}
                     </Button>
                   ) : null}
-                  {editorLanguage === "markdown" ? (
+                  {editorLanguage === "markdown" || editorLanguage === "html" ? (
                     <Segmented
-                      className="markdown-view-switch"
+                      className="preview-view-switch"
                       size="small"
-                      aria-label="Markdown 视图"
-                      options={MARKDOWN_VIEW_OPTIONS}
+                      aria-label={`${LANGUAGE_LABELS.get(editorLanguage) ?? editorLanguage}视图`}
+                      options={PREVIEW_VIEW_OPTIONS}
                       value={markdownView}
                       onChange={(value) => updateActiveNote({ markdownView: value as "edit" | "preview" })}
                     />

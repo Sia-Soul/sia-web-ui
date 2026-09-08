@@ -82,6 +82,24 @@ export default function Demo() {
   </>;
 }`;
 
+const customInputCode = `import { useState } from "react";
+import { Select } from "@sia-ui/react";
+
+export default function Demo() {
+  const [value, setValue] = useState(["React"]);
+  return <Select
+    mode="multiple"
+    options={[{ label: "React", value: "React" }]}
+    value={value}
+    onChange={(next) => setValue(Array.isArray(next) ? next.map(String) : [])}
+    allowInput
+    inputMaxLength={20}
+    showSearch
+    allowClear
+    placeholder="选择或输入技术栈"
+  />;
+}`;
+
 const frameworkOptions: readonly SelectOption[] = [
   { label: "React", value: "react" },
   { label: "Vue", value: "vue" },
@@ -111,6 +129,8 @@ const apiRows = [
   { property: "placeholder", description: "未选择时的提示", type: "ReactNode", defaultValue: "'请选择'" },
   { property: "allowClear", description: "允许清空当前选择", type: "boolean", defaultValue: "false" },
   { property: "showSearch", description: "显示选项搜索框", type: "boolean", defaultValue: "false" },
+  { property: "allowInput", description: "允许将搜索内容作为自定义选项提交", type: "boolean", defaultValue: "false" },
+  { property: "inputMaxLength", description: "手动输入内容的最大长度", type: "number", defaultValue: "-" },
   { property: "showSelectAll", description: "多选时显示全选和清除操作", type: "boolean", defaultValue: "false" },
   { property: "virtual", description: "长列表启用窗口化渲染", type: "boolean", defaultValue: "true" },
   { property: "virtualThreshold", description: "启用虚拟滚动的选项数量", type: "number", defaultValue: "100" },
@@ -122,6 +142,7 @@ export function SelectPage() {
   const [tab, setTab] = useState<"examples" | "api">("examples");
   const [value, setValue] = useState<SelectValue | null>("react");
   const [members, setMembers] = useState<SelectValue[]>(["member-2", "member-8"]);
+  const [customValues, setCustomValues] = useState<SelectValue[]>(["React"]);
 
   return (
     <>
@@ -132,6 +153,24 @@ export function SelectPage() {
           <div className="component-demo">
             <Select aria-label="选择前端框架" options={frameworkOptions} value={value} onChange={(nextValue) => setValue(asSingleValue(nextValue))} allowClear showSearch placeholder="请选择前端框架" />
             <span className="demo-result">当前值：{value ?? "（未选择）"}</span>
+          </div>
+        </DemoCard>
+        <DemoCard title="允许输入自定义选项" description="输入候选项之外的内容后按 Enter，或点击“使用”选项，即可把文本作为新值提交。" code={customInputCode}>
+          <div className="component-demo component-demo--column">
+            <Select
+              className="large-select-demo"
+              aria-label="选择或输入技术栈"
+              mode="multiple"
+              options={[{ label: "React", value: "React" }, { label: "Vue", value: "Vue" }, { label: "Svelte", value: "Svelte" }]}
+              value={customValues}
+              onChange={(nextValue) => setCustomValues(asMultipleValue(nextValue))}
+              allowInput
+              inputMaxLength={20}
+              showSearch
+              allowClear
+              placeholder="选择或输入技术栈"
+            />
+            <span className="demo-result">当前值：{customValues.map(String).join("、") || "（未选择）"}</span>
           </div>
         </DemoCard>
         <DemoCard title="搜索、多选与虚拟滚动" description="示例包含 1000 个选项，DOM 中只渲染当前可视区域。支持全选和一键清除。" code={multipleCode}>

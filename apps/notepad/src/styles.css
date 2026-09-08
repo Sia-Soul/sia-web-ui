@@ -273,22 +273,34 @@ textarea {
 .note-list {
   min-height: 0;
   padding: 1px 9px 16px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   scrollbar-width: thin;
 }
 
 .notepad-tree {
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   font-size: 12px;
 }
 
 .notepad-tree .sia-tree__row {
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 30px;
   gap: 3px;
   border-radius: 0;
+}
+
+.notepad-tree .sia-tree__node,
+.notepad-tree .sia-tree__children,
+.notepad-tree .sia-tree__context-trigger,
+.notepad-tree .sia-tree__context-content {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .notepad-tree .sia-tree__row[data-sia-tree-draggable="true"],
@@ -300,7 +312,10 @@ textarea {
 
 .notepad-tree .sia-tree__title {
   display: block;
-  min-width: max-content;
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+  max-width: 100%;
   min-height: 26px;
   padding: 2px 4px;
   overflow: hidden;
@@ -317,7 +332,13 @@ textarea {
 }
 
 .notepad-tree .sia-tree__extra {
+  display: none;
   margin-inline-end: 2px;
+}
+
+.notepad-tree .sia-tree__row:hover .sia-tree__extra,
+.notepad-tree .sia-tree__row:focus-within .sia-tree__extra {
+  display: inline-flex;
 }
 
 .notepad-tree .note-context-trigger.sia-dropdown,
@@ -341,7 +362,9 @@ textarea {
 }
 
 .notepad-tree .sia-tree__row:hover .note-pin-button,
-.notepad-tree .sia-tree__row:hover .note-more-button {
+.notepad-tree .sia-tree__row:hover .note-more-button,
+.notepad-tree .sia-tree__row:focus-within .note-pin-button,
+.notepad-tree .sia-tree__row:focus-within .note-more-button {
   opacity: 1;
 }
 
@@ -408,6 +431,7 @@ textarea {
 }
 
 .note-list-item__identity strong {
+  flex: 1 1 0;
   min-width: 0;
   overflow: hidden;
   color: var(--sia-color-text, #1f1f1f);
@@ -629,6 +653,16 @@ textarea {
   max-width: 880px;
 }
 
+.note-html-preview {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  background: #fff;
+}
+
 .markdown-preview-splitter.sia-splitter {
   min-width: 0;
   min-height: 0;
@@ -676,15 +710,34 @@ textarea {
 }
 
 .markdown-outline__tree {
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 5px 4px 12px;
   scrollbar-width: thin;
 }
 
-.markdown-outline__tree .sia-tree__title {
+.markdown-outline__tree .sia-tree__node,
+.markdown-outline__tree .sia-tree__children,
+.markdown-outline__tree .sia-tree__row,
+.markdown-outline__tree .sia-tree__context-content {
   min-width: 0;
+  max-width: 100%;
+}
+
+.markdown-outline__tree .sia-tree__row {
+  width: 100%;
+}
+
+.markdown-outline__tree .sia-tree__title {
+  display: block;
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+  max-width: 100%;
   min-height: 26px;
   overflow: hidden;
   font-size: 12px;
@@ -764,7 +817,7 @@ textarea {
   gap: 4px;
 }
 
-.markdown-view-switch.sia-segmented {
+.preview-view-switch.sia-segmented {
   gap: 2px;
   padding: 2px;
   border: 1px solid var(--sia-color-border, #d9d9d9);
@@ -772,7 +825,7 @@ textarea {
   background: color-mix(in srgb, var(--sia-color-background, #f5f7fa) 76%, transparent);
 }
 
-.markdown-view-switch.sia-segmented button {
+.preview-view-switch.sia-segmented button {
   min-height: 18px;
   padding: 0 8px;
   border-radius: 9px;

@@ -2,6 +2,7 @@ import { Children, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, HTMLAttributes, ImgHTMLAttributes, ReactElement, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "./Icon";
+import { useOverlayLifecycle } from "./Overlay";
 import { useControllableState } from "./shared";
 
 export interface RateProps extends Omit<HTMLAttributes<HTMLDivElement>, "defaultValue" | "onChange"> {
@@ -226,10 +227,11 @@ export function Collapse({ items, activeKey, defaultActiveKey = [], accordion = 
     if (!controlled) setInternal(next);
     onChange?.(accordion ? next[0] ?? "" : next);
   }
-  return <div className={`sia-collapse${bordered ? " sia-collapse--bordered" : ""}${ghost ? " sia-collapse--ghost" : ""} sia-collapse--icon-${expandIconPosition} ${className}`.trim()} {...props}>
+  const borderClassName = !bordered || ghost ? "sia-collapse--borderless" : "sia-collapse--bordered";
+  return <div className={`sia-collapse ${borderClassName}${ghost ? " sia-collapse--ghost" : ""} sia-collapse--icon-${expandIconPosition} ${className}`.trim()} {...props}>
     {items.map((item) => {
       const open = openKeys.includes(item.key);
-      const arrow = item.showArrow === false ? null : <button className="sia-collapse__arrow" aria-label={open ? "收起" : "展开"} onClick={item.collapsible === "icon" ? () => toggle(item) : undefined}><Icon name="chevron-down" size={14} /></button>;
+      const arrow = item.showArrow === false ? null : <button type="button" className="sia-collapse__arrow" aria-label={open ? "收起" : "展开"} onClick={item.collapsible === "icon" ? () => toggle(item) : undefined}><Icon name="chevron-right" size={14} /></button>;
       return <section className={`sia-collapse__item${open ? " is-open" : ""}${item.disabled ? " is-disabled" : ""} ${item.className ?? ""}`.trim()} key={item.key}>
         <header className="sia-collapse__header" role="button" tabIndex={item.disabled ? -1 : 0} aria-expanded={open} onClick={item.collapsible === "icon" ? undefined : () => toggle(item)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); toggle(item); } }}>
           {expandIconPosition === "start" ? arrow : null}<span className="sia-collapse__label">{item.label}</span>{item.extra ? <span className="sia-collapse__extra" onClick={(event) => event.stopPropagation()}>{item.extra}</span> : null}{expandIconPosition === "end" ? arrow : null}
@@ -238,6 +240,24 @@ export function Collapse({ items, activeKey, defaultActiveKey = [], accordion = 
       </section>;
     })}
   </div>;
+}
+
+export interface ImagePreviewProps {
+  open: boolean;
+  src?: string;
+  alt?: string;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function ImagePreview({ open, src, alt = "", onOpenChange }: ImagePreviewProps) {
+  const previewRef = useRef<HTMLDivElement>(null);
+  useOverlayLifecycle(open, previewRef, () => onOpenChange(false));
+
+  if (!open || !src || typeof document === "undefined") return null;
+  return createPortal(<div ref={previewRef} className="sia-image-preview" role="dialog" aria-modal="true" aria-label="图片预览" tabIndex={-1} onClick={() => onOpenChange(false)}>
+    <button type="button" aria-label="关闭预览" onClick={() => onOpenChange(false)}><Icon name="close" /></button>
+    <img src={src} alt={alt} onClick={(event) => event.stopPropagation()} />
+  </div>, document.body);
 }
 
 export interface ImagePreviewConfig { src?: string; open?: boolean; onOpenChange?: (open: boolean) => void; mask?: ReactNode }
@@ -266,8 +286,6 @@ export function Image({ fallback, placeholder, preview = true, rootClassName = "
     {!loaded && placeholder ? <span className="sia-image__placeholder">{placeholder}</span> : null}
     <img {...props} src={displaySrc} alt={alt} className={className} onLoad={() => setLoaded(true)} onError={(event) => { if (!failed && fallback) setFailed(true); onError?.(event); }} />
     {preview ? <button type="button" className="sia-image__mask" aria-label="预览图片" onClick={() => setOpen(true)}>{config.mask ?? <><Icon name="eye" />预览</>}</button> : null}
-    {open && typeof document !== "undefined" ? createPortal(<div className="sia-image-preview" role="dialog" aria-modal="true" aria-label="图片预览" onClick={() => setOpen(false)}>
-      <button aria-label="关闭预览" onClick={() => setOpen(false)}><Icon name="close" /></button><img src={config.src ?? displaySrc} alt={alt} onClick={(event) => event.stopPropagation()} />
-    </div>, document.body) : null}
+    <ImagePreview open={open} src={config.src ?? displaySrc} alt={alt} onOpenChange={setOpen} />
   </span>;
 }

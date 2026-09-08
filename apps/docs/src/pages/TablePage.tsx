@@ -15,7 +15,6 @@ import {
   createIndexPlugin,
   createLocalStorageTableSettingsAdapter,
   createPaginationPlugin,
-  createResizePlugin,
   createRowSpanPlugin,
   createSelectionPlugin,
   createSortPlugin,
@@ -435,7 +434,7 @@ export default function Demo() {
 
 const pluginCode = `import { useMemo } from "react";
 import { Table, createSelectionPlugin, createSortPlugin, createPaginationPlugin,
-  createEditablePlugin, createResizePlugin, createColumnSettingPlugin } from "@sia-ui/react";
+  createEditablePlugin, createColumnSettingPlugin } from "@sia-ui/react";
 
 export default function Demo() {
   const plugins = useMemo(() => [
@@ -443,7 +442,6 @@ export default function Demo() {
     createSortPlugin(),
     createPaginationPlugin({ defaultPageSize: 25 }),
     createEditablePlugin({ onCellChange: saveCell }),
-    createResizePlugin(),
     createColumnSettingPlugin(),
   ], []);
   return <Table rowKey="id" columns={columns} dataSource={data} plugins={plugins} height={430} />;
@@ -462,7 +460,6 @@ import {
   createIndexPlugin,
   createLocalStorageTableSettingsAdapter,
   createPaginationPlugin,
-  createResizePlugin,
   createSelectionPlugin,
   createSortPlugin,
   createSummaryPlugin,
@@ -533,7 +530,6 @@ export default function Demo() {
         return true;
       },
     }),
-    createResizePlugin(),
     createSummaryPlugin({
       subTotal: (pageRows) => ({
         price: "¥ " + pageRows.reduce((sum, row) => sum + row.price, 0).toFixed(2),
@@ -664,6 +660,9 @@ const apiRows = [
   { property: "dataSource / columns", description: "基础数据和列定义，支持嵌套字段与分组表头", type: "T[] / TableColumn<T>[]", defaultValue: "[]" },
   { property: "rowKey", description: "行唯一键字段或计算函数", type: "string | (record, index) => Key", defaultValue: "'id'" },
   { property: "plugins", description: "按需加载的表格功能模块", type: "TablePlugin<T>[]", defaultValue: "[]" },
+  { property: "resizable", description: "是否允许拖拽表头边界调整列宽；默认内置启用，可传 false 关闭", type: "boolean", defaultValue: "true" },
+  { property: "TableColumn.autoWidth", description: "按渲染内容自动测量列宽；未指定 width 的操作列会自动开启", type: "boolean", defaultValue: "操作列 true，其他列 false" },
+  { property: "TableColumn.flex", description: "按权重承接表格剩余宽度，固定列和操作列不会被意外拉伸；未设置时由最宽的非固定普通列承接", type: "number", defaultValue: "自动" },
   { property: "TableColumn.rowSpan", description: "加载 RowSpan 插件后合并连续相同值的单元格", type: "boolean / data path / function", defaultValue: "false" },
   { property: "TableColumn.mergeSticky", description: "合并单元格滚动越过表头时保持内容可见", type: "boolean / config", defaultValue: "false" },
   { property: "TableColumn.description", description: "列头说明；悬停说明图标后以页面级 Tooltip 展示", type: "ReactNode", defaultValue: "-" },
@@ -710,7 +709,6 @@ export function TablePage() {
       message.success(`${record.name} 已更新`);
       return true;
     } }),
-    createResizePlugin<ProductRow>(),
     createSummaryPlugin<ProductRow>({
       subTotal: (pageRows) => ({ price: `¥ ${pageRows.reduce((sum, row) => sum + row.price, 0).toFixed(2)}`, stock: pageRows.reduce((sum, row) => sum + row.stock, 0) }),
       total: { stock: products.reduce((sum, row) => sum + row.stock, 0) },
@@ -749,7 +747,6 @@ export function TablePage() {
         return true;
       },
     }),
-    createResizePlugin<ProductRow>(),
     createSummaryPlugin<ProductRow>({
       subTotal: (pageRows) => ({
         price: `¥ ${pageRows.reduce((sum, row) => sum + row.price, 0).toFixed(2)}`,
@@ -758,8 +755,8 @@ export function TablePage() {
     }),
     createExportPlugin<ProductRow>({ scope: "visible", fileName: "商品列表.csv" }),
   ], [storageAdapter]);
-  const treePlugins = useMemo<readonly AnyTablePlugin<ProductRow>[]>(() => [createTreePlugin<ProductRow>({ ignoreChildrenColumn: false, defaultExpandAllRows: true }), createResizePlugin<ProductRow>()], []);
-  const virtualPlugins = useMemo<readonly AnyTablePlugin<ProductRow>[]>(() => [createSelectionPlugin<ProductRow>({ mode: "row" }), createIndexPlugin<ProductRow>(), createSortPlugin<ProductRow>(), createResizePlugin<ProductRow>()], []);
+  const treePlugins = useMemo<readonly AnyTablePlugin<ProductRow>[]>(() => [createTreePlugin<ProductRow>({ ignoreChildrenColumn: false, defaultExpandAllRows: true })], []);
+  const virtualPlugins = useMemo<readonly AnyTablePlugin<ProductRow>[]>(() => [createSelectionPlugin<ProductRow>({ mode: "row" }), createIndexPlugin<ProductRow>(), createSortPlugin<ProductRow>()], []);
   const cellSelectionPlugins = useMemo<readonly AnyTablePlugin<ProductRow>[]>(() => [
     createCellSelectionPlugin<ProductRow>({
       onChange: (_range, cells) => setSelectedCellCount(cells.length),
@@ -778,10 +775,10 @@ export function TablePage() {
     <PageHeader eyebrow="组件 / 数据展示 / Table" title="Table 表格" description="高性能基础表格，通过插件按需组合选择、排序、分页、编辑、树形、列设置等能力。" />
     <DocsTabs activeKey={tab} onChange={setTab} />
     {tab === "examples" ? <div className="demo-stack">
-      <DemoCard title="基础表格" description="核心只负责数据、列、分组表头、固定列、滚动和渲染，不携带业务功能。" code={basicCode}>
+      <DemoCard title="基础表格" description="核心负责数据、列、分组表头、固定列、滚动和渲染，并默认支持拖拽调整列宽。" code={basicCode}>
         <Table className="table-demo" rowKey="id" columns={basicColumns} dataSource={basicData} height={350} />
       </DemoCard>
-      <DemoCard title="插件组合" description="选择、序号、排序、分页、编辑、拖拽列宽、列设置、汇总和工具栏均由独立插件加载。" code={pluginCode}>
+      <DemoCard title="插件组合" description="选择、序号、排序、分页、编辑、列设置、汇总和工具栏均可按需加载；拖拽列宽已默认启用。" code={pluginCode}>
         <Table className="table-demo" rowKey="id" columns={advancedColumns} dataSource={products} plugins={advancedPlugins} height={470} />
       </DemoCard>
       <DemoCard title="全功能表格" description="组合父子级列头、列头拖拽框选、工具栏、跨页保留选择、序号整行选择、单元格框选、列头说明、排序、分页、编辑、列宽调整、固定列、列设置、汇总、高亮和导出。" code={fullFeatureCode}>

@@ -1,6 +1,8 @@
 import type { Key } from "react";
 import type { TableColumn, TableFixed, TableRow } from "./types";
 
+const AUTO_WIDTH_COLUMN_KEYS = new Set(["action", "actions", "operation", "operations"]);
+
 export function getTableValue<T>(record: T, dataIndex: TableColumn<T>["dataIndex"], fallbackKey: string): unknown {
   const path = Array.isArray(dataIndex) ? dataIndex : String(dataIndex ?? fallbackKey).split(".");
   return path.reduce<unknown>((value, key) => value != null && typeof value === "object" ? (value as Record<string, unknown>)[String(key)] : undefined, record);
@@ -46,6 +48,13 @@ export function getColumnLabel<T>(column: TableColumn<T>): string {
   if (column.name) return column.name;
   if (typeof column.title === "string") return column.title;
   return column.key;
+}
+
+export function isTableAutoWidthColumn<T>(column: TableColumn<T>): boolean {
+  if (column.autoWidth !== undefined) return column.autoWidth;
+  if (column.width !== undefined) return false;
+  const key = String(column.code ?? column.key).trim().toLowerCase();
+  return AUTO_WIDTH_COLUMN_KEYS.has(key) || getColumnLabel(column).trim() === "操作";
 }
 
 export function toTablePageParams(current: number, pageSize: number): import("./types").TablePageParams {

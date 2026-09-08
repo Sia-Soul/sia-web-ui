@@ -25,7 +25,7 @@ import type {
   TableSortInfo,
   TableSummaryRow,
 } from "./types";
-import { flattenTableColumns, getColumnLabel, getTableValue, mapTableLeafColumns, normalizeFixed, sortTableColumnsByFixed, toTablePageParams } from "./utils";
+import { flattenTableColumns, getColumnLabel, getTableValue, isTableAutoWidthColumn, mapTableLeafColumns, normalizeFixed, sortTableColumnsByFixed, toTablePageParams } from "./utils";
 
 function TableCheckbox({ checked, indeterminate, disabled, label, onChange }: {
   checked: boolean;
@@ -1332,14 +1332,14 @@ export function createEditablePlugin<T extends Record<string, unknown>>(options:
 }
 
 // Column resize plugin
-interface ResizeState { widths: Record<string, number>; }
+interface ResizeState { widths: Record<string, number>; manualLayout?: boolean; }
 export interface TableResizePluginOptions { enabled?: boolean; onResize?: (columnKey: string, width: number) => void; }
 export interface TableResizeApi { getWidths: () => Readonly<Record<string, number>>; setWidth: (columnKey: string, width: number) => void; }
 
 export function createResizePlugin<T extends Record<string, unknown>>(options: TableResizePluginOptions = {}): TablePlugin<T, ResizeState, TableResizeApi> {
   const enabled = options.enabled ?? true;
   function setWidth(columnKey: string, width: number, context: TablePluginContext<T, ResizeState>, notify = false) {
-    context.setState((state) => ({ widths: { ...state.widths, [columnKey]: width } }));
+    context.setState((state) => ({ ...state, widths: { ...state.widths, [columnKey]: width } }));
     if (notify) {
       options.onResize?.(columnKey, width);
       context.emit({ type: "columnResize", source: "resize", payload: { columnKey, width } });
@@ -1352,20 +1352,53 @@ export function createResizePlugin<T extends Record<string, unknown>>(options: T
     transformColumns(columns, context) {
       if (!enabled) return columns;
       return mapTableLeafColumns(columns, (column) => {
-        const width = context.state.widths[column.key] ?? column.width ?? 160;
+        const autoWidth = isTableAutoWidthColumn(column);
+        const configuredWidth = context.state.widths[column.key] ?? column.width;
+        const width = configuredWidth ?? (autoWidth ? undefined : 160);
         const previousHeader = column.renderHeader;
-        return { ...column, width, renderHeader: (currentColumn, coreContext) => <span className="sia-table__resizable-header"><span>{previousHeader ? previousHeader(currentColumn, coreContext) : currentColumn.title ?? currentColumn.name ?? currentColumn.key}</span><span className="sia-table__resize-handle" role="separator" aria-label={`调整${getColumnLabel(currentColumn)}列宽`} onMouseDown={(event) => {
+        return { ...column, autoWidth, width, renderHeader: (currentColumn, coreContext) => <span className="sia-table__resizable-header"><span>{previousHeader ? previousHeader(currentColumn, coreContext) : currentColumn.title ?? currentColumn.name ?? currentColumn.key}</span><span className="sia-table__resize-handle" role="separator" aria-label={`调整${getColumnLabel(currentColumn)}列宽`} onMouseDown={(event) => {
+          if (event.button !== 0) return;
           event.preventDefault();
           event.stopPropagation();
           const startX = event.clientX;
-          const startWidth = width;
+          const header = event.currentTarget.closest("th");
+          const table = header?.closest("table");
+          const viewport = table?.closest<HTMLElement>(".sia-table__viewport");
+          // Snapshot rendered leaf widths, including space previously assigned by flex.
+          const renderedWidths: Record<string, number> = {};
+          table?.querySelectorAll<HTMLTableColElement>("colgroup > col[data-column-key]").forEach((element) => {
+            const measured = element.getBoundingClientRect().width;
+            if (measured > 0) renderedWidths[element.dataset.columnKey!] = measured;
+          });
+          const startWidth = header?.getBoundingClientRect().width ?? currentColumn.width ?? width ?? 160;
+          const startScrollLeft = viewport?.scrollLeft ?? 0;
           const minWidth = column.minWidth ?? 56;
           const maxWidth = column.maxWidth ?? Number.POSITIVE_INFINITY;
           let finalWidth = startWidth;
-          const move = (moveEvent: globalThis.MouseEvent) => { finalWidth = Math.min(maxWidth, Math.max(minWidth, startWidth + moveEvent.clientX - startX)); setWidth(column.key, finalWidth, context); };
-          const up = () => { document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); document.body.style.cursor = ""; document.body.style.userSelect = ""; setWidth(column.key, finalWidth, context, true); };
+          let moved = false;
+          const previousCursor = document.body.style.cursor;
+          const previousUserSelect = document.body.style.userSelect;
+          const move = (moveEvent: globalThis.MouseEvent) => {
+            const scrollDelta = normalizeFixed(column.fixed) ? 0 : (viewport?.scrollLeft ?? 0) - startScrollLeft;
+            finalWidth = Math.min(maxWidth, Math.max(minWidth, startWidth + moveEvent.clientX - startX + scrollDelta));
+            moved = true;
+            context.setState((state) => ({
+              ...state,
+              manualLayout: true,
+              widths: { ...state.widths, ...renderedWidths, [column.key]: finalWidth },
+            }));
+          };
+          const up = () => {
+            document.removeEventListener("mousemove", move);
+            document.removeEventListener("mouseup", up);
+            window.removeEventListener("blur", up);
+            document.body.style.cursor = previousCursor;
+            document.body.style.userSelect = previousUserSelect;
+            if (moved) setWidth(column.key, finalWidth, context, true);
+          };
           document.addEventListener("mousemove", move);
           document.addEventListener("mouseup", up);
+          window.addEventListener("blur", up);
           document.body.style.cursor = "ew-resize";
           document.body.style.userSelect = "none";
         }} /></span> };

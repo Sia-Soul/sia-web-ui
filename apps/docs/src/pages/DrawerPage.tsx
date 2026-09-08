@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Drawer, Input, Space, message } from "@sia-ui/react";
+import { Button, Drawer, Input, Space, Tag, message } from "@sia-ui/react";
 import type { DrawerPlacement } from "@sia-ui/react";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
@@ -36,12 +36,40 @@ export default function Demo() {
   return <Button onClick={openDrawer}>Drawer.open()</Button>;
 }`;
 
+const nestedCode = `import { useState } from "react";
+import { Button, Drawer } from "@sia-ui/react";
+
+export default function Demo() {
+  const [parentOpen, setParentOpen] = useState(false);
+  const [childOpen, setChildOpen] = useState(false);
+
+  return <>
+    <Button onClick={() => setParentOpen(true)}>打开任务抽屉</Button>
+    <Drawer
+      open={parentOpen}
+      title="任务详情"
+      push={{ distance: 140 }}
+      onOpenChange={setParentOpen}
+      afterOpen={() => console.log("展开完成")}
+      afterClose={() => console.log("收起完成")}
+    >
+      <Button onClick={() => setChildOpen(true)}>编辑负责人</Button>
+      <Drawer open={childOpen} title="编辑负责人" size={420} onOpenChange={setChildOpen}>
+        子抽屉打开时，父抽屉自动向内推移。
+      </Drawer>
+    </Drawer>
+  </>;
+}`;
+
 const apiRows = [
   { property: "open", description: "是否显示抽屉", type: "boolean", defaultValue: "false" },
   { property: "placement", description: "出现方向", type: "'left' | 'right' | 'top' | 'bottom'", defaultValue: "'right'" },
-  { property: "size", description: "抽屉宽度或高度", type: "number | string", defaultValue: "420 / 320" },
+  { property: "size", description: "抽屉宽度或高度", type: "number | string", defaultValue: "760 / 320" },
   { property: "title / extra / footer", description: "标题、额外操作和底部区域", type: "ReactNode", defaultValue: "-" },
   { property: "maskClosable / keyboard", description: "遮罩和 Esc 是否允许关闭", type: "boolean", defaultValue: "true" },
+  { property: "push", description: "子抽屉展开时是否推移父抽屉及推移距离", type: "boolean | { distance?: number | string }", defaultValue: "true" },
+  { property: "pushDepth", description: "同级 Portal 场景下手动指定累计推移层数", type: "number", defaultValue: "0" },
+  { property: "afterOpen / afterClose", description: "展开或收起动画完全结束后的回调", type: "() => void", defaultValue: "-" },
   { property: "Drawer.open", description: "通过 API 打开抽屉", type: "(config) => { destroy, update }", defaultValue: "-" },
 ] as const;
 
@@ -49,6 +77,9 @@ export function DrawerPage() {
   const [tab, setTab] = useState<"examples" | "api">("examples");
   const [open, setOpen] = useState(false);
   const [placement, setPlacement] = useState<DrawerPlacement>("right");
+  const [parentOpen, setParentOpen] = useState(false);
+  const [childOpen, setChildOpen] = useState(false);
+  const [lifecycle, setLifecycle] = useState("等待打开");
 
   function showDrawer(nextPlacement: DrawerPlacement) {
     setPlacement(nextPlacement);
@@ -78,6 +109,12 @@ export function DrawerPage() {
       <DemoCard title="API 调用" description="无需在当前组件维护 open 状态。" code={apiCode}>
         <Button variant="primary" onClick={openFromApi}>Drawer.open()</Button>
       </DemoCard>
+      <DemoCard title="多层推移与动画回调" description="子抽屉出现时父抽屉自动推移；afterOpen 和 afterClose 只在动画稳定后触发。" code={nestedCode}>
+        <Space align="center" wrap>
+          <Button variant="primary" onClick={() => { setLifecycle("正在展开"); setParentOpen(true); }}>打开任务抽屉</Button>
+          <Tag status="processing">{lifecycle}</Tag>
+        </Space>
+      </DemoCard>
       <Drawer
         open={open}
         placement={placement}
@@ -88,6 +125,21 @@ export function DrawerPage() {
       >
         <p>这里可以承载表单、详情信息或分步任务。</p>
         <Input aria-label="抽屉中的名称" placeholder="请输入名称" />
+      </Drawer>
+      <Drawer
+        open={parentOpen}
+        title="任务详情"
+        push={{ distance: 140 }}
+        onOpenChange={(nextOpen) => { setParentOpen(nextOpen); if (!nextOpen) setChildOpen(false); }}
+        afterOpen={() => setLifecycle("父抽屉展开完成")}
+        afterClose={() => setLifecycle("父抽屉收起完成")}
+        footer={<Button block variant="primary" onClick={() => setParentOpen(false)}>完成</Button>}
+      >
+        <p>打开子抽屉后，可以观察父抽屉向页面内侧平滑推移。</p>
+        <Button onClick={() => setChildOpen(true)}>编辑负责人</Button>
+        <Drawer open={childOpen} title="编辑负责人" size={420} onOpenChange={setChildOpen}>
+          <Input aria-label="负责人" defaultValue="张敏" />
+        </Drawer>
       </Drawer>
     </div> : <ApiTable name="Drawer" rows={apiRows} />}
   </>;

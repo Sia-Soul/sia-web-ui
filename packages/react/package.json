@@ -6,18 +6,42 @@
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "sideEffects": ["**/*.css"],
+  "sideEffects": [
+    "**/*.css"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.js",
+      "require": "./dist/core.cjs"
+    },
+    "./select-date-range": {
+      "types": "./dist/select-date-range.d.ts",
+      "import": "./dist/select-date-range.js",
+      "require": "./dist/select-date-range.cjs"
+    },
+    "./rich-text-editor": {
+      "types": "./dist/rich-text-editor.d.ts",
+      "import": "./dist/rich-text-editor.js",
+      "require": "./dist/rich-text-editor.cjs"
+    },
+    "./markdown-editor": {
+      "types": "./dist/markdown-editor.d.ts",
+      "import": "./dist/markdown-editor.js",
+      "require": "./dist/markdown-editor.cjs"
+    },
     "./styles.css": "./dist/index.css"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts --clean",
+    "build": "tsup src/index.ts src/core.ts src/select-date-range.ts src/rich-text-editor.ts src/markdown-editor.ts --format esm,cjs --dts --clean",
     "typecheck": "tsc -p tsconfig.json"
   },
   "peerDependencies": {
@@ -25,9 +49,63 @@
     "react-dom": ">=18"
   },
   "dependencies": {
+    "@tiptap/core": "3",
+    "@tiptap/extension-blockquote": "3",
+    "@tiptap/extension-bold": "3",
+    "@tiptap/extension-bullet-list": "3",
+    "@tiptap/extension-code": "3",
+    "@tiptap/extension-code-block": "3",
+    "@tiptap/extension-document": "3",
+    "@tiptap/extension-dropcursor": "3",
+    "@tiptap/extension-gapcursor": "3",
+    "@tiptap/extension-hard-break": "3",
+    "@tiptap/extension-heading": "3",
+    "@tiptap/extension-horizontal-rule": "3",
+    "@tiptap/extension-image": "3",
+    "@tiptap/extension-italic": "3",
+    "@tiptap/extension-link": "3",
+    "@tiptap/extension-list": "3",
+    "@tiptap/extension-list-item": "3",
+    "@tiptap/extension-list-keymap": "3",
+    "@tiptap/extension-ordered-list": "3",
+    "@tiptap/extension-paragraph": "3",
+    "@tiptap/extension-placeholder": "3",
+    "@tiptap/extension-strike": "3",
+    "@tiptap/extension-table": "3",
+    "@tiptap/extension-table-cell": "3",
+    "@tiptap/extension-table-header": "3",
+    "@tiptap/extension-table-row": "3",
+    "@tiptap/extension-task-item": "3",
+    "@tiptap/extension-task-list": "3",
+    "@tiptap/extension-text": "3",
+    "@tiptap/extension-underline": "3",
+    "@tiptap/extensions": "3",
+    "@tiptap/markdown": "3",
+    "@tiptap/pm": "3",
+    "@tiptap/starter-kit": "3",
     "dompurify": "3.4.8",
-    "marked": "14.0.0",
-    "monaco-editor": "0.56.0"
+    "fast-equals": "5.3.3",
+    "linkifyjs": "4.3.3",
+    "marked": "17.0.6",
+    "monaco-editor": "0.56.0",
+    "orderedmap": "2",
+    "prosemirror-changeset": "^2.4.1",
+    "prosemirror-commands": "^1.7.2",
+    "prosemirror-dropcursor": "^1.8.3",
+    "prosemirror-gapcursor": "^1.4.1",
+    "prosemirror-history": "^1.5.0",
+    "prosemirror-inputrules": "^1.5.1",
+    "prosemirror-keymap": "^1.2.3",
+    "prosemirror-model": "^1.25.11",
+    "prosemirror-schema-list": "^1.5.1",
+    "prosemirror-state": "^1.4.4",
+    "prosemirror-tables": "^1.8.5",
+    "prosemirror-transform": "^1.12.0",
+    "prosemirror-view": "^1.42.2",
+    "rope-sequence": "1.3.0",
+    "use-sync-external-store": "1.6.0",
+    "vditor": "3.11.3",
+    "w3c-keyname": "2.2.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",
