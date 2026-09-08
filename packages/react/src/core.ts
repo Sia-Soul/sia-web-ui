@@ -26,4 +26,10 @@ export type { UploadChangeInfo, UploadDraggerProps, UploadFile, UploadFileStatus
 export { Modal } from "./components/Modal";
 export type { ModalActionResult, ModalOpenConfig, ModalProps, ModalType, OverlayApiHandle } from "./components/Modal";
 export { message } from "./components/Message";
+export { Breadcrumb } from "./components/Breadcrumb";
+export type { BreadcrumbProps, BreadcrumbItem } from "./components/Breadcrumb";
+export { Typography } from "./components/Typography";
+export type { TypographyProps, TypographyTitleProps, TypographyLinkProps, TypographyType } from "./components/Typography";
+export { FloatButton } from "./components/FloatButton";
+export type { FloatButtonProps, FloatButtonGroupProps, FloatButtonBackTopProps, FloatButtonShape } from "./components/FloatButton";
 export type { MessageConfig, MessageHandle, MessageKey, MessageType } from "./components/Message";

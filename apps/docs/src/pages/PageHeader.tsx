@@ -1,3 +1,5 @@
+import { Breadcrumb } from "@sia-ui/react";
+
 type PageHeaderProps = {
   eyebrow: string;
   title: string;
@@ -9,9 +11,7 @@ export function PageHeader({ eyebrow, title, description }: PageHeaderProps) {
 
   return (
     <header className="page-header">
-      <div className="breadcrumb">
-        {crumbs.map((crumb, index) => <span key={crumb}>{index > 0 ? <i>/</i> : null}{crumb}</span>)}
-      </div>
+      <Breadcrumb style={{ marginBottom: 18 }} items={crumbs.map((crumb, index) => ({ key: String(index), title: crumb }))} />
       <h1>{title}</h1>
       <p className="lead">{description}</p>
     </header>

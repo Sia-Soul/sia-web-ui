@@ -85,6 +85,7 @@ export function PageContextMenu() {
 
   useEffect(() => {
     const openMenu = (event: globalThis.MouseEvent) => {
+      if (event.defaultPrevented) return;
       event.preventDefault();
       const target = event.target instanceof Element ? event.target : null;
       const rect = target?.getBoundingClientRect();

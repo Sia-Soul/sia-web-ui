@@ -206,22 +206,42 @@
 .sia-picker.is-disabled .sia-picker__trigger { cursor: not-allowed; }
 .sia-picker-range { display: inline-flex; align-items: center; gap: 8px; }
 .sia-picker-range__separator { color: var(--sia-color-text-secondary); }
+.sia-time-picker { width: 168px; }
+.sia-time-picker > input { box-sizing: border-box; width: 100%; min-width: 0; height: 100%; padding: 0 52px 0 11px; color: inherit; font: inherit; font-variant-numeric: tabular-nums; background: transparent; border: 0; outline: 0; cursor: pointer; text-overflow: ellipsis; }
+.sia-time-picker > input::placeholder { color: var(--sia-color-text-secondary); }
+.sia-time-picker > input:disabled { cursor: not-allowed; }
+.sia-time-panel { z-index: 1100; width: max-content; overflow: hidden; color: var(--sia-color-text); font-size: var(--sia-font-size); background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: 10px; box-shadow: 0 8px 28px rgba(0, 0, 0, .12); }
+.sia-time-panel .sia-date-panel__time { grid-template-rows: 42px minmax(0, 1fr); border-inline-start: 0; }
+.sia-time-panel .sia-date-panel__time > strong { font-variant-numeric: tabular-nums; font-size: 15px; }
+.sia-time-panel .sia-date-panel__time-columns { grid-auto-columns: 64px; height: 224px; }
+.sia-time-panel--12h .sia-date-panel__time-columns { grid-auto-columns: 76px; }
+.sia-time-panel__footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px; border-top: 1px solid var(--sia-color-border); }
+.sia-time-panel__error { padding: 6px 8px; color: var(--sia-color-error); font-size: 12px; }
+.sia-date-panel__time-columns button:disabled { color: var(--sia-color-text-secondary); opacity: .4; cursor: not-allowed; background: transparent; }
+.sia-date-panel__time-columns button:focus-visible { outline: 2px solid var(--sia-color-primary); outline-offset: -2px; }
+.sia-time-range { box-sizing: border-box; display: inline-flex; align-items: center; width: min(340px, 100%); height: var(--sia-control-height); color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: var(--sia-radius); transition: border-color 160ms ease, box-shadow 160ms ease; }
+.sia-time-range:hover:not(.is-disabled) { border-color: var(--sia-color-primary-hover); }
+.sia-time-range:focus-within { border-color: var(--sia-color-primary); box-shadow: 0 0 0 3px var(--sia-color-focus-ring); }
+.sia-time-range.sia-picker--small { height: 24px; font-size: 12px; }
+.sia-time-range.sia-picker--large { height: 40px; }
+.sia-time-range.sia-picker--warning { border-color: var(--sia-color-warning); }
+.sia-time-range.sia-picker--error { border-color: var(--sia-color-error); }
+.sia-time-range.is-disabled { opacity: .55; cursor: not-allowed; }
+.sia-time-range > .sia-time-picker { flex: 1; width: 0; min-width: 0; height: 100%; min-height: 0; border: 0; background: transparent; box-shadow: none; opacity: 1; }
+.sia-time-range > .sia-time-picker:first-child > .sia-picker__icon { display: none; }
+.sia-time-range > .sia-time-picker:first-child > input { padding-right: 28px; }
+.sia-time-range > .sia-time-picker:first-child > .sia-picker__clear { right: 6px; }
+.sia-time-range__separator { flex-shrink: 0; color: var(--sia-color-text-secondary); }
 .sia-picker-range-control { width: 420px; }
 .sia-picker-range-control__value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sia-picker-range-control__separator { flex: 0 0 auto; margin-inline: 10px; color: var(--sia-color-text-secondary); }
 
-.sia-date-range-query { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--sia-color-border); border-radius: calc(var(--sia-radius) + 2px); background: color-mix(in srgb, var(--sia-color-surface) 72%, transparent); }
-.sia-date-range-query__title { color: var(--sia-color-text); font-size: 13px; }
-.sia-date-range-query__controls { display: grid; grid-template-columns: minmax(180px, .72fr) minmax(320px, 1.45fr); gap: 12px; }
-.sia-date-range-query__field { display: grid; gap: 7px; min-width: 0; color: var(--sia-color-text); font-size: 13px; font-weight: 600; }
-.sia-date-range-query__field > .sia-select, .sia-date-range-query__field > .sia-picker { width: 100%; font-weight: 400; }
-@media (max-width: 640px) { .sia-date-range-query__controls { grid-template-columns: 1fr; } }
 
 .sia-select-date-range { --sia-select-date-range-height: var(--sia-control-height); box-sizing: border-box; display: inline-flex; align-items: stretch; width: min(560px, 100%); min-width: 0; vertical-align: middle; }
 .sia-select-date-range--small { --sia-select-date-range-height: 24px; }
 .sia-select-date-range--large { --sia-select-date-range-height: 40px; }
-.sia-select-date-range__select { flex: 0 1 180px; width: 180px; min-width: 132px; }
-.sia-select-date-range__picker { flex: 1 1 380px; width: 380px; min-width: 220px; }
+.sia-select-date-range__select { flex: 0 0 var(--sia-select-date-range-select-width, 180px); width: var(--sia-select-date-range-select-width, 180px); min-width: 0; }
+.sia-select-date-range__picker { flex: 1 1 0; width: 0; min-width: 0; }
 .sia-select-date-range__select > .sia-select__trigger,
 .sia-select-date-range__picker.sia-picker { box-sizing: border-box; height: var(--sia-select-date-range-height); min-height: var(--sia-select-date-range-height); }
 .sia-select-date-range__picker > .sia-picker__trigger { height: 100%; min-height: 0; padding-block: 0; }
@@ -232,26 +252,29 @@
 .sia-select-date-range__picker.sia-picker:focus-within { position: relative; z-index: 1; }
 @media (max-width: 640px) {
   .sia-select-date-range { width: 100%; }
-  .sia-select-date-range__select { flex-basis: 132px; width: 132px; }
 }
 
-.sia-date-panel { width: 349px; max-width: calc(100vw - 16px); max-height: min(640px, calc(100vh - 16px)); overflow-x: hidden; overflow-y: var(--sia-scroll-overflow, auto); color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: 12px; box-shadow: var(--sia-shadow-popup); scrollbar-width: thin; animation: sia-date-panel-enter 150ms ease-out; }
-.sia-date-panel--with-time { width: 515px; }
-.sia-date-panel--with-presets { width: 494px; }
-.sia-date-panel--with-presets.sia-date-panel--with-time { width: 660px; }
-.sia-date-panel--range { width: 680px; }
-.sia-date-panel--range.sia-date-panel--with-time { width: 846px; }
-.sia-date-panel--range.sia-date-panel--with-presets { width: 826px; }
-.sia-date-panel--range.sia-date-panel--with-presets.sia-date-panel--with-time { width: 992px; }
+.sia-date-panel { width: 282px; max-width: calc(100vw - 16px); max-height: min(640px, calc(100vh - 16px)); overflow-x: hidden; overflow-y: var(--sia-scroll-overflow, auto); color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: 12px; box-shadow: var(--sia-shadow-popup); scrollbar-width: thin; animation: sia-date-panel-enter 150ms ease-out; }
+.sia-date-panel--with-time { width: max-content; }
+.sia-date-panel--with-presets { width: max-content; }
+.sia-date-panel--with-presets.sia-date-panel--with-time { width: max-content; }
+.sia-date-panel--range { width: max-content; }
+.sia-date-panel--range.sia-date-panel--with-presets { width: max-content; }
+.sia-date-panel--range.sia-date-panel--with-time { width: max-content; }
 .sia-date-panel__body { display: flex; min-width: 0; }
 .sia-date-panel__presets { flex: 0 0 145px; padding: 10px; border-inline-end: 1px solid var(--sia-color-border); }
 .sia-date-panel__presets button { display: block; width: 100%; padding: 8px 10px; color: var(--sia-color-text); cursor: pointer; background: transparent; border: 0; border-radius: 6px; text-align: left; }
 .sia-date-panel__presets button:hover { color: var(--sia-color-primary-text); background: var(--sia-color-control-hover); }
-.sia-date-panel__calendar { flex: 0 0 330px; min-width: 0; }
+.sia-date-panel__calendar { flex: 0 0 280px; min-width: 0; }
 .sia-date-panel__range-calendars { display: flex; min-width: 0; }
 .sia-date-panel__range-calendars > .sia-date-panel__calendar + .sia-date-panel__calendar { border-inline-start: 1px solid var(--sia-color-border); }
-.sia-date-panel__header { display: grid; grid-template-columns: 72px 1fr 72px; align-items: center; min-height: 52px; padding: 0 12px; border-bottom: 1px solid var(--sia-color-border); }
-.sia-date-panel__header > strong { text-align: center; }
+.sia-date-panel__range-date-time { display: flex; min-width: 0; }
+.sia-date-panel__range-date-time-group { display: flex; min-width: 0; box-shadow: inset 0 2px transparent; }
+.sia-date-panel__range-date-time-group.is-active { box-shadow: inset 0 2px var(--sia-color-primary); }
+.sia-date-panel__range-date-time-group + .sia-date-panel__range-date-time-group { border-inline-start: 1px solid var(--sia-color-border); }
+.sia-date-panel__header { display: grid; grid-template-columns: 56px 1fr 56px; align-items: center; min-height: 52px; padding: 0 8px; border-bottom: 1px solid var(--sia-color-border); }
+.sia-date-panel__header > strong { display: flex; align-items: center; justify-content: center; gap: 7px; min-width: 0; text-align: center; white-space: nowrap; }
+.sia-date-panel__header > strong small { padding: 2px 5px; color: var(--sia-color-primary-text); background: color-mix(in srgb, var(--sia-color-primary) 10%, transparent); border-radius: 4px; font-size: 11px; font-weight: 600; }
 .sia-date-panel__nav { display: flex; align-items: center; }
 .sia-date-panel__nav:last-of-type { justify-content: flex-end; }
 .sia-date-panel__nav button { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 30px; padding: 0; color: var(--sia-color-text-secondary); cursor: pointer; background: transparent; border: 0; border-radius: 6px; }
@@ -261,32 +284,37 @@
 .sia-date-panel__weekdays, .sia-date-panel__days { display: grid; grid-template-columns: repeat(7, 1fr); }
 .sia-date-panel__weekdays { margin-bottom: 6px; }
 .sia-date-panel__weekdays span { display: grid; place-items: center; height: 32px; color: var(--sia-color-text-secondary); }
-.sia-date-panel__cell { position: relative; display: grid; place-items: center; min-width: 0; height: 38px; }
+.sia-date-panel__cell { position: relative; display: grid; place-items: center; min-width: 0; height: 32px; }
 .sia-date-panel__cell.is-in-range { background: color-mix(in srgb, var(--sia-color-primary) 12%, transparent); }
 .sia-date-panel__cell.is-range-start { background: linear-gradient(90deg, transparent 50%, color-mix(in srgb, var(--sia-color-primary) 12%, transparent) 50%); }
 .sia-date-panel__cell.is-range-end { background: linear-gradient(90deg, color-mix(in srgb, var(--sia-color-primary) 12%, transparent) 50%, transparent 50%); }
 .sia-date-panel__cell.is-range-start.is-range-end { background: transparent; }
-.sia-date-panel__cell button { position: relative; z-index: 1; display: grid; place-items: center; width: 34px; height: 34px; padding: 0; color: inherit; cursor: pointer; background: transparent; border: 1px solid transparent; border-radius: 7px; font: inherit; }
+.sia-date-panel__cell.is-range-start button { border-radius: 7px 0 0 7px; }
+.sia-date-panel__cell.is-range-end button { border-radius: 0 7px 7px 0; }
+.sia-date-panel__cell.is-range-start.is-range-end button { border-radius: 7px; }
+.sia-date-panel__cell button { position: relative; z-index: 1; display: grid; place-items: center; width: 100%; height: 100%; padding: 0; color: inherit; cursor: pointer; background: transparent; border: 1px solid transparent; border-radius: 7px; font: inherit; }
 .sia-date-panel__cell button:hover { color: var(--sia-color-primary-text); background: var(--sia-color-control-hover); }
 .sia-date-panel__cell.is-outside button { color: color-mix(in srgb, var(--sia-color-text-secondary) 48%, transparent); }
 .sia-date-panel__cell.is-today button { color: var(--sia-color-primary-text); border-color: var(--sia-color-primary); }
 .sia-date-panel__cell.is-selected button, .sia-date-panel__cell.is-range-start button, .sia-date-panel__cell.is-range-end button { color: #fff; background: var(--sia-color-primary); border-color: var(--sia-color-primary); }
 .sia-date-panel__cell button:disabled { color: color-mix(in srgb, var(--sia-color-text-secondary) 42%, transparent); cursor: not-allowed; background: var(--sia-color-control-hover); border-color: transparent; }
-.sia-date-panel__time { display: grid; grid-template-rows: 52px minmax(0, 1fr); flex: 0 0 166px; min-width: 0; border-inline-start: 1px solid var(--sia-color-border); }
+.sia-date-panel__time { display: grid; grid-template-rows: 52px minmax(0, 1fr); flex: 0 0 auto; min-width: 0; border-inline-start: 1px solid var(--sia-color-border); }
 .sia-date-panel__time > strong { display: grid; place-items: center; border-bottom: 1px solid var(--sia-color-border); }
-.sia-date-panel__time-columns { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(52px, 1fr); height: 316px; overflow: hidden; }
+.sia-date-panel__time-columns { display: grid; grid-auto-flow: column; grid-auto-columns: 48px; height: 280px; overflow: hidden; }
 .sia-date-panel__time-columns > div { height: 100%; overflow: var(--sia-scroll-overflow, auto); padding: 4px; scrollbar-width: thin; }
 .sia-date-panel__time-columns > div + div { border-inline-start: 1px solid var(--sia-color-border); }
 .sia-date-panel__time-columns button { display: block; width: 100%; height: 32px; padding: 0; color: inherit; cursor: pointer; background: transparent; border: 0; border-radius: 5px; }
 .sia-date-panel__time-columns button:hover { background: var(--sia-color-control-hover); }
 .sia-date-panel__time-columns button.is-selected { color: var(--sia-color-primary-text); background: color-mix(in srgb, var(--sia-color-primary) 14%, transparent); font-weight: 600; }
 .sia-date-panel__footer { position: sticky; z-index: 2; bottom: 0; display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 7px 12px; background: var(--sia-color-surface); border-top: 1px solid var(--sia-color-border); }
-.sia-date-panel__footer > span { display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--sia-color-text-secondary); }
+.sia-date-panel__footer > span { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; color: var(--sia-color-text-secondary); }
+.sia-date-panel__footer > .sia-date-panel__confirm { flex-shrink: 0; margin-inline-start: 8px; }
 .sia-date-panel__footer button { min-height: 32px; padding: 4px 10px; color: var(--sia-color-primary-text); cursor: pointer; background: transparent; border: 0; border-radius: 6px; }
 .sia-date-panel__footer button:hover { background: var(--sia-color-control-hover); }
 .sia-date-panel__footer .sia-date-panel__confirm { color: #fff; background: var(--sia-color-primary); }
 .sia-date-panel__footer .sia-date-panel__confirm:hover { background: var(--sia-color-primary-hover); }
 .sia-date-panel__footer .sia-date-panel__confirm:disabled { cursor: not-allowed; opacity: .45; }
+.sia-date-panel__range-error { color: var(--sia-color-error); }
 
 @keyframes sia-date-panel-enter {
   from { opacity: 0; transform: translateY(-4px) scale(.99); }

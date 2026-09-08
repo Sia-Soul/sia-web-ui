@@ -1,5 +1,5 @@
 import { Button, Icon, Tabs } from "@sia-ui/react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
@@ -48,20 +48,28 @@ export default function Demo() {
   </>;
 }`;
 
-const controlledCode = `import { useState } from "react";
+const controlledCode = `import { useRef, useState } from "react";
 import { Button, Tabs } from "@sia-ui/react";
 
 export default function Demo() {
   const [activeKey, setActiveKey] = useState("design");
+  const nextTabId = useRef(1);
+  const [items, setItems] = useState([
+    { key: "design", label: "设计", children: "设计内容" },
+    { key: "develop", label: "开发", children: "开发内容" },
+    { key: "release", label: "发布", children: "发布内容", disabled: true },
+  ]);
+  function addTab() {
+    const id = nextTabId.current++;
+    const key = "new-" + id;
+    setItems((current) => [...current, { key, label: "新标签 " + id, children: "新标签 " + id + " 的内容" }]);
+    setActiveKey(key);
+  }
   return <Tabs
     activeKey={activeKey}
     onChange={setActiveKey}
-    items={[
-      { key: "design", label: "设计", children: "设计内容" },
-      { key: "develop", label: "开发", children: "开发内容" },
-      { key: "release", label: "发布", children: "发布内容", disabled: true },
-    ]}
-    tabBarExtraContent={<Button size="small">新增</Button>}
+    items={items}
+    tabBarExtraContent={<Button size="small" onClick={addTab}>新增</Button>}
   />;
 }`;
 
@@ -99,6 +107,18 @@ const apiRows = [
 export function TabsPage() {
   const [tab, setTab] = useState<"examples" | "api">("examples");
   const [activeKey, setActiveKey] = useState("design");
+  const nextTabId = useRef(1);
+  const [controlledItems, setControlledItems] = useState([
+    { key: "design", label: "设计", children: <p>设计内容</p> },
+    { key: "develop", label: "开发", children: <p>开发内容</p> },
+    { key: "release", label: "发布", children: <p>发布内容</p>, disabled: true },
+  ]);
+  function addTab() {
+    const id = nextTabId.current++;
+    const key = `new-${id}`;
+    setControlledItems((current) => [...current, { key, label: `新标签 ${id}`, children: <p>新标签 {id} 的内容</p> }]);
+    setActiveKey(key);
+  }
   const [closableItems, setClosableItems] = useState([
     { key: "query-1", label: "查询 1" },
     { key: "query-2", label: "查询 2" },
@@ -144,12 +164,8 @@ export function TabsPage() {
         <Tabs
           activeKey={activeKey}
           onChange={setActiveKey}
-          items={[
-            { key: "design", label: "设计", children: <p>设计内容</p> },
-            { key: "develop", label: "开发", children: <p>开发内容</p> },
-            { key: "release", label: "发布", children: <p>发布内容</p>, disabled: true },
-          ]}
-          tabBarExtraContent={<Button size="small" icon={<Icon name="plus" size={14} />}>新增</Button>}
+          items={controlledItems}
+          tabBarExtraContent={<Button size="small" icon={<Icon name="plus" size={14} />} onClick={addTab}>新增</Button>}
         />
       </DemoCard>
       <DemoCard title="可关闭标签" description="工作台类应用可以关闭标签；仅剩一项时可通过 closable 禁止关闭。" code={closableCode}>

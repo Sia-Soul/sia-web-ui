@@ -82,7 +82,6 @@ export const navGroups: readonly NavGroup[] = [
       { label: "ColorPicker 颜色选择器", path: "/components/color-picker", eyebrow: "组件 / 数据录入", title: "ColorPicker 颜色选择器", description: "选择颜色、透明度或预设色。" },
       { label: "DatePicker 日期选择器", path: "/components/date-picker", eyebrow: "组件 / 数据录入", title: "DatePicker 日期选择器", description: "选择日期、月份或日期范围。" },
       { label: "SelectDateRange 组合范围", path: "/components/select-date-range", eyebrow: "组件 / 数据录入", title: "SelectDateRange 组合日期范围", description: "紧凑组合类型选择与日期范围。" },
-      { label: "DateRangeQuery 范围查询", path: "/components/date-range-query", eyebrow: "组件 / 数据录入", title: "DateRangeQuery 日期范围查询", description: "带标题和字段标签的日期范围查询区。" },
       { label: "TimePicker 时间选择器", path: "/components/time-picker", eyebrow: "组件 / 数据录入", title: "TimePicker 时间选择器", description: "选择时间或时间范围。" },
       { label: "TreeSelect 树选择", path: "/components/tree-select", eyebrow: "组件 / 数据录入", title: "TreeSelect 树选择", description: "从层级结构中搜索并选择节点。" },
       { label: "Upload 上传", path: "/components/upload", eyebrow: "组件 / 数据录入", title: "Upload 上传", description: "选择或拖拽文件并管理上传列表。" },

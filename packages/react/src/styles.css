@@ -282,8 +282,8 @@
 .sia-input-number > input:disabled { cursor: not-allowed; }
 .sia-input-number__affix { display: inline-flex; align-items: center; flex: 0 0 auto; padding-left: 10px; color: var(--sia-color-text-secondary); font-size: var(--sia-font-size-small); }
 .sia-input-number > input + .sia-input-number__affix { padding-right: 8px; padding-left: 0; }
-.sia-input-number__controls { display: grid; align-self: stretch; flex: 0 0 24px; border-left: 1px solid var(--sia-color-border); opacity: 0; transition: opacity 140ms ease; }
-.sia-input-number:hover .sia-input-number__controls, .sia-input-number:focus-within .sia-input-number__controls { opacity: 1; }
+.sia-input-number__controls { display: grid; align-self: stretch; flex: 0 0 0; min-width: 0; overflow: hidden; border-left: 0 solid var(--sia-color-border); opacity: 0; pointer-events: none; transition: flex-basis 140ms ease, opacity 140ms ease; }
+.sia-input-number:hover:not(.is-disabled) .sia-input-number__controls, .sia-input-number__controls:focus-within { flex-basis: 24px; border-left-width: 1px; opacity: 1; pointer-events: auto; }
 .sia-input-number__controls button { display: grid; place-items: center; min-height: 0; padding: 0; color: var(--sia-color-text-secondary); cursor: pointer; background: transparent; border: 0; }
 .sia-input-number__controls button + button { border-top: 1px solid var(--sia-color-border); }
 .sia-input-number__controls button:hover:not(:disabled) { color: var(--sia-color-primary-text); background: var(--sia-color-control-hover); }
@@ -530,6 +530,11 @@
 .sia-tabs--card.sia-tabs--top .sia-tabs__tab { border-bottom: 0; border-radius: var(--sia-radius) var(--sia-radius) 0 0; }
 .sia-tabs--card.sia-tabs--bottom .sia-tabs__tab { border-top: 0; border-radius: 0 0 var(--sia-radius) var(--sia-radius); }
 .sia-tabs--card .sia-tabs__tab[aria-selected="true"] { background: var(--sia-color-surface); border-color: var(--sia-color-border); }
+.sia-tabs--card .sia-tabs__tab[aria-selected="true"]::after { position: absolute; content: ""; background: var(--sia-color-surface); pointer-events: none; }
+.sia-tabs--card.sia-tabs--top .sia-tabs__tab[aria-selected="true"]::after { right: -1px; bottom: -1px; left: -1px; height: 1px; border-inline: 1px solid var(--sia-color-border); }
+.sia-tabs--card.sia-tabs--bottom .sia-tabs__tab[aria-selected="true"]::after { top: -1px; right: -1px; left: -1px; height: 1px; border-inline: 1px solid var(--sia-color-border); }
+.sia-tabs--card.sia-tabs--left .sia-tabs__tab[aria-selected="true"]::after { top: -1px; right: -1px; bottom: -1px; width: 1px; border-block: 1px solid var(--sia-color-border); }
+.sia-tabs--card.sia-tabs--right .sia-tabs__tab[aria-selected="true"]::after { top: -1px; bottom: -1px; left: -1px; width: 1px; border-block: 1px solid var(--sia-color-border); }
 .sia-tabs--pill .sia-tabs__list { flex: 0 1 auto; gap: 4px; padding: 4px; background: var(--sia-color-control-hover); border-radius: calc(var(--sia-radius) + 2px); }
 .sia-tabs--pill .sia-tabs__tab { height: 34px; padding-inline: 14px; border-radius: var(--sia-radius); }
 .sia-tabs--pill .sia-tabs__tab[aria-selected="true"] { background: var(--sia-color-surface); box-shadow: 0 1px 3px rgb(0 0 0 / 8%); }

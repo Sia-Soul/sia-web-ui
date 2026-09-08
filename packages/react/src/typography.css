@@ -1,0 +1,23 @@
+.sia-typography { color: var(--sia-color-text); font-size: var(--sia-font-size); line-height: 1.75; overflow-wrap: anywhere; }
+.sia-typography--p { margin: 0 0 1em; }
+.sia-typography--h1, .sia-typography--h2, .sia-typography--h3, .sia-typography--h4, .sia-typography--h5 { margin: 0 0 .6em; font-weight: 600; line-height: 1.4; }
+.sia-typography--h1 { font-size: 38px; }
+.sia-typography--h2 { font-size: 30px; }
+.sia-typography--h3 { font-size: 24px; }
+.sia-typography--h4 { font-size: 20px; }
+.sia-typography--h5 { font-size: 16px; }
+.sia-typography--secondary { color: var(--sia-color-text-secondary); }
+.sia-typography--success { color: var(--sia-color-success); }
+.sia-typography--warning { color: var(--sia-color-warning); }
+.sia-typography--danger { color: var(--sia-color-error); }
+.sia-typography.is-disabled { color: var(--sia-color-text-tertiary); cursor: not-allowed; }
+.sia-typography mark { padding: 1px 3px; color: inherit; background: color-mix(in srgb, var(--sia-color-warning) 30%, var(--sia-color-surface)); }
+.sia-typography code, .sia-typography kbd { padding: 2px 5px; font-size: .9em; background: var(--sia-color-control-hover); border: 1px solid var(--sia-color-border); border-radius: 4px; font-family: Consolas, monospace; }
+.sia-typography kbd { box-shadow: 0 2px 0 var(--sia-color-border); }
+.sia-typography--link { color: var(--sia-color-primary-text); text-decoration: none; }
+.sia-typography--link:hover:not(.is-disabled) { color: var(--sia-color-primary-text-hover); text-decoration: underline; }
+.sia-typography--link:focus-visible { outline: 2px solid var(--sia-color-focus-ring); outline-offset: 2px; border-radius: 2px; }
+.sia-typography__ellipsis { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--sia-typography-rows, 1); overflow: hidden; }
+.sia-typography__action.sia-button { display: inline-flex; vertical-align: middle; height: 24px; min-width: 24px; margin-inline-start: 4px; padding: 0 4px; color: var(--sia-color-primary-text); }
+.sia-typography__editor { display: flex; flex-direction: column; gap: 8px; font-size: var(--sia-font-size); font-weight: normal; }
+.sia-typography__edit-actions { display: flex; justify-content: flex-end; gap: 8px; }

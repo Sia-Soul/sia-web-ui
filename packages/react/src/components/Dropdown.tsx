@@ -195,6 +195,7 @@ function DropdownRoot({
     onContextMenu?.(event);
     if (disabled || !triggerSet.has("contextMenu") || event.defaultPrevented) return;
     event.preventDefault();
+    event.stopPropagation();
     setContextPoint({ x: event.clientX, y: event.clientY });
     updateOpen(true, "trigger");
   }

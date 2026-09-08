@@ -1,4 +1,4 @@
-import type { HTMLAttributes, ReactNode } from "react";
+import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { DatePicker } from "./DatePicker";
 import type { DateRangePickerPreset } from "./DatePicker";
 import { Select } from "./Select";
@@ -16,6 +16,8 @@ export interface SelectDateRangeProps extends Omit<HTMLAttributes<HTMLDivElement
   value?: SelectDateRangeValue;
   defaultValue?: SelectDateRangeValue;
   selectPlaceholder?: ReactNode;
+  /** 左侧选择器宽度，数字单位为 px；右侧日期范围自动填充剩余宽度。 */
+  selectWidth?: CSSProperties["width"];
   rangePlaceholder?: readonly [string, string];
   selectAriaLabel?: string;
   rangeAriaLabel?: string;
@@ -31,6 +33,7 @@ export function SelectDateRange({
   value,
   defaultValue,
   selectPlaceholder = "请选择类型",
+  selectWidth = 180,
   rangePlaceholder = ["开始日期", "结束日期"],
   selectAriaLabel = "选择类型",
   rangeAriaLabel = "日期范围",
@@ -40,12 +43,13 @@ export function SelectDateRange({
   disabled = false,
   onChange,
   className = "",
+  style,
   ...props
 }: SelectDateRangeProps) {
   const initialValue = defaultValue ?? { select: options[0]?.value ?? "", range: ["", ""] };
   const [currentValue, setCurrentValue] = useControllableState<SelectDateRangeValue>({ value, defaultValue: initialValue, onChange });
 
-  return <div className={`sia-select-date-range sia-select-date-range--${size} ${className}`.trim()} role="group" aria-label={`${selectAriaLabel}与${rangeAriaLabel}`} {...props}>
+  return <div className={`sia-select-date-range sia-select-date-range--${size} ${className}`.trim()} role="group" aria-label={`${selectAriaLabel}与${rangeAriaLabel}`} {...props} style={{ ...style, "--sia-select-date-range-select-width": typeof selectWidth === "number" ? `${selectWidth}px` : selectWidth } as CSSProperties}>
     <Select
       className="sia-select-date-range__select"
       aria-label={selectAriaLabel}

@@ -163,7 +163,7 @@ export function DatePickerPage() {
     { property: "picker", description: "日期粒度", type: "date | week | month | year | quarter", defaultValue: "'date'" },
     { property: "multiple", description: "在同一面板内选择多个日期", type: "boolean", defaultValue: "false" },
     { property: "needConfirm", description: "选择后需要点击确定才提交", type: "boolean", defaultValue: "showTime 时为 true" },
-    { property: "showTime", description: "组合时间面板，可显示秒", type: "boolean | { showSecond, defaultValue }", defaultValue: "false" },
+    { property: "showTime", description: "组合时间面板，可显示秒；范围选择会在宽屏并排显示起止面板，在窄屏分步选择", type: "boolean | { showSecond, defaultValue }", defaultValue: "false" },
     { property: "presets", description: "预设日期或预设范围", type: "DatePickerPreset[]", defaultValue: "-" },
     { property: "disabledDate / minDate / maxDate", description: "禁用或限制可选日期", type: "function / string", defaultValue: "-" },
     { property: "RangePicker.maxRangeDays", description: "限制一次最多可选择的天数", type: "number", defaultValue: "-" },
@@ -358,12 +358,20 @@ export function TimePickerPage() {
     { property: "value / defaultValue", description: "标准时间字符串", type: "string", defaultValue: "''" },
     { property: "showSecond / use12Hours", description: "秒和 12 小时制", type: "boolean", defaultValue: "false" },
     { property: "disabledTime", description: "禁用时间判断", type: "(value) => boolean", defaultValue: "-" },
+    { property: "min / max / step", description: "可选时间边界与步长（秒）", type: "string / string / number", defaultValue: "-" },
+    { property: "onChange / onOpenChange", description: "点击确定后提交时间 / 面板实际展开状态变化", type: "(value: string) => void / (open: boolean) => void", defaultValue: "-" },
     { property: "TimePicker.RangePicker", description: "时间范围选择", type: "RangePicker props", defaultValue: "-" },
   ]}>
     <DemoCard title="时间与范围" description={`工作时间：${range[0]} - ${range[1]}`} code={timeCode}>
-      <Space wrap><TimePicker aria-label="选择时间" /><TimePicker showSecond aria-label="选择精确时间" /></Space>
+      <Space wrap><TimePicker aria-label="选择时间" /><TimePicker showSecond defaultValue="14:30:45" aria-label="选择精确时间" /></Space>
       <Divider />
       <TimePicker.RangePicker value={range} onChange={setRange} />
+    </DemoCard>
+    <DemoCard title="12 小时制" description="以 AM / PM 显示，回调值保持标准 24 小时制。选择后点击确定提交，点击外部或按 Esc 取消本次选择。" code={'<TimePicker use12Hours defaultValue="14:30" />'}>
+      <TimePicker use12Hours defaultValue="14:30" />
+    </DemoCard>
+    <DemoCard title="尺寸与状态" description="统一输入框的尺寸、边框、禁用和校验状态。" code={'<TimePicker size="small" />\n<TimePicker status="error" />\n<TimePicker disabled defaultValue="09:00" />'}>
+      <Space wrap><TimePicker size="small" /><TimePicker /><TimePicker size="large" /><TimePicker status="error" /><TimePicker disabled defaultValue="09:00" /></Space>
     </DemoCard>
   </DocPage>;
 }

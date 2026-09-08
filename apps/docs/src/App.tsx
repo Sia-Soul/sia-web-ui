@@ -6,6 +6,9 @@ import { OverlayScrollArea } from "./OverlayScrollArea";
 import { PageContextMenu } from "./PageContextMenu";
 import { navGroups, navItems } from "./navigation";
 import { ButtonPage } from "./pages/ButtonPage";
+import { FloatButtonPage } from "./pages/FloatButtonPage";
+import { TypographyPage } from "./pages/TypographyPage";
+import { BreadcrumbPage } from "./pages/BreadcrumbPage";
 import { CardPage } from "./pages/CardPage";
 import { DividerPage } from "./pages/DividerPage";
 import { FlexPage, GridPage, SpacePage, SplitterPage } from "./pages/LayoutComponentsPages";
@@ -20,7 +23,7 @@ import { InputNumberPage } from "./pages/InputNumberPage";
 import { InputPage } from "./pages/InputPage";
 import { TextAreaPage } from "./pages/TextAreaPage";
 import { EditorPage } from "./pages/EditorPage";
-import { DateRangeQueryPage, SelectDateRangePage } from "./pages/DateRangeComponentsPages";
+import { SelectDateRangePage } from "./pages/DateRangeComponentsPages";
 import { FloatingScrollbarPage } from "./pages/FloatingScrollbarPage";
 import { MarkdownEditorPage } from "./pages/MarkdownEditorPage";
 import { MarkdownPage } from "./pages/MarkdownPage";
@@ -116,6 +119,9 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/introduction" replace />} />
             <Route path="/components/button" element={<ButtonPage />} />
+            <Route path="/components/float-button" element={<FloatButtonPage />} />
+            <Route path="/components/typography" element={<TypographyPage />} />
+            <Route path="/components/breadcrumb" element={<BreadcrumbPage />} />
             <Route path="/components/card" element={<CardPage />} />
             <Route path="/components/divider" element={<DividerPage />} />
             <Route path="/components/flex" element={<FlexPage />} />
@@ -145,7 +151,6 @@ export default function App() {
             <Route path="/components/color-picker" element={<ColorPickerPage />} />
             <Route path="/components/date-picker" element={<DatePickerPage />} />
             <Route path="/components/select-date-range" element={<SelectDateRangePage />} />
-            <Route path="/components/date-range-query" element={<DateRangeQueryPage />} />
             <Route path="/components/time-picker" element={<TimePickerPage />} />
             <Route path="/components/tree-select" element={<TreeSelectPage />} />
             <Route path="/components/upload" element={<UploadPage />} />

@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "./Icon";
 
@@ -126,6 +127,7 @@ export function CalendarMonth({
 
 export function CalendarHeader({
   month,
+  label,
   range = false,
   onPreviousYear,
   onPreviousMonth,
@@ -133,6 +135,7 @@ export function CalendarHeader({
   onNextYear,
 }: {
   month: Date;
+  label?: ReactNode;
   range?: boolean;
   onPreviousYear?: () => void;
   onPreviousMonth?: () => void;
@@ -144,7 +147,10 @@ export function CalendarHeader({
       {onPreviousYear ? <button type="button" aria-label="上一年" onClick={onPreviousYear}><Icon name="chevron-left" size={13} /><Icon name="chevron-left" size={13} /></button> : null}
       {onPreviousMonth ? <button type="button" aria-label="上个月" onClick={onPreviousMonth}><Icon name="chevron-left" size={15} /></button> : null}
     </span>
-    <strong>{month.getFullYear()}年&nbsp; {month.getMonth() + 1}月</strong>
+    <strong>
+      {label ? <small>{label}</small> : null}
+      <span>{month.getFullYear()}年&nbsp; {month.getMonth() + 1}月</span>
+    </strong>
     <span className="sia-date-panel__nav">
       {onNextMonth ? <button type="button" aria-label="下个月" onClick={onNextMonth}><Icon name="chevron-right" size={15} /></button> : null}
       {onNextYear ? <button type="button" aria-label="下一年" onClick={onNextYear}><Icon name="chevron-right" size={13} /><Icon name="chevron-right" size={13} /></button> : null}
@@ -156,13 +162,33 @@ export function CalendarHeader({
 export function TimePanel({
   value,
   showSecond = false,
+  ariaLabel = "时间",
+  disabledTime,
+  use12Hours = false,
   onChange,
 }: {
   value: string;
   showSecond?: boolean;
+  ariaLabel?: string;
+  disabledTime?: (value: string) => boolean;
+  use12Hours?: boolean;
   onChange: (value: string) => void;
 }) {
   const [hour = "00", minute = "00", second = "00"] = value.split(":");
+  const columnsRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    for (const column of columnsRef.current?.children ?? []) {
+      const selected = column.querySelector<HTMLElement>('[aria-selected="true"]');
+      const first = column.firstElementChild as HTMLElement | null;
+      if (!selected || !first) continue;
+      const top = selected.offsetTop - first.offsetTop + parseFloat(getComputedStyle(column).paddingTop || "0");
+      const bottom = top + selected.offsetHeight;
+      // 只滚动当前时间列，避免 scrollIntoView 连带移动弹层或页面。
+      if (top < column.scrollTop || bottom > column.scrollTop + column.clientHeight) {
+        column.scrollTop = Math.max(0, top - (column.clientHeight - selected.offsetHeight) / 2);
+      }
+    }
+  }, [hour, minute, second, showSecond, ariaLabel]);
   const columns: Array<{ label: string; value: string; count: number; index: 0 | 1 | 2 }> = [
     { label: "小时", value: hour, count: 24, index: 0 },
     { label: "分钟", value: minute, count: 60, index: 1 },
@@ -173,13 +199,22 @@ export function TimePanel({
     values[index] = next;
     onChange(values.join(":"));
   }
-  return <aside className="sia-date-panel__time">
-    <strong>{hour}:{minute}{showSecond ? `:${second}` : ""}</strong>
-    <div className="sia-date-panel__time-columns">
-      {columns.map((column) => <div role="listbox" aria-label={column.label} key={column.label}>
+  return <aside className="sia-date-panel__time" aria-label={ariaLabel}>
+    <strong>{use12Hours ? pad(Number(hour) % 12 || 12) : hour}:{minute}{showSecond ? `:${second}` : ""}{use12Hours ? (Number(hour) < 12 ? " AM" : " PM") : ""}</strong>
+    <div ref={columnsRef} className="sia-date-panel__time-columns">
+      {columns.map((column) => <div role="listbox" aria-label={`${ariaLabel}${column.label}`} key={column.label}>
         {Array.from({ length: column.count }, (_, index) => {
           const next = pad(index);
-          return <button type="button" role="option" aria-selected={next === column.value} className={next === column.value ? "is-selected" : ""} key={next} onClick={() => update(column.index, next)}>{next}</button>;
+          const candidate = [hour, minute, second];
+          candidate[column.index] = next;
+          return <button type="button" role="option" disabled={disabledTime?.(candidate.join(":"))} aria-selected={next === column.value} className={next === column.value ? "is-selected" : ""} key={next} onKeyDown={(event) => {
+            if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+            event.preventDefault();
+            const buttons = Array.from(event.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"));
+            const position = buttons.indexOf(event.currentTarget);
+            const target = event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1 : Math.max(0, Math.min(buttons.length - 1, position + (event.key === "ArrowDown" ? 1 : -1)));
+            buttons[target]?.focus();
+          }} onClick={() => update(column.index, next)}>{use12Hours && column.index === 0 ? `${pad(index % 12 || 12)} ${index < 12 ? "AM" : "PM"}` : next}</button>;
         })}
       </div>)}
     </div>
@@ -190,6 +225,7 @@ export function DatePanelFooter({
   showToday = true,
   needConfirm = false,
   disabledConfirm = false,
+  confirmText = "确定",
   extra,
   onToday,
   onConfirm,
@@ -197,12 +233,13 @@ export function DatePanelFooter({
   showToday?: boolean;
   needConfirm?: boolean;
   disabledConfirm?: boolean;
+  confirmText?: ReactNode;
   extra?: ReactNode;
   onToday?: () => void;
   onConfirm?: () => void;
 }) {
   return <footer className="sia-date-panel__footer">
     <span>{showToday ? <button type="button" onClick={onToday}>今天</button> : null}{extra}</span>
-    {needConfirm ? <button type="button" className="sia-date-panel__confirm" disabled={disabledConfirm} onClick={onConfirm}>确定</button> : null}
+    {needConfirm ? <button type="button" className="sia-date-panel__confirm" disabled={disabledConfirm} onClick={onConfirm}>{confirmText}</button> : null}
   </footer>;
 }

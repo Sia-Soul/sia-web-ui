@@ -320,6 +320,8 @@ function DateRangePicker({
   const [activeIndex, setActiveIndex] = useState<0 | 1>(currentValue[0] && !currentValue[1] ? 1 : 0);
   const [hoverDate, setHoverDate] = useState("");
   const [viewMonth, setViewMonth] = useState(() => startOfMonth(parseDate(dayFromValue(currentValue[0] || currentValue[1])) ?? new Date()));
+  const [endViewMonth, setEndViewMonth] = useState(() => startOfMonth(parseDate(dayFromValue(currentValue[1])) ?? addMonths(parseDate(dayFromValue(currentValue[0])) ?? new Date(), 1)));
+  const [compactDateTime, setCompactDateTime] = useState(false);
   const showSecond = showSecondFrom(showTime);
   const defaultTime = defaultTimeFrom(showTime);
   const [times, setTimes] = useState<[string, string]>([
@@ -328,6 +330,21 @@ function DateRangePicker({
   ]);
   const resolvedNeedConfirm = needConfirm ?? Boolean(showTime);
   const rangeDates: [string, string] = [dayFromValue(draftValue[0]), dayFromValue(draftValue[1])];
+  const invalidDateTimeRange = Boolean(showTime && draftValue[0] && draftValue[1] && draftValue[0] > draftValue[1]);
+
+  useEffect(() => {
+    if (!showTime || typeof document === "undefined") {
+      setCompactDateTime(false);
+      return undefined;
+    }
+    const updateLayout = () => {
+      const pairedPanelWidth = 2 * (280 + (showSecond ? 144 : 96) + 1) + 3;
+      setCompactDateTime(document.documentElement.clientWidth < pairedPanelWidth + 16);
+    };
+    updateLayout();
+    window.addEventListener("resize", updateLayout);
+    return () => window.removeEventListener("resize", updateLayout);
+  }, [showSecond, showTime]);
 
   useEffect(() => {
     if (!visible) return undefined;
@@ -344,18 +361,25 @@ function DateRangePicker({
       setDraftValue(currentValue);
       setTimes([timePart(currentValue[0], defaultTime), timePart(currentValue[1], defaultTime)]);
       setActiveIndex(currentValue[0] && !currentValue[1] ? 1 : 0);
-      setViewMonth(startOfMonth(parseDate(dayFromValue(currentValue[0] || currentValue[1])) ?? new Date()));
+      const nextStartMonth = startOfMonth(parseDate(dayFromValue(currentValue[0] || currentValue[1])) ?? new Date());
+      setViewMonth(nextStartMonth);
+      setEndViewMonth(startOfMonth(parseDate(dayFromValue(currentValue[1])) ?? addMonths(nextStartMonth, 1)));
     }
     setVisible(next);
   }
 
-  function isDisabled(day: string) {
+  function isDisabled(day: string, index: 0 | 1 = activeIndex, pairedDateTime = false) {
     const minimum = minDate ?? props.min;
     const maximum = maxDate ?? props.max;
     if (minimum && day < String(minimum).slice(0, 10)) return true;
     if (maximum && day > String(maximum).slice(0, 10)) return true;
-    const from = activeIndex === 1 ? rangeDates[0] : undefined;
-    if (from && maxRangeDays && Math.abs(daysBetween(from, day)) >= maxRangeDays) return true;
+    const from = index === 1 ? rangeDates[0] : undefined;
+    if (pairedDateTime) {
+      const otherEndpoint = index === 0 ? rangeDates[1] : rangeDates[0];
+      if (index === 0 && otherEndpoint && day > otherEndpoint) return true;
+      if (index === 1 && otherEndpoint && day < otherEndpoint) return true;
+      if (otherEndpoint && maxRangeDays && Math.abs(daysBetween(otherEndpoint, day)) >= maxRangeDays) return true;
+    } else if (from && maxRangeDays && Math.abs(daysBetween(from, day)) >= maxRangeDays) return true;
     return disabledDate?.(day, { from, type: "date" }) ?? false;
   }
 
@@ -390,8 +414,45 @@ function DateRangePicker({
     }
   }
 
+  function selectDateTime(day: string, index: 0 | 1) {
+    if (isDisabled(day, index, true)) return;
+    const nextValue: [string, string] = [...draftValue];
+    nextValue[index] = buildRangeValue(day, index);
+    updateDraft(nextValue);
+    setHoverDate("");
+    if (!resolvedNeedConfirm && compactDateTime && index === 0) {
+      setActiveIndex(1);
+      setEndViewMonth(startOfMonth(parseDate(day) ?? new Date()));
+      return;
+    }
+    setActiveIndex(index);
+    if (!resolvedNeedConfirm && nextValue[0] && nextValue[1] && nextValue[0] <= nextValue[1]) {
+      setCurrentValue(nextValue);
+      changeOpen(false);
+    }
+  }
+
+  function changeTime(index: 0 | 1, nextTime: string) {
+    const nextTimes: [string, string] = [...times];
+    nextTimes[index] = nextTime;
+    setTimes(nextTimes);
+    setActiveIndex(index);
+    if (draftValue[index]) {
+      const nextValue: [string, string] = [...draftValue];
+      nextValue[index] = withTime(dayFromValue(draftValue[index]), nextTime, showSecond);
+      updateDraft(nextValue);
+    }
+  }
+
   function confirm() {
-    if (!draftValue[0] || !draftValue[1]) return;
+    if (compactDateTime && showTime && activeIndex === 0) {
+      if (!draftValue[0]) return;
+      setActiveIndex(1);
+      setEndViewMonth(startOfMonth(parseDate(dayFromValue(draftValue[1] || draftValue[0])) ?? new Date()));
+      setHoverDate("");
+      return;
+    }
+    if (!draftValue[0] || !draftValue[1] || invalidDateTimeRange) return;
     setCurrentValue(draftValue);
     changeOpen(false);
   }
@@ -403,6 +464,10 @@ function DateRangePicker({
       normalizeDateValue(raw[1], showTime),
     ];
     updateDraft(next);
+    setTimes([timePart(next[0], defaultTime), timePart(next[1], defaultTime)]);
+    const nextStartMonth = startOfMonth(parseDate(dayFromValue(next[0] || next[1])) ?? new Date());
+    setViewMonth(nextStartMonth);
+    setEndViewMonth(startOfMonth(parseDate(dayFromValue(next[1])) ?? addMonths(nextStartMonth, 1)));
     if (!resolvedNeedConfirm) {
       setCurrentValue(next);
       changeOpen(false);
@@ -415,6 +480,41 @@ function DateRangePicker({
     updateDraft(empty);
     setCurrentValue(empty);
     setActiveIndex(0);
+  }
+
+  function renderDateTimeGroup(index: 0 | 1) {
+    const month = index === 0 ? viewMonth : endViewMonth;
+    const setMonth = index === 0 ? setViewMonth : setEndViewMonth;
+    const endpointLabel = index === 0 ? "开始" : "结束";
+    return <div
+      className={`sia-date-panel__range-date-time-group${activeIndex === index ? " is-active" : ""}`}
+      aria-label={`${endpointLabel}日期时间`}
+      key={endpointLabel}
+    >
+      <section className="sia-date-panel__calendar">
+        <CalendarHeader
+          month={month}
+          label={endpointLabel}
+          range
+          onPreviousYear={() => setMonth(addMonths(month, -12))}
+          onPreviousMonth={() => setMonth(addMonths(month, -1))}
+          onNextMonth={() => setMonth(addMonths(month, 1))}
+          onNextYear={() => setMonth(addMonths(month, 12))}
+        />
+        <CalendarMonth
+          month={month}
+          range={rangeDates}
+          disabledDate={(day) => isDisabled(day, index, true)}
+          onSelect={(day) => selectDateTime(day, index)}
+        />
+      </section>
+      <TimePanel
+        value={times[index]}
+        showSecond={showSecond}
+        ariaLabel={`${endpointLabel}时间`}
+        onChange={(nextTime) => changeTime(index, nextTime)}
+      />
+    </div>;
   }
 
   return <span ref={rootRef} className={`sia-picker sia-picker-range-control sia-picker--${size} sia-picker--${status}${visible ? " is-open" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()}>
@@ -438,12 +538,11 @@ function DateRangePicker({
       {allowClear && (currentValue[0] || currentValue[1]) && !disabled ? <span role="button" className="sia-picker__clear" aria-label="清除日期范围" onClick={clearValue}><Icon name="circle-close" variant="filled" size={15} /></span> : null}
       <span className="sia-picker__icon" aria-hidden="true">{suffixIcon ?? <Icon name="calendar" size={16} />}</span>
     </button>
-    <PopupPortal ref={popupRef} anchorRef={rootRef} open={visible} className={`sia-date-panel sia-date-panel--range${showTime ? " sia-date-panel--with-time" : ""}${presets?.length ? " sia-date-panel--with-presets" : ""}`} role="dialog" aria-label="日期范围选择面板">
+    <PopupPortal ref={popupRef} anchorRef={rootRef} open={visible} className={`sia-date-panel sia-date-panel--range${showTime ? ` sia-date-panel--with-time sia-date-panel--range-time-${compactDateTime ? "compact" : "paired"}` : ""}${presets?.length ? " sia-date-panel--with-presets" : ""}`} role="dialog" aria-label="日期范围选择面板">
       <div className="sia-date-panel__body">
-        {presets?.length ? <aside className="sia-date-panel__presets">
-          {presets.map((preset, index) => <button type="button" key={index} onClick={() => applyPreset(preset)}>{preset.label}</button>)}
-        </aside> : null}
-        <div className="sia-date-panel__range-calendars">
+        {showTime ? <div className="sia-date-panel__range-date-time">
+          {compactDateTime ? renderDateTimeGroup(activeIndex) : <>{renderDateTimeGroup(0)}{renderDateTimeGroup(1)}</>}
+        </div> : <div className="sia-date-panel__range-calendars">
           <section className="sia-date-panel__calendar">
             <CalendarHeader
               month={viewMonth}
@@ -462,24 +561,22 @@ function DateRangePicker({
             />
             <CalendarMonth month={addMonths(viewMonth, 1)} range={rangeDates} previewEnd={activeIndex === 1 ? hoverDate : ""} disabledDate={isDisabled} onSelect={selectDate} onHover={activeIndex === 1 ? setHoverDate : undefined} />
           </section>
-        </div>
-        {showTime ? <TimePanel value={times[activeIndex]} showSecond={showSecond} onChange={(nextTime) => {
-          const nextTimes: [string, string] = [...times];
-          nextTimes[activeIndex] = nextTime;
-          setTimes(nextTimes);
-          if (draftValue[activeIndex]) {
-            const nextValue: [string, string] = [...draftValue];
-            nextValue[activeIndex] = withTime(dayFromValue(draftValue[activeIndex]), nextTime, showSecond);
-            updateDraft(nextValue);
-          }
-        }} /> : null}
+        </div>}
       </div>
       <DatePanelFooter
-        showToday={showToday}
+        showToday={showToday && !presets?.length}
         needConfirm={resolvedNeedConfirm}
-        disabledConfirm={!draftValue[0] || !draftValue[1]}
-        extra={maxRangeDays ? <small>最多选择 {maxRangeDays} 天</small> : null}
-        onToday={() => selectDate(dateKey(new Date()))}
+        disabledConfirm={compactDateTime && showTime && activeIndex === 0 ? !draftValue[0] : !draftValue[0] || !draftValue[1] || invalidDateTimeRange}
+        confirmText={compactDateTime && showTime && activeIndex === 0 ? "下一步" : "确定"}
+        extra={<>
+          {presets?.map((preset, index) => <button type="button" key={index} onClick={() => applyPreset(preset)}>{preset.label}</button>)}
+          {compactDateTime && showTime && activeIndex === 1 ? <button type="button" onClick={() => {
+            setActiveIndex(0);
+            setViewMonth(startOfMonth(parseDate(dayFromValue(draftValue[0])) ?? new Date()));
+          }}>上一步</button> : null}
+          {invalidDateTimeRange ? <small className="sia-date-panel__range-error">结束时间不能早于开始时间</small> : maxRangeDays ? <small>最多选择 {maxRangeDays} 天</small> : null}
+        </>}
+        onToday={() => showTime ? selectDateTime(dateKey(new Date()), activeIndex) : selectDate(dateKey(new Date()))}
         onConfirm={confirm}
       />
     </PopupPortal>

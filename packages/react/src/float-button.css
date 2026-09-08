@@ -1,0 +1,27 @@
+.sia-float-button-root, .sia-float-button-group { position: fixed; z-index: 99; right: 24px; bottom: 24px; width: max-content; }
+.sia-float-button { display: inline-flex; align-items: center; justify-content: center; width: 40px; min-height: 40px; padding: 0; color: var(--sia-color-text); cursor: pointer; background: var(--sia-color-surface); border: 1px solid color-mix(in srgb, var(--sia-color-border) 45%, transparent); box-shadow: 0 6px 16px rgb(0 0 0 / 12%), 0 2px 4px rgb(0 0 0 / 6%); transition: background 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
+.sia-float-button--circle { border-radius: 50%; }
+.sia-float-button--square { border-radius: 8px; }
+.sia-float-button:hover:not(:disabled) { background: var(--sia-color-control-hover); transform: translateY(-1px); }
+.sia-float-button--primary { color: #fff; background: var(--sia-color-primary); border-color: transparent; }
+.sia-float-button--primary:hover:not(:disabled) { background: var(--sia-color-primary-hover); }
+.sia-float-button:focus-visible { outline: 3px solid var(--sia-color-focus-ring); outline-offset: 3px; }
+.sia-float-button:disabled { cursor: not-allowed; opacity: .45; }
+.sia-float-button__badge { width: 100%; justify-content: center; }
+.sia-float-button__body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 38px; padding: 6px 3px; gap: 3px; }
+.sia-float-button__icon { display: flex; align-items: center; justify-content: center; }
+.sia-float-button__description { font-size: 12px; line-height: 16px; overflow-wrap: anywhere; }
+.sia-float-button-group .sia-float-button-root { position: static; }
+.sia-float-button-group__list { display: flex; flex-direction: column; gap: 12px; }
+.sia-float-button-group--square:not(.sia-float-button-group--menu) .sia-float-button-group__list { gap: 0; border-radius: 8px; background: var(--sia-color-surface); box-shadow: var(--sia-shadow-popup); }
+.sia-float-button-group--square:not(.sia-float-button-group--menu) .sia-float-button { border-radius: 0; box-shadow: none; border: 0; }
+.sia-float-button-group--square:not(.sia-float-button-group--menu) .sia-float-button-root:first-child .sia-float-button { border-radius: 8px 8px 0 0; }
+.sia-float-button-group--square:not(.sia-float-button-group--menu) .sia-float-button-root:last-child .sia-float-button { border-radius: 0 0 8px 8px; }
+.sia-float-button-group--square:not(.sia-float-button-group--menu) .sia-float-button-root + .sia-float-button-root { border-top: 1px solid var(--sia-color-border); }
+.sia-float-button-group--menu > .sia-float-button-group__list { position: absolute; padding: 12px 0; animation: sia-float-menu-enter 160ms ease-out; }
+.sia-float-button-group--top.sia-float-button-group--menu > .sia-float-button-group__list { bottom: 100%; right: 0; }
+.sia-float-button-group--bottom.sia-float-button-group--menu > .sia-float-button-group__list { top: 100%; right: 0; }
+.sia-float-button-group--left.sia-float-button-group--menu > .sia-float-button-group__list { right: 100%; top: 0; padding: 0 12px; flex-direction: row; }
+.sia-float-button-group--right.sia-float-button-group--menu > .sia-float-button-group__list { left: 100%; top: 0; padding: 0 12px; flex-direction: row; }
+@keyframes sia-float-menu-enter { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .sia-float-button { transition: none; } .sia-float-button-group--menu > .sia-float-button-group__list { animation: none; } }
