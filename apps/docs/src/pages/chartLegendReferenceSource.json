@@ -1,0 +1,109 @@
+[
+  {
+    "id": "legend",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/legend.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "legend": {
+        "orient": "horizontal",
+        "x": "right",
+        "y": "top",
+        "backgroundColor": "#eee",
+        "borderColor": "rgba(178,34,34,0.8)",
+        "borderWidth": 4,
+        "padding": 10,
+        "itemGap": 20,
+        "textStyle": {
+          "color": "red"
+        },
+        "selected": {
+          "降水量": false
+        },
+        "data": [
+          {
+            "name": "蒸发量",
+            "icon": "image://../asset/ico/favicon.png",
+            "textStyle": {
+              "fontWeight": "bold",
+              "color": "green"
+            }
+          },
+          "降水量",
+          "最高气温",
+          "最低气温"
+        ]
+      },
+      "xAxis": {
+        "data": [
+          "周一",
+          "周二",
+          "周三",
+          "周四",
+          "周五",
+          "周六",
+          "周日"
+        ]
+      },
+      "yAxis": [
+        {
+          "type": "value",
+          "axisLabel": {
+            "formatter": "{value} ml"
+          }
+        },
+        {
+          "type": "value",
+          "axisLabel": {
+            "formatter": "{value} °C"
+          },
+          "splitLine": {
+            "show": false
+          }
+        }
+      ],
+      "series": [
+        {
+          "name": "蒸发量",
+          "type": "bar",
+          "data": [
+            2,
+            4.9,
+            7,
+            23.2,
+            25.6,
+            76.7,
+            135.6
+          ]
+        },
+        {
+          "name": "最高气温",
+          "type": "line",
+          "yAxisIndex": 1,
+          "data": [
+            11,
+            11,
+            15,
+            13,
+            12,
+            13,
+            10
+          ]
+        },
+        {
+          "name": "降水量",
+          "type": "bar",
+          "data": [
+            2.6,
+            5.9,
+            9,
+            26.4,
+            28.7,
+            70.7,
+            175.6
+          ]
+        }
+      ]
+    }
+  }
+]

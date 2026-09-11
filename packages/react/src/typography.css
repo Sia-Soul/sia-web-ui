@@ -1,3 +1,5 @@
+@import "./focus.css";
+
 .sia-typography { color: var(--sia-color-text); font-size: var(--sia-font-size); line-height: 1.75; overflow-wrap: anywhere; }
 .sia-typography--p { margin: 0 0 1em; }
 .sia-typography--h1, .sia-typography--h2, .sia-typography--h3, .sia-typography--h4, .sia-typography--h5 { margin: 0 0 .6em; font-weight: 600; line-height: 1.4; }
@@ -16,7 +18,7 @@
 .sia-typography kbd { box-shadow: 0 2px 0 var(--sia-color-border); }
 .sia-typography--link { color: var(--sia-color-primary-text); text-decoration: none; }
 .sia-typography--link:hover:not(.is-disabled) { color: var(--sia-color-primary-text-hover); text-decoration: underline; }
-.sia-typography--link:focus-visible { outline: 2px solid var(--sia-color-focus-ring); outline-offset: 2px; border-radius: 2px; }
+.sia-typography--link:focus-visible { outline: none; border-radius: 2px; }
 .sia-typography__ellipsis { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--sia-typography-rows, 1); overflow: hidden; }
 .sia-typography__action.sia-button { display: inline-flex; vertical-align: middle; height: 24px; min-width: 24px; margin-inline-start: 4px; padding: 0 4px; color: var(--sia-color-primary-text); }
 .sia-typography__editor { display: flex; flex-direction: column; gap: 8px; font-size: var(--sia-font-size); font-weight: normal; }

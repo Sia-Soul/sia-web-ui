@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import ts from 'typescript';
+const source=ts.transpileModule(fs.readFileSync('packages/react/src/components/categoryLabelInterval.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
+const {categoryLabelStep}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+const dates=Array.from({length:30},(_,i)=>`2013-03-${i+1}`);
+assert.equal(categoryLabelStep(dates,740,'auto'),4);
+assert.equal(categoryLabelStep(dates,740),1);
+assert.equal(categoryLabelStep(dates,740,2),3);
+assert.equal(categoryLabelStep(dates,0,'auto'),30);
+assert.equal(categoryLabelStep([],0,'auto'),1);
+assert.equal(categoryLabelStep(['一'],100,'auto'),1);
+assert.equal(categoryLabelStep(dates,740,'auto',true),1);
+assert.ok(categoryLabelStep(dates,300,'auto')>categoryLabelStep(dates,740,'auto'));
+console.log('分类标签间隔：默认全显、指定跳过数、30 天自适应、窄宽度、零宽、空列表、横向分类通过。');

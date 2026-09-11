@@ -1,0 +1,22 @@
+const assert=require('node:assert/strict'),path=require('node:path');
+const {chromium}=require(path.join(process.argv[2],'playwright'));
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:process.argv[3]});try{
+ const page=await browser.newPage({viewport:{width:1600,height:1100},reducedMotion:'reduce'});
+ await page.goto('http://static.dtws110.com/echarts-2.2.7/doc/example/axis.html');await page.locator('#main canvas').first().waitFor();
+ await page.evaluate(()=>myChart.component.toolbox.setMagicType({bar:true}));await page.waitForTimeout(2500);
+ const expected=await page.evaluate(()=>myChart.chart.bar.shapeList.filter(shape=>shape.type==='rectangle').map(shape=>({x:shape.style.x,y:shape.style.y,width:shape.style.width,height:shape.style.height,color:shape.style.color})));
+ assert.equal(expected.length,48);
+ await page.goto('http://localhost:4174/components/chart?reference='+encodeURIComponent('http://static.dtws110.com/echarts-2.2.7/doc/example/axis.html'));
+ const root=page.locator('.chart-axis-reference');await root.scrollIntoViewIfNeeded();
+ await root.getByRole('button',{name:'切换为柱状图',exact:true}).click();
+ const actual=await root.locator('.sia-chart__bar').evaluateAll(nodes=>nodes.map(node=>({x:Number(node.getAttribute('x')),y:Number(node.getAttribute('y')),width:Number(node.getAttribute('width')),height:Number(node.getAttribute('height')),color:node.getAttribute('fill')})));
+ assert.equal(actual.length,48);
+ for(const color of ['#2ec7c9','#b6a2de','#5ab1ef','#ffb980'])assert.deepEqual(actual.filter(item=>item.color===color),expected.filter(item=>item.color===color),color+'切换后全部柱几何');
+ assert.ok(actual.slice(0,12).every(item=>item.color==='#ffb980'),'顶轴单系列先绘制，不遮住底轴三柱');
+ await root.getByRole('button',{name:'切换为折线图',exact:true}).click();
+ assert.equal(await root.locator('path.sia-chart__line').count(),4);
+ assert.equal(await root.locator('circle.sia-chart__mixed-hollow-symbol').count(),48);
+ assert.ok(await root.locator('circle.sia-chart__mixed-hollow-symbol').evaluateAll(nodes=>nodes.filter((_,index)=>index%12===0).every(node=>Math.abs(Number(node.getAttribute('cx'))-115.29166666666666)<1e-8)),'折线保留原始分类轴留白');
+ await root.getByRole('button',{name:'还原',exact:true}).click();assert.equal(await root.locator('.sia-chart__bar').count(),24);assert.equal(await root.locator('path.sia-chart__line').count(),2);
+ console.log('axis 全柱切换后48柱几何与原站一致，顶部轴1组/底部轴3组、覆盖次序、全线留白与还原通过。');
+}finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});

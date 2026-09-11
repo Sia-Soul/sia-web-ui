@@ -1,0 +1,7 @@
+import type {BarSeries} from '@sia-ui/react';
+import source from './chartPersonalizedBarSource.json';
+export const original=source[0]!.option;
+export const series:BarSeries[]=original.series.map(s=>({name:s.name,data:s.data.map(d=>typeof d==='number'?d:typeof d==='string'?{value:NaN,hidden:true}:{value:d.value}),stack:'stack' in s?s.stack:undefined}));
+series[0]={...series[0]!,showEmphasisLabels:true,emphasisLabelPosition:'top',emphasisLabelStyle:{fill:'blue'},emphasisLabelFormatter:(value,category)=>`邮件营销 ${category} ${value}`,borderColor:'red',borderWidth:5,emphasisBorderColor:'green',emphasisBorderWidth:5,fillGradient:{start:[0,400],end:[0,300],stops:[{offset:0,color:'green'},{offset:1,color:'yellow'}]},emphasisFillGradient:{start:[0,400],end:[0,300],stops:[{offset:0,color:'red'},{offset:1,color:'orange'}]}};
+series[2]={...series[2]!,color:'red',borderColor:'tomato',borderWidth:6,emphasisColor:'blue',emphasisBorderColor:'red',data:series[2]!.data.map((d,i)=>i===4?{value:390,symbolSize:10,color:'lime',emphasisColor:'skyBlue'}:d)};
+series[3]={...series[3]!,statisticLines:['average','max','min'],labelStyle:{fontSize:20,fontFamily:'微软雅黑',fontWeight:'bold'},data:series[3]!.data.map((d,i)=>i===2?{value:701,labelPosition:'inside'}:d),barWidth:40,radius:5,showLabels:true,fillGradient:{start:[0,0],end:[1000,0],stops:[{offset:0,color:'rgba(30,144,255,0.8)'},{offset:1,color:'rgba(138,43,226,0.8)'}]}};

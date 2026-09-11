@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 
 export type ControlSize = "small" | "medium" | "large";
 export type ControlStatus = "default" | "warning" | "error";
+export type InputPlaceholderMode = "default" | "floating";
 
 type ControllableStateOptions<T> = {
   value: T | undefined;

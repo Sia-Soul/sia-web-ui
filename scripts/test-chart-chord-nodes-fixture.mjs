@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
+const saved=JSON.parse(fs.readFileSync('apps/docs/src/pages/chartChordNodesSource.json','utf8'));
+const [live]=JSON.parse(execFileSync(process.execPath,['scripts/inspect-chart-references.mjs','--options','--match=^chord4$'],{encoding:'utf8'}));
+assert.equal(live.status,200);assert.deepEqual(saved.option,live.option);
+const series=saved.option.series[0];
+assert.equal(series.nodes.length,17);assert.equal(series.links.length,14);
+assert.ok(series.links.every(link=>link.weight===1&&link.name==='效力'));
+assert.deepEqual(series.nodes.filter(n=>n.symbol==='star').map(n=>n.name),['穆勒']);
+assert.equal(series.minRadius,7);assert.equal(series.maxRadius,20);assert.equal(series.radius,'60%');
+assert.equal(series.ribbonType,false);
+console.log('chord4 原站实时配置一致：17 节点、14 单向关系、穆勒星形及半径配置通过。');

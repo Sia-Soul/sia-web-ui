@@ -3,6 +3,7 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tsbuildinfo",
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "baseUrl": ".",
     "paths": {
       "@sia-ui/react": ["../../packages/react/src/index.ts"]

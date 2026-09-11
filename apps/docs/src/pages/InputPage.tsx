@@ -33,6 +33,15 @@ export default function Demo() {
   </>;
 }`;
 
+const floatingPlaceholderCode = `import { Input } from "@sia-ui/react";
+
+export default function Demo() {
+  return <>
+    <Input placeholder="备注" placeholderMode="floating" />
+    <Input placeholder="邮箱" placeholderMode="floating" defaultValue="sia@example.com" />
+  </>;
+}`;
+
 const validationCode = `import { useState } from "react";
 import { Input } from "@sia-ui/react";
 
@@ -64,6 +73,7 @@ const apiRows = [
   { property: "allowClear", description: "显示清空按钮", type: "boolean", defaultValue: "false" },
   { property: "maxLength", description: "允许输入的最大字符数", type: "number", defaultValue: "-" },
   { property: "showCount", description: "显示当前字符数", type: "boolean", defaultValue: "false" },
+  { property: "placeholderMode", description: "占位文案的显示模式", type: "'default' | 'floating'", defaultValue: "'default'" },
   { property: "label", description: "字段标签", type: "ReactNode", defaultValue: "-" },
   { property: "hint", description: "帮助或校验信息", type: "ReactNode", defaultValue: "-" },
 ] as const;
@@ -119,6 +129,12 @@ export function InputPage() {
             <Input size="large" placeholder="Large" />
             <Input placeholder="Medium" />
             <Input size="small" placeholder="Small" />
+          </div>
+        </DemoCard>
+        <DemoCard title="浮动占位文案" description="聚焦时占位文案会滑动到输入框顶部；输入内容后会保持浮动。" code={floatingPlaceholderCode}>
+          <div className="component-demo component-demo--column demo-control-width">
+            <Input aria-label="备注" placeholder="备注" placeholderMode="floating" />
+            <Input aria-label="邮箱" placeholder="邮箱" placeholderMode="floating" defaultValue="sia@example.com" />
           </div>
         </DemoCard>
         <DemoCard title="字段与实时校验" description="示例规则会在每次输入后立即重新计算状态和提示。" code={validationCode}>

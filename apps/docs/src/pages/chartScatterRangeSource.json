@@ -1,0 +1,72 @@
+[
+  {
+    "id": "dataRange1",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/dataRange1.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "tooltip": {
+        "trigger": "item"
+      },
+      "toolbox": {
+        "show": true,
+        "feature": {
+          "mark": {
+            "show": true
+          },
+          "dataZoom": {
+            "show": true
+          },
+          "dataView": {
+            "show": true,
+            "readOnly": false
+          },
+          "restore": {
+            "show": true
+          },
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "dataRange": {
+        "min": 0,
+        "max": 100,
+        "y": "center",
+        "text": [
+          "高",
+          "低"
+        ],
+        "color": [
+          "lightgreen",
+          "yellow"
+        ],
+        "calculable": true
+      },
+      "xAxis": [
+        {
+          "type": "value",
+          "scale": true
+        }
+      ],
+      "yAxis": [
+        {
+          "type": "value",
+          "position": "right",
+          "scale": true
+        }
+      ],
+      "animation": false,
+      "series": [
+        {
+          "name": "scatter1",
+          "type": "scatter",
+          "symbolSize": 5,
+          "data": {
+            "$expression": "(function () {\n                var d = [];\n                var len = 500;\n                var value;\n                while (len--) {\n                    value = (Math.random()*100).toFixed(2) - 0;\n                    d.push([\n                        (Math.random()*value + value).toFixed(2) - 0,\n                        (Math.random()*value).toFixed(2) - 0,\n                        value\n                    ]);\n                }\n                return d;\n            })()"
+          }
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,15 @@
+const assert=require('node:assert/strict');
+const docsRequire=require('node:module').createRequire(require('node:path').resolve('apps/docs/package.json'));
+const React=docsRequire('react');
+const {renderToStaticMarkup}=docsRequire('react-dom/server');
+const {ScatterChart}=require('../packages/react/dist/chart.cjs');
+const props={data:[{x:1,y:2,value:3}],xDomain:[1,30,1],yDomain:[0,30,5],showLegend:false,animation:false};
+const render=extra=>renderToStaticMarkup(React.createElement(ScatterChart,{...props,...extra}));
+const base=render({xFormatter:value=>`日期-${value}`});
+assert.ok(base.includes('日期-1'));
+const hidden=render({showXAxis:false,showXSplitLine:false,showYSplitLine:false,xFormatter:value=>`日期-${value}`});
+assert.ok(!hidden.includes('日期-'));
+assert.ok(hidden.includes('sia-chart__bubble'));
+assert.ok(!hidden.includes('showXAxis'));
+assert.ok(!hidden.includes('showXSplitLine'));
+console.log('散点独立轴：默认日期轴保留、可隐藏横轴与网格、不隐藏数据、不泄漏 DOM 属性通过。');

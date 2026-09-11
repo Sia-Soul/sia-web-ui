@@ -1,0 +1,79 @@
+[
+  {
+    "id": "scatter3",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/scatter3.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "tooltip": {
+        "trigger": "axis",
+        "showDelay": 0,
+        "axisPointer": {
+          "show": true,
+          "type": "cross",
+          "lineStyle": {
+            "type": "dashed",
+            "width": 1
+          }
+        }
+      },
+      "legend": {
+        "data": [
+          "sin",
+          "cos"
+        ]
+      },
+      "toolbox": {
+        "show": true,
+        "feature": {
+          "mark": {
+            "show": true
+          },
+          "dataZoom": {
+            "show": true
+          },
+          "dataView": {
+            "show": true,
+            "readOnly": false
+          },
+          "restore": {
+            "show": true
+          },
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "xAxis": [
+        {
+          "type": "value",
+          "scale": true
+        }
+      ],
+      "yAxis": [
+        {
+          "type": "value",
+          "scale": true
+        }
+      ],
+      "series": [
+        {
+          "name": "sin",
+          "type": "scatter",
+          "large": true,
+          "data": {
+            "$expression": "(function () {\n                var d = [];\n                var len = 10000;\n                var x = 0;\n                while (len--) {\n                    x = (Math.random() * 10).toFixed(3) - 0;\n                    d.push([\n                        x,\n                        //Math.random() * 10\n                        (Math.sin(x) - x * (len % 2 ? 0.1 : -0.1) * Math.random()).toFixed(3) - 0\n                    ]);\n                }\n                //console.log(d)\n                return d;\n            })()"
+          }
+        },
+        {
+          "name": "cos",
+          "type": "scatter",
+          "large": true,
+          "data": {
+            "$expression": "(function () {\n                var d = [];\n                var len = 10000;\n                var x = 0;\n                while (len--) {\n                    x = (Math.random() * 10).toFixed(3) - 0;\n                    d.push([\n                        x,\n                        //Math.random() * 10\n                        (Math.cos(x) - x * (len % 2 ? 0.1 : -0.1) * Math.random()).toFixed(3) - 0\n                    ]);\n                }\n                //console.log(d)\n                return d;\n            })()"
+          }
+        }
+      ]
+    }
+  }
+]

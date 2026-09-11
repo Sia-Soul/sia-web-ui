@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+import {createRequire} from 'node:module';
+import assert from 'node:assert/strict';
+import ts from 'typescript';
+const require=createRequire(new URL('../packages/react/package.json',import.meta.url));
+const React=require('react'),{renderToStaticMarkup}=require('react-dom/server');
+const code=ts.transpileModule(fs.readFileSync('packages/react/src/components/TreeNodeGlyph.tsx','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+const exports={};new Function('require','exports',code)(require,exports);
+const base={x:100,y:200,width:90,height:70,color:'orange',itemStyle:{}};
+const image=renderToStaticMarkup(React.createElement(exports.TreeNodeGlyph,{...base,symbol:'image://https://example.test/original.png'}));
+assert.match(image,/href="https:\/\/example.test\/original.png"/);assert.match(image,/width="90"/);assert.match(image,/height="70"/);assert.match(image,/x="55"/);assert.match(image,/y="165"/);
+const circle=renderToStaticMarkup(React.createElement(exports.TreeNodeGlyph,{...base,symbol:'circle',itemStyle:{brushType:'stroke',borderColor:'#999966',borderWidth:0}}));
+assert.match(circle,/fill:none/);assert.match(circle,/stroke-width:0/);assert.match(circle,/rx="45"/);assert.match(circle,/ry="35"/);
+console.log('树图图片符号、非等宽尺寸和描边样式渲染检查通过。未将失败素材计入实现数量。');

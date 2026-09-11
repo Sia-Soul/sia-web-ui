@@ -1,0 +1,83 @@
+[
+  {
+    "id": "wormhole",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/wormhole.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "color": {
+        "$expression": "(function (){\n        var zrColor = require('zrender/tool/color');\n        return zrColor.getStepColors('yellow', 'red', 28);\n    })()"
+      },
+      "title": {
+        "text": "浏览器占比变化",
+        "subtext": "纯属虚构",
+        "x": "right",
+        "y": "bottom"
+      },
+      "tooltip": {
+        "trigger": "item",
+        "backgroundColor": "rgba(0,0,250,0.2)"
+      },
+      "legend": {
+        "data": {
+          "$expression": "function (){\n                var list = [];\n                for (var i = 1; i <=28; i++) {\n                    list.push(i + 2000);\n                }\n                return list;\n            }()"
+        }
+      },
+      "toolbox": {
+        "show": true,
+        "orient": "vertical",
+        "y": "center",
+        "feature": {
+          "mark": {
+            "show": true
+          },
+          "dataView": {
+            "show": true,
+            "readOnly": false
+          },
+          "restore": {
+            "show": true
+          },
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "polar": [
+        {
+          "indicator": [
+            {
+              "text": "IE8-",
+              "max": 400
+            },
+            {
+              "text": "IE9+",
+              "max": 400
+            },
+            {
+              "text": "Safari",
+              "max": 400
+            },
+            {
+              "text": "Firefox",
+              "max": 400
+            },
+            {
+              "text": "Chrome",
+              "max": 400
+            }
+          ],
+          "center": [
+            "50%",
+            240
+          ],
+          "radius": 150
+        }
+      ],
+      "calculable": false,
+      "series": {
+        "$expression": "(function (){\n        var series = [];\n        for (var i = 1; i <= 28; i++) {\n            series.push({\n                name:'浏览器（数据纯属虚构）',\n                type:'radar',\n                symbol:'none',\n                itemStyle: {\n                    normal: {\n                        lineStyle: {\n                          width:1\n                        }\n                    },\n                    emphasis : {\n                        areaStyle: {color:'rgba(0,250,0,0.3)'}\n                    }\n                },\n                data:[\n                  {\n                    value:[\n                        (40 - i) * 10,\n                        (38 - i) * 4 + 60,\n                        i * 5 + 10,\n                        i * 9,\n                        i * i /2\n                    ],\n                    name:i + 2000\n                  }\n                ]\n            })\n        }\n        return series;\n    })()"
+      }
+    }
+  }
+]

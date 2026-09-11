@@ -1,0 +1,21 @@
+const path=require('node:path');const {chromium}=require(path.join(process.argv[2],'playwright'));
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:process.argv[3]});try{
+ const page=await browser.newPage({viewport:{width:1600,height:1000}});await page.goto('http://static.dtws110.com/echarts-2.2.7/doc/example/bar.html',{waitUntil:'domcontentloaded'});await page.locator('#main canvas').first().waitFor();await page.waitForTimeout(2500);
+ await page.locator('#main').screenshot({path:'apps/docs/chart-personalized-bar-original.png'});
+ if(process.argv.includes('--grid'))console.log('GRID '+JSON.stringify(await page.evaluate(()=>({option:myChart.getOption().grid,rect:myChart.component.grid.getArea(),size:[myChart.getZrender().getWidth(),myChart.getZrender().getHeight()]}))));
+ if(process.argv.includes('--animation'))console.log('ANIMATION '+JSON.stringify(await page.evaluate(()=>{const option=myChart.getOption();return {animation:option.animation,animationDuration:option.animationDuration,animationDurationUpdate:option.animationDurationUpdate,animationEasing:option.animationEasing,series:option.series.map(s=>({name:s.name,animation:s.animation,animationDuration:s.animationDuration,animationEasing:s.animationEasing}))};})));
+ if(process.argv.includes('--inspect-magic'))console.log(await page.evaluate(()=>({handler:String(myChart.component.toolbox.__onMagicType),shapes:myChart.component.toolbox.shapeList.map(s=>({name:s._name,type:s.type,style:s.style}))})));
+ if(process.argv.includes('--line')){
+  const icon=await page.evaluate(()=>{const s=myChart.component.toolbox.shapeList.find(s=>s._name==='line').style;return {x:s.x+s.width/2,y:s.y+s.height/2};});const canvas=await page.locator('#main canvas').first().boundingBox();await page.mouse.click(canvas.x+icon.x,canvas.y+icon.y);await page.waitForTimeout(2300);await page.locator('#main').screenshot({path:'apps/docs/chart-personalized-bar-line-original.png'});
+  console.log(JSON.stringify(await page.evaluate(()=>({series:myChart.getOption().series.map(s=>s.type),shapes:myChart.chart.line?.shapeList.map(s=>({type:s.type,mark:s._mark,style:s.style})).filter(s=>s.mark==='line'||s.type==='polyline')}))));
+ }
+ if(process.argv.includes('--calculable'))console.log('CALCULABLE '+JSON.stringify(await page.evaluate(()=>myChart.chart.line.shapeList.filter(s=>s.draggable).map(s=>({type:s.type,style:s.style,highlightStyle:s.highlightStyle,data:s.__ecData,draggable:s.draggable})))));
+ if(process.argv.includes('--labels')){
+  await page.evaluate(()=>{window.labelDraws=[];const original=CanvasRenderingContext2D.prototype.fillText;CanvasRenderingContext2D.prototype.fillText=function(text,x,y,...rest){if(String(text)==='701')window.labelDraws.push({text,x,y,align:this.textAlign,baseline:this.textBaseline,font:this.font,transform:Array.from([this.getTransform().a,this.getTransform().b,this.getTransform().c,this.getTransform().d,this.getTransform().e,this.getTransform().f])});return original.call(this,text,x,y,...rest);};myChart.getZrender().refresh();});
+  await page.waitForTimeout(300);console.log('LABELS '+JSON.stringify(await page.evaluate(()=>window.labelDraws)));
+ }
+ if(process.argv.includes('--multiple-holders')){await page.evaluate(()=>{const option=myChart.getOption();option.animation=false;option.series.forEach(s=>s.data[1]='-');myChart.setOption(option,true);});await page.waitForTimeout(300);}
+ if(process.argv.includes('--holders'))console.log('HOLDERS '+JSON.stringify(await page.evaluate(()=>myChart.chart.line.shapeList.filter(s=>!s.draggable&&s.type!=='polyline'&&!s._mark).map(s=>({type:s.type,style:s.style,highlightStyle:s.highlightStyle,seriesIndex:s._seriesIndex,dataIndex:s._dataIndex})))));
+ if(process.argv.includes('--legend'))console.log(JSON.stringify(await page.evaluate(()=>myChart.component.legend.shapeList.map(s=>({type:s.type,style:s.style})))));
+ if(!process.argv.includes('--line'))console.log(JSON.stringify(await page.evaluate(()=>({size:[myChart.getZrender().getWidth(),myChart.getZrender().getHeight()],shapes:myChart.chart.bar.shapeList.filter(s=>s._mark==='line').map(s=>({type:s.type,style:s.style,highlightStyle:s.highlightStyle}))}))));
+}finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});

@@ -1,4 +1,8 @@
+import type { IconName } from "@sia-ui/react";
+import {chartCategories} from "./pages/chartCategories";
+
 export type NavItem = {
+  children?: readonly NavItem[];
   label: string;
   path: string;
   eyebrow: string;
@@ -11,6 +15,106 @@ export type NavGroup = {
   items: readonly NavItem[];
   defaultOpen?: boolean;
 };
+
+const navItemIcons: Readonly<Record<string, IconName>> = {
+  "/introduction": "book",
+  "/getting-started": "rocket",
+  "/design/tokens": "token",
+  "/design/icons": "appstore",
+  "/components/button": "square-plus",
+  "/components/float-button": "circle-plus",
+  "/components/icon": "component",
+  "/components/typography": "bold",
+  "/components/flex": "columns",
+  "/components/grid": "appstore",
+  "/components/space": "move",
+  "/components/splitter": "columns",
+  "/components/tool-panel": "tool",
+  "/components/floating-scrollbar": "swap-vertical",
+  "/components/window-frame": "desktop",
+  "/components/divider": "minus",
+  "/components/breadcrumb": "branches",
+  "/components/dropdown": "chevron-down",
+  "/components/menu": "list-unordered",
+  "/components/pagination": "step-forward",
+  "/components/steps": "clipboard-check",
+  "/components/tabs": "tab-plus",
+  "/components/input": "edit",
+  "/components/textarea": "align-left",
+  "/components/editor": "code",
+  "/components/rich-text-editor": "bold",
+  "/components/markdown-editor": "file",
+  "/components/input-number": "calculator",
+  "/components/select": "chevron-down",
+  "/components/cascader": "branches",
+  "/components/checkbox": "square-check",
+  "/components/radio": "circle-check",
+  "/components/rate": "star",
+  "/components/switch": "swap-horizontal",
+  "/components/slider": "activity",
+  "/components/color-picker": "highlighter",
+  "/components/date-picker": "calendar",
+  "/components/select-date-range": "calendar",
+  "/components/time-picker": "clock",
+  "/components/tree-select": "partition",
+  "/components/upload": "upload",
+  "/components/form": "clipboard",
+  "/components/chart": "bar-chart",
+  "/components/badge": "bell",
+  "/components/calendar": "calendar",
+  "/components/card": "clipboard",
+  "/components/carousel": "play",
+  "/components/collapse": "menu-fold",
+  "/components/image": "image",
+  "/components/markdown": "file",
+  "/components/popover": "message",
+  "/components/segmented": "columns",
+  "/components/table": "table",
+  "/components/tag": "tag",
+  "/components/timeline": "clock",
+  "/components/tooltip": "info",
+  "/components/tour": "compass",
+  "/components/tree": "partition",
+  "/components/treemap": "appstore",
+  "/components/alert": "warning",
+  "/components/message": "message",
+  "/components/modal": "appstore",
+  "/components/drawer": "menu-unfold",
+  "/components/notification": "bell",
+  "/components/popconfirm": "circle-check",
+  "/components/progress": "trending-up",
+  "/components/spin": "loader",
+  "/components/watermark": "highlighter",
+};
+
+const chartCategoryIcons: Readonly<Record<string, IconName>> = {
+  line: "line-chart",
+  bar: "bar-chart",
+  scatter: "activity",
+  k: "trending-up",
+  pie: "pie-chart",
+  radar: "target",
+  chord: "share",
+  force: "branches",
+  map: "location",
+  gauge: "activity",
+  funnel: "filter",
+  heatmap: "appstore",
+  eventriver: "area-chart",
+  venn: "comments",
+  treemap: "appstore",
+  tree: "partition",
+  wordcloud: "bold",
+  mix: "area-chart",
+  components: "settings",
+  dynamic: "refresh",
+  topics: "bulb",
+};
+
+export function navIconForPath(path: string): IconName {
+  const chartCategory = path.startsWith("/components/chart/") ? path.split("/").at(-1) : undefined;
+  return navItemIcons[path] ?? (chartCategory ? chartCategoryIcons[chartCategory] : undefined) ?? "component";
+}
 
 export const navGroups: readonly NavGroup[] = [
   {
@@ -91,6 +195,10 @@ export const navGroups: readonly NavGroup[] = [
   {
     title: "数据展示",
     items: [
+      { label: "Chart 图表", path: "/components/chart", eyebrow: "组件 / 数据可视化", title: "Chart 图表", description: "按分类浏览自研图表示例。", children: [
+        {label:"全部图表",path:"/components/chart",eyebrow:"组件 / 数据可视化",title:"Chart 图表",description:"浏览全部图表示例。"},
+        ...chartCategories.map(category=>({label:category.title,path:category.path,eyebrow:"组件 / 数据可视化 / Chart",title:category.title,description:`浏览${category.title}分类下的全部示例。`})),
+      ] },
       { label: "Badge 徽标数", path: "/components/badge", eyebrow: "组件 / 数据展示", title: "Badge 徽标数", description: "展示数量、红点或状态标记。" },
       { label: "Calendar 日历", path: "/components/calendar", eyebrow: "组件 / 数据展示", title: "Calendar 日历", description: "以月历或年面板展示日期。" },
       { label: "Card 卡片", path: "/components/card", eyebrow: "组件 / 数据展示", title: "Card 卡片", description: "承载单一主题相关的内容和操作。" },
@@ -125,4 +233,4 @@ export const navGroups: readonly NavGroup[] = [
   },
 ];
 
-export const navItems = navGroups.flatMap((group) => group.items);
+export const navItems = navGroups.flatMap((group) => group.items.flatMap(item=>[item,...(item.children??[])]));

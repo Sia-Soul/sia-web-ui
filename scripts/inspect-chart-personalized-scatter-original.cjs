@@ -1,0 +1,16 @@
+const path=require('node:path');const {chromium}=require(path.join(process.argv[2],'playwright'));
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:process.argv[3]});try{
+ const page=await browser.newPage({viewport:{width:1600,height:1100}});
+ // Reset immediately before the original option executes, not at document load:
+ // unrelated asynchronously loaded scripts also consume Math.random. The three
+ // warm-up draws preserve the already captured seed-227 fixture's starting point.
+ await page.route('**/doc/example/scatter.html',async route=>{const response=await route.fetch(),html=await response.text();const seeded=html.replace(/(<textarea\b[^>]*id="code"[^>]*>\s*)(option\s*=)/,'$1(function(){var state=227;Math.random=function(){state=(Math.imul(state,1664525)+1013904223)>>>0;return state/4294967296;};Math.random();Math.random();Math.random();})();\n$2');if(seeded===html)throw new Error('未找到原站示例编辑器，拒绝使用不稳定的随机样本');await route.fulfill({response,body:seeded});});
+ await page.goto('http://static.dtws110.com/echarts-2.2.7/doc/example/scatter.html');await page.locator('#main canvas').first().waitFor();await page.waitForTimeout(2400);
+ if(process.argv.includes('--interaction'))console.log(JSON.stringify(await page.evaluate(()=>({calculable:myChart.getOption().calculable,animation:myChart.getOption().animation,duration:myChart.getOption().animationDuration,shapes:myChart.chart.scatter.shapeList.map(s=>({type:s.type,mark:s._mark,draggable:s.draggable,clickable:s.clickable,hoverable:s.hoverable,ondragend:typeof s.ondragend,ondrop:typeof s.ondrop,scale:s.scale}))}))));
+ else if(process.argv.includes('--marks'))console.log(JSON.stringify(await page.evaluate(()=>myChart.chart.scatter.shapeList.filter(s=>s._mark!==undefined).map(s=>({mark:s._mark,style:s.style,highlightStyle:s.highlightStyle})))));
+ else if(process.argv.includes('--geometry'))console.log(JSON.stringify(await page.evaluate(()=>myChart.chart.scatter.shapeList.filter(s=>s._mark==='point').map(s=>{const commands=[];s.buildPath(new Proxy({},{get:(_,key)=>(...args)=>commands.push([key,...args])}),s.style);return {commands,style:s.style};}))));
+ else if(process.argv.includes('--triangle'))console.log(JSON.stringify(await page.evaluate(()=>{const s=myChart.chart.scatter.shapeList.find(s=>s.style?.iconType==='triangle'),commands=[];s.buildPath(new Proxy({},{get:(_,key)=>(...args)=>commands.push([key,...args])}),s.style);return {commands,rotation:s.rotation,style:s.style};})));
+ else if(process.argv.includes('--styles'))console.log(JSON.stringify(await page.evaluate(()=>myChart.chart.scatter.shapeList.filter(s=>s._mark===undefined).slice(0,3).concat(myChart.chart.scatter.shapeList.filter(s=>s.style?.iconType==='triangle')).map(s=>({type:s.type,style:s.style,highlightStyle:s.highlightStyle,rotation:s.rotation})))));
+ else console.log(JSON.stringify(await page.evaluate(()=>({seed:227,url:location.href,series:myChart.getOption().series.map(s=>({name:s.name,data:s.data})),grid:myChart.component.grid.getArea()}))));
+ await page.locator('#main').screenshot({path:'apps/docs/chart-personalized-scatter-original.png'});
+}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

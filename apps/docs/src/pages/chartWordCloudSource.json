@@ -1,0 +1,182 @@
+[
+  {
+    "id": "wordCloud",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/wordCloud.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "title": {
+        "text": "Google Trends",
+        "link": "http://www.google.com/trends/hottrends"
+      },
+      "tooltip": {
+        "show": true
+      },
+      "series": [
+        {
+          "name": "Google Trends",
+          "type": "wordCloud",
+          "size": [
+            "80%",
+            "80%"
+          ],
+          "textRotation": [
+            0,
+            45,
+            90,
+            -45
+          ],
+          "textPadding": 0,
+          "autoSize": {
+            "enable": true,
+            "minSize": 14
+          },
+          "data": [
+            {
+              "name": "Sam S Club",
+              "value": 10000,
+              "itemStyle": {
+                "normal": {
+                  "color": "black"
+                }
+              }
+            },
+            {
+              "name": "Macys",
+              "value": 6181,
+              "itemStyle": {
+                "$expression": "createRandomItemStyle()"
+              }
+            },
+            {
+              "name": "Amy Schumer",
+              "value": 4386,
+              "itemStyle": {
+                "$expression": "createRandomItemStyle()"
+              }
+            },
+            {
+              "name": "Jurassic World",
+              "value": 4055,
+              "itemStyle": {
+                "$expression": "createRandomItemStyle()"
+              }
+            },
+            {
+              "name": "Charter Communications",
+              "value": 2467,
+              "itemStyle": {
+                "$expression": "createRandomItemStyle()"
+              }
+            },
+            {
+              "name": "Chick Fil A",
+              "value": 2244,
+              "itemStyle": {
+                "$expression": "createRandomItemStyle()"
+              }
+            },
+            {
+              "name": "Planet Fitness",
+              "value": 1898,
+              "itemStyle": {
+                "$expression": "createRandomItemStyle()"
+              }
+            },
+            {
+              "name": "Pitch Perfect",
+              "value": 1484,
+              "itemStyle": {
+                "$expression": "createRandomItemStyle()"
+              }
+            },
+            {
+              "name": "Express",
+              "value": 1112,
+              "itemStyle": {
+                "$expression": "createRandomItemStyle()"
+              }
+            },
+            {
+              "name": "Home",
+              "value": 965,
+              "itemStyle": {
+                "$expression": "createRandomItemStyle()"
+              }
+            },
+            {
+              "name": "Johnny Depp",
+              "value": 847,
+              "itemStyle": {
+                "$expression": "createRandomItemStyle()"
+              }
+            },
+            {
+              "name": "Lena Dunham",
+              "value": 582,
+              "itemStyle": {
+                "$expression": "createRandomItemStyle()"
+              }
+            },
+            {
+              "name": "Lewis Hamilton",
+              "value": 555,
+              "itemStyle": {
+                "$expression": "createRandomItemStyle()"
+              }
+            },
+            {
+              "name": "KXAN",
+              "value": 550,
+              "itemStyle": {
+                "$expression": "createRandomItemStyle()"
+              }
+            },
+            {
+              "name": "Mary Ellen Mark",
+              "value": 462,
+              "itemStyle": {
+                "$expression": "createRandomItemStyle()"
+              }
+            },
+            {
+              "name": "Farrah Abraham",
+              "value": 366,
+              "itemStyle": {
+                "$expression": "createRandomItemStyle()"
+              }
+            },
+            {
+              "name": "Rita Ora",
+              "value": 360,
+              "itemStyle": {
+                "$expression": "createRandomItemStyle()"
+              }
+            },
+            {
+              "name": "Serena Williams",
+              "value": 282,
+              "itemStyle": {
+                "$expression": "createRandomItemStyle()"
+              }
+            },
+            {
+              "name": "NCAA baseball tournament",
+              "value": 273,
+              "itemStyle": {
+                "$expression": "createRandomItemStyle()"
+              }
+            },
+            {
+              "name": "Point Break",
+              "value": 265,
+              "itemStyle": {
+                "$expression": "createRandomItemStyle()"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

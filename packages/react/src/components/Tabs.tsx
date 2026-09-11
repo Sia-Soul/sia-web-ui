@@ -14,7 +14,7 @@ export interface TabItem {
   closable?: boolean;
 }
 
-export type TabsType = "line" | "card" | "pill";
+export type TabsType = "line" | "card" | "pill" | "tech" | "tech-line";
 export type TabsOrientation = "horizontal" | "vertical";
 export type TabsPosition = "top" | "right" | "bottom" | "left";
 export type TabsContextMenuClickInfo = MenuClickInfo & {
@@ -32,6 +32,7 @@ export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChang
   tabPosition?: TabsPosition;
   orientation?: TabsOrientation;
   centered?: boolean;
+  tabBarTitle?: ReactNode;
   tabBarExtraContent?: ReactNode;
   destroyInactiveTabPane?: boolean;
   closable?: boolean;
@@ -50,6 +51,7 @@ export function Tabs({
   tabPosition,
   orientation = "horizontal",
   centered = false,
+  tabBarTitle,
   tabBarExtraContent,
   destroyInactiveTabPane = true,
   closable = false,
@@ -100,6 +102,11 @@ export function Tabs({
       {...props}
     >
       <div className="sia-tabs__header">
+        {tabBarTitle ? <div className="sia-tabs__title">{tabBarTitle}{type === "tech-line" ? (
+          <svg className="sia-tabs__title-connector" viewBox="0 0 32 40" aria-hidden="true">
+            <path d="M0 39 H5 Q8 39 10 35 L28 3 Q29 1 32 1" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+        ) : null}</div> : null}
         <div className="sia-tabs__list" role="tablist" aria-orientation={resolvedOrientation}>
           {items.map((item) => {
             const selected = item.key === selectedKey;
@@ -118,6 +125,20 @@ export function Tabs({
                   onClick={() => selectTab(item.key)}
                   onKeyDown={(event) => handleKeyDown(event, item.key)}
                 >
+                  {type === "tech-line" ? (
+                    <svg className="sia-tabs__tab-shape" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true">
+                      <defs>
+                        <linearGradient id={`${baseId}-tab-fill-${item.key}`} x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0" stopColor="var(--sia-tabs-line-fill-edge, var(--sia-tabs-line-fill))" />
+                          <stop offset=".53" stopColor="var(--sia-tabs-line-fill-center, var(--sia-tabs-line-fill))" />
+                          <stop offset="1" stopColor="var(--sia-tabs-line-fill-edge, var(--sia-tabs-line-fill))" />
+                        </linearGradient>
+                      </defs>
+                      <path d="M19 1 H96 Q99 1 97.5 4 L83.5 30 Q82 33 79 33 H4 Q1 33 2.5 30 L16.5 4 Q18 1 19 1 Z"
+                        fill={`url(#${baseId}-tab-fill-${item.key})`}
+                        stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+                    </svg>
+                  ) : null}
                   {item.icon ? <span className="sia-tabs__icon">{item.icon}</span> : null}
                   <span>{item.label}</span>
                 </button>

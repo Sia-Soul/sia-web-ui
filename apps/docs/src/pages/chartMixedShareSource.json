@@ -1,0 +1,185 @@
+[
+  {
+    "id": "mix12",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/mix12.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "backgroundColor": "#fff",
+      "title": {
+        "text": "某楼盘销售情况",
+        "subtext": "纯属虚构 折线饼图交互混搭实例",
+        "x": "center"
+      },
+      "legend": {
+        "data": [
+          "销量",
+          "占比"
+        ],
+        "x": "left",
+        "orient": "vertical",
+        "selectedMode": false
+      },
+      "tooltip": {
+        "trigger": "item",
+        "formatter": {
+          "$expression": "function(params){\n            if (params.seriesName == '占比') {\n                return '总量 : ' + total + '<br/>'\n                       + params.name + ' : ' + params.value + '<br/>'\n                       + '占比 : ' +  params.percent + '%';\n            }\n            else if (params.name != '占位'){\n                update(params);\n                return params.seriesName + '<br/>'\n                       + params.name + ' : ' + params.value;\n            }\n        }"
+        },
+        "axisPointer": {
+          "type": "none"
+        }
+      },
+      "toolbox": {
+        "show": true,
+        "feature": {
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "grid": {
+        "backgroundColor": "#ccc",
+        "borderWidth": 0
+      },
+      "xAxis": [
+        {
+          "type": "category",
+          "boundaryGap": false,
+          "show": false,
+          "data": [
+            "占位",
+            "周一",
+            "周二",
+            "周三",
+            "周四",
+            "周五",
+            "周六",
+            "周日",
+            "占位"
+          ]
+        }
+      ],
+      "yAxis": [
+        {
+          "type": "value",
+          "boundaryGap": [
+            0,
+            0.5
+          ],
+          "show": false
+        }
+      ],
+      "animation": false,
+      "series": [
+        {
+          "name": "销量",
+          "type": "line",
+          "symbol": "emptyCircle",
+          "symbolSize": 6,
+          "showAllSymbol": true,
+          "smooth": true,
+          "itemStyle": {
+            "normal": {
+              "areaStyle": {
+                "type": "default"
+              }
+            }
+          },
+          "data": {
+            "$expression": "dataArray"
+          }
+        },
+        {
+          "name": "遮罩",
+          "type": "pie",
+          "clickable": false,
+          "tooltip": {
+            "show": false
+          },
+          "radius": [
+            100,
+            180
+          ],
+          "itemStyle": {
+            "normal": {
+              "color": "#fff",
+              "label": {
+                "show": false
+              },
+              "labelLine": {
+                "show": false
+              }
+            },
+            "emphasis": {
+              "color": "rgba(0,0,0,0)"
+            }
+          },
+          "data": [
+            {
+              "value": 100,
+              "name": "直接访问"
+            }
+          ]
+        },
+        {
+          "name": "占比",
+          "type": "pie",
+          "clickable": false,
+          "clockWise": true,
+          "radius": [
+            110,
+            125
+          ],
+          "data": [
+            {
+              "itemStyle": {
+                "normal": {
+                  "label": {
+                    "position": "inside",
+                    "formatter": "\n{b} : {c}\n\n( {d}% )",
+                    "textStyle": {
+                      "fontSize": 15,
+                      "baseline": "top",
+                      "color": "#1e90ff"
+                    }
+                  },
+                  "labelLine": {
+                    "show": false
+                  }
+                }
+              }
+            },
+            {
+              "name": "其他",
+              "tooltip": {
+                "show": false
+              },
+              "itemStyle": {
+                "normal": {
+                  "color": "#fff",
+                  "label": {
+                    "show": false
+                  },
+                  "labelLine": {
+                    "show": false
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "bindings": {
+      "data": [
+        30,
+        20,
+        54,
+        21,
+        90,
+        30,
+        10
+      ]
+    }
+  }
+]

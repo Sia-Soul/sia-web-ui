@@ -1,0 +1,140 @@
+[
+  {
+    "id": "tree",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/tree.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "title": {
+        "text": "树图",
+        "subtext": "虚构数据"
+      },
+      "toolbox": {
+        "show": true,
+        "feature": {
+          "mark": {
+            "show": true
+          },
+          "dataView": {
+            "show": true,
+            "readOnly": false
+          },
+          "restore": {
+            "show": true
+          },
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "calculable": false,
+      "series": [
+        {
+          "name": "树图",
+          "type": "tree",
+          "orient": "vertical",
+          "rootLocation": {
+            "x": "center",
+            "y": 50
+          },
+          "nodePadding": 1,
+          "itemStyle": {
+            "normal": {
+              "label": {
+                "show": false,
+                "formatter": "{b}"
+              },
+              "lineStyle": {
+                "color": "#48b",
+                "shadowColor": "#000",
+                "shadowBlur": 3,
+                "shadowOffsetX": 3,
+                "shadowOffsetY": 5,
+                "type": "curve"
+              }
+            },
+            "emphasis": {
+              "label": {
+                "show": true
+              }
+            }
+          },
+          "data": [
+            {
+              "name": "根节点",
+              "value": 6,
+              "children": [
+                {
+                  "name": "节点1",
+                  "value": 4,
+                  "children": [
+                    {
+                      "name": "叶子节点1",
+                      "value": 4
+                    },
+                    {
+                      "name": "叶子节点2",
+                      "value": 4
+                    },
+                    {
+                      "name": "叶子节点3",
+                      "value": 2
+                    },
+                    {
+                      "name": "叶子节点4",
+                      "value": 2
+                    },
+                    {
+                      "name": "叶子节点5",
+                      "value": 2
+                    },
+                    {
+                      "name": "叶子节点6",
+                      "value": 4
+                    }
+                  ]
+                },
+                {
+                  "name": "节点2",
+                  "value": 4,
+                  "children": [
+                    {
+                      "name": "叶子节点7",
+                      "value": 4
+                    },
+                    {
+                      "name": "叶子节点8",
+                      "value": 4
+                    }
+                  ]
+                },
+                {
+                  "name": "节点3",
+                  "value": 1,
+                  "children": [
+                    {
+                      "name": "叶子节点9",
+                      "value": 4
+                    },
+                    {
+                      "name": "叶子节点10",
+                      "value": 4
+                    },
+                    {
+                      "name": "叶子节点11",
+                      "value": 2
+                    },
+                    {
+                      "name": "叶子节点12",
+                      "value": 2
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

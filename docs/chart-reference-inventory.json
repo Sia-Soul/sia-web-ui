@@ -1,0 +1,2038 @@
+[
+  {
+    "id": "index",
+    "url": "http://echarts.baidu.com/doc/example/topic/sino-japanese-war-1895/index.html",
+    "status": 500,
+    "hasEditor": false,
+    "seriesTypes": [],
+    "features": []
+  },
+  {
+    "id": "axis",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/axis.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "bar",
+      "line"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "bar",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/bar.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "bar"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "bar1",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/bar1.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "bar"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "bar10",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/bar10.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "bar"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "bar11",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/bar11.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [],
+    "features": []
+  },
+  {
+    "id": "bar12",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/bar12.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "bar"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "bar13",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/bar13.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "bar"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "bar14",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/bar14.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "bar"
+    ],
+    "features": [
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "bar15",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/bar15.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "bar"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "bar2",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/bar2.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "bar"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "bar3",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/bar3.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "bar"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "bar4",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/bar4.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "bar"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "bar5",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/bar5.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "bar"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "bar6",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/bar6.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "bar"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "bar7",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/bar7.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "bar"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "bar8",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/bar8.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "bar"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "bar9",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/bar9.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "bar"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "chord",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/chord.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "chord"
+    ],
+    "features": [
+      "restore",
+      "magicType",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "chord1",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/chord1.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "chord"
+    ],
+    "features": [
+      "restore",
+      "magicType",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "chord2",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/chord2.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "chord"
+    ],
+    "features": [
+      "restore",
+      "magicType",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "chord3",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/chord3.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "chord"
+    ],
+    "features": [
+      "restore",
+      "magicType",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "chord4",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/chord4.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "chord"
+    ],
+    "features": [
+      "restore",
+      "magicType",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "dataRange",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/dataRange.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": []
+  },
+  {
+    "id": "dataRange1",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/dataRange1.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "scatter"
+    ],
+    "features": [
+      "mark",
+      "dataZoom",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "dataRange2",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/dataRange2.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "dataZoom",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/dataZoom.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "line"
+    ],
+    "features": [
+      "mark",
+      "dataZoom",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "dataZoom1",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/dataZoom1.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "line"
+    ],
+    "features": [
+      "mark",
+      "dataZoom",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "dynamicLineBar",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/dynamicLineBar.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "bar",
+      "line"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "dynamicPieRadar",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/dynamicPieRadar.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "pie",
+      "radar"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "dynamicScatterK",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/dynamicScatterK.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "k",
+      "scatter"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "event",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/event.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "line",
+      "bar"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "eventRiver1",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/eventRiver1.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "eventRiver"
+    ],
+    "features": [
+      "mark",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "eventRiver2",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/eventRiver2.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [],
+    "features": [
+      "mark",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "force",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/force.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "force"
+    ],
+    "features": [
+      "restore",
+      "magicType",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "force1",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/force1.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "force"
+    ],
+    "features": [
+      "restore",
+      "magicType",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "force2",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/force2.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "force"
+    ],
+    "features": [
+      "restore",
+      "magicType",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "force4",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/force4.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "force"
+    ],
+    "features": [
+      "restore",
+      "magicType",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "funnel",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/funnel.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "funnel"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "funnel1",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/funnel1.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "funnel"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "funnel2",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/funnel2.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "funnel"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "funnel3",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/funnel3.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "funnel"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "funnel4",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/funnel4.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "funnel"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "gauge",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/gauge.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "gauge"
+    ],
+    "features": [
+      "mark",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "gauge1",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/gauge1.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "gauge"
+    ],
+    "features": [
+      "mark",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "gauge2",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/gauge2.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "gauge"
+    ],
+    "features": [
+      "mark",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "gauge3",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/gauge3.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "gauge"
+    ],
+    "features": [
+      "mark",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "gauge4",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/gauge4.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "gauge"
+    ],
+    "features": [
+      "mark",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "gauge5",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/gauge5.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "gauge"
+    ],
+    "features": [
+      "mark",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "heatmap_map",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/heatmap_map.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "heatmap",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/heatmap.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "heatmap"
+    ],
+    "features": []
+  },
+  {
+    "id": "heatmap2",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/heatmap2.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "heatmap"
+    ],
+    "features": []
+  },
+  {
+    "id": "k",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/k.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "k"
+    ],
+    "features": [
+      "mark",
+      "dataZoom",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "k1",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/k1.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "k"
+    ],
+    "features": [
+      "mark",
+      "dataZoom",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "lasagna",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/lasagna.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "legend",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/legend.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "bar",
+      "line"
+    ],
+    "features": []
+  },
+  {
+    "id": "line",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/line.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "line"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "line1",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/line1.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "line"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "line10",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/line10.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "line"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "line11",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/line11.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "line"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "line2",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/line2.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "line"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "line3",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/line3.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "line"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "line4",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/line4.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "line"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "line5",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/line5.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "line"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "line6",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/line6.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "line"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "line7",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/line7.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "line"
+    ],
+    "features": [
+      "mark",
+      "dataZoom",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "line8",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/line8.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "line"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "line9",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/line9.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "line"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "loading",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/loading.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      {
+        "$expression": "effectIndex % 2 == 0 ? 'bar' : 'line'"
+      },
+      {
+        "$expression": "effectIndex % 2 == 0 ? 'bar' : 'line'"
+      }
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "map",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": []
+  },
+  {
+    "id": "map1",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map1.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "map10",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map10.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "map11",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map11.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "map12",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map12.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "map13",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map13.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "map14",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map14.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [],
+    "features": []
+  },
+  {
+    "id": "map15",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map15.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "map16",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map16.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "map17",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map17.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "map18",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map18.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "map19",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map19.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [],
+    "features": []
+  },
+  {
+    "id": "map2",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map2.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": []
+  },
+  {
+    "id": "map20",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map20.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": []
+  },
+  {
+    "id": "map21",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map21.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "map22",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map22.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": []
+  },
+  {
+    "id": "map3",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map3.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": []
+  },
+  {
+    "id": "map4",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map4.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "map5",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map5.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": []
+  },
+  {
+    "id": "map6",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map6.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "map7",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map7.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "map8",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map8.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "map9",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map9.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "mix1",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/mix1.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "bar",
+      "line"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "mix10",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/mix10.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "line",
+      "k"
+    ],
+    "features": [
+      "mark",
+      "dataZoom",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "mix11",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/mix11.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "gauge",
+      "funnel"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "mix12",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/mix12.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "line",
+      "pie"
+    ],
+    "features": [
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "mix2",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/mix2.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "bar",
+      "line",
+      "pie"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "mix3",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/mix3.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map",
+      "pie"
+    ],
+    "features": [
+      "mark",
+      "dataView"
+    ]
+  },
+  {
+    "id": "mix4",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/mix4.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "scatter",
+      "line"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "mix5",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/mix5.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": [
+      "mark",
+      "dataView"
+    ]
+  },
+  {
+    "id": "mix6",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/mix6.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "line",
+      "bar"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "mix7",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/mix7.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "scatter"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "mix8",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/mix8.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "k",
+      "line",
+      "bar"
+    ],
+    "features": [
+      "mark",
+      "dataZoom",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "mix9",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/mix9.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "pie"
+    ],
+    "features": []
+  },
+  {
+    "id": "pie",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/pie.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "pie"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "pie1",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/pie1.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "pie"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "pie2",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/pie2.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "pie"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "pie3",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/pie3.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "pie"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "pie4",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/pie4.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "pie"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "pie5",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/pie5.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "pie"
+    ],
+    "features": [
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "pie6",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/pie6.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "pie"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "pie7",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/pie7.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [],
+    "features": []
+  },
+  {
+    "id": "radar",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/radar.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "radar"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "radar1",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/radar1.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "radar"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "radar2",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/radar2.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "radar"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "radar3",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/radar3.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "radar"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "scatter",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/scatter.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "scatter"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "scatter1",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/scatter1.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "scatter"
+    ],
+    "features": [
+      "mark",
+      "dataZoom",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "scatter2",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/scatter2.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "scatter"
+    ],
+    "features": [
+      "mark",
+      "dataZoom",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "scatter3",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/scatter3.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "scatter"
+    ],
+    "features": [
+      "mark",
+      "dataZoom",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "scatter4",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/scatter4.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [],
+    "features": []
+  },
+  {
+    "id": "scatter5",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/scatter5.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "scatter"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "scatter6",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/scatter6.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "scatter"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "theme",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/theme.html",
+    "status": 200,
+    "hasEditor": false,
+    "seriesTypes": [],
+    "features": []
+  },
+  {
+    "id": "themeDesigner",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/themeDesigner.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [],
+    "features": []
+  },
+  {
+    "id": "tooltip",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/tooltip.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "bar"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "magicType",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "index",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/topic/10-me-china/index.html",
+    "status": 200,
+    "hasEditor": false,
+    "seriesTypes": [],
+    "features": []
+  },
+  {
+    "id": "index",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/topic/24-population-china/index.html",
+    "status": 200,
+    "hasEditor": false,
+    "seriesTypes": [],
+    "features": []
+  },
+  {
+    "id": "index",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/topic/aqi-china/index.html",
+    "status": 200,
+    "hasEditor": false,
+    "seriesTypes": [],
+    "features": []
+  },
+  {
+    "id": "tree",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/tree.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "tree"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "tree1",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/tree1.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "tree"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "tree2",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/tree2.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "tree"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "treemap",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/treemap.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "treemap"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "treemap1",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/treemap1.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "treemap"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "treemap2",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/treemap2.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "treemap"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "venn",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/venn.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "venn"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "webkit-dep",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/webkit-dep.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "force"
+    ],
+    "features": [
+      "restore",
+      "magicType",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "webkit-dep2",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/webkit-dep2.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "force"
+    ],
+    "features": [
+      "restore",
+      "magicType",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "wordCloud",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/wordCloud.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "wordCloud"
+    ],
+    "features": []
+  },
+  {
+    "id": "wormhole",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/wormhole.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "index",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/www/index.html",
+    "status": 200,
+    "hasEditor": false,
+    "seriesTypes": [],
+    "features": []
+  },
+  {
+    "id": "index",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/www2/index.html",
+    "status": 200,
+    "hasEditor": false,
+    "seriesTypes": [],
+    "features": []
+  },
+  {
+    "id": "BMap",
+    "url": "http://static.dtws110.com/echarts-2.2.7/extension/BMap/doc/BMap.html",
+    "status": 200,
+    "hasEditor": true,
+    "seriesTypes": [
+      "map"
+    ],
+    "features": [
+      "mark",
+      "dataView",
+      "restore",
+      "saveAsImage"
+    ]
+  },
+  {
+    "id": "example",
+    "url": "http://static.dtws110.com/echarts-2.2.7/extension/BMap/doc/example.html",
+    "status": 200,
+    "hasEditor": false,
+    "seriesTypes": [],
+    "features": []
+  }
+]

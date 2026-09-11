@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Icon, ThemeSwitch, applySiaTheme } from "@sia-ui/react";
+import { Button, FloatingScrollbarProvider, Icon, ThemeSwitch, applySiaTheme } from "@sia-ui/react";
 import { Navigate, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { SiaMark } from "./Icons";
 import { OverlayScrollArea } from "./OverlayScrollArea";
 import { PageContextMenu } from "./PageContextMenu";
-import { navGroups, navItems } from "./navigation";
+import { navGroups, navIconForPath, navItems } from "./navigation";
 import { ButtonPage } from "./pages/ButtonPage";
 import { FloatButtonPage } from "./pages/FloatButtonPage";
 import { TypographyPage } from "./pages/TypographyPage";
@@ -37,6 +37,7 @@ import { TagPage } from "./pages/TagPage";
 import { TablePage } from "./pages/TablePage";
 import { ToolPanelPage } from "./pages/ToolPanelPage";
 import { TreemapPage } from "./pages/TreemapPage";
+import { ChartsPage, ChartCategoryPage } from "./pages/ChartsPage";
 import { TokensPage } from "./pages/TokensPage";
 import { WindowFramePage } from "./pages/WindowFramePage";
 import { RichTextEditorPage } from "./pages/RichTextEditorPage";
@@ -56,10 +57,18 @@ export default function App() {
   const [dark, setDark] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [floatingScrollbarEnabled, setFloatingScrollbarEnabled] = useState(true);
   const contentScrollRef = useRef<HTMLElement>(null);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => Object.fromEntries(
-    navGroups.map((group) => [group.title, group.defaultOpen === true || group.items.some((item) => item.path === location.pathname)]),
+    navGroups.map((group) => [group.title, group.defaultOpen === true || group.items.some((item) => item.path === location.pathname || item.children?.some(child=>child.path===location.pathname))]),
   ));
+  const [chartsOpen,setChartsOpen]=useState(location.pathname.startsWith("/components/chart"));
+  useEffect(()=>{
+    if(location.pathname.startsWith("/components/chart")){
+      setChartsOpen(true);
+      setOpenGroups(current=>({...current,"数据展示":true}));
+    }
+  },[location.pathname]);
 
   const appClass = useMemo(() => `docs-app${collapsed ? " is-collapsed" : ""}${mobileOpen ? " is-mobile-open" : ""}`, [collapsed, mobileOpen]);
   const currentItem = navItems.find((item) => item.path === location.pathname);
@@ -76,6 +85,7 @@ export default function App() {
 
   return (
     <div className={appClass}>
+      <FloatingScrollbarProvider disabled={location.pathname === "/components/floating-scrollbar" && !floatingScrollbarEnabled} />
       <PageContextMenu />
       <ScrollToTop scrollRef={contentScrollRef} />
       <header className="topbar">
@@ -103,8 +113,11 @@ export default function App() {
                 <span>{group.title}</span><Icon name={isOpen ? "chevron-down" : "chevron-right"} size={14} />
               </button>
               {isOpen ? <div className="nav-items">
-                {group.items.map((item) => <NavLink key={item.path} to={item.path} onClick={() => setMobileOpen(false)}>
-                  {({ isActive }) => <><span className="nav-dot">{isActive ? "▣" : "◇"}</span><span>{item.label}</span></>}
+                {group.items.map((item) => item.children ? <div key={item.path} className="nav-subgroup">
+                  <Button variant="text" className={`nav-chart-parent${location.pathname.startsWith(item.path)?" is-current":""}`} aria-label={item.label} aria-expanded={!collapsed && chartsOpen} aria-controls="chart-category-navigation" onClick={()=>{if(collapsed){setCollapsed(false);setChartsOpen(true);}else setChartsOpen(value=>!value);}}><span className="nav-item-icon"><Icon name={navIconForPath(item.path)} size={16} /></span><span>{item.label}</span><Icon name={chartsOpen?"chevron-down":"chevron-right"} size={14}/></Button>
+                  {chartsOpen?<div id="chart-category-navigation" className="nav-children">{item.children.map(child=><NavLink end key={child.path} to={child.path} onClick={()=>setMobileOpen(false)}><span className="nav-item-icon"><Icon name={navIconForPath(child.path)} size={14} /></span><span>{child.label}</span></NavLink>)}</div>:null}
+                </div> : <NavLink key={item.path} to={item.path} onClick={() => setMobileOpen(false)}>
+                  <span className="nav-item-icon"><Icon name={navIconForPath(item.path)} size={16} /></span><span>{item.label}</span>
                 </NavLink>)}
               </div> : null}
             </div>;
@@ -129,7 +142,7 @@ export default function App() {
             <Route path="/components/space" element={<SpacePage />} />
             <Route path="/components/splitter" element={<SplitterPage />} />
             <Route path="/components/tool-panel" element={<ToolPanelPage />} />
-            <Route path="/components/floating-scrollbar" element={<FloatingScrollbarPage />} />
+            <Route path="/components/floating-scrollbar" element={<FloatingScrollbarPage enabled={floatingScrollbarEnabled} onEnabledChange={setFloatingScrollbarEnabled} />} />
             <Route path="/components/window-frame" element={<WindowFramePage />} />
             <Route path="/components/drawer" element={<DrawerPage />} />
             <Route path="/components/dropdown" element={<DropdownPage />} />
@@ -175,6 +188,8 @@ export default function App() {
             <Route path="/components/tour" element={<TourPage />} />
             <Route path="/components/tree" element={<TreePage />} />
             <Route path="/components/treemap" element={<TreemapPage />} />
+            <Route path="/components/chart" element={<ChartsPage />} />
+            <Route path="/components/chart/:category" element={<ChartCategoryPage />} />
             <Route path="/components/alert" element={<AlertPage />} />
             <Route path="/components/notification" element={<NotificationPage />} />
             <Route path="/components/popconfirm" element={<PopconfirmPage />} />

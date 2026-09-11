@@ -1,0 +1,63 @@
+[
+  {
+    "id": "heatmap",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/heatmap.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "title": {
+        "text": "热力图自定义样式"
+      },
+      "series": [
+        {
+          "type": "heatmap",
+          "data": {
+            "$expression": "heatData"
+          },
+          "hoverable": false,
+          "gradientColors": [
+            {
+              "offset": 0.4,
+              "color": "green"
+            },
+            {
+              "offset": 0.5,
+              "color": "yellow"
+            },
+            {
+              "offset": 0.8,
+              "color": "orange"
+            },
+            {
+              "offset": 1,
+              "color": "red"
+            }
+          ],
+          "minAlpha": 0.2,
+          "valueScale": 2,
+          "opacity": 0.6
+        }
+      ]
+    }
+  },
+  {
+    "id": "heatmap2",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/heatmap2.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "title": {
+        "text": "热力图"
+      },
+      "series": [
+        {
+          "type": "heatmap",
+          "data": {
+            "$expression": "heatData"
+          },
+          "hoverable": false
+        }
+      ]
+    }
+  }
+]

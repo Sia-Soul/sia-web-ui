@@ -1,3 +1,5 @@
+@import "./focus.css";
+
 .sia-breadcrumb { color: var(--sia-color-text-secondary); font-size: var(--sia-font-size); line-height: 1.6; }
 .sia-breadcrumb__list { display: flex; align-items: center; flex-wrap: wrap; row-gap: 6px; padding: 0; margin: 0; list-style: none; }
 .sia-breadcrumb__item, .sia-breadcrumb__entry, .sia-breadcrumb__label { display: inline-flex; align-items: center; min-width: 0; }
@@ -6,12 +8,12 @@
 .sia-breadcrumb__label.sia-button { height: auto; padding: 0 3px; font: inherit; }
 .sia-breadcrumb__label > a { color: inherit; text-decoration: none; border-radius: 4px; }
 .sia-breadcrumb__label > a:hover { color: var(--sia-color-primary-text); }
-.sia-breadcrumb__label > a:focus-visible { outline: 2px solid var(--sia-color-focus-ring); outline-offset: 2px; }
+.sia-breadcrumb__label > a:focus-visible { outline: none; }
 .sia-breadcrumb__icon { display: inline-flex; flex: 0 0 auto; align-items: center; }
 .sia-breadcrumb__separator { display: inline-flex; align-items: center; flex-shrink: 0; margin-inline: 10px; color: var(--sia-color-text-tertiary); user-select: none; }
 .sia-breadcrumb__separator:empty { margin-inline: 4px; }
 .sia-breadcrumb__item.is-current { color: var(--sia-color-text); }
 .sia-breadcrumb__item.is-disabled { color: var(--sia-color-text-tertiary); cursor: not-allowed; }
 .sia-breadcrumb a.sia-breadcrumb__label:hover, .sia-breadcrumb button.sia-breadcrumb__label:hover:not(:disabled) { color: var(--sia-color-primary-text); background: var(--sia-color-control-hover); }
-.sia-breadcrumb a.sia-breadcrumb__label:focus-visible { outline: 2px solid var(--sia-color-focus-ring); outline-offset: 2px; }
+.sia-breadcrumb a.sia-breadcrumb__label:focus-visible { outline: none; }
 .sia-breadcrumb__menu-trigger.sia-button { display: inline-flex; min-width: 22px; height: 22px; padding: 0; margin-inline-start: 2px; color: inherit; }

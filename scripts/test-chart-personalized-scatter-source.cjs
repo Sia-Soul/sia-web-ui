@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict'),{execFileSync}=require('node:child_process');
+const source=require('../apps/docs/src/pages/chartPersonalizedScatterSource.json');
+assert.deepEqual(source,JSON.parse(execFileSync(process.execPath,['scripts/inspect-chart-references.mjs','--options','--match=^scatter$'],{encoding:'utf8'})));
+const snapshot=require('../apps/docs/src/pages/chartPersonalizedScatterSnapshot.json');
+const current=JSON.parse(execFileSync(process.execPath,['scripts/inspect-chart-personalized-scatter-original.cjs',process.argv[2],process.argv[3]],{encoding:'utf8'}));
+assert.deepEqual(snapshot,current);assert.deepEqual(snapshot.series.map(s=>s.data.length),[20,21]);console.log('scatter 原始配置及固定种子原站41点重新采集深比较通过。');
+const inspect=flag=>JSON.parse(execFileSync(process.execPath,['scripts/inspect-chart-personalized-scatter-original.cjs',process.argv[2],process.argv[3],flag],{encoding:'utf8'}));
+const interaction=inspect('--interaction');assert.equal(interaction.calculable,true);assert.equal(interaction.shapes.length,48);assert.ok(interaction.shapes.every(shape=>shape.draggable===false&&shape.ondragend==='undefined'&&shape.ondrop==='undefined'));
+const geometry=inspect('--geometry');assert.equal(geometry.length,5);assert.deepEqual(geometry[0].commands,[['arc',381.935,48.416,17,.8*Math.PI,.2*Math.PI],['lineTo',381.935,73.916],['closePath']]);
+assert.equal(geometry[2].style.strokeColor,'red');assert.equal(geometry[2].style.text,'9.91');assert.deepEqual(geometry[4].commands,[['moveTo',578,189.5],['arc',498,189.5,80,0,2*Math.PI],['closePath']]);
+console.log('scatter 原站48个图元均无拖放行为；图钉弧线/箭头样式/大圆几何重新采集核对通过。');

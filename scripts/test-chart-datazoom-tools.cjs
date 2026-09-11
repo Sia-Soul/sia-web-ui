@@ -1,0 +1,17 @@
+const assert=require('node:assert/strict'),path=require('node:path');const {chromium}=require(path.join(process.argv[2],'playwright'));const source=require('../apps/docs/src/pages/chartDataZoomSource.json');
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:process.argv[3]});try{
+ const page=await browser.newPage({viewport:{width:1600,height:1100},reducedMotion:'reduce'}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('http://localhost:4174/components/chart?reference='+encodeURIComponent(source.url));const root=page.locator('.chart-datazoom-reference');await root.scrollIntoViewIfNeeded();
+ const range=()=>root.getByRole('slider',{name:'图表可见范围整体移动'}).getAttribute('aria-valuetext');
+ await root.getByRole('button',{name:'框选缩放',exact:true}).click();const brush=root.locator('[data-chart-brush]');await brush.waitFor();
+ const b=await brush.boundingBox();await page.mouse.move(b.x+b.width*.25,b.y+20);await page.mouse.down();await page.mouse.move(b.x+b.width*.75,b.y+80,{steps:6});assert.equal(await root.locator('[data-chart-brush-selection]').count(),1);const selectionBox=await root.locator('[data-chart-brush-selection]').evaluate(n=>{const m=n.getScreenCTM(),p=new DOMPoint(Number(n.getAttribute('x')),Number(n.getAttribute('y'))).matrixTransform(m);return {y:p.y,height:Number(n.getAttribute('height'))*Math.hypot(m.c,m.d)};});assert.ok(Math.abs(selectionBox.y-(b.y+20))<2);assert.ok(Math.abs(selectionBox.height-60)<2,'实际矩形高度而非整高条带');const paint=await root.locator('[data-chart-brush-selection]').evaluate(n=>{const s=getComputedStyle(n);return [s.fill,s.fillOpacity,s.stroke,s.strokeWidth];});assert.deepEqual(paint,['rgba(182, 162, 222, 0.2)','1','rgb(0, 138, 205)','2px']);await page.mouse.up();
+ const selected=(await range()).split(' – ').map(Number);assert.ok(Math.abs(selected[0]-45)<.1&&Math.abs(selected[1]-55)<.1,JSON.stringify(selected));
+ await brush.focus();await page.keyboard.press('Escape');assert.equal(await brush.count(),0);
+ await root.getByRole('button',{name:'切换为柱状图',exact:true}).click();assert.equal(await range(),selected.join(' – '));assert.ok(await root.locator('.sia-chart__bar').count()>0);
+ await root.getByRole('button',{name:'框选缩放',exact:true}).click();await brush.waitFor();await brush.focus();await page.keyboard.press('Escape');
+ await root.getByRole('button',{name:'还原',exact:true}).click();assert.equal(await range(),'40 – 60');assert.equal(await root.locator('.sia-chart__bar').count(),0);assert.equal(await root.locator('[aria-label^="dz，"]').count(),30);
+ await root.getByRole('button',{name:'数据视图',exact:true}).click();const editor=root.getByRole('textbox',{name:'图表数值数据'});const values=JSON.parse(await editor.inputValue());assert.deepEqual(values,[source.option.series[0].data]);values[0][60]=42;await editor.fill(JSON.stringify(values));await root.getByRole('button',{name:'应用数据',exact:true}).click();await root.getByRole('button',{name:'关闭数据视图',exact:true}).click();assert.equal(await root.locator('[aria-label="dz，61，42"]').count(),1);
+ await root.getByRole('button',{name:'还原',exact:true}).click();assert.equal(await root.locator('[aria-label="dz，61，42"]').count(),0);
+ const downloading=page.waitForEvent('download');await root.getByRole('button',{name:'保存为图片',exact:true}).click();assert.equal(await (await downloading).failure(),null);
+ assert.deepEqual(errors,[]);console.log('dataZoom 当前窗口框选、Escape、柱线切换保留范围、还原40–60、150值数据编辑与恢复、导出通过。');
+}finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});

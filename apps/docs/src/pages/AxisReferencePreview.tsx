@@ -1,0 +1,26 @@
+import {ChartAxis,MixedChart} from '@sia-ui/react';
+import type {MixedSeries} from '@sia-ui/react';
+import source from './chartAxisReferenceSource.json';
+const option=source[0]!.option;
+const categories=option.xAxis[0]!.data.map(item=>typeof item==='string'?item:item.value);
+const colors=['#2ec7c9','#b6a2de','#5ab1ef','#ffb980'];
+const series:MixedSeries[]=option.series.map((item,index)=>({name:item.name,type:item.type as 'bar'|'line',categoryAxisIndex:'xAxisIndex' in item?item.xAxisIndex:0,valueAxisIndex:'yAxisIndex' in item?item.yAxisIndex:0,data:item.data,color:colors[index],curve:'smooth',lineWidth:2,hollowSymbol:true,symbolSize:6,barRadius:5}));
+const ticks=(domain:readonly [number,number,number])=>{
+ const decimals=domain[2].toFixed(12).replace(/0+$/,'').split('.')[1]?.length??0;
+ return Array.from({length:Math.round((domain[1]-domain[0])/domain[2])+1},(_,index)=>{
+  const value=domain[0]+index*domain[2];return value===0?'0':value.toFixed(decimals);
+ });
+};
+export function AxisReferencePreview(){return <div className="chart-axis-reference">
+<MixedChart axisPointer={{linkedEmphasis:true,color:"#008acd",width:2,pixelAlign:true}} categoryAxisLabels={[categories,option.xAxis[1]!.data as string[]]} axisLayering="overlay" barSpacing={{categoryGap:.2,seriesGap:.3,pixelAlign:true}} width="100%" height={398} viewBoxSize={[1015,398]} plotBounds={{x:80.5,y:60.5,width:835,height:258}} categories={categories} series={series} valueAxes={[{autoDomain:{boundaryGap:[0,.1]}},{autoDomain:{splitNumber:10}}]} coordinateAnimation tooltipTrigger="axis" legendLayout={{x:507,y:20,symbol:"auto"}}
+ toolbox={{features:['mark','dataView','restore','saveAsImage'],magicTypes:['line','bar'],dataViewReadOnly:false}}
+ tooltipProps={{placement:"axis",inheritTextStyle:true,style:{color:'#fff',background:'rgba(50,50,50,.5)',border:'0 solid #333',borderRadius:4,padding:5,fontSize:14,lineHeight:'20px',fontWeight:400,fontFamily:'微软雅黑, Arial, Verdana, sans-serif',boxShadow:'none',minWidth:0,maxWidth:'none',whiteSpace:'nowrap',transition:'left .4s, top .4s'}}}
+ axisTooltipFormatter={(index,rows,axisIndex)=><><strong>{axisIndex===1?option.xAxis[1]!.data[index] as string:categories[index]}</strong>{rows.map(item=><span key={item.name}>{item.name} : {item.data[index]}</span>)}</>}
+ renderAxes={({layer,plot,categoryPositions,valueDomains})=><>
+<ChartAxis layer={layer} pixelAlign lineOffset={1} tickOffset={1} orientation="bottom" x={plot.x} y={plot.y+plot.height} length={plot.width} labels={categories} positions={categoryPositions} tickPositions={Array.from({length:13},(_,index)=>index/12)} gridPositions={Array.from({length:11},(_,index)=>(index+1)/12)} boundaryGap gridLength={plot.height} splitAreaColors={option.xAxis[0]!.splitArea!.areaStyle.color} lineStyle={{stroke:'green',strokeWidth:2,strokeLinecap:'round'}} tickStyle={{stroke:'red',strokeWidth:2}} tickSize={10} labelMargin={8} labelRotate={-45} labelAnchor="end" labelBaseline="top" formatter={value=>value+'月'} labelStyle={{fill:'blue',fontFamily:'sans-serif',fontSize:15,fontStyle:'italic',fontWeight:'bold'}} labelStyles={categories.map((_,index)=>index===5?{fill:'red',fontSize:30,fontStyle:'normal',fontWeight:'bold'}:undefined)} gridStyle={{stroke:'#483d8b',strokeDasharray:'5 4',strokeWidth:1}}/>
+  <ChartAxis layer={layer} pixelAlign lineOffset={1} tickOffset={1} orientation="top" x={plot.x} y={plot.y} length={plot.width} labels={option.xAxis[1]!.data as string[]} positions={categoryPositions} tickPositions={Array.from({length:13},(_,index)=>index/12)} gridLength={plot.height} gridPositions={Array.from({length:11},(_,index)=>(index+1)/12)} gridStyle={{stroke:"#eee",strokeWidth:1}} lineStyle={{stroke:"#008acd",strokeWidth:2,strokeLinecap:"round"}} tickStyle={{stroke:"#333",strokeWidth:1}} labelMargin={8} labelBaseline="bottom" labelStyle={{fontSize:12}}/>
+  <ChartAxis layer={layer} pixelAlign lineOffset={1} tickOffset={1} orientation="left" x={plot.x} y={plot.y+plot.height} length={plot.height} labels={ticks(valueDomains[0]!)} boundaryGap={false} gridLength={plot.width} splitAreaColors={[...option.yAxis[0]!.splitArea!.areaStyle.color].reverse()} lineStyle={{stroke:'red',strokeWidth:2,strokeLinecap:'round',strokeDasharray:'5 4'}} tickStyle={{stroke:'green',strokeWidth:2}} tickSize={10} labelMargin={18} labelRotate={45} labelBaseline="middle" formatter={value=>value+' ml'} labelStyle={{fill:'#1e90ff',fontFamily:'verdana',fontSize:10,fontWeight:'bold'}} gridStyle={{stroke:'#483d8b',strokeDasharray:'2 2',strokeWidth:2}}/>
+  <ChartAxis layer={layer} pixelAlign lineOffset={1} tickOffset={1} orientation="right" x={plot.x+plot.width} y={plot.y+plot.height} length={plot.height} labels={ticks(valueDomains[1]!)} boundaryGap={false} formatter={value=>value+' °C'} lineStyle={{stroke:"#008acd",strokeWidth:2,strokeLinecap:"round"}} showGrid={false} showTicks={false} gridLength={plot.width} splitAreaColors={["rgba(200,200,200,0.1)","rgba(250,250,250,0.1)"]} labelMargin={8} labelBaseline="middle" labelStyle={{fontSize:12}}/>
+ </>}/>
+ <p className="chart-parity__status">自研对应实现 · 开发中：保留原始四系列48个数值，支持双分类轴、双数值轴、动态刻度、柱线切换、分轴提示与关联强调、图例筛选、标线、数据编辑、还原及图片导出。尚未通过完整一致性验收：刻度最多1像素差异；图例尺寸/字体/定位、工具箱及数据视图外观、曲线控制点与逐帧动画、提示首次测量时序及同月份跨轴缓存行为仍有差异或待核对。</p>
+ </div>;}

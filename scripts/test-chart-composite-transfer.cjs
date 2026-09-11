@@ -1,0 +1,17 @@
+const assert=require('node:assert/strict');
+const {transferCompositeValue}=require('../packages/react/dist/chart.cjs');
+const channels=[{id:'bars',series:[{name:'周数据',data:[0.1,10,null]}]},{id:'pie',nonNegative:true,series:[{name:'细分',data:[0.2,20]}]}];
+const a=(chart,index)=>({chart,series:0,index});
+const saved=JSON.stringify(channels);
+let next=transferCompositeValue(channels,a('bars',0),a('pie',0));
+assert.deepEqual(next[0].series[0].data,[null,10,null]);
+assert.deepEqual(next[1].series[0].data,[0.3,20]);
+next=transferCompositeValue(channels,a('pie',1),a('bars',2));
+assert.deepEqual(next[0].series[0].data,[0.1,10,20]);
+assert.deepEqual(next[1].series[0].data,[0.2,null]);
+assert.equal(JSON.stringify(channels),saved);
+assert.throws(()=>transferCompositeValue(channels,a('missing',0),a('pie',0)),/不存在/);
+assert.throws(()=>transferCompositeValue(channels,a('bars',2),a('pie',0)),/空数据/);
+assert.throws(()=>transferCompositeValue([{id:'bars',series:[{name:'负数',data:[-10]}]},channels[1]],a('bars',0),a('pie',0)),/负数/);
+assert.throws(()=>transferCompositeValue([{id:'bars',series:[{name:'大数',data:[Number.MAX_VALUE]}]},{id:'pie',series:[{name:'大数',data:[Number.MAX_VALUE]}]}],a('bars',0),a('pie',0)),/范围/);
+console.log('组合图转移：双向、空槽填充、十进制精度、输入不变、非法地址、空源、负数和溢出拒绝通过。');

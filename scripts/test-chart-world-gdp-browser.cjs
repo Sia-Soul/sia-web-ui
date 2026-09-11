@@ -1,0 +1,36 @@
+const assert=require('node:assert/strict'),path=require('node:path');
+const {chromium}=require(path.join(process.argv[2],'playwright'));
+const source=require('../apps/docs/src/pages/chartWorldGdpSource.json')[0];
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:process.argv[3]});try{
+ const page=await browser.newPage({viewport:{width:1600,height:1200}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('http://localhost:4174/components/chart?reference='+encodeURIComponent(source.url));const root=page.locator('.chart-world-gdp');await root.scrollIntoViewIfNeeded();
+ assert.equal(await root.locator('[data-map-region]').count(),8);
+ for(const series of source.option.series){const datum=series.data[0],region=root.locator('[data-map-region="'+datum.name+'"]');await region.focus();assert.equal(await root.getByRole('tooltip').textContent(),series.name+String(datum.value).replace(/(\d{1,3})(?=(?:\d{3})+(?!\d))/g,'$1,')+' Billion');assert.equal(await region.locator('text').textContent(),datum.name);}
+ const russia=root.locator('[data-map-region="Russia"] path'),before=await russia.getAttribute('fill');
+ const russiaBounds=await russia.evaluate(p=>{const b=p.getBBox();return {width:b.width,height:b.height};});assert.ok(russiaBounds.height>60&&Math.abs(russiaBounds.width-220)<1e-6,'跨日期线俄罗斯不得被压扁到全球经度跨度');
+ await root.getByRole('slider',{name:'值域下限',exact:true}).focus();await page.keyboard.press('End');assert.equal(await russia.getAttribute('fill'),'#ccc');
+ await root.getByRole('button',{name:'还原',exact:true}).click();assert.equal(await russia.getAttribute('fill'),before);
+ await root.getByRole('button',{name:'数据视图',exact:true}).click();const input=root.getByRole('textbox',{name:'图表数值数据'}),rows=source.option.series.map(s=>[s.data[0].value]);assert.deepEqual(JSON.parse(await input.inputValue()),rows);
+ rows[7]=[9000];await input.fill(JSON.stringify(rows));await root.getByRole('button',{name:'应用数据',exact:true}).click();await root.getByRole('button',{name:'关闭数据视图',exact:true}).click();assert.equal(await russia.getAttribute('fill'),'#ffff00');
+ await root.getByRole('button',{name:'还原',exact:true}).click();assert.equal(await russia.getAttribute('fill'),before);
+ const low=root.getByRole('slider',{name:'值域下限',exact:true}),high=root.getByRole('slider',{name:'值域上限',exact:true}),track=root.locator('[data-range-track]');
+ assert.equal(await low.getAttribute('aria-orientation'),'horizontal');
+ assert.equal(await root.locator('linearGradient').last().getAttribute('x1'),'1');
+ assert.equal(await root.locator('foreignObject input[type="range"]').count(),0);
+ await root.locator('[data-map-region="China"]').focus();assert.equal(await root.locator('[data-range-indicator]').getAttribute('data-range-indicator'),'8227');
+ const trackBox=await track.boundingBox();
+ await page.mouse.move(trackBox.x+trackBox.width*(16000-8227)/14000,trackBox.y+20);await root.locator('[data-map-region="China"]').evaluate(node=>node.blur());
+ assert.equal(await root.locator('[data-map-region="China"] path').evaluate(p=>p.style.fill),'rgba(255, 215, 0, 0.8)');
+ await page.mouse.move(10,10);
+ const lowBox=await low.locator('path').boundingBox();await page.mouse.move(lowBox.x+lowBox.width-3,lowBox.y+lowBox.height-3);await page.mouse.down();await page.mouse.move(lowBox.x+lowBox.width-3-trackBox.width*.2,lowBox.y+lowBox.height-3,{steps:5});
+ assert.ok(Math.abs(Number(await low.getAttribute('aria-valuenow'))-4800)<1e-6);assert.equal(await russia.getAttribute('fill'),'#ccc');await page.mouse.up();
+ const selected=await root.locator('[data-range-selection]').boundingBox();await page.mouse.move(selected.x+selected.width/2,selected.y+10);await page.mouse.down();await page.mouse.move(selected.x+selected.width/2+trackBox.width*.1,selected.y+10,{steps:5});await page.mouse.up();
+ assert.ok(Math.abs(Number(await low.getAttribute('aria-valuenow'))-3400)<1e-6);assert.ok(Math.abs(Number(await high.getAttribute('aria-valuenow'))-14600)<1e-6);
+ await low.focus();await page.keyboard.press('End');assert.equal(await low.getAttribute('aria-valuenow'),await high.getAttribute('aria-valuenow'));await page.keyboard.press('Home');assert.equal(await low.getAttribute('aria-valuenow'),'2000');
+ await root.getByRole('button',{name:'还原',exact:true}).click();
+ await root.getByRole('button',{name:'标线',exact:true}).click();const surface=await root.locator('[data-chart-mark-surface]').boundingBox();await page.mouse.click(surface.x+surface.width*.4,surface.y+surface.height*.4);await page.mouse.click(surface.x+surface.width*.6,surface.y+surface.height*.6);assert.equal(await root.locator('.sia-chart__user-marks line').count(),1);
+ await root.getByRole('button',{name:'撤销标线',exact:true}).click();assert.equal(await root.locator('.sia-chart__user-marks line').count(),0);await root.getByRole('button',{name:'标线',exact:true}).click();
+ const pending=page.waitForEvent('download');await root.getByRole('button',{name:'保存为图片',exact:true}).click();const download=await pending;assert.equal(download.suggestedFilename(),'map8.png');await download.saveAs(path.resolve('apps/docs/chart-map8-preparation.png'));
+ await page.goto('http://localhost:4174/components/chart/map');const card=page.locator('#chart-example-map8');await card.scrollIntoViewIfNeeded();await card.locator('[data-map-region]').first().waitFor();assert.equal(await card.locator('[data-map-region]').count(),8);assert.equal(await card.locator('[data-range-track]').count(),1);
+ assert.deepEqual(errors,[]);console.log('map8：八国原值、共享横向SVG值域/双向联动/区间拖动、编辑、还原、标线、导出及分类卡片通过。');
+}finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});

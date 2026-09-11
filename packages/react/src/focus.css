@@ -1,0 +1,12 @@
+/* Suppress native focus outlines only inside Sia components.
+   Component borders, selection, elevation and keyboard behavior stay intact. */
+:where([class^="sia-"], [class*=" sia-"]):focus,
+:where([class^="sia-"], [class*=" sia-"]) :focus {
+  outline: none;
+}
+
+/* Monaco loads its own focus rules lazily, including !important list outlines.
+   Override only its focus decorations inside the Sia editor wrapper. */
+.sia-editor-control :is(:focus, .synthetic-focus, .monaco-list-row.focused) {
+  outline: none !important;
+}

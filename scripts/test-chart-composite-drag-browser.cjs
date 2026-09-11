@@ -1,0 +1,46 @@
+const assert=require('node:assert/strict');
+const path=require('node:path');
+const {chromium}=require(path.join(process.argv[2],'playwright'));
+(async()=>{
+ const browser=await chromium.launch({headless:true,executablePath:process.argv[3]});
+ try{
+  const page=await browser.newPage({viewport:{width:1500,height:1100}}),errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.goto('http://localhost:4174/components/chart?reference='+encodeURIComponent('http://static.dtws110.com/echarts-2.2.7/doc/example/mix2.html'));
+  const preview=page.locator('.chart-mixed-traffic');await preview.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(2300);
+  const cell=(series,index)=>preview.locator(`[data-mixed-series="${series}"][data-mixed-index="${index}"]`);
+  const center=async locator=>{const box=await locator.boundingBox();assert.ok(box);return {x:box.x+box.width/2,y:box.y+box.height/2};};
+  const piePoint=()=>preview.locator('[data-value-chart="engines"]').first().evaluate(node=>{const matrix=node.ownerSVGElement.getScreenCTM();const p=new DOMPoint(140,75).matrixTransform(matrix);return {x:p.x,y:p.y};});
+  const drag=async(from,to)=>{await page.mouse.move(from.x,from.y);await page.mouse.down();await page.mouse.move(to.x,to.y,{steps:20});await page.mouse.up();};
+  await drag(await center(cell(0,0).locator('rect')),await piePoint());
+  await page.waitForTimeout(100);
+  assert.equal(await cell(0,0).getAttribute('aria-label'),'直接访问，周一，空槽');
+  assert.equal(await preview.locator('[aria-label="搜索引擎细分，百度，1368"]').count(),1);
+  await page.waitForTimeout(600);
+  await drag(await piePoint(),await center(cell(0,0).locator('rect')));
+  await page.waitForTimeout(100);
+  assert.equal(await cell(0,0).getAttribute('aria-label'),'直接访问，周一，1368');
+  assert.equal(await preview.locator('[aria-label="搜索引擎细分，百度，0"]').count(),1);
+  await preview.getByRole('button',{name:'数据视图',exact:true}).click();
+  const values=JSON.parse(await preview.getByRole('textbox',{name:'图表数值数据'}).inputValue());
+  assert.equal(values[0][0],1368);assert.equal(values[5][0],0);
+  await preview.getByRole('button',{name:'关闭数据视图',exact:true}).click();
+  await preview.getByRole('button',{name:'还原',exact:true}).click();
+  assert.equal(await cell(0,0).getAttribute('aria-label'),'直接访问，周一，320');
+  assert.equal(await preview.locator('[aria-label="搜索引擎细分，百度，1048"]').count(),1);
+  await preview.getByRole('button',{name:'数据视图',exact:true}).click();
+  const editor=preview.getByRole('textbox',{name:'图表数值数据'});
+  const negative=JSON.parse(await editor.inputValue());negative[0][0]=-2000;
+  await editor.fill(JSON.stringify(negative));await preview.getByRole('button',{name:'应用数据',exact:true}).click();
+  await preview.getByRole('button',{name:'关闭数据视图',exact:true}).click();
+  await page.waitForTimeout(600);
+  await drag(await center(cell(0,0).locator('rect')),await piePoint());
+  await page.waitForTimeout(100);
+  assert.equal(await cell(0,0).getAttribute('aria-label'),'直接访问，周一，-2000');
+  assert.equal(await preview.locator('[aria-label="搜索引擎细分，百度，1048"]').count(),1);
+  assert.match(await page.getByRole('alert').innerText(),/不接受负数/);
+  assert.deepEqual(errors,[]);
+  console.log('mix2 实际鼠标双向拖放：柱值 320→百度 1368→柱空槽 1368，数据视图同步和还原通过。');
+ }finally{await browser.close();}
+})().catch(error=>{console.error(error);process.exitCode=1;});

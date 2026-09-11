@@ -1,0 +1,41 @@
+const assert=require('node:assert/strict'),path=require('node:path');
+const {chromium}=require(path.join(process.argv[2],'playwright'));
+const source=require('../apps/docs/src/pages/chartMixedBusinessSource.json')[0];
+(async()=>{
+ const browser=await chromium.launch({headless:true,executablePath:process.argv[3]});
+ try{
+  const page=await browser.newPage({viewport:{width:1600,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto('http://localhost:4174/components/chart?reference='+encodeURIComponent(source.url));
+  const preview=page.locator('.chart-mixed-business');await preview.scrollIntoViewIfNeeded();await page.waitForTimeout(2300);
+  assert.equal(await preview.locator('[aria-label="完成率，50"]').count(),1);
+  const gauge=preview.locator('[aria-label="完成率，50"]');await gauge.focus();assert.match(await preview.getByRole('tooltip').textContent(),/业务指标完成率 : 50%/);
+  const expected=preview.locator('[aria-label="预期，展现，100"]');await expected.focus();
+  assert.equal(await expected.locator('text').textContent(),'展现预期 : 100%');assert.equal(await expected.locator('text').getAttribute('text-anchor'),'middle');
+  assert.match(await preview.getByRole('tooltip').textContent(),/预期展现 : 100%/);
+  await expected.evaluate(node=>node.blur());assert.equal(await expected.locator('text').textContent(),'展现预期');
+  const actual=preview.locator('[aria-label="实际，展现，80"]');await actual.hover();
+  assert.equal(await actual.locator('text').textContent(),'展现实际 : 80%');assert.match(await preview.getByRole('tooltip').textContent(),/实际展现 : 80%/);
+  await page.mouse.move(10,10);assert.equal(await actual.locator('text').textContent(),'80%');
+  for(const series of source.option.series.slice(1))for(const item of series.data)assert.equal(await preview.locator(`[aria-label="${series.name}，${item.name}，${item.value}"]`).count(),1);
+  const width=async name=>preview.locator(`[aria-label="${name}"] polygon`).evaluate(node=>{const xs=Array.from(node.points).map(p=>p.x);return Math.max(...xs)-Math.min(...xs);});
+  assert.equal(await width('预期，展现，100'),405);assert.ok(Math.abs(await width('实际，展现，80')-259.2)<.001,'SVG浮点坐标实际宽度 '+await width('实际，展现，80'));
+  await preview.getByRole('button',{name:'展现',exact:true}).click();assert.equal(await preview.locator('[aria-label="实际，展现，80"]').count(),0);assert.equal(await preview.locator('[aria-label="预期，展现，100"]').count(),0);
+  await preview.getByRole('button',{name:'还原',exact:true}).click();
+  await preview.getByRole('button',{name:'数据视图',exact:true}).click();
+  const input=preview.getByRole('textbox',{name:'图表数值数据'}),values=JSON.parse(await input.inputValue());assert.deepEqual(values,source.option.series.map(s=>s.data.map(d=>d.value)));
+  values[0][0]=75;values[2][0]=35;await input.fill(JSON.stringify(values));await preview.getByRole('button',{name:'应用数据',exact:true}).click();await preview.getByRole('button',{name:'关闭数据视图',exact:true}).click();
+  assert.equal(await preview.locator('[aria-label="完成率，75"]').count(),1);assert.equal(await preview.locator('[aria-label="实际，访问，35"]').count(),1);
+  await preview.getByRole('button',{name:'还原',exact:true}).click();assert.equal(await preview.locator('[aria-label="完成率，50"]').count(),1);
+  await page.waitForTimeout(2300);await page.screenshot({path:'apps/docs/chart-mix11-preparation.png'});
+  await preview.getByRole('button',{name:'标线',exact:true}).click();
+  const surface=preview.locator('[data-chart-mark-surface]');
+  const coordinates=await surface.evaluate(node=>[[225,210],[620,140]].map(([x,y])=>{const p=new DOMPoint(x,y).matrixTransform(node.ownerSVGElement.getScreenCTM());return {x:p.x,y:p.y};}));
+  for(const p of coordinates)await page.mouse.click(p.x,p.y);
+  assert.equal(await preview.locator('.sia-chart__user-marks line').count(),1);
+  await preview.getByRole('button',{name:'撤销标线',exact:true}).click();assert.equal(await preview.locator('.sia-chart__user-marks line').count(),0);
+  await preview.getByRole('button',{name:'标线',exact:true}).click();assert.equal(await surface.count(),0);
+  const downloadEvent=page.waitForEvent('download');await preview.getByRole('button',{name:'保存为图片',exact:true}).click();
+  const download=await downloadEvent;assert.equal(download.suggestedFilename(),'mix11.png');await download.saveAs(path.resolve('apps/docs/chart-mix11-export.png'));
+  assert.deepEqual(errors,[]);console.log('mix11准备：11原值、双层尺寸、共享图例、三组联合编辑、还原通过。');
+ }finally{await browser.close();}
+})().catch(error=>{console.error(error);process.exitCode=1;});

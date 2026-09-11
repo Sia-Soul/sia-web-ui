@@ -84,7 +84,7 @@ export function Slider({
       <input
         className="sia-slider__input"
         type="range"
-        aria-label={range ? `滑块 ${index + 1}` : "滑块"}
+        aria-label={range ? `${props['aria-label'] ?? '滑块'} ${index + 1}` : props['aria-label'] ?? '滑块'}
         min={min}
         max={max}
         step={step}

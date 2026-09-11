@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useId, useRef, useState } from "react";
 import type { FocusEvent, InputHTMLAttributes, KeyboardEvent, ReactNode } from "react";
 import { Icon } from "./Icon";
-import type { ControlSize, ControlStatus } from "./shared";
+import type { ControlSize, ControlStatus, InputPlaceholderMode } from "./shared";
 import { useControllableState } from "./shared";
 
 export interface InputNumberProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "defaultValue" | "onChange" | "prefix" | "size" | "type" | "value"> {
@@ -17,6 +17,7 @@ export interface InputNumberProps extends Omit<InputHTMLAttributes<HTMLInputElem
   prefix?: ReactNode;
   suffix?: ReactNode;
   controls?: boolean;
+  placeholderMode?: InputPlaceholderMode;
 }
 
 function formatValue(value: number | null, precision?: number) {
@@ -38,6 +39,8 @@ export const InputNumber = forwardRef<HTMLInputElement, InputNumberProps>(functi
     prefix,
     suffix,
     controls = true,
+    placeholderMode = "default",
+    placeholder,
     disabled,
     readOnly,
     className = "",
@@ -115,28 +118,37 @@ export const InputNumber = forwardRef<HTMLInputElement, InputNumberProps>(functi
 
   const increaseDisabled = disabled || readOnly || (max !== undefined && currentValue !== null && currentValue >= max);
   const decreaseDisabled = disabled || readOnly || (min !== undefined && currentValue !== null && currentValue <= min);
+  const floatingPlaceholder = placeholderMode === "floating" && Boolean(placeholder);
+
+  const input = (
+    <input
+      {...props}
+      ref={setRef}
+      id={inputId}
+      type="text"
+      role="spinbutton"
+      inputMode="decimal"
+      value={text}
+      placeholder={placeholder}
+      disabled={disabled}
+      readOnly={readOnly}
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-valuenow={currentValue ?? undefined}
+      aria-invalid={status === "error" || undefined}
+      onChange={(event) => setText(event.target.value)}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
+    />
+  );
 
   return (
-    <span className={`sia-input-number sia-input-number--${size} sia-input-number--${status}${disabled ? " is-disabled" : ""} ${className}`.trim()}>
+    <span className={`sia-input-number sia-input-number--${size} sia-input-number--${status}${floatingPlaceholder ? " sia-input-number--floating" : ""}${floatingPlaceholder && text.length > 0 ? " is-filled" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()}>
       {prefix ? <span className="sia-input-number__affix">{prefix}</span> : null}
-      <input
-        {...props}
-        ref={setRef}
-        id={inputId}
-        type="text"
-        role="spinbutton"
-        inputMode="decimal"
-        value={text}
-        disabled={disabled}
-        readOnly={readOnly}
-        aria-valuemin={min}
-        aria-valuemax={max}
-        aria-valuenow={currentValue ?? undefined}
-        aria-invalid={status === "error" || undefined}
-        onChange={(event) => setText(event.target.value)}
-        onBlur={handleBlur}
-        onKeyDown={handleKeyDown}
-      />
+      {floatingPlaceholder ? <span className="sia-input-number__input-wrap">
+        {input}
+        <span className="sia-input-number__floating-placeholder" aria-hidden="true">{placeholder}</span>
+      </span> : input}
       {suffix ? <span className="sia-input-number__affix">{suffix}</span> : null}
       {controls ? <span className="sia-input-number__controls">
         <button type="button" tabIndex={-1} aria-label="增加数值" disabled={increaseDisabled} onClick={() => changeBy(1)}><Icon name="chevron-up" size={12} /></button>

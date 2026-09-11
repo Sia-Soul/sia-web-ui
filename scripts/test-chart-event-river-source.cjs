@@ -1,0 +1,3 @@
+const assert=require('node:assert/strict'),{execFileSync}=require('node:child_process');
+const source=require('../apps/docs/src/pages/chartEventRiverSource.json');assert.deepEqual(source,JSON.parse(execFileSync(process.execPath,['scripts/inspect-chart-references.mjs','--options','--match=^eventRiver1$'],{encoding:'utf8'})));
+const series=source[0].option.series;assert.deepEqual(series.map(group=>group.data.length),[3,3]);assert.deepEqual(series.flatMap(group=>group.data.map(event=>event.evolution.length)),[5,4,5,5,5,6]);assert.ok(series.every(group=>group.weight===123&&group.data.every(event=>event.weight===123&&event.evolution.every(point=>point.detail.text==='百度指数'))));console.log('eventRiver1 原始配置、2系列6事件30时间点及权重/详情重取核对通过。');

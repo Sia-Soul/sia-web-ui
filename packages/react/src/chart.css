@@ -1,0 +1,198 @@
+@import "./focus.css";
+
+.sia-chart {
+  --sia-chart-axis: color-mix(in srgb, var(--sia-color-text) 34%, transparent);
+  --sia-chart-grid: color-mix(in srgb, var(--sia-color-text) 10%, transparent);
+  --sia-chart-track: color-mix(in srgb, var(--sia-color-text) 9%, transparent);
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--sia-color-text);
+  font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  background: transparent;
+}
+.sia-chart-composite { position: relative; min-width: 0; overflow: hidden; }
+.sia-chart-composite__layer { position: absolute; min-width: 0; }
+.sia-chart-composite__layer:has(.sia-chart-data-view) { z-index: 1000 !important; }
+.sia-chart--overlay { pointer-events: none; }
+.sia-chart--overlay .sia-chart__mark,
+.sia-chart--overlay .sia-chart-toolbox,
+.sia-chart--overlay .sia-chart-data-view,
+.sia-chart--overlay .sia-chart__legend,
+.sia-chart--overlay .sia-chart__visual-map { pointer-events: auto; }
+.sia-chart-composite__layer > .sia-chart, .sia-chart-composite__layer > .sia-chart-with-zoom { width: 100% !important; height: 100% !important; }
+
+.sia-chart__svg { display: block; width: 100%; height: 100%; overflow: visible; outline: none; }
+.sia-chart__svg:focus-visible { border-radius: var(--sia-radius); }
+.sia-chart__heading { position: absolute; z-index: 1; top: 8px; left: 12px; display: grid; gap: 2px; max-width: calc(100% - 24px); pointer-events: none; }
+.sia-chart__heading strong { overflow: hidden; color: var(--sia-color-text); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.sia-chart__heading span { overflow: hidden; color: var(--sia-color-text-secondary); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.sia-chart__tooltip { position: absolute; z-index: 5; display: grid; min-width: 96px; max-width: 240px; padding: 8px 10px; color: var(--sia-color-text); background: color-mix(in srgb, var(--sia-color-surface) 95%, transparent); border: 1px solid var(--sia-color-border); border-radius: var(--sia-radius); box-shadow: var(--sia-shadow-popup); font-size: 12px; line-height: 1.55; pointer-events: none; transform: translate(10px, calc(-100% - 10px)); }
+.sia-chart__tooltip strong { font-size: 13px; }
+.sia-chart__tooltip span { color: var(--sia-color-text-secondary); }
+.sia-chart__tooltip b { color: var(--sia-color-primary-text); font-size: 15px; font-weight: 650; }
+.sia-chart-toolbox { position: absolute; z-index: 3; top: 8px; right: 10px; display: flex; align-items: center; gap: 2px; padding: 3px; color: var(--sia-color-text-secondary); background: color-mix(in srgb, var(--sia-color-surface) 82%, transparent); border: 1px solid color-mix(in srgb, var(--sia-color-border) 74%, transparent); border-radius: 7px; backdrop-filter: blur(8px); }
+.sia-chart-toolbox__button { display: grid; min-width: 26px; height: 26px; padding: 4px; place-items: center; color: inherit; background: transparent; border: 0; border-radius: 5px; cursor: pointer; font: inherit; }
+.sia-chart-toolbox__button:hover, .sia-chart-toolbox__button:focus-visible, .sia-chart-toolbox__button[aria-pressed="true"] { color: var(--sia-color-primary); background: color-mix(in srgb, var(--sia-color-primary) 11%, transparent); outline: none; }
+.sia-chart-toolbox__button svg { width: 17px; height: 17px; }
+.sia-chart-toolbox__magic { padding-inline: 7px; font-size: 11px; }
+.sia-chart-data-view { position: absolute; z-index: 8; inset: 12px; display: flex; min-height: 0; flex-direction: column; color: var(--sia-color-text); background: color-mix(in srgb, var(--sia-color-surface) 97%, transparent); border: 1px solid var(--sia-color-border); border-radius: var(--sia-radius); box-shadow: var(--sia-shadow-popup); backdrop-filter: blur(12px); }
+.sia-chart-data-view__header { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--sia-color-border); }
+.sia-chart-data-view__header button { width: 26px; height: 26px; color: var(--sia-color-text-secondary); background: transparent; border: 0; border-radius: 5px; cursor: pointer; font-size: 20px; line-height: 1; }
+.sia-chart-data-view__header button:hover { color: var(--sia-color-text); background: var(--sia-color-fill-secondary); }
+.sia-chart-data-view__body { min-height: 0; flex: 1; padding: 12px; overflow: auto; font-size: 12px; }
+.sia-chart-data-view__body pre { margin: 0; white-space: pre-wrap; }
+.sia-chart__loading, .sia-chart__empty { position: absolute; z-index: 4; inset: 0; display: grid; place-content: center; justify-items: center; gap: 9px; color: var(--sia-color-text-secondary); background: color-mix(in srgb, var(--sia-color-surface) 82%, transparent); font-size: 13px; }
+.sia-chart__loading i { width: 24px; height: 24px; border: 2px solid var(--sia-color-border); border-top-color: var(--sia-color-primary); border-radius: 50%; animation: sia-spin 720ms linear infinite; }
+.sia-chart__legend text, .sia-chart__visual-map text { fill: var(--sia-color-text-secondary); font-size: 11px; }
+.sia-chart__visual-map-input { width: 100%; height: 100%; margin: 0; appearance: none; background: transparent; accent-color: var(--sia-color-primary); }
+.sia-chart__visual-map-input::-webkit-slider-thumb { width: 8px; height: 17px; appearance: none; cursor: ew-resize; background: var(--sia-color-surface); border: 2px solid var(--sia-color-primary); border-radius: 3px; }
+.sia-chart__visual-map-input--vertical { appearance: slider-vertical; writing-mode: vertical-lr; direction: rtl; }
+.sia-chart__visual-map-range { position: relative; width: 100%; height: 100%; }
+.sia-chart__visual-map-range input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; appearance: none; background: transparent; accent-color: var(--sia-color-primary); pointer-events: none; }
+.sia-chart__visual-map-range input::-webkit-slider-thumb { width: 8px; height: 17px; appearance: none; cursor: ew-resize; background: var(--sia-color-surface); border: 2px solid var(--sia-color-primary); border-radius: 3px; pointer-events: auto; }
+.sia-chart__visual-map-range input::-moz-range-thumb { width: 6px; height: 15px; cursor: ew-resize; background: var(--sia-color-surface); border: 2px solid var(--sia-color-primary); border-radius: 3px; pointer-events: auto; }
+.sia-chart__visual-map-range--vertical input { appearance: slider-vertical; writing-mode: vertical-lr; direction: rtl; }
+.sia-chart__legend-item { cursor: pointer; outline: none; }
+.sia-chart__legend-item:focus-visible rect { opacity: 0.8; }
+.sia-chart__axis-line { stroke: var(--sia-chart-axis); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.sia-chart__grid-line { stroke: var(--sia-chart-grid); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.sia-chart__axis-label { fill: var(--sia-color-text-secondary); font-size: 10px; }
+.sia-chart__axis-name { fill: var(--sia-color-text-secondary); font-size: 11px; font-weight: 600; }
+.sia-chart__mark { cursor: pointer; outline: none; }
+.sia-chart__calculable { cursor: grab; }
+.sia-chart__calculable:active { cursor: grabbing; }
+.sia-chart__mark:focus-visible > :first-child { opacity: 0.85; }
+.sia-chart__line { stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.sia-chart__area { opacity: 0.16; }
+.sia-chart__mark-line { color: var(--sia-color-text-secondary); }
+.sia-chart__mark-line line { stroke-dasharray: 5 4; opacity: 0.7; vector-effect: non-scaling-stroke; }
+.sia-chart__mark-line text { fill: currentColor; font-size: 10px; }
+.sia-chart__user-marks { color: var(--sia-color-warning, #fa8c16); pointer-events: none; }
+.sia-chart__user-marks line { stroke: currentColor; stroke-width: 2; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; }
+.sia-chart__user-marks circle { fill: var(--sia-color-surface); stroke: currentColor; stroke-width: 2; transform-box: fill-box; transform-origin: center; vector-effect: non-scaling-stroke; }
+.sia-chart__user-mark-start { animation: sia-chart-mark-pulse 900ms ease-in-out infinite alternate; }
+.sia-chart__axis-pointer { stroke: var(--sia-color-primary); stroke-width: 1; stroke-dasharray: 4 4; opacity: 0.58; vector-effect: non-scaling-stroke; pointer-events: none; }
+.sia-chart__mark-point text, .sia-chart__point-label { fill: var(--sia-color-text-secondary); font-size: 10px; paint-order: stroke; stroke: var(--sia-color-surface); stroke-width: 3px; stroke-linejoin: round; }
+.sia-chart__bar, .sia-chart__bubble, .sia-chart__sector, .sia-chart__funnel, .sia-chart__heat-cell, .sia-chart__map-region, .sia-chart__graph-node, .sia-chart__tree-node, .sia-chart__treemap-node, .sia-chart__word { transition: opacity 140ms ease, filter 140ms ease, transform 140ms ease; transform-box: fill-box; transform-origin: center; }
+.sia-chart__mark:hover > .sia-chart__bar, .sia-chart__mark:hover > .sia-chart__bubble, .sia-chart__mark:hover > .sia-chart__sector, .sia-chart__mark:hover > .sia-chart__funnel, .sia-chart__mark:hover > .sia-chart__heat-cell, .sia-chart__mark:hover > .sia-chart__map-region, .sia-chart__mark:hover > .sia-chart__graph-node, .sia-chart__mark:hover > .sia-chart__tree-node, .sia-chart__mark:hover > .sia-chart__word { filter: brightness(1.06) drop-shadow(0 3px 4px rgb(0 0 0 / 16%)); opacity: 0.9; }
+.sia-chart__mark:hover > .sia-chart__bar, .sia-chart__mark:hover > .sia-chart__bubble, .sia-chart__mark:hover > .sia-chart__sector, .sia-chart__mark:hover > .sia-chart__graph-node, .sia-chart__mark:hover > .sia-chart__tree-node { transform: scale(1.025); }
+.sia-chart__bubble { opacity: 0.78; stroke: color-mix(in srgb, currentColor 85%, #fff); stroke-width: 1; }
+.sia-chart__pie-label, .sia-chart__radar-label, .sia-chart__chord-label, .sia-chart__tree-label { fill: var(--sia-color-text-secondary); font-size: 11px; }
+.sia-chart__pie-label-line { opacity: .7; vector-effect: non-scaling-stroke; }
+.sia-chart__center-label { display: grid; width: 100%; height: 100%; place-content: center; color: var(--sia-color-text); text-align: center; }
+.sia-chart__radar-grid { fill: var(--sia-chart-track); stroke: var(--sia-chart-axis); stroke-width: 1; }
+.sia-chart__chord-link { opacity: 0.4; transition: opacity 140ms ease; }
+.sia-chart__mark:hover > .sia-chart__chord-link { opacity: 0.75; }
+.sia-chart__graph-links line { stroke: var(--sia-chart-axis); }
+.sia-chart__graph-label, .sia-chart__funnel-label, .sia-chart__venn-label, .sia-chart__map-label { fill: #fff; font-size: 11px; font-weight: 650; pointer-events: none; text-shadow: 0 1px 2px rgb(0 0 0 / 38%); }
+.sia-chart__graph-node { stroke: var(--sia-color-surface); stroke-width: 2; }
+.sia-chart__map-region { stroke: var(--sia-color-surface); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.sia-chart__map-region--selected { filter: brightness(1.13) drop-shadow(0 0 5px color-mix(in srgb, var(--sia-color-primary) 60%, transparent)); stroke: var(--sia-color-primary); stroke-width: 3; }
+.sia-chart__map-roam-surface { cursor: grab; }
+.sia-chart__map-roam-surface:active { cursor: grabbing; }
+.sia-chart__map-mark-line { pointer-events: none; }
+.sia-chart__map-effect { filter: drop-shadow(0 0 4px currentColor); }
+.sia-chart__map-point { stroke: var(--sia-color-surface); stroke-width: 2; }
+.sia-chart__gauge-tick { stroke: var(--sia-color-text-secondary); stroke-width: 2; }
+.sia-chart__gauge-name { fill: var(--sia-color-text-secondary); font-size: 12px; }
+.sia-chart__gauge-value { fill: var(--sia-color-text); font-size: 24px; font-weight: 700; }
+.sia-chart__gauge-axis-label { fill: var(--sia-color-text-secondary); font-size: 8px; }
+.sia-chart__gauge-pointer { filter: drop-shadow(0 1px 2px rgb(0 0 0 / 20%)); }
+.sia-chart__gauge-progress { filter: drop-shadow(0 2px 3px rgb(0 0 0 / 12%)); }
+.sia-chart__funnel { stroke: var(--sia-color-surface); stroke-width: 2; }
+.sia-chart__heat-label { fill: #fff; font-size: 10px; font-weight: 600; pointer-events: none; text-shadow: 0 1px 2px rgb(0 0 0 / 30%); }
+.sia-chart__heat-density { mix-blend-mode: multiply; }
+[data-sia-theme="dark"] .sia-chart__heat-density { mix-blend-mode: screen; }
+.sia-chart__river { opacity: 0.82; }
+.sia-chart__event-river { opacity: .76; transition: opacity 150ms ease; }
+.sia-chart--event-river-reference .sia-chart__event-river { opacity: 1; }
+.sia-chart--event-river-reference .sia-chart__mark:is(:hover,:focus) .sia-chart__event-river { fill: var(--sia-event-emphasis); filter: none; }
+.sia-chart--event-river-reference .sia-chart__event-label { text-shadow: none; }
+.sia-chart--event-river-reference .sia-chart__event-label { font: 12px 'Microsoft YaHei', Arial, Verdana, sans-serif; }
+.sia-chart__mark:hover > .sia-chart__event-river { opacity: .95; filter: drop-shadow(0 3px 4px rgb(0 0 0 / 14%)); }
+.sia-chart__event-label { fill: #fff; font-size: 9px; font-weight: 650; pointer-events: none; text-shadow: 0 1px 2px rgb(0 0 0 / 35%); }
+.sia-chart__venn-circle { opacity: 0.56; stroke: var(--sia-color-surface); stroke-width: 2; mix-blend-mode: multiply; }
+[data-sia-theme="dark"] .sia-chart__venn-circle { mix-blend-mode: screen; }
+.sia-chart__treemap-node { stroke: var(--sia-color-surface); stroke-width: 1.5; }
+.sia-chart__treemap-node--depth-1, .sia-chart__treemap-node--depth-2 { opacity: 0.88; }
+.sia-chart__treemap-label { fill: #fff; font-size: 11px; font-weight: 650; pointer-events: none; text-shadow: 0 1px 2px rgb(0 0 0 / 38%); }
+.sia-chart__treemap-label tspan + tspan { font-size: 10px; font-weight: 500; }
+.sia-chart--treemap-reference .sia-chart__treemap-label { text-shadow: none; }
+.sia-chart--macarons.sia-chart--treemap-reference .sia-chart__heading strong { color: #333; font-weight: 700; }
+.sia-chart__treemap-breadcrumb g { cursor: pointer; outline: none; }
+.sia-chart__treemap-breadcrumb rect { fill: var(--sia-color-fill-secondary); stroke: var(--sia-color-border); }
+.sia-chart__treemap-breadcrumb text { fill: var(--sia-color-text-secondary); font-size: 10px; }
+.sia-chart__treemap-breadcrumb g:hover rect, .sia-chart__treemap-breadcrumb g:focus-visible rect { fill: color-mix(in srgb, var(--sia-color-primary) 10%, var(--sia-color-surface)); stroke: var(--sia-color-primary); }
+.sia-chart__tree-links path { fill: none; stroke: var(--sia-chart-axis); stroke-width: 1.5; }
+.sia-chart__tree-node { stroke: var(--sia-color-surface); stroke-width: 2; }
+.sia-chart__tree-toggle { fill: #fff; font-size: 11px; font-weight: 700; pointer-events: none; }
+.sia-chart__word { font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; font-weight: 650; }
+.sia-chart-with-zoom { min-width: 0; }
+.sia-chart-data-zoom { --sia-chart-zoom-start: 0%; --sia-chart-zoom-end: 100%; position: relative; height: 28px; margin: -26px 52px 0 62px; }
+.sia-chart__inline-zoom .sia-chart-data-zoom { margin: 0; }
+.sia-chart__inline-zoom--compact .sia-chart-data-zoom { height:100%; }
+.sia-chart__inline-zoom--compact { overflow:visible; }
+.sia-chart__inline-zoom--compact .sia-chart-data-zoom input { height:20px; }
+.sia-chart__inline-zoom--compact .sia-chart-data-zoom__pan { top:0; height:20px; }
+.sia-chart__inline-zoom--compact .sia-chart-data-zoom__track { top:0; height:20px; border-radius:0; background:transparent; }
+.sia-chart__inline-zoom--compact .sia-chart-data-zoom__track i { background:rgba(182,162,222,0.2); }
+.sia-chart__inline-zoom--compact .sia-chart-data-zoom input { width:calc(100% + 8px); right:auto; }
+.sia-chart__inline-zoom--compact .sia-chart-data-zoom input[data-zoom-end] { left:-8px; }
+.sia-chart__inline-zoom--compact .sia-chart-data-zoom input::-webkit-slider-thumb { width:8px; height:20px; border:0; border-radius:0; box-shadow:none; background:linear-gradient(#fff,#fff) center 8px/4px 1px no-repeat,linear-gradient(#fff,#fff) center 11px/4px 1px no-repeat,#008acd; }
+.sia-chart__inline-zoom--compact .sia-chart-data-zoom input::-moz-range-thumb { width:8px; height:20px; border:0; border-radius:0; box-shadow:none; background:linear-gradient(#fff,#fff) center 8px/4px 1px no-repeat,linear-gradient(#fff,#fff) center 11px/4px 1px no-repeat,#008acd; }
+.sia-chart-data-zoom > svg { position: absolute; inset: 0; width: 100%; height: 20px; overflow: visible; }
+.sia-chart-data-zoom > svg polygon { fill: color-mix(in srgb, var(--sia-color-primary) 12%, transparent); }
+.sia-chart-data-zoom__track { position: absolute; top: 10px; right: 0; left: 0; height: 6px; background: var(--sia-chart-track); border-radius: 999px; }
+.sia-chart-data-zoom__track i { position: absolute; top: 0; bottom: 0; left: var(--sia-chart-zoom-start); right: calc(100% - var(--sia-chart-zoom-end)); background: color-mix(in srgb, var(--sia-color-primary) 38%, transparent); border-radius: inherit; }
+.sia-chart-data-zoom__pan { position:absolute; z-index:1; top:3px; height:20px; left:var(--sia-chart-zoom-start); right:calc(100% - var(--sia-chart-zoom-end)); cursor:grab; touch-action:none; }
+.sia-chart-data-zoom__pan:active { cursor:grabbing; }
+.sia-chart-data-zoom__pan:focus-visible { outline:2px solid var(--sia-color-primary); outline-offset:2px; }
+.sia-chart-data-zoom--vertical .sia-chart-data-zoom__pan { top:var(--sia-chart-zoom-start); bottom:calc(100% - var(--sia-chart-zoom-end)); left:3px; right:auto; width:20px; height:auto; }
+.sia-chart-data-zoom input { position: absolute; z-index: 1; inset: 0; width: 100%; height: 26px; margin: 0; appearance: none; background: transparent; pointer-events: none; }
+.sia-chart-data-zoom input::-webkit-slider-thumb { width: 12px; height: 18px; appearance: none; cursor: ew-resize; background: var(--sia-color-surface); border: 2px solid var(--sia-color-primary); border-radius: 4px; box-shadow: 0 1px 3px rgb(0 0 0 / 12%); pointer-events: auto; }
+.sia-chart-data-zoom input::-moz-range-thumb { width: 10px; height: 16px; cursor: ew-resize; background: var(--sia-color-surface); border: 2px solid var(--sia-color-primary); border-radius: 4px; pointer-events: auto; }
+.sia-chart-data-zoom output { position: absolute; right: 0; bottom: -15px; color: var(--sia-color-text-secondary); font-size: 10px; }
+.sia-chart-data-zoom--vertical { position: absolute; top: 48px; right: 8px; width: 28px; height: 250px; margin: 0; }
+.sia-chart-data-zoom--vertical .sia-chart-data-zoom__track { top: 0; right: 10px; bottom: 0; left: auto; width: 6px; height: auto; }
+.sia-chart-data-zoom--vertical .sia-chart-data-zoom__track i { top: var(--sia-chart-zoom-start); right: 0; bottom: calc(100% - var(--sia-chart-zoom-end)); left: 0; }
+.sia-chart-data-zoom--vertical input { width: 26px; height: 100%; appearance: slider-vertical; writing-mode: vertical-lr; direction: rtl; }
+.sia-chart-data-zoom--vertical > svg { display: none; }
+.sia-chart-timeline { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 34px; margin: -20px 42px 0; color: var(--sia-color-text-secondary); }
+.sia-chart-timeline button { width: 28px; height: 28px; color: var(--sia-color-primary); background: color-mix(in srgb, var(--sia-color-primary) 10%, transparent); border: 1px solid color-mix(in srgb, var(--sia-color-primary) 28%, transparent); border-radius: 50%; cursor: pointer; }
+.sia-chart-timeline input { width: 100%; accent-color: var(--sia-color-primary); }
+.sia-chart-timeline output { min-width: 52px; font-size: 12px; text-align: right; }
+
+.sia-chart--animated .sia-chart__line--draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: sia-chart-draw var(--sia-chart-animation-duration) cubic-bezier(.22, .61, .36, 1) forwards; }
+.sia-chart--animated .sia-chart__line:not(.sia-chart__line--draw) { animation: sia-chart-line-reveal var(--sia-chart-animation-duration) ease both; }
+.sia-chart--animated .sia-chart__bar, .sia-chart--animated .sia-chart__bubble, .sia-chart--animated .sia-chart__sector, .sia-chart--animated .sia-chart__funnel, .sia-chart--animated .sia-chart__map-region, .sia-chart--animated .sia-chart__graph-node, .sia-chart--animated .sia-chart__tree-node, .sia-chart--animated .sia-chart__treemap-node, .sia-chart--animated .sia-chart__word { animation: sia-chart-reveal var(--sia-chart-animation-duration) cubic-bezier(.22, .61, .36, 1) both; }
+@keyframes sia-chart-draw { to { stroke-dashoffset: 0; } }
+@keyframes sia-chart-line-reveal { from { opacity: 0; } }
+@keyframes sia-chart-reveal { from { opacity: 0; transform: scale(.72); } }
+@keyframes sia-chart-mark-pulse { from { opacity: .45; transform: scale(.82); } to { opacity: 1; transform: scale(1.2); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .sia-chart__bar, .sia-chart__bubble, .sia-chart__sector, .sia-chart__funnel, .sia-chart__heat-cell, .sia-chart__map-region, .sia-chart__graph-node, .sia-chart__tree-node, .sia-chart__treemap-node, .sia-chart__word { transition: none; }
+  .sia-chart--animated .sia-chart__line--draw, .sia-chart--animated .sia-chart__line:not(.sia-chart__line--draw), .sia-chart--animated .sia-chart__bar, .sia-chart--animated .sia-chart__bubble, .sia-chart--animated .sia-chart__sector, .sia-chart--animated .sia-chart__funnel, .sia-chart--animated .sia-chart__map-region, .sia-chart--animated .sia-chart__graph-node, .sia-chart--animated .sia-chart__tree-node, .sia-chart--animated .sia-chart__treemap-node, .sia-chart--animated .sia-chart__word, .sia-chart__user-mark-start { animation: none; }
+}
+.sia-chart--macarons { background: #fff; font-family: Arial, "Microsoft YaHei", sans-serif; --sia-color-text-secondary: #333; --sia-color-text: #333; --sia-color-surface: #fff; }
+.sia-chart--macarons.sia-chart--overlay { background: transparent; }
+.sia-chart--macarons .sia-chart__heading { top: 5px; left: 5px; gap: 10px; }
+.sia-chart--macarons .sia-chart__heading strong { color: #008acd; font-size: 18px; font-weight: 500; }
+.sia-chart--macarons .sia-chart__heading span { color: #aaa; font-size: 12px; }
+.sia-chart--macarons .sia-chart__axis-label { font-size: 12px; }
+.sia-chart--macarons .sia-chart__area { opacity: .5; }
+.sia-chart--macarons .sia-chart__mark-line line { stroke-dasharray: 5 5; opacity: 1; }
+.sia-chart--macarons .sia-chart__mark-line text { font-size: 12px; }
+.sia-chart-toolbox--vertical { flex-direction: column; top: 50%; right: 8px; transform: translateY(-50%); }
+.sia-chart-toolbox__button:disabled { opacity: .3; cursor: default; }
+.sia-chart--macarons .sia-chart-toolbox { gap: 2px; padding: 0; border: 0; box-shadow: none; background: transparent; }
+.sia-chart--macarons .sia-chart-toolbox__button { width: 22px; min-width: 22px; height: 22px; padding: 2px; color: #5ab1ef; }
+.sia-chart--macarons .sia-chart__legend text { font-size: 12px; }
+.sia-chart-data-editor { display: grid; gap: 8px; }
+.sia-chart--macarons .sia-chart__point-label { stroke: none; font-size: 12px; }
+.sia-chart--macarons .sia-chart__tooltip { color: #fff; background: rgba(0,0,0,.7); border: 0; border-radius: 4px; }
+.sia-chart--macarons .sia-chart__tooltip span { color: #fff; }
+.sia-chart__tooltip.sia-chart__tooltip--inherit-text :is(strong, span, b) { font: inherit; color: inherit; }
+.sia-chart__mark:hover > .sia-chart__mixed-hollow-symbol,
+.sia-chart__mark:focus > .sia-chart__mixed-hollow-symbol { stroke-width: 4; }

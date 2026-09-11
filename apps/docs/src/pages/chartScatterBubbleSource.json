@@ -1,0 +1,85 @@
+[
+  {
+    "id": "scatter2",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/scatter2.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "tooltip": {
+        "trigger": "axis",
+        "showDelay": 0,
+        "axisPointer": {
+          "show": true,
+          "type": "cross",
+          "lineStyle": {
+            "type": "dashed",
+            "width": 1
+          }
+        }
+      },
+      "legend": {
+        "data": [
+          "scatter1",
+          "scatter2"
+        ]
+      },
+      "toolbox": {
+        "show": true,
+        "feature": {
+          "mark": {
+            "show": true
+          },
+          "dataZoom": {
+            "show": true
+          },
+          "dataView": {
+            "show": true,
+            "readOnly": false
+          },
+          "restore": {
+            "show": true
+          },
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "xAxis": [
+        {
+          "type": "value",
+          "splitNumber": 4,
+          "scale": true
+        }
+      ],
+      "yAxis": [
+        {
+          "type": "value",
+          "splitNumber": 4,
+          "scale": true
+        }
+      ],
+      "series": [
+        {
+          "name": "scatter1",
+          "type": "scatter",
+          "symbolSize": {
+            "$expression": "function (value){\n                return Math.round(value[2] / 5);\n            }"
+          },
+          "data": {
+            "$expression": "randomDataArray()"
+          }
+        },
+        {
+          "name": "scatter2",
+          "type": "scatter",
+          "symbolSize": {
+            "$expression": "function (value){\n                return Math.round(value[2] / 5);\n            }"
+          },
+          "data": {
+            "$expression": "randomDataArray()"
+          }
+        }
+      ]
+    }
+  }
+]

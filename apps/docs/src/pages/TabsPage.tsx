@@ -48,6 +48,41 @@ export default function Demo() {
   </>;
 }`;
 
+const techCode = `import { Tabs } from "@sia-ui/react";
+
+const items = [
+  { key: "all", label: "全部部门", children: "全部部门数据" },
+  { key: "search", label: "搜索电商", children: "搜索电商数据" },
+  { key: "interest", label: "兴趣电商", children: "兴趣电商数据" },
+  { key: "private", label: "私域", children: "私域数据" },
+  { key: "ka", label: "KA", children: "KA 数据" },
+];
+
+export default function Demo() {
+  return <Tabs
+    type="tech"
+    tabBarTitle="查看部门"
+    items={items}
+    defaultActiveKey="private"
+  />;
+}`;
+
+const techLineCode = `import { Tabs } from "@sia-ui/react";
+
+export default function Demo() {
+  return <Tabs
+    type="tech-line"
+    tabBarTitle="今日销售分布"
+    defaultActiveKey="amount"
+    style={{ width: 636, maxWidth: "100%" }}
+    items={[
+      { key: "amount", label: "金额" },
+      { key: "orders", label: "订单数" },
+      { key: "quantity", label: "件数" },
+    ]}
+  />;
+}`;
+
 const controlledCode = `import { useRef, useState } from "react";
 import { Button, Tabs } from "@sia-ui/react";
 
@@ -95,10 +130,11 @@ const apiRows = [
   { property: "items", description: "标签项，包含 key、label、children、icon、disabled 和 closable", type: "TabItem[]", defaultValue: "[]" },
   { property: "activeKey / defaultActiveKey", description: "受控激活项与默认激活项", type: "string", defaultValue: "首个可用项" },
   { property: "onChange", description: "激活项变化回调", type: "(key: string) => void", defaultValue: "-" },
-  { property: "type", description: "线型、卡片型或胶囊型", type: "'line' | 'card' | 'pill'", defaultValue: "'line'" },
+  { property: "type", description: "线型、卡片型、胶囊型、科技大屏型或折线科技型", type: "'line' | 'card' | 'pill' | 'tech' | 'tech-line'", defaultValue: "'line'" },
   { property: "tabPosition", description: "标签栏位于内容的上、右、下或左侧", type: "'top' | 'right' | 'bottom' | 'left'", defaultValue: "'top'" },
   { property: "orientation", description: "兼容旧版横向、纵向排列，推荐使用 tabPosition", type: "'horizontal' | 'vertical'", defaultValue: "'horizontal'" },
   { property: "size / centered", description: "尺寸与居中排列", type: "ControlSize / boolean", defaultValue: "'medium' / false" },
+  { property: "tabBarTitle", description: "标签栏左侧标题，科技大屏型会附带装饰线", type: "ReactNode", defaultValue: "-" },
   { property: "tabBarExtraContent", description: "标签栏右侧额外操作", type: "ReactNode", defaultValue: "-" },
   { property: "destroyInactiveTabPane", description: "是否卸载非激活面板", type: "boolean", defaultValue: "true" },
   { property: "closable / onEdit", description: "显示关闭操作，并在移除标签时回调", type: "boolean / (key, 'remove') => void", defaultValue: "false / -" },
@@ -134,6 +170,13 @@ export function TabsPage() {
     { key: "active", label: "进行中", children: <p>进行中的内容</p> },
     { key: "done", label: "已完成", children: <p>已完成的内容</p> },
   ];
+  const techItems = [
+    { key: "all", label: "全部部门", children: <p>全部部门数据</p> },
+    { key: "search", label: "搜索电商", children: <p>搜索电商数据</p> },
+    { key: "interest", label: "兴趣电商", children: <p>兴趣电商数据</p> },
+    { key: "private", label: "私域", children: <p>私域数据</p> },
+    { key: "ka", label: "KA", children: <p>KA 数据</p> },
+  ];
   const positionItems = [
     { key: "overview", label: "概览", children: <p>这里展示概览内容。</p> },
     { key: "members", label: "成员", children: <p>这里展示成员内容。</p> },
@@ -159,6 +202,16 @@ export function TabsPage() {
           <Tabs type="card" items={variantItems} />
           <Tabs type="pill" items={variantItems} />
         </div>
+      </DemoCard>
+      <DemoCard title="科技大屏样式" description="选中项使用框架主题实色，顶部装饰线由深到浅，并自动适配亮色与暗色模式。" code={techCode}>
+        <Tabs type="tech" tabBarTitle="查看部门" items={techItems} defaultActiveKey="private" />
+      </DemoCard>
+      <DemoCard title="折线科技大屏样式" description="标题底线向上折入标签栏，右侧紧凑斜切选项支持明暗主题。" code={techLineCode}>
+        <Tabs type="tech-line" tabBarTitle="今日销售分布" style={{ width: 636, maxWidth: "100%" }} items={[
+          { key: "amount", label: "金额" },
+          { key: "orders", label: "订单数" },
+          { key: "quantity", label: "件数" },
+        ]} />
       </DemoCard>
       <DemoCard title="受控、禁用与额外操作" description="发布项不可选择，激活状态由页面统一管理。" code={controlledCode}>
         <Tabs

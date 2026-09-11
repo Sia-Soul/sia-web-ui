@@ -1,0 +1,2167 @@
+[
+  {
+    "id": "funnel",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/funnel.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "title": {
+        "text": "漏斗图",
+        "subtext": "纯属虚构"
+      },
+      "tooltip": {
+        "trigger": "item",
+        "formatter": "{a} <br/>{b} : {c}%"
+      },
+      "toolbox": {
+        "show": true,
+        "feature": {
+          "mark": {
+            "show": true
+          },
+          "dataView": {
+            "show": true,
+            "readOnly": false
+          },
+          "restore": {
+            "show": true
+          },
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "legend": {
+        "data": [
+          "展现",
+          "点击",
+          "访问",
+          "咨询",
+          "订单"
+        ]
+      },
+      "calculable": true,
+      "series": [
+        {
+          "name": "漏斗图",
+          "type": "funnel",
+          "x": "10%",
+          "y": 60,
+          "y2": 60,
+          "width": "80%",
+          "min": 0,
+          "max": 100,
+          "minSize": "0%",
+          "maxSize": "100%",
+          "sort": "descending",
+          "gap": 10,
+          "itemStyle": {
+            "normal": {
+              "borderColor": "#fff",
+              "borderWidth": 1,
+              "label": {
+                "show": true,
+                "position": "inside"
+              },
+              "labelLine": {
+                "show": false,
+                "length": 10,
+                "lineStyle": {
+                  "width": 1,
+                  "type": "solid"
+                }
+              }
+            },
+            "emphasis": {
+              "borderColor": "red",
+              "borderWidth": 5,
+              "label": {
+                "show": true,
+                "formatter": "{b}:{c}%",
+                "textStyle": {
+                  "fontSize": 20
+                }
+              },
+              "labelLine": {
+                "show": true
+              }
+            }
+          },
+          "data": [
+            {
+              "value": 60,
+              "name": "访问"
+            },
+            {
+              "value": 40,
+              "name": "咨询"
+            },
+            {
+              "value": 20,
+              "name": "订单"
+            },
+            {
+              "value": 80,
+              "name": "点击"
+            },
+            {
+              "value": 100,
+              "name": "展现"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "funnel1",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/funnel1.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "title": {
+        "text": "漏斗图",
+        "subtext": "纯属虚构"
+      },
+      "tooltip": {
+        "trigger": "item",
+        "formatter": "{a} <br/>{b} : {c}%"
+      },
+      "toolbox": {
+        "show": true,
+        "feature": {
+          "mark": {
+            "show": true
+          },
+          "dataView": {
+            "show": true,
+            "readOnly": false
+          },
+          "restore": {
+            "show": true
+          },
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "legend": {
+        "data": [
+          "展现",
+          "点击",
+          "访问",
+          "咨询",
+          "订单"
+        ]
+      },
+      "calculable": true,
+      "series": [
+        {
+          "name": "漏斗图",
+          "type": "funnel",
+          "width": "40%",
+          "data": [
+            {
+              "value": 60,
+              "name": "访问"
+            },
+            {
+              "value": 40,
+              "name": "咨询"
+            },
+            {
+              "value": 20,
+              "name": "订单"
+            },
+            {
+              "value": 80,
+              "name": "点击"
+            },
+            {
+              "value": 100,
+              "name": "展现"
+            }
+          ]
+        },
+        {
+          "name": "金字塔",
+          "type": "funnel",
+          "x": "50%",
+          "sort": "ascending",
+          "itemStyle": {
+            "normal": {
+              "label": {
+                "position": "left"
+              }
+            }
+          },
+          "data": [
+            {
+              "value": 60,
+              "name": "访问"
+            },
+            {
+              "value": 40,
+              "name": "咨询"
+            },
+            {
+              "value": 20,
+              "name": "订单"
+            },
+            {
+              "value": 80,
+              "name": "点击"
+            },
+            {
+              "value": 100,
+              "name": "展现"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "funnel2",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/funnel2.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "color": [
+        "rgba(255, 69, 0, 0.5)",
+        "rgba(255, 150, 0, 0.5)",
+        "rgba(255, 200, 0, 0.5)",
+        "rgba(155, 200, 50, 0.5)",
+        "rgba(55, 200, 100, 0.5)"
+      ],
+      "title": {
+        "text": "漏斗图",
+        "subtext": "纯属虚构"
+      },
+      "tooltip": {
+        "trigger": "item",
+        "formatter": "{a} <br/>{b} : {c}%"
+      },
+      "toolbox": {
+        "show": true,
+        "feature": {
+          "mark": {
+            "show": true
+          },
+          "dataView": {
+            "show": true,
+            "readOnly": false
+          },
+          "restore": {
+            "show": true
+          },
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "legend": {
+        "data": [
+          "展现",
+          "点击",
+          "访问",
+          "咨询",
+          "订单"
+        ]
+      },
+      "calculable": true,
+      "series": [
+        {
+          "name": "预期",
+          "type": "funnel",
+          "x": "10%",
+          "width": "80%",
+          "itemStyle": {
+            "normal": {
+              "label": {
+                "formatter": "{b}预期"
+              },
+              "labelLine": {
+                "show": false
+              }
+            },
+            "emphasis": {
+              "label": {
+                "position": "inside",
+                "formatter": "{b}预期 : {c}%"
+              }
+            }
+          },
+          "data": [
+            {
+              "value": 60,
+              "name": "访问"
+            },
+            {
+              "value": 40,
+              "name": "咨询"
+            },
+            {
+              "value": 20,
+              "name": "订单"
+            },
+            {
+              "value": 80,
+              "name": "点击"
+            },
+            {
+              "value": 100,
+              "name": "展现"
+            }
+          ]
+        },
+        {
+          "name": "实际",
+          "type": "funnel",
+          "x": "10%",
+          "width": "80%",
+          "maxSize": "80%",
+          "itemStyle": {
+            "normal": {
+              "borderColor": "#fff",
+              "borderWidth": 2,
+              "label": {
+                "position": "inside",
+                "formatter": "{c}%",
+                "textStyle": {
+                  "color": "#fff"
+                }
+              }
+            },
+            "emphasis": {
+              "label": {
+                "position": "inside",
+                "formatter": "{b}实际 : {c}%"
+              }
+            }
+          },
+          "data": [
+            {
+              "value": 30,
+              "name": "访问"
+            },
+            {
+              "value": 10,
+              "name": "咨询"
+            },
+            {
+              "value": 5,
+              "name": "订单"
+            },
+            {
+              "value": 50,
+              "name": "点击"
+            },
+            {
+              "value": 80,
+              "name": "展现"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "funnel3",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/funnel3.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "title": {
+        "text": "漏斗图",
+        "subtext": "纯属虚构",
+        "x": "left",
+        "y": "bottom"
+      },
+      "tooltip": {
+        "trigger": "item",
+        "formatter": "{a} <br/>{b} : {c}%"
+      },
+      "toolbox": {
+        "show": true,
+        "orient": "vertical",
+        "y": "center",
+        "feature": {
+          "mark": {
+            "show": true
+          },
+          "dataView": {
+            "show": true,
+            "readOnly": false
+          },
+          "restore": {
+            "show": true
+          },
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "legend": {
+        "orient": "vertical",
+        "x": "left",
+        "data": [
+          "展现",
+          "点击",
+          "访问",
+          "咨询",
+          "订单"
+        ]
+      },
+      "calculable": true,
+      "series": [
+        {
+          "name": "漏斗图",
+          "type": "funnel",
+          "width": "40%",
+          "height": "45%",
+          "x": "5%",
+          "y": "50%",
+          "data": [
+            {
+              "value": 60,
+              "name": "访问"
+            },
+            {
+              "value": 30,
+              "name": "咨询"
+            },
+            {
+              "value": 10,
+              "name": "订单"
+            },
+            {
+              "value": 80,
+              "name": "点击"
+            },
+            {
+              "value": 100,
+              "name": "展现"
+            }
+          ]
+        },
+        {
+          "name": "金字塔",
+          "type": "funnel",
+          "width": "40%",
+          "height": "45%",
+          "x": "5%",
+          "y": "5%",
+          "sort": "ascending",
+          "data": [
+            {
+              "value": 60,
+              "name": "访问"
+            },
+            {
+              "value": 30,
+              "name": "咨询"
+            },
+            {
+              "value": 10,
+              "name": "订单"
+            },
+            {
+              "value": 80,
+              "name": "点击"
+            },
+            {
+              "value": 100,
+              "name": "展现"
+            }
+          ]
+        },
+        {
+          "name": "漏斗图",
+          "type": "funnel",
+          "width": "40%",
+          "height": "45%",
+          "x": "55%",
+          "y": "5%",
+          "itemStyle": {
+            "normal": {
+              "label": {
+                "position": "left"
+              }
+            }
+          },
+          "data": [
+            {
+              "value": 60,
+              "name": "访问"
+            },
+            {
+              "value": 30,
+              "name": "咨询"
+            },
+            {
+              "value": 10,
+              "name": "订单"
+            },
+            {
+              "value": 80,
+              "name": "点击"
+            },
+            {
+              "value": 100,
+              "name": "展现"
+            }
+          ]
+        },
+        {
+          "name": "金字塔",
+          "type": "funnel",
+          "width": "40%",
+          "height": "45%",
+          "x": "55%",
+          "y": "50%",
+          "sort": "ascending",
+          "itemStyle": {
+            "normal": {
+              "label": {
+                "position": "left"
+              }
+            }
+          },
+          "data": [
+            {
+              "value": 60,
+              "name": "访问"
+            },
+            {
+              "value": 30,
+              "name": "咨询"
+            },
+            {
+              "value": 10,
+              "name": "订单"
+            },
+            {
+              "value": 80,
+              "name": "点击"
+            },
+            {
+              "value": 100,
+              "name": "展现"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "funnel4",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/funnel4.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "title": {
+        "text": "漏斗图(对比)",
+        "subtext": "纯属虚构",
+        "x": "left",
+        "y": "bottom"
+      },
+      "tooltip": {
+        "trigger": "item",
+        "formatter": "{a} <br/>{b} : {c}%"
+      },
+      "toolbox": {
+        "show": true,
+        "orient": "vertical",
+        "y": "center",
+        "feature": {
+          "mark": {
+            "show": true
+          },
+          "dataView": {
+            "show": true,
+            "readOnly": false
+          },
+          "magicType": {
+            "show": true,
+            "type": [
+              "pie",
+              "funnel"
+            ],
+            "option": {
+              "pie": {
+                "radius": [
+                  0,
+                  50
+                ]
+              }
+            }
+          },
+          "restore": {
+            "show": true
+          },
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "legend": {
+        "orient": "vertical",
+        "x": "left",
+        "data": [
+          "产品A",
+          "产品B",
+          "产品C",
+          "产品D",
+          "产品E"
+        ]
+      },
+      "calculable": true,
+      "series": [
+        {
+          "name": "漏斗图",
+          "type": "funnel",
+          "width": "40%",
+          "height": "45%",
+          "x": "5%",
+          "y": "50%",
+          "funnelAlign": "right",
+          "center": [
+            "25%",
+            "25%"
+          ],
+          "data": [
+            {
+              "value": 60,
+              "name": "产品C"
+            },
+            {
+              "value": 30,
+              "name": "产品D"
+            },
+            {
+              "value": 10,
+              "name": "产品E"
+            },
+            {
+              "value": 80,
+              "name": "产品B"
+            },
+            {
+              "value": 100,
+              "name": "产品A"
+            }
+          ]
+        },
+        {
+          "name": "金字塔",
+          "type": "funnel",
+          "width": "40%",
+          "height": "45%",
+          "x": "5%",
+          "y": "5%",
+          "sort": "ascending",
+          "funnelAlign": "right",
+          "center": [
+            "25%",
+            "75%"
+          ],
+          "data": [
+            {
+              "value": 60,
+              "name": "产品C"
+            },
+            {
+              "value": 30,
+              "name": "产品D"
+            },
+            {
+              "value": 10,
+              "name": "产品E"
+            },
+            {
+              "value": 80,
+              "name": "产品B"
+            },
+            {
+              "value": 100,
+              "name": "产品A"
+            }
+          ]
+        },
+        {
+          "name": "漏斗图",
+          "type": "funnel",
+          "width": "40%",
+          "height": "45%",
+          "x": "55%",
+          "y": "5%",
+          "funnelAlign": "left",
+          "center": [
+            "75%",
+            "25%"
+          ],
+          "data": [
+            {
+              "value": 60,
+              "name": "产品C"
+            },
+            {
+              "value": 30,
+              "name": "产品D"
+            },
+            {
+              "value": 10,
+              "name": "产品E"
+            },
+            {
+              "value": 80,
+              "name": "产品B"
+            },
+            {
+              "value": 100,
+              "name": "产品A"
+            }
+          ]
+        },
+        {
+          "name": "金字塔",
+          "type": "funnel",
+          "width": "40%",
+          "height": "45%",
+          "x": "55%",
+          "y": "50%",
+          "sort": "ascending",
+          "funnelAlign": "left",
+          "center": [
+            "75%",
+            "75%"
+          ],
+          "data": [
+            {
+              "value": 60,
+              "name": "产品C"
+            },
+            {
+              "value": 30,
+              "name": "产品D"
+            },
+            {
+              "value": 10,
+              "name": "产品E"
+            },
+            {
+              "value": 80,
+              "name": "产品B"
+            },
+            {
+              "value": 100,
+              "name": "产品A"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "gauge",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/gauge.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "tooltip": {
+        "formatter": "{a} <br/>{b} : {c}%"
+      },
+      "toolbox": {
+        "show": true,
+        "feature": {
+          "mark": {
+            "show": true
+          },
+          "restore": {
+            "show": true
+          },
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "series": [
+        {
+          "name": "个性化仪表盘",
+          "type": "gauge",
+          "center": [
+            "50%",
+            "50%"
+          ],
+          "radius": [
+            0,
+            "75%"
+          ],
+          "startAngle": 140,
+          "endAngle": -140,
+          "min": 0,
+          "max": 100,
+          "precision": 0,
+          "splitNumber": 10,
+          "axisLine": {
+            "show": true,
+            "lineStyle": {
+              "color": [
+                [
+                  0.2,
+                  "lightgreen"
+                ],
+                [
+                  0.4,
+                  "orange"
+                ],
+                [
+                  0.8,
+                  "skyblue"
+                ],
+                [
+                  1,
+                  "#ff4500"
+                ]
+              ],
+              "width": 30
+            }
+          },
+          "axisTick": {
+            "show": true,
+            "splitNumber": 5,
+            "length": 8,
+            "lineStyle": {
+              "color": "#eee",
+              "width": 1,
+              "type": "solid"
+            }
+          },
+          "axisLabel": {
+            "show": true,
+            "formatter": {
+              "$expression": "function(v){\n                    switch (v+''){\n                        case '10': return '弱';\n                        case '30': return '低';\n                        case '60': return '中';\n                        case '90': return '高';\n                        default: return '';\n                    }\n                }"
+            },
+            "textStyle": {
+              "color": "#333"
+            }
+          },
+          "splitLine": {
+            "show": true,
+            "length": 30,
+            "lineStyle": {
+              "color": "#eee",
+              "width": 2,
+              "type": "solid"
+            }
+          },
+          "pointer": {
+            "length": "80%",
+            "width": 8,
+            "color": "auto"
+          },
+          "title": {
+            "show": true,
+            "offsetCenter": [
+              "-65%",
+              -10
+            ],
+            "textStyle": {
+              "color": "#333",
+              "fontSize": 15
+            }
+          },
+          "detail": {
+            "show": true,
+            "backgroundColor": "rgba(0,0,0,0)",
+            "borderWidth": 0,
+            "borderColor": "#ccc",
+            "width": 100,
+            "height": 40,
+            "offsetCenter": [
+              "-60%",
+              10
+            ],
+            "formatter": "{value}%",
+            "textStyle": {
+              "color": "auto",
+              "fontSize": 30
+            }
+          },
+          "data": [
+            {
+              "value": 50,
+              "name": "仪表盘"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "gauge1",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/gauge1.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "tooltip": {
+        "formatter": "{a} <br/>{b} : {c}%"
+      },
+      "toolbox": {
+        "show": true,
+        "feature": {
+          "mark": {
+            "show": true
+          },
+          "restore": {
+            "show": true
+          },
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "series": [
+        {
+          "name": "业务指标",
+          "type": "gauge",
+          "detail": {
+            "formatter": "{value}%"
+          },
+          "data": [
+            {
+              "value": 50,
+              "name": "完成率"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "gauge2",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/gauge2.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "tooltip": {
+        "formatter": "{a} <br/>{b} : {c}%"
+      },
+      "toolbox": {
+        "show": true,
+        "feature": {
+          "mark": {
+            "show": true
+          },
+          "restore": {
+            "show": true
+          },
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "series": [
+        {
+          "name": "业务指标",
+          "type": "gauge",
+          "splitNumber": 10,
+          "axisLine": {
+            "lineStyle": {
+              "color": [
+                [
+                  0.2,
+                  "#228b22"
+                ],
+                [
+                  0.8,
+                  "#48b"
+                ],
+                [
+                  1,
+                  "#ff4500"
+                ]
+              ],
+              "width": 8
+            }
+          },
+          "axisTick": {
+            "splitNumber": 10,
+            "length": 12,
+            "lineStyle": {
+              "color": "auto"
+            }
+          },
+          "axisLabel": {
+            "textStyle": {
+              "color": "auto"
+            }
+          },
+          "splitLine": {
+            "show": true,
+            "length": 30,
+            "lineStyle": {
+              "color": "auto"
+            }
+          },
+          "pointer": {
+            "width": 5
+          },
+          "title": {
+            "show": true,
+            "offsetCenter": [
+              0,
+              "-40%"
+            ],
+            "textStyle": {
+              "fontWeight": "bolder"
+            }
+          },
+          "detail": {
+            "formatter": "{value}%",
+            "textStyle": {
+              "color": "auto",
+              "fontWeight": "bolder"
+            }
+          },
+          "data": [
+            {
+              "value": 50,
+              "name": "完成率"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "gauge3",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/gauge3.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "tooltip": {
+        "formatter": "{a} <br/>{b} : {c}%"
+      },
+      "toolbox": {
+        "show": true,
+        "feature": {
+          "mark": {
+            "show": true
+          },
+          "restore": {
+            "show": true
+          },
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "series": [
+        {
+          "name": "业务指标",
+          "type": "gauge",
+          "startAngle": 180,
+          "endAngle": 0,
+          "center": [
+            "50%",
+            "90%"
+          ],
+          "radius": 320,
+          "axisLine": {
+            "lineStyle": {
+              "width": 200
+            }
+          },
+          "axisTick": {
+            "splitNumber": 10,
+            "length": 12
+          },
+          "axisLabel": {
+            "formatter": {
+              "$expression": "function(v){\n                    switch (v+''){\n                        case '10': return '低';\n                        case '50': return '中';\n                        case '90': return '高';\n                        default: return '';\n                    }\n                }"
+            },
+            "textStyle": {
+              "color": "#fff",
+              "fontSize": 15,
+              "fontWeight": "bolder"
+            }
+          },
+          "pointer": {
+            "width": 50,
+            "length": "90%",
+            "color": "rgba(255, 255, 255, 0.8)"
+          },
+          "title": {
+            "show": true,
+            "offsetCenter": [
+              0,
+              "-60%"
+            ],
+            "textStyle": {
+              "color": "#fff",
+              "fontSize": 30
+            }
+          },
+          "detail": {
+            "show": true,
+            "backgroundColor": "rgba(0,0,0,0)",
+            "borderWidth": 0,
+            "borderColor": "#ccc",
+            "width": 100,
+            "height": 40,
+            "offsetCenter": [
+              0,
+              -40
+            ],
+            "formatter": "{value}%",
+            "textStyle": {
+              "fontSize": 50
+            }
+          },
+          "data": [
+            {
+              "value": 50,
+              "name": "完成率"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "gauge4",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/gauge4.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "tooltip": {
+        "formatter": "{a} <br/>{c} {b}"
+      },
+      "toolbox": {
+        "show": true,
+        "feature": {
+          "mark": {
+            "show": true
+          },
+          "restore": {
+            "show": true
+          },
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "series": [
+        {
+          "name": "速度",
+          "type": "gauge",
+          "z": 3,
+          "min": 0,
+          "max": 220,
+          "splitNumber": 11,
+          "axisLine": {
+            "lineStyle": {
+              "width": 10
+            }
+          },
+          "axisTick": {
+            "length": 15,
+            "lineStyle": {
+              "color": "auto"
+            }
+          },
+          "splitLine": {
+            "length": 20,
+            "lineStyle": {
+              "color": "auto"
+            }
+          },
+          "title": {
+            "textStyle": {
+              "fontWeight": "bolder",
+              "fontSize": 20,
+              "fontStyle": "italic"
+            }
+          },
+          "detail": {
+            "textStyle": {
+              "fontWeight": "bolder"
+            }
+          },
+          "data": [
+            {
+              "value": 40,
+              "name": "km/h"
+            }
+          ]
+        },
+        {
+          "name": "转速",
+          "type": "gauge",
+          "center": [
+            "25%",
+            "55%"
+          ],
+          "radius": "50%",
+          "min": 0,
+          "max": 7,
+          "endAngle": 45,
+          "splitNumber": 7,
+          "axisLine": {
+            "lineStyle": {
+              "width": 8
+            }
+          },
+          "axisTick": {
+            "length": 12,
+            "lineStyle": {
+              "color": "auto"
+            }
+          },
+          "splitLine": {
+            "length": 20,
+            "lineStyle": {
+              "color": "auto"
+            }
+          },
+          "pointer": {
+            "width": 5
+          },
+          "title": {
+            "offsetCenter": [
+              0,
+              "-30%"
+            ]
+          },
+          "detail": {
+            "textStyle": {
+              "fontWeight": "bolder"
+            }
+          },
+          "data": [
+            {
+              "value": 1.5,
+              "name": "x1000 r/min"
+            }
+          ]
+        },
+        {
+          "name": "油表",
+          "type": "gauge",
+          "center": [
+            "75%",
+            "50%"
+          ],
+          "radius": "50%",
+          "min": 0,
+          "max": 2,
+          "startAngle": 135,
+          "endAngle": 45,
+          "splitNumber": 2,
+          "axisLine": {
+            "lineStyle": {
+              "color": [
+                [
+                  0.2,
+                  "#ff4500"
+                ],
+                [
+                  0.8,
+                  "#48b"
+                ],
+                [
+                  1,
+                  "#228b22"
+                ]
+              ],
+              "width": 8
+            }
+          },
+          "axisTick": {
+            "splitNumber": 5,
+            "length": 10,
+            "lineStyle": {
+              "color": "auto"
+            }
+          },
+          "axisLabel": {
+            "formatter": {
+              "$expression": "function(v){\n                    switch (v + '') {\n                        case '0' : return 'E';\n                        case '1' : return 'Gas';\n                        case '2' : return 'F';\n                    }\n                }"
+            }
+          },
+          "splitLine": {
+            "length": 15,
+            "lineStyle": {
+              "color": "auto"
+            }
+          },
+          "pointer": {
+            "width": 2
+          },
+          "title": {
+            "show": false
+          },
+          "detail": {
+            "show": false
+          },
+          "data": [
+            {
+              "value": 0.5,
+              "name": "gas"
+            }
+          ]
+        },
+        {
+          "name": "水表",
+          "type": "gauge",
+          "center": [
+            "75%",
+            "50%"
+          ],
+          "radius": "50%",
+          "min": 0,
+          "max": 2,
+          "startAngle": 315,
+          "endAngle": 225,
+          "splitNumber": 2,
+          "axisLine": {
+            "lineStyle": {
+              "color": [
+                [
+                  0.2,
+                  "#ff4500"
+                ],
+                [
+                  0.8,
+                  "#48b"
+                ],
+                [
+                  1,
+                  "#228b22"
+                ]
+              ],
+              "width": 8
+            }
+          },
+          "axisTick": {
+            "show": false
+          },
+          "axisLabel": {
+            "formatter": {
+              "$expression": "function(v){\n                    switch (v + '') {\n                        case '0' : return 'H';\n                        case '1' : return 'Water';\n                        case '2' : return 'C';\n                    }\n                }"
+            }
+          },
+          "splitLine": {
+            "length": 15,
+            "lineStyle": {
+              "color": "auto"
+            }
+          },
+          "pointer": {
+            "width": 2
+          },
+          "title": {
+            "show": false
+          },
+          "detail": {
+            "show": false
+          },
+          "data": [
+            {
+              "value": 0.5,
+              "name": "gas"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "gauge5",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/gauge5.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "backgroundColor": "#1b1b1b",
+      "tooltip": {
+        "formatter": "{a} <br/>{c} {b}"
+      },
+      "toolbox": {
+        "show": true,
+        "feature": {
+          "mark": {
+            "show": true
+          },
+          "restore": {
+            "show": true
+          },
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "series": [
+        {
+          "name": "速度",
+          "type": "gauge",
+          "min": 0,
+          "max": 220,
+          "splitNumber": 11,
+          "axisLine": {
+            "lineStyle": {
+              "color": [
+                [
+                  0.09,
+                  "lime"
+                ],
+                [
+                  0.82,
+                  "#1e90ff"
+                ],
+                [
+                  1,
+                  "#ff4500"
+                ]
+              ],
+              "width": 3,
+              "shadowColor": "#fff",
+              "shadowBlur": 10
+            }
+          },
+          "axisLabel": {
+            "textStyle": {
+              "fontWeight": "bolder",
+              "color": "#fff",
+              "shadowColor": "#fff",
+              "shadowBlur": 10
+            }
+          },
+          "axisTick": {
+            "length": 15,
+            "lineStyle": {
+              "color": "auto",
+              "shadowColor": "#fff",
+              "shadowBlur": 10
+            }
+          },
+          "splitLine": {
+            "length": 25,
+            "lineStyle": {
+              "width": 3,
+              "color": "#fff",
+              "shadowColor": "#fff",
+              "shadowBlur": 10
+            }
+          },
+          "pointer": {
+            "shadowColor": "#fff",
+            "shadowBlur": 5
+          },
+          "title": {
+            "textStyle": {
+              "fontWeight": "bolder",
+              "fontSize": 20,
+              "fontStyle": "italic",
+              "color": "#fff",
+              "shadowColor": "#fff",
+              "shadowBlur": 10
+            }
+          },
+          "detail": {
+            "backgroundColor": "rgba(30,144,255,0.8)",
+            "borderWidth": 1,
+            "borderColor": "#fff",
+            "shadowColor": "#fff",
+            "shadowBlur": 5,
+            "offsetCenter": [
+              0,
+              "50%"
+            ],
+            "textStyle": {
+              "fontWeight": "bolder",
+              "color": "#fff"
+            }
+          },
+          "data": [
+            {
+              "value": 40,
+              "name": "km/h"
+            }
+          ]
+        },
+        {
+          "name": "转速",
+          "type": "gauge",
+          "center": [
+            "25%",
+            "55%"
+          ],
+          "radius": "50%",
+          "min": 0,
+          "max": 7,
+          "endAngle": 45,
+          "splitNumber": 7,
+          "axisLine": {
+            "lineStyle": {
+              "color": [
+                [
+                  0.29,
+                  "lime"
+                ],
+                [
+                  0.86,
+                  "#1e90ff"
+                ],
+                [
+                  1,
+                  "#ff4500"
+                ]
+              ],
+              "width": 2,
+              "shadowColor": "#fff",
+              "shadowBlur": 10
+            }
+          },
+          "axisLabel": {
+            "textStyle": {
+              "fontWeight": "bolder",
+              "color": "#fff",
+              "shadowColor": "#fff",
+              "shadowBlur": 10
+            }
+          },
+          "axisTick": {
+            "length": 12,
+            "lineStyle": {
+              "color": "auto",
+              "shadowColor": "#fff",
+              "shadowBlur": 10
+            }
+          },
+          "splitLine": {
+            "length": 20,
+            "lineStyle": {
+              "width": 3,
+              "color": "#fff",
+              "shadowColor": "#fff",
+              "shadowBlur": 10
+            }
+          },
+          "pointer": {
+            "width": 5,
+            "shadowColor": "#fff",
+            "shadowBlur": 5
+          },
+          "title": {
+            "offsetCenter": [
+              0,
+              "-30%"
+            ],
+            "textStyle": {
+              "fontWeight": "bolder",
+              "fontStyle": "italic",
+              "color": "#fff",
+              "shadowColor": "#fff",
+              "shadowBlur": 10
+            }
+          },
+          "detail": {
+            "borderColor": "#fff",
+            "shadowColor": "#fff",
+            "shadowBlur": 5,
+            "width": 80,
+            "height": 30,
+            "offsetCenter": [
+              25,
+              "20%"
+            ],
+            "textStyle": {
+              "fontWeight": "bolder",
+              "color": "#fff"
+            }
+          },
+          "data": [
+            {
+              "value": 1.5,
+              "name": "x1000 r/min"
+            }
+          ]
+        },
+        {
+          "name": "油表",
+          "type": "gauge",
+          "center": [
+            "75%",
+            "50%"
+          ],
+          "radius": "50%",
+          "min": 0,
+          "max": 2,
+          "startAngle": 135,
+          "endAngle": 45,
+          "splitNumber": 2,
+          "axisLine": {
+            "lineStyle": {
+              "color": [
+                [
+                  0.2,
+                  "lime"
+                ],
+                [
+                  0.8,
+                  "#1e90ff"
+                ],
+                [
+                  1,
+                  "#ff4500"
+                ]
+              ],
+              "width": 2,
+              "shadowColor": "#fff",
+              "shadowBlur": 10
+            }
+          },
+          "axisTick": {
+            "length": 12,
+            "lineStyle": {
+              "color": "auto",
+              "shadowColor": "#fff",
+              "shadowBlur": 10
+            }
+          },
+          "axisLabel": {
+            "textStyle": {
+              "fontWeight": "bolder",
+              "color": "#fff",
+              "shadowColor": "#fff",
+              "shadowBlur": 10
+            },
+            "formatter": {
+              "$expression": "function(v){\n                    switch (v + '') {\n                        case '0' : return 'E';\n                        case '1' : return 'Gas';\n                        case '2' : return 'F';\n                    }\n                }"
+            }
+          },
+          "splitLine": {
+            "length": 15,
+            "lineStyle": {
+              "width": 3,
+              "color": "#fff",
+              "shadowColor": "#fff",
+              "shadowBlur": 10
+            }
+          },
+          "pointer": {
+            "width": 2,
+            "shadowColor": "#fff",
+            "shadowBlur": 5
+          },
+          "title": {
+            "show": false
+          },
+          "detail": {
+            "show": false
+          },
+          "data": [
+            {
+              "value": 0.5,
+              "name": "gas"
+            }
+          ]
+        },
+        {
+          "name": "水表",
+          "type": "gauge",
+          "center": [
+            "75%",
+            "50%"
+          ],
+          "radius": "50%",
+          "min": 0,
+          "max": 2,
+          "startAngle": 315,
+          "endAngle": 225,
+          "splitNumber": 2,
+          "axisLine": {
+            "lineStyle": {
+              "color": [
+                [
+                  0.2,
+                  "lime"
+                ],
+                [
+                  0.8,
+                  "#1e90ff"
+                ],
+                [
+                  1,
+                  "#ff4500"
+                ]
+              ],
+              "width": 2,
+              "shadowColor": "#fff",
+              "shadowBlur": 10
+            }
+          },
+          "axisTick": {
+            "show": false
+          },
+          "axisLabel": {
+            "textStyle": {
+              "fontWeight": "bolder",
+              "color": "#fff",
+              "shadowColor": "#fff",
+              "shadowBlur": 10
+            },
+            "formatter": {
+              "$expression": "function(v){\n                    switch (v + '') {\n                        case '0' : return 'H';\n                        case '1' : return 'Water';\n                        case '2' : return 'C';\n                    }\n                }"
+            }
+          },
+          "splitLine": {
+            "length": 15,
+            "lineStyle": {
+              "width": 3,
+              "color": "#fff",
+              "shadowColor": "#fff",
+              "shadowBlur": 10
+            }
+          },
+          "pointer": {
+            "width": 2,
+            "shadowColor": "#fff",
+            "shadowBlur": 5
+          },
+          "title": {
+            "show": false
+          },
+          "detail": {
+            "show": false
+          },
+          "data": [
+            {
+              "value": 0.5,
+              "name": "gas"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "radar1",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/radar1.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "title": {
+        "text": "预算 vs 开销（Budget vs spending）",
+        "subtext": "纯属虚构"
+      },
+      "tooltip": {
+        "trigger": "axis"
+      },
+      "legend": {
+        "orient": "vertical",
+        "x": "right",
+        "y": "bottom",
+        "data": [
+          "预算分配（Allocated Budget）",
+          "实际开销（Actual Spending）"
+        ]
+      },
+      "toolbox": {
+        "show": true,
+        "feature": {
+          "mark": {
+            "show": true
+          },
+          "dataView": {
+            "show": true,
+            "readOnly": false
+          },
+          "restore": {
+            "show": true
+          },
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "polar": [
+        {
+          "indicator": [
+            {
+              "text": "销售（sales）",
+              "max": 6000
+            },
+            {
+              "text": "管理（Administration）",
+              "max": 16000
+            },
+            {
+              "text": "信息技术（Information Techology）",
+              "max": 30000
+            },
+            {
+              "text": "客服（Customer Support）",
+              "max": 38000
+            },
+            {
+              "text": "研发（Development）",
+              "max": 52000
+            },
+            {
+              "text": "市场（Marketing）",
+              "max": 25000
+            }
+          ]
+        }
+      ],
+      "calculable": true,
+      "series": [
+        {
+          "name": "预算 vs 开销（Budget vs spending）",
+          "type": "radar",
+          "data": [
+            {
+              "value": [
+                4300,
+                10000,
+                28000,
+                35000,
+                50000,
+                19000
+              ],
+              "name": "预算分配（Allocated Budget）"
+            },
+            {
+              "value": [
+                5000,
+                14000,
+                28000,
+                31000,
+                42000,
+                21000
+              ],
+              "name": "实际开销（Actual Spending）"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "radar2",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/radar2.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "title": {
+        "text": "罗纳尔多 vs 舍普琴科",
+        "subtext": "完全实况球员数据"
+      },
+      "tooltip": {
+        "trigger": "axis"
+      },
+      "legend": {
+        "x": "center",
+        "data": [
+          "罗纳尔多",
+          "舍普琴科"
+        ]
+      },
+      "toolbox": {
+        "show": true,
+        "feature": {
+          "mark": {
+            "show": true
+          },
+          "dataView": {
+            "show": true,
+            "readOnly": false
+          },
+          "restore": {
+            "show": true
+          },
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "calculable": true,
+      "polar": [
+        {
+          "indicator": [
+            {
+              "text": "进攻",
+              "max": 100
+            },
+            {
+              "text": "防守",
+              "max": 100
+            },
+            {
+              "text": "体能",
+              "max": 100
+            },
+            {
+              "text": "速度",
+              "max": 100
+            },
+            {
+              "text": "力量",
+              "max": 100
+            },
+            {
+              "text": "技巧",
+              "max": 100
+            }
+          ],
+          "radius": 130
+        }
+      ],
+      "series": [
+        {
+          "name": "完全实况球员数据",
+          "type": "radar",
+          "itemStyle": {
+            "normal": {
+              "areaStyle": {
+                "type": "default"
+              }
+            }
+          },
+          "data": [
+            {
+              "value": [
+                97,
+                42,
+                88,
+                94,
+                90,
+                86
+              ],
+              "name": "舍普琴科"
+            },
+            {
+              "value": [
+                97,
+                32,
+                74,
+                95,
+                88,
+                92
+              ],
+              "name": "罗纳尔多"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "radar3",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/radar3.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "title": {
+        "text": "多雷达图",
+        "subtext": "纯属虚构"
+      },
+      "tooltip": {
+        "trigger": "axis"
+      },
+      "legend": {
+        "x": "center",
+        "data": [
+          "某软件",
+          "某主食手机",
+          "某水果手机",
+          "降水量",
+          "蒸发量"
+        ]
+      },
+      "toolbox": {
+        "show": true,
+        "feature": {
+          "mark": {
+            "show": true
+          },
+          "dataView": {
+            "show": true,
+            "readOnly": false
+          },
+          "restore": {
+            "show": true
+          },
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "calculable": true,
+      "polar": [
+        {
+          "indicator": [
+            {
+              "text": "品牌",
+              "max": 100
+            },
+            {
+              "text": "内容",
+              "max": 100
+            },
+            {
+              "text": "可用性",
+              "max": 100
+            },
+            {
+              "text": "功能",
+              "max": 100
+            }
+          ],
+          "center": [
+            "25%",
+            200
+          ],
+          "radius": 80
+        },
+        {
+          "indicator": [
+            {
+              "text": "外观",
+              "max": 100
+            },
+            {
+              "text": "拍照",
+              "max": 100
+            },
+            {
+              "text": "系统",
+              "max": 100
+            },
+            {
+              "text": "性能",
+              "max": 100
+            },
+            {
+              "text": "屏幕",
+              "max": 100
+            }
+          ],
+          "radius": 80
+        },
+        {
+          "indicator": {
+            "$expression": "(function (){\n                var res = [];\n                for (var i = 1; i <= 12; i++) {\n                    res.push({text:i+'月',max:100});\n                }\n                return res;\n            })()"
+          },
+          "center": [
+            "75%",
+            200
+          ],
+          "radius": 80
+        }
+      ],
+      "series": [
+        {
+          "type": "radar",
+          "tooltip": {
+            "trigger": "item"
+          },
+          "itemStyle": {
+            "normal": {
+              "areaStyle": {
+                "type": "default"
+              }
+            }
+          },
+          "data": [
+            {
+              "value": [
+                60,
+                73,
+                85,
+                40
+              ],
+              "name": "某软件"
+            }
+          ]
+        },
+        {
+          "type": "radar",
+          "polarIndex": 1,
+          "data": [
+            {
+              "value": [
+                85,
+                90,
+                90,
+                95,
+                95
+              ],
+              "name": "某主食手机"
+            },
+            {
+              "value": [
+                95,
+                80,
+                95,
+                90,
+                93
+              ],
+              "name": "某水果手机"
+            }
+          ]
+        },
+        {
+          "type": "radar",
+          "polarIndex": 2,
+          "itemStyle": {
+            "normal": {
+              "areaStyle": {
+                "type": "default"
+              }
+            }
+          },
+          "data": [
+            {
+              "name": "降水量",
+              "value": [
+                2.6,
+                5.9,
+                9,
+                26.4,
+                28.7,
+                70.7,
+                75.6,
+                82.2,
+                48.7,
+                18.8,
+                6,
+                2.3
+              ]
+            },
+            {
+              "name": "蒸发量",
+              "value": [
+                2,
+                4.9,
+                7,
+                23.2,
+                25.6,
+                76.7,
+                35.6,
+                62.2,
+                32.6,
+                20,
+                6.4,
+                3.3
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

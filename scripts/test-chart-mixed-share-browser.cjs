@@ -1,0 +1,44 @@
+const assert=require('node:assert/strict'),path=require('node:path');
+const {chromium}=require(path.join(process.argv[2],'playwright'));
+const source=require('../apps/docs/src/pages/chartMixedShareSource.json')[0];
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:process.argv[3]});try{
+ const page=await browser.newPage({viewport:{width:1600,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('http://localhost:4174/components/chart?reference='+encodeURIComponent(source.url));
+ const preview=page.locator('.chart-mixed-share');await preview.scrollIntoViewIfNeeded();
+ assert.equal(await preview.locator('[data-share-active="周五"]').count(),1);
+ const values=source.bindings.data,total=values.reduce((a,b)=>a+b,0),gap=Math.round(Math.max(...values)-Math.min(...values));
+ assert.equal(total,255);assert.equal(gap,80);
+ const ringAngle=()=>preview.locator('[data-share-angle]').evaluate(node=>Number(node.getAttribute('data-share-angle')));
+ const initialAngle=90/255*Math.PI*2;assert.ok(Math.abs(await ringAngle()-initialAngle)<1e-9);
+ await preview.locator('[aria-label="销量，周一，110"]').focus();await page.waitForTimeout(100);
+ const mid=await ringAngle(),mondayAngle=30/255*Math.PI*2;assert.ok(mid<initialAngle&&mid>mondayAngle);
+ const interruption=await preview.evaluate(node=>{const ring=node.querySelector('[data-share-angle]'),before=Number(ring.getAttribute('data-share-angle'));node.querySelector('[aria-label="销量，周日，90"]').focus();return {before,after:Number(ring.getAttribute('data-share-angle'))};});
+ assert.equal(interruption.after,interruption.before);
+ await page.waitForTimeout(600);assert.ok(Math.abs(await ringAngle()-10/255*Math.PI*2)<1e-9);
+ for(let i=0;i<values.length;i++){
+  const name=source.option.xAxis[0].data[i+1],mark=preview.locator(`[aria-label="销量，${name}，${values[i]+gap}"]`);await mark.focus();
+  assert.match(await preview.getByRole('tooltip').textContent(),new RegExp(String(values[i]+gap)));
+  assert.equal(await preview.locator(`[data-share-active="${name}"]`).count(),1);
+  const ring=preview.locator(`[aria-label="占比，${name}，${values[i]}"]`);await ring.focus();
+  const tip=await preview.getByRole('tooltip').textContent();assert.ok(tip.includes('总量 : 255'));assert.ok(tip.includes('占比 : '+Number((values[i]/255*100).toFixed(2))+'%'));
+ }
+ assert.equal(await preview.locator('[data-share-mask]').count(),1);
+ await page.emulateMedia({reducedMotion:'reduce'});
+ await preview.locator('[aria-label="销量，周五，170"]').focus();
+ assert.ok(Math.abs(await ringAngle()-initialAngle)<1e-9);
+ assert.equal(await preview.getByRole('button',{name:'销量',exact:true}).count(),0);
+ await preview.locator('[aria-label="销量，周五，170"]').evaluate(node=>node.blur());
+ const mask=preview.locator('[data-share-mask]');
+ const maskPoint=await mask.evaluate(node=>{const p=new DOMPoint(600,225).matrixTransform(node.ownerSVGElement.getScreenCTM());return {x:p.x,y:p.y};});
+ await page.mouse.move(maskPoint.x,maskPoint.y);assert.equal(await mask.getAttribute('fill'),'rgba(0,0,0,0)');
+ assert.equal(await preview.locator('[data-share-active="周五"]').count(),1);
+ assert.equal(await preview.getByRole('tooltip').count(),0);
+ await page.mouse.move(10,10);assert.equal(await mask.getAttribute('fill'),'#fff');
+ const monday=preview.locator('[aria-label="销量，周一，110"]');await monday.hover();
+ assert.equal(await preview.locator('[data-share-active="周一"]').count(),1);
+ await page.mouse.move(10,10);
+ const downloadEvent=page.waitForEvent('download');await preview.getByRole('button',{name:'保存为图片',exact:true}).click();
+ const download=await downloadEvent;assert.equal(download.suggestedFilename(),'mix12.png');await download.saveAs(path.resolve('apps/docs/chart-mix12-export.png'));
+ await page.screenshot({path:'apps/docs/chart-mix12-preparation.png'});assert.deepEqual(errors,[]);
+ console.log('mix12准备：7日原值/偏移值、总量255、默认最大项、逐日菱形/占比和只读图例通过。');
+}finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});

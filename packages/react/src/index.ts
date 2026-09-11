@@ -91,7 +91,7 @@ export { InputNumber } from "./components/InputNumber";
 export type { InputNumberProps } from "./components/InputNumber";
 export { Select } from "./components/Select";
 export type { SelectChangeValue, SelectMode, SelectOption, SelectProps, SelectValue } from "./components/Select";
-export type { ControlSize, ControlStatus } from "./components/shared";
+export type { ControlSize, ControlStatus, InputPlaceholderMode } from "./components/shared";
 export { FILLED_ICON_NAMES, ICON_NAMES, Icon } from "./components/Icon";
 export type { FilledIconName, IconName, IconProps, IconVariant } from "./components/Icon";
 export { message } from "./components/Message";
@@ -117,3 +117,6 @@ export type { TypographyProps, TypographyTitleProps, TypographyLinkProps, Typogr
 export { FloatButton } from "./components/FloatButton";
 export type { FloatButtonProps, FloatButtonGroupProps, FloatButtonBackTopProps, FloatButtonShape } from "./components/FloatButton";
 export type { SiaThemeMode } from "./theme";
+export * from "./chart";
+export {ChartWhirlingLoading} from './components/ChartWhirlingLoading';
+export type {ChartWhirlingLoadingProps} from './components/ChartWhirlingLoading';

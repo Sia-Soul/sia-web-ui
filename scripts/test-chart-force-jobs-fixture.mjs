@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
+const saved=JSON.parse(fs.readFileSync('apps/docs/src/pages/chartForceJobsSource.json','utf8'));
+const [live]=JSON.parse(execFileSync(process.execPath,['scripts/inspect-chart-references.mjs','--options','--match=^force1$'],{encoding:'utf8'}));
+assert.equal(live.status,200);assert.deepEqual(saved.option,live.option);
+const s=saved.option.series[0];assert.equal(s.nodes.length,11);assert.equal(s.links.length,18);
+assert.equal(s.nodes[0].label,'乔布斯\n（主要）');assert.equal(s.gravity,1.1);assert.equal(s.scaling,1.1);assert.equal(s.roam,'move');
+assert.equal(s.links.filter(l=>l.weight===6).length,2);
+console.log('force1 原站 11 节点、18 加权关系、多行标签与物理/漫游配置逐项一致。');

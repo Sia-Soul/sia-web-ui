@@ -1,0 +1,5 @@
+const path=require('node:path');const {chromium}=require(path.join(process.argv[2],'playwright'));
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:process.argv[3]});try{
+ const page=await browser.newPage({viewport:{width:1600,height:1100}});await page.goto('http://static.dtws110.com/echarts-2.2.7/doc/example/axis.html');await page.locator('#main canvas').first().waitFor();await page.waitForTimeout(2300);
+ console.log(JSON.stringify(await page.evaluate(()=>({grid:myChart.component.grid.getArea(),size:[document.querySelector('#main').clientWidth,document.querySelector('#main').clientHeight],axes:['xAxis','yAxis'].map(kind=>[0,1].map(index=>{const axis=myChart.component[kind].getAxis(index);return {kind,index,min:axis._min,max:axis._max,values:axis._valueList,texts:axis.shapeList.filter(shape=>shape.type==='text').map(shape=>({text:shape.style.text,x:shape.style.x,y:shape.style.y,font:shape.style.textFont,rotation:shape.rotation,align:shape.style.textAlign,baseline:shape.style.textBaseline}))};}))}))));
+ }finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});

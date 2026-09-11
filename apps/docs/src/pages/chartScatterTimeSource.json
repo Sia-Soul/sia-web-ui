@@ -1,0 +1,105 @@
+[
+  {
+    "id": "scatter6",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/scatter6.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "title": {
+        "text": "时间坐标散点图",
+        "subtext": "dataZoom支持"
+      },
+      "tooltip": {
+        "trigger": "axis",
+        "axisPointer": {
+          "show": true,
+          "type": "cross",
+          "lineStyle": {
+            "type": "dashed",
+            "width": 1
+          }
+        }
+      },
+      "toolbox": {
+        "show": true,
+        "feature": {
+          "mark": {
+            "show": true
+          },
+          "dataView": {
+            "show": true,
+            "readOnly": false
+          },
+          "restore": {
+            "show": true
+          },
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "dataZoom": {
+        "show": true,
+        "start": 30,
+        "end": 70
+      },
+      "legend": {
+        "data": [
+          "series1"
+        ]
+      },
+      "dataRange": {
+        "min": 0,
+        "max": 100,
+        "orient": "horizontal",
+        "y": 30,
+        "x": "center",
+        "color": [
+          "lightgreen",
+          "orange"
+        ],
+        "splitNumber": 5
+      },
+      "grid": {
+        "y2": 80
+      },
+      "xAxis": [
+        {
+          "type": "time",
+          "splitNumber": 10
+        }
+      ],
+      "yAxis": [
+        {
+          "type": "value"
+        }
+      ],
+      "animation": false,
+      "series": [
+        {
+          "name": "series1",
+          "type": "scatter",
+          "tooltip": {
+            "trigger": "axis",
+            "formatter": {
+              "$expression": "function (params) {\n                    var date = new Date(params.value[0]);\n                    return params.seriesName \n                           + ' （'\n                           + date.getFullYear() + '-'\n                           + (date.getMonth() + 1) + '-'\n                           + date.getDate() + ' '\n                           + date.getHours() + ':'\n                           + date.getMinutes()\n                           +  '）<br/>'\n                           + params.value[1] + ', ' \n                           + params.value[2];\n                }"
+            },
+            "axisPointer": {
+              "type": "cross",
+              "lineStyle": {
+                "type": "dashed",
+                "width": 1
+              }
+            }
+          },
+          "symbolSize": {
+            "$expression": "function (value){\n                return Math.round(value[2]/10);\n            }"
+          },
+          "data": {
+            "$expression": "(function () {\n                var d = [];\n                var len = 0;\n                var now = new Date();\n                var value;\n                while (len++ < 1500) {\n                    d.push([\n                        new Date(2014, 9, 1, 0, Math.round(Math.random()*10000)),\n                        (Math.random()*30).toFixed(2) - 0,\n                        (Math.random()*100).toFixed(2) - 0\n                    ]);\n                }\n                return d;\n            })()"
+          }
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript'),{execFileSync}=require('node:child_process');
+const source=require('../apps/docs/src/pages/chartBundledMigrationSource.json'),raw=require('../apps/docs/src/pages/chartBundledMigrationData.json');
+assert.deepEqual(JSON.parse(execFileSync(process.execPath,['scripts/inspect-chart-references.mjs','--options','--bindings=geoCoord','--match=^map22$'],{encoding:'utf8'})),source);
+const code=ts.transpileModule(fs.readFileSync('apps/docs/src/pages/chartBundledMigrationData.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const target={exports:{}};new Function('module','exports','require',code)(target,target.exports,name=>({default:name.includes('Source')?source:raw}));
+const snapshot=JSON.stringify(raw),actual=target.exports.createBundledMigrationData(),expected=raw.allLine.map((l,index)=>({...l,index})).sort((a,b)=>b.num-a.num||a.index-b.index).slice(0,3000),coords=source[0].bindings.geoCoord;
+assert.equal(raw.allLine.length,4000);assert.equal(actual.lines.length,3000);assert.equal(actual.points.length,10);assert.equal(Object.keys(coords).length,395);
+for(let i=0;i<3000;i++){const a=actual.lines[i],e=expected[i];assert.equal(a.id,e.index);assert.equal(a.from,e.start);assert.equal(a.to,e.end);assert.equal(a.value,e.num);assert.equal(a.singleNum,e.singleNum);assert.deepEqual(a.source,coords[e.start.split('_').at(-1)]);assert.deepEqual(a.target,coords[e.end.split('_').at(-1)]);}
+for(let i=0;i<10;i++){assert.equal(actual.points[i].name,raw.topCityOut[i].name);assert.deepEqual(actual.points[i].coordinate,coords[raw.topCityOut[i].name.split('_').at(-1)]);}
+assert.equal(JSON.stringify(raw),snapshot);assert.throws(()=>target.exports.bundledMigrationCoordinate('省_未知城市'));assert.deepEqual(target.exports.bundledMigrationCoordinate('任意_前缀_北京'),coords['北京']);
+(async()=>{const r=await fetch('http://static.dtws110.com/echarts-2.2.7/doc/example/data/migration.json');assert.ok(r.ok);assert.deepEqual(await r.json(),raw);console.log('map22：完整原配置/395坐标、线上4000线路、稳定排序前3000原值/方向/坐标、10迁出标点及不变性通过。');})().catch(e=>{console.error(e);process.exitCode=1;});

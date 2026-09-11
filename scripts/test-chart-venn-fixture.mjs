@@ -1,0 +1,16 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import ts from 'typescript';
+const text=fs.readFileSync('apps/docs/src/pages/VennReferencePreview.tsx','utf8');
+const file=ts.createSourceFile('fixture.tsx',text,ts.ScriptTarget.ES2022,true,ts.ScriptKind.TSX);
+let initializer;
+for(const statement of file.statements)if(ts.isVariableStatement(statement))for(const declaration of statement.declarationList.declarations)if(declaration.name.getText(file)==='vennReferenceFixture')initializer=declaration.initializer.getText(file);
+assert.ok(initializer);
+const {fixture}=await import('data:text/javascript;base64,'+Buffer.from('export const fixture='+initializer).toString('base64'));
+const original=JSON.parse(fs.readFileSync('apps/docs/src/pages/chartVennSource.json','utf8'))[0].option,series=original.series[0];
+assert.deepEqual([...fixture.sets,fixture.intersection],series.data);
+assert.equal(fixture.title,original.title.text);assert.equal(fixture.description,original.title.subtext);
+assert.equal(fixture.emphasisColor,series.itemStyle.emphasis.color);
+assert.equal(fixture.emphasisBorderColor,series.itemStyle.emphasis.borderColor);
+assert.equal(fixture.emphasisBorderWidth,series.itemStyle.emphasis.borderWidth);
+console.log('韦恩图原始数据 100/50/20、名称、标题和强调样式验证通过。');

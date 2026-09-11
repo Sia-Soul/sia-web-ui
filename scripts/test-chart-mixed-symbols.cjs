@@ -1,0 +1,14 @@
+const assert=require('node:assert/strict'),path=require('node:path'),{createRequire}=require('node:module');
+const requireDocs=createRequire(path.resolve('apps/docs/package.json'));
+const React=requireDocs('react'),{renderToStaticMarkup}=requireDocs('react-dom/server');
+const {MixedChart}=require('../packages/react/dist/chart.cjs');
+const render=series=>renderToStaticMarkup(React.createElement(MixedChart,{categories:['A','B'],showLegend:false,series,animation:false}));
+const plain=render([{name:'默认',type:'line',color:'#123456',data:[1,2]}]);
+assert.equal((plain.match(/r="4.5" fill="#123456" stroke="var\(--sia-color-surface\)"/g)||[]).length,2);
+assert.ok(!plain.includes('sia-chart__mixed-hollow-symbol'));
+const hollow=render([{name:'空心',type:'line',color:'#123456',data:[1,2],symbolSize:6,hollowSymbol:true}]);
+assert.equal((hollow.match(/r="3" fill="#fff" stroke="#123456"/g)||[]).length,2);
+assert.equal((hollow.match(/class="sia-chart__mixed-hollow-symbol"/g)||[]).length,2);
+const hidden=render([{name:'隐藏点',type:'line',data:[1,2],symbolSize:6,hollowSymbol:true,showPoints:false}]);
+assert.ok(!hidden.includes('sia-chart__mixed-hollow-symbol'));
+console.log('MixedChart 默认9px实心点保持不变、可选6px空心点和隐藏点回归通过。');

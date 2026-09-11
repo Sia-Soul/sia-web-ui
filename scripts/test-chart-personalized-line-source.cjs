@@ -1,0 +1,14 @@
+const assert=require('node:assert/strict');
+const {execFileSync}=require('node:child_process');
+const saved=require('../apps/docs/src/pages/chartPersonalizedLineSource.json');
+const current=JSON.parse(execFileSync(process.execPath,['scripts/inspect-chart-references.mjs','--options','--match=^line$'],{encoding:'utf8'}));
+assert.deepEqual(saved,current);
+const option=saved[0].option;
+assert.equal(option.series.length,4);
+assert.deepEqual(option.series.map(s=>s.data.length),[7,7,7,7]);
+assert.equal(option.series[2].data[2],'-');
+assert.equal(option.series[0].data[4].symbol,'droplet');
+assert.equal(option.series[1].data[2].symbol,'star');
+assert.equal(option.series[2].data[4].symbol,'star6');
+assert.equal(option.series[3].data[3].symbol,'emptyHeart');
+console.log('line 原始配置重新获取深比较通过：四系列、28 个数据位置、缺失项及特殊符号。');

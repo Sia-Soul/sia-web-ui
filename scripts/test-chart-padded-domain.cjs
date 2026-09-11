@@ -1,0 +1,10 @@
+const assert=require('node:assert/strict');
+const {paddedValueExtent}=require('../packages/react/dist/chart.cjs');
+assert.deepEqual(paddedValueExtent([100,200]),[95,205]);
+assert.deepEqual(paddedValueExtent([-200,-100]),[-205,-95]);
+assert.deepEqual(paddedValueExtent([0,0]),[-.05,.05]);
+assert.deepEqual(paddedValueExtent([100,100]),[95,105]);
+assert.deepEqual(paddedValueExtent([NaN,Infinity]),[0,1]);
+assert.deepEqual(paddedValueExtent([100,200],0),[100,200]);
+assert.throws(()=>paddedValueExtent([1],-1));
+console.log('数值域：5%正负留白、常值/零值、非有限过滤及非法留白通过。');

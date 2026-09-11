@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict');
+const {execFileSync}=require('node:child_process');
+const source=require('../apps/docs/src/pages/chartRainFlowSource.json');
+const rain=require('../apps/docs/src/pages/chartRainFlowRainfall.json');
+const current=JSON.parse(execFileSync(process.execPath,['scripts/inspect-chart-references.mjs','--options','--match=^line6$'],{encoding:'utf8'}));
+assert.deepEqual(source,current);
+const o=source[0].option;
+assert.deepEqual(rain,JSON.parse(o.series[1].data.$expression.match(/var oriData\s*=\s*(\[[\s\S]*?\]);/)[1]));
+assert.equal(o.xAxis[0].data.length,3079);assert.equal(o.series[0].data.length,3079);assert.equal(rain.length,3079);
+assert.equal(Math.max(...rain),9.415);assert.equal(Math.max(...o.series[0].data),365);
+console.log('line6 原站配置深比较、3079时间点及两组完整数值通过。');

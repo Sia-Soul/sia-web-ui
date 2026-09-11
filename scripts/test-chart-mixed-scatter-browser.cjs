@@ -1,0 +1,57 @@
+const assert=require('node:assert/strict'),path=require('node:path');
+const {chromium}=require(path.join(process.argv[2],'playwright'));
+(async()=>{
+ const browser=await chromium.launch({headless:true,executablePath:process.argv[3]});
+ try{
+  const page=await browser.newPage({viewport:{width:1500,height:1100}}),errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.goto('http://localhost:4174/components/chart?reference='+encodeURIComponent('http://static.dtws110.com/echarts-2.2.7/doc/example/mix4.html'));
+  const preview=page.locator('.chart-mixed-scatter');await preview.scrollIntoViewIfNeeded();
+  assert.equal(await preview.locator('.sia-chart--overlay .sia-chart__mark').count(),200);
+  const dateBoxes=await preview.locator('.sia-chart__axis-label').evaluateAll(nodes=>nodes.filter(node=>node.textContent.startsWith('2013-03-')).map(node=>{const b=node.getBoundingClientRect();return {left:b.left,right:b.right};}));
+  assert.ok(dateBoxes.length>1&&dateBoxes.length<30);
+  for(let i=1;i<dateBoxes.length;i++)assert.ok(dateBoxes[i-1].right<=dateBoxes[i].left,'日期标签不重叠');
+  const hit=await preview.evaluate(host=>{
+   const svg=host.querySelector('svg'),matrix=svg.getScreenCTM();
+   for(let y=70;y<325;y+=5){const p=new DOMPoint(80+740/29,y).matrixTransform(matrix);const node=document.elementFromPoint(p.x,p.y)?.closest('.sia-chart__mark');
+    if(node&&!node.closest('.sia-chart--overlay')&&node.getAttribute('aria-label')?.startsWith('2013-03-2，'))return {x:p.x,y:p.y};
+   }return null;
+  });
+  assert.ok(hit,'第二天轴提示区域必须可穿透命中');
+  await page.mouse.move(hit.x,hit.y);await preview.getByRole('tooltip').waitFor();
+  assert.match(await preview.getByRole('tooltip').innerText(),/2013-03-2/);
+  assert.match(await preview.getByRole('tooltip').innerText(),/折线/);
+  const filters=preview.locator('.sia-chart__visual-map [role="button"]');assert.equal(await filters.count(),5);
+  await filters.first().click();
+  await page.waitForFunction(()=>document.querySelectorAll('.chart-mixed-scatter .sia-chart--overlay .sia-chart__mark').length<200);
+  await filters.first().click();
+  await page.waitForFunction(()=>document.querySelectorAll('.chart-mixed-scatter .sia-chart--overlay .sia-chart__mark').length===200);
+  await preview.getByRole('button',{name:'数据视图',exact:true}).click();
+  const editor=preview.getByRole('textbox',{name:'图表数值数据'}),original=JSON.parse(await editor.inputValue());
+  assert.deepEqual(original.map(row=>row.length),[600,30]);
+  const changed=original.map(row=>[...row]);changed[0].splice(0,3,15,12.34,100);changed[1][0]=25;
+  await editor.fill(JSON.stringify(changed));await preview.getByRole('button',{name:'应用数据',exact:true}).click();
+  await preview.getByRole('button',{name:'关闭数据视图',exact:true}).click();
+  const point=preview.locator('[aria-label="散点 1，15，12.34"]');await point.waitFor();
+  assert.equal(await point.locator('circle').getAttribute('r'),'10');
+  await point.focus();await preview.getByRole('tooltip').waitFor();
+  assert.match(await preview.getByRole('tooltip').innerText(),/2013-03-15/);
+  assert.match(await preview.getByRole('tooltip').innerText(),/12.34, 100/);
+  const downloadEvent=page.waitForEvent('download');await preview.getByRole('button',{name:'保存为图片',exact:true}).click();
+  const download=await downloadEvent;assert.equal(download.suggestedFilename(),'mix4.png');await download.saveAs(path.resolve('apps/docs/chart-mix4-export.png'));
+  await preview.getByRole('button',{name:'还原',exact:true}).click();
+  await preview.getByRole('button',{name:'数据视图',exact:true}).click();
+  assert.deepEqual(JSON.parse(await editor.inputValue()),original);
+  const boundary=original.map(row=>[...row]);
+  [0,20,20.01,40,60,80,100].forEach((value,index)=>boundary[0][index*3+2]=value);
+  await editor.fill(JSON.stringify(boundary));await preview.getByRole('button',{name:'应用数据',exact:true}).click();
+  await preview.getByRole('button',{name:'关闭数据视图',exact:true}).click();
+  await filters.first().click();
+  await preview.locator('[aria-label^="散点 2，"]').waitFor({state:'hidden'});
+  assert.equal(await preview.locator('[aria-label^="散点 1，"]').count(),0,'0 属于第一段');
+  assert.equal(await preview.locator('[aria-label^="散点 3，"]').count(),1,'20.01 属于第二段');
+  assert.equal(await preview.locator('[aria-label^="散点 7，"]').count(),1,'100 属于末段');
+  assert.deepEqual(errors,[]);
+  console.log('mix4 准备：200 点、五段筛选、630 值统一编辑、尺寸/提示同步、组合下载及还原通过。');
+ }finally{await browser.close();}
+})().catch(error=>{console.error(error);process.exitCode=1;});

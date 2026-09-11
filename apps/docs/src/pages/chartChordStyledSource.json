@@ -1,0 +1,162 @@
+{
+  "id": "chord",
+  "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/chord.html",
+  "status": 200,
+  "hasEditor": true,
+  "option": {
+    "title": {
+      "text": "测试数据"
+    },
+    "tooltip": {
+      "trigger": "item",
+      "formatter": {
+        "$expression": "function (params) {\n            if (params.indicator2) { // is edge\n                return params.value.weight;\n            } else {// is node\n                return params.name\n            }\n        }"
+      }
+    },
+    "toolbox": {
+      "show": true,
+      "y": "bottom",
+      "feature": {
+        "restore": {
+          "show": true
+        },
+        "magicType": {
+          "show": true,
+          "type": [
+            "force",
+            "chord"
+          ]
+        },
+        "saveAsImage": {
+          "show": true
+        }
+      }
+    },
+    "legend": {
+      "x": "right",
+      "data": [
+        "g1",
+        "g2",
+        "g3",
+        "g4"
+      ]
+    },
+    "series": [
+      {
+        "type": "chord",
+        "radius": [
+          "55%",
+          "75%"
+        ],
+        "center": [
+          "50%",
+          "50%"
+        ],
+        "padding": 2,
+        "sort": "descending",
+        "sortSub": "descending",
+        "startAngle": 90,
+        "clockWise": false,
+        "showScale": true,
+        "showScaleText": true,
+        "itemStyle": {
+          "normal": {
+            "borderWidth": 0,
+            "borderColor": "#000",
+            "chordStyle": {
+              "borderWidth": 1,
+              "borderColor": "#333"
+            },
+            "label": {
+              "show": true,
+              "color": "red"
+            }
+          },
+          "emphasis": {
+            "borderWidth": 0,
+            "borderColor": "#000",
+            "chordStyle": {
+              "borderWidth": 2,
+              "borderColor": "black"
+            }
+          }
+        },
+        "data": [
+          {
+            "name": "g1",
+            "itemStyle": {
+              "normal": {
+                "color": "rgba(255,30,30,0.5)",
+                "lineStyle": {
+                  "width": 1,
+                  "color": "green"
+                }
+              },
+              "emphasis": {
+                "color": "yellow",
+                "lineStyle": {
+                  "width": 2,
+                  "color": "blue"
+                }
+              }
+            }
+          },
+          {
+            "name": "g2"
+          },
+          {
+            "name": "g3"
+          },
+          {
+            "name": "g4"
+          }
+        ],
+        "matrix": [
+          [
+            11975,
+            5871,
+            8916,
+            2868
+          ],
+          [
+            1951,
+            10048,
+            2060,
+            6171
+          ],
+          [
+            8010,
+            16145,
+            8090,
+            8045
+          ],
+          [
+            1013,
+            990,
+            940,
+            6907
+          ]
+        ],
+        "markPoint": {
+          "symbol": "star",
+          "data": [
+            {
+              "name": "打酱油的标注",
+              "value": 100,
+              "x": "5%",
+              "y": "50%",
+              "symbolSize": 32
+            },
+            {
+              "name": "打酱油的标注",
+              "value": 100,
+              "x": "95%",
+              "y": "50%",
+              "symbolSize": 32
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,103 @@
+[
+  {
+    "id": "force4",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/force4.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "title": {
+        "text": "Force",
+        "subtext": "Force-directed tree",
+        "x": "right",
+        "y": "bottom"
+      },
+      "tooltip": {
+        "trigger": "item",
+        "formatter": "{a} : {b}"
+      },
+      "toolbox": {
+        "show": true,
+        "feature": {
+          "restore": {
+            "show": true
+          },
+          "magicType": {
+            "show": true,
+            "type": [
+              "force",
+              "chord"
+            ]
+          },
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "legend": {
+        "x": "left",
+        "data": [
+          "叶子节点",
+          "非叶子节点",
+          "根节点"
+        ]
+      },
+      "series": [
+        {
+          "type": "force",
+          "name": "Force tree",
+          "ribbonType": false,
+          "categories": [
+            {
+              "name": "叶子节点",
+              "itemStyle": {
+                "normal": {
+                  "color": "#ff7f50"
+                }
+              }
+            },
+            {
+              "name": "非叶子节点",
+              "itemStyle": {
+                "normal": {
+                  "color": "#6f57bc"
+                }
+              }
+            },
+            {
+              "name": "根节点",
+              "itemStyle": {
+                "normal": {
+                  "color": "#af0000"
+                }
+              }
+            }
+          ],
+          "itemStyle": {
+            "normal": {
+              "label": {
+                "show": false
+              },
+              "nodeStyle": {
+                "brushType": "both",
+                "strokeColor": "rgba(255,215,0,0.6)",
+                "lineWidth": 1
+              }
+            }
+          },
+          "minRadius": {
+            "$expression": "constMinRadius"
+          },
+          "maxRadius": {
+            "$expression": "constMaxRadius"
+          },
+          "nodes": {
+            "$expression": "nodes"
+          },
+          "links": {
+            "$expression": "links"
+          }
+        }
+      ]
+    }
+  }
+]

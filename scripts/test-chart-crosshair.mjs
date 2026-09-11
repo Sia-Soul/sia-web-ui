@@ -1,0 +1,27 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import ts from 'typescript';
+// Exercise the component's actual listener callbacks with a deterministic SVG CTM.
+let point=null;
+const effects=[],listeners=new Map();
+const svg={getScreenCTM:()=>({inverse:()=>({scale:.5,dx:-10,dy:-20})}),addEventListener:(name,fn)=>listeners.set(name,fn),removeEventListener:(name,fn)=>{assert.equal(listeners.get(name),fn);listeners.delete(name);}};
+const react={useRef:()=>({current:{ownerSVGElement:svg}}),useState:()=>[point,next=>{point=next;}],useEffect:fn=>effects.push(fn)};
+const jsx=(tag,props)=>({tag,props});
+const require=name=>{if(name==='react')return react;if(name==='react/jsx-runtime')return {jsx,jsxs:jsx};throw Error(name);};
+globalThis.DOMPoint=class {constructor(x,y){this.x=x;this.y=y;}matrixTransform(m){return {x:this.x*m.scale+m.dx,y:this.y*m.scale+m.dy};}};
+const code=ts.transpileModule(fs.readFileSync('packages/react/src/components/ChartCrosshair.tsx','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+const exports={};new Function('require','exports',code)(require,exports);
+const props={bounds:{x:80,y:60,width:500,height:200},xDomain:[-100,100],yDomain:[0,80]};
+exports.ChartCrosshair(props);
+const cleanup=effects[0]();effects[1]();
+listeners.get('pointermove')({clientX:680,clientY:360});
+assert.deepEqual(point,{x:330,y:160});
+const tree=exports.ChartCrosshair(props),overlay=tree.props.children[1];
+assert.equal(overlay.props.pointerEvents,'none');
+assert.deepEqual(overlay.props.children.slice(1).map(child=>child.props.children),['0','40']);
+assert.match(overlay.props.children[0].props.d,/M 80 160 H 580 M 330 60 V 260/);
+listeners.get('pointermove')({clientX:0,clientY:0});assert.equal(point,null);
+listeners.get('pointermove')({clientX:680,clientY:360});listeners.get('pointerleave')();assert.equal(point,null);
+listeners.get('pointermove')({clientX:680,clientY:360});listeners.get('pointercancel')();assert.equal(point,null);
+cleanup();assert.equal(listeners.size,0);
+console.log('十字线屏幕缩放坐标换算、横纵读数、越界/离开/取消清理及监听器回收检查通过。');

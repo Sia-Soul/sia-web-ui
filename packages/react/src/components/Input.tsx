@@ -1,7 +1,7 @@
 import { forwardRef, useId, useRef, useState } from "react";
 import type { ChangeEvent, InputHTMLAttributes, ReactNode } from "react";
 import { Icon } from "./Icon";
-import type { ControlSize, ControlStatus } from "./shared";
+import type { ControlSize, ControlStatus, InputPlaceholderMode } from "./shared";
 
 export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "prefix" | "size"> {
   label?: ReactNode;
@@ -13,6 +13,7 @@ export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
   allowClear?: boolean;
   onClear?: () => void;
   showCount?: boolean;
+  placeholderMode?: InputPlaceholderMode;
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
@@ -26,6 +27,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     allowClear = false,
     onClear,
     showCount = false,
+    placeholderMode = "default",
+    placeholder,
     className = "",
     id,
     disabled,
@@ -43,6 +46,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   const [uncontrolledValue, setUncontrolledValue] = useState(() => defaultValue === undefined ? "" : String(defaultValue));
   const currentText = value !== undefined ? String(value) : uncontrolledValue;
   const hasValue = currentText.length > 0;
+  const floatingPlaceholder = placeholderMode === "floating" && Boolean(placeholder);
   const hintId = `${inputId}-hint`;
   const describedBy = [props["aria-describedby"], hint ? hintId : null].filter(Boolean).join(" ") || undefined;
 
@@ -72,22 +76,30 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     onClear?.();
   }
 
+  const input = (
+    <input
+      {...props}
+      ref={setRef}
+      id={inputId}
+      className="sia-input"
+      disabled={disabled}
+      value={value}
+      defaultValue={defaultValue}
+      maxLength={maxLength}
+      placeholder={placeholder}
+      aria-describedby={describedBy}
+      aria-invalid={status === "error" || undefined}
+      onChange={handleChange}
+    />
+  );
+
   const control = (
-    <span className={`sia-input-control sia-input-control--${size} sia-input-control--${status}${disabled ? " is-disabled" : ""}`}>
+    <span className={`sia-input-control sia-input-control--${size} sia-input-control--${status}${floatingPlaceholder ? " sia-input-control--floating" : ""}${floatingPlaceholder && hasValue ? " is-filled" : ""}${disabled ? " is-disabled" : ""}`}>
       {prefix ? <span className="sia-input-control__affix">{prefix}</span> : null}
-      <input
-        {...props}
-        ref={setRef}
-        id={inputId}
-        className="sia-input"
-        disabled={disabled}
-        value={value}
-        defaultValue={defaultValue}
-        maxLength={maxLength}
-        aria-describedby={describedBy}
-        aria-invalid={status === "error" || undefined}
-        onChange={handleChange}
-      />
+      {floatingPlaceholder ? <span className="sia-input-control__input-wrap">
+        {input}
+        <span className="sia-input-control__floating-placeholder" aria-hidden="true">{placeholder}</span>
+      </span> : input}
       {allowClear && hasValue && !disabled ? <button className="sia-input-control__clear" type="button" aria-label="清空输入" onClick={clearValue}><Icon name="circle-close" variant="filled" size={15} /></button> : null}
       {suffix ? <span className="sia-input-control__affix">{suffix}</span> : null}
       {showCount ? <span className={`sia-input-control__count${maxLength !== undefined && currentText.length >= maxLength ? " is-limit" : ""}`} aria-live="polite">{currentText.length}{maxLength !== undefined ? `/${maxLength}` : null}</span> : null}

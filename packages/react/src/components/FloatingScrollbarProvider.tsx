@@ -293,7 +293,7 @@ export function FloatingScrollbarProvider({ disabled = false }: FloatingScrollba
         verticalTrack: vertical.track,
         verticalThumb: vertical.thumb,
         hideTimer: null,
-        hoveringTarget: false,
+        hoveringTarget: target.matches(":hover"),
         hoveringTrack: false,
         dragging: false,
         cleanup: () => undefined,
@@ -308,12 +308,15 @@ export function FloatingScrollbarProvider({ disabled = false }: FloatingScrollba
         target.removeEventListener("pointerleave", onPointerLeave);
         target.removeEventListener("scroll", onScroll);
         resizeObserver.unobserve(target);
+        target.removeAttribute("data-sia-floating-scrollbar");
         horizontal.track.remove();
         vertical.track.remove();
       };
       entries.set(target, entry);
+      target.setAttribute("data-sia-floating-scrollbar", "");
       resizeObserver.observe(target);
       updateEntry(entry);
+      if (entry.hoveringTarget) showEntry(entry);
     };
 
     const removeTarget = (target: HTMLElement) => {
@@ -350,14 +353,14 @@ export function FloatingScrollbarProvider({ disabled = false }: FloatingScrollba
       if (mutations.some((mutation) => !layer.contains(mutation.target))) scheduleScan();
     });
     mutationObserver.observe(document.documentElement, { subtree: true, childList: true, attributes: true });
-    window.addEventListener("resize", scheduleUpdateAll);
+    window.addEventListener("resize", scheduleScan);
     window.addEventListener("scroll", scheduleUpdateAll, true);
     scheduleScan();
 
     return () => {
       mutationObserver.disconnect();
       resizeObserver.disconnect();
-      window.removeEventListener("resize", scheduleUpdateAll);
+      window.removeEventListener("resize", scheduleScan);
       window.removeEventListener("scroll", scheduleUpdateAll, true);
       if (scanFrame) window.cancelAnimationFrame(scanFrame);
       if (updateFrame) window.cancelAnimationFrame(updateFrame);

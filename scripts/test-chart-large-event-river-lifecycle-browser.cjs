@@ -1,0 +1,23 @@
+const assert=require('node:assert/strict'),path=require('node:path');const {chromium}=require(path.join(process.argv[2],'playwright'));
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:process.argv[3]});try{
+ const page=await browser.newPage({viewport:{width:1600,height:1100}}),errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await page.addInitScript(()=>{const serialize=XMLSerializer.prototype.serializeToString;XMLSerializer.prototype.serializeToString=function(node){const value=serialize.call(this,node);if(node.querySelector?.('.sia-chart__event-river'))window.__riverExport=value;return value;};});
+ await page.goto('http://localhost:4174/components/chart?reference='+encodeURIComponent('http://static.dtws110.com/echarts-2.2.7/doc/example/eventRiver2.html'));
+ const root=page.locator('.chart-large-event-river-reference');await root.scrollIntoViewIfNeeded();
+ const samples=await root.evaluate(async root=>{const values=[];for(let i=0;i<6;i++){values.push([...root.querySelectorAll('[data-event-scale]')].map(node=>Number(node.dataset.eventScale)));await new Promise(resolve=>setTimeout(resolve,70));}return values;});
+ assert.ok(samples.every(frame=>frame.length===83));assert.ok(samples[5].some((value,index)=>value>samples[0][index]),'83事件入场期间真实帧推进');
+ await page.waitForFunction(()=>[...document.querySelectorAll('.chart-large-event-river-reference [data-event-scale]')].every(node=>Number(node.dataset.eventScale)===1));
+ const shapes=root.locator('path.sia-chart__event-river');
+ const chosen=await shapes.evaluateAll(nodes=>nodes.map(node=>{const box=node.getBoundingClientRect();return {id:node.closest('[data-event-id]').dataset.eventId,area:box.width*box.height};}).sort((a,b)=>b.area-a.area)[0]);
+ const mark=root.locator(`[data-event-id="${chosen.id}"]`),shape=mark.locator('path'),box=await shape.boundingBox();
+ await page.mouse.move(box.x+box.width*.5,box.y+box.height*.5);await page.mouse.down();await page.mouse.move(box.x+box.width*.5,box.y+box.height*.5+35,{steps:6});await page.mouse.up();
+ assert.ok(Number(await mark.getAttribute('data-event-offset'))>10,'密集事件纵向拖动');
+ await root.getByRole('button',{name:'还原',exact:true}).click();assert.equal(Number(await mark.getAttribute('data-event-offset')),0);
+ await page.waitForFunction(()=>[...document.querySelectorAll('.chart-large-event-river-reference [data-event-scale]')].every(node=>Number(node.dataset.eventScale)===1));
+ await mark.focus();assert.ok(await root.getByRole('tooltip').isVisible());await root.getByRole('button',{name:'保存为图片',exact:true}).focus();
+ const pending=page.waitForEvent('download');await root.getByRole('button',{name:'保存为图片',exact:true}).click();const download=await pending;assert.equal(await download.failure(),null);await download.saveAs('apps/docs/chart-large-event-river-export.png');
+ const count=await page.evaluate(()=>new DOMParser().parseFromString(window.__riverExport,'image/svg+xml').querySelectorAll('path.sia-chart__event-river').length);assert.equal(count,83,'导出包含全部事件');
+ await page.emulateMedia({reducedMotion:'reduce'});await root.getByRole('button',{name:'还原',exact:true}).click();assert.ok(await root.locator('[data-event-scale]').evaluateAll(nodes=>nodes.every(node=>Number(node.dataset.eventScale)===1)));
+ await page.goto('http://localhost:4174/components/chart/eventriver');const card=page.locator('#chart-example-eventRiver2');await card.scrollIntoViewIfNeeded();await card.locator('path.sia-chart__event-river').first().waitFor();assert.equal(await card.locator('path.sia-chart__event-river').count(),83);assert.equal(await page.locator('.chart-reference-card').count(),2);assert.equal(await page.locator('.chart-reference-pending li').count(),0);
+ assert.deepEqual(errors,[]);console.log('eventRiver2 83事件入场、拖动、提示、还原、83路径导出、减少动态效果及分类独立卡片通过。');
+ }finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});

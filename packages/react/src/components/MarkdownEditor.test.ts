@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-// @ts-expect-error Node 的类型剥离测试直接加载 TypeScript 扩展名。
 import { isLikelyMarkdown } from "./markdownPaste.ts";
 
 test("识别应自动解析的 Markdown 内容", () => {

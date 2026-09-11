@@ -97,6 +97,7 @@ export const OverlayScrollArea = forwardRef<HTMLElement, OverlayScrollAreaProps>
       <Viewport
         {...viewportProps}
         ref={viewportRef as never}
+        data-sia-native-scrollbar=""
         className={`overlay-scroll-area__viewport ${viewportClassName}`.trim()}
         onScroll={updateScrollbar}
       >

@@ -1,0 +1,22 @@
+const assert=require('node:assert/strict'),path=require('node:path');
+const {chromium}=require(path.join(process.argv[2],'playwright'));
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:process.argv[3]});try{
+ const page=await browser.newPage({viewport:{width:1600,height:1100}}),errors=[];page.on('pageerror',error=>errors.push(error.message));
+ const url='http://localhost:4174/components/chart?reference='+encodeURIComponent('http://static.dtws110.com/echarts-2.2.7/doc/example/legend.html');
+ await page.goto(url);const root=page.locator('.chart-legend-reference');await root.scrollIntoViewIfNeeded();
+ const start=()=>root.locator('.sia-chart__legend [role="button"]').filter({hasText:'最低气温'}).click();
+ await start();const loading=root.getByRole('status',{name:'数据获取中'});await loading.waitFor();
+ assert.equal(await loading.getAttribute('viewBox'),'0 0 995 378');
+ assert.equal(await loading.locator('rect').getAttribute('fill'),'rgba(250,250,250,0.8)');
+ assert.equal(await loading.locator('g').getAttribute('transform'),'translate(462 189)');
+ assert.equal(await loading.locator('circle').first().getAttribute('r'),'15');assert.equal(await loading.locator('circle').first().getAttribute('stroke-width'),'6');
+ assert.equal(await loading.locator('circle').last().getAttribute('r'),'3');
+ const droplet=loading.locator('[data-whirling-droplet]'),angle=async()=>Number((await droplet.getAttribute('transform')).match(/rotate\(([^)]+)\)/)[1]);
+ const first=await angle();await page.waitForTimeout(200);const second=await angle();assert.ok(second>first);
+ assert.ok(Math.abs(second/(.3*180/Math.PI)-Math.round(second/(.3*180/Math.PI)))<1e-8,'离散0.3弧度帧');
+ await loading.screenshot({path:'apps/docs/chart-legend-whirling.png'});
+ await loading.waitFor({state:'detached'});assert.equal(await root.locator('[data-mixed-series="3"]').count(),7);
+ await page.emulateMedia({reducedMotion:'reduce'});await page.reload();await root.scrollIntoViewIfNeeded();await start();await loading.waitFor();assert.equal(await angle(),0);await page.waitForTimeout(200);assert.equal(await angle(),0);
+ await page.goto('http://localhost:4174/components/chart/bar');assert.deepEqual(errors,[]);
+ console.log('whirling 三层图形、原始尺寸/颜色/位置、离散旋转、加载结束卸载、减少动态效果及中途离开通过。');
+}finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});

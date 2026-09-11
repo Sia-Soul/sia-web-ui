@@ -42,6 +42,15 @@ export default function Demo() {
   </>;
 }`;
 
+const floatingPlaceholderCode = `import { InputNumber } from "@sia-ui/react";
+
+export default function Demo() {
+  return <>
+    <InputNumber placeholder="数量" placeholderMode="floating" min={0} />
+    <InputNumber placeholder="折扣" placeholderMode="floating" defaultValue={8.5} precision={1} suffix="折" />
+  </>;
+}`;
+
 const apiRows = [
   { property: "value", description: "当前数值（受控）", type: "number | null", defaultValue: "-" },
   { property: "defaultValue", description: "初始数值", type: "number | null", defaultValue: "null" },
@@ -49,6 +58,7 @@ const apiRows = [
   { property: "step", description: "每次改变的步长", type: "number", defaultValue: "1" },
   { property: "precision", description: "固定小数位数", type: "number", defaultValue: "-" },
   { property: "controls", description: "是否显示增减按钮", type: "boolean", defaultValue: "true" },
+  { property: "placeholderMode", description: "占位文案的显示模式", type: "'default' | 'floating'", defaultValue: "'default'" },
   { property: "onChange", description: "数值变化回调", type: "(value: number | null) => void", defaultValue: "-" },
 ] as const;
 
@@ -80,6 +90,12 @@ export function InputNumberPage() {
             <InputNumber aria-label="大尺寸数字输入" size="large" defaultValue={3} />
             <InputNumber aria-label="中尺寸数字输入" defaultValue={3} />
             <InputNumber aria-label="小尺寸数字输入" size="small" defaultValue={3} />
+          </div>
+        </DemoCard>
+        <DemoCard title="浮动占位文案" description="聚焦时占位文案会滑动到输入框顶部；输入数值后会保持浮动。" code={floatingPlaceholderCode}>
+          <div className="component-demo">
+            <InputNumber aria-label="数量" placeholder="数量" placeholderMode="floating" min={0} />
+            <InputNumber aria-label="折扣" placeholder="折扣" placeholderMode="floating" defaultValue={8.5} precision={1} suffix="折" />
           </div>
         </DemoCard>
       </div> : <ApiTable name="InputNumber" rows={apiRows} />}

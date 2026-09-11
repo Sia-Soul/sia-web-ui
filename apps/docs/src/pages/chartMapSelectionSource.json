@@ -1,0 +1,40 @@
+[
+  {
+    "id": "map2",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map2.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "tooltip": {
+        "trigger": "item",
+        "formatter": "{b}"
+      },
+      "series": [
+        {
+          "name": "中国",
+          "type": "map",
+          "mapType": "china",
+          "selectedMode": "multiple",
+          "itemStyle": {
+            "normal": {
+              "label": {
+                "show": true
+              }
+            },
+            "emphasis": {
+              "label": {
+                "show": true
+              }
+            }
+          },
+          "data": [
+            {
+              "name": "广东",
+              "selected": true
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

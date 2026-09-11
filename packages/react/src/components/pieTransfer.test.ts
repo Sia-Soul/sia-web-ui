@@ -1,0 +1,8 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {transferPieValue} from './pieTransfer.ts';
+const fixture=()=>[{name:'访问来源',data:[{name:'直达',value:335},{name:'营销广告',value:679}]},{name:'访问来源',data:[{name:'百度',value:1048}]}];
+test('饼图合并数值并拼接名称，源项为缺失值且不修改输入',()=>{const input=fixture(),result=transferPieValue(input,{series:0,index:0},{series:1,index:0});assert.deepEqual(result.series[1]!.data[0],{name:'百度 & 直达',value:1383});assert.equal(result.series[0]!.data[0]!.value,'-');assert.equal(input[0]!.data[0]!.value,335);});
+test('容纳区域新增、同名缺失项恢复、原组容纳区域无变化',()=>{const input=fixture();assert.deepEqual(transferPieValue(input,{series:0,index:0},{series:0,index:-1}).series,input);const result=transferPieValue(input,{series:0,index:0},{series:1,index:-1});assert.deepEqual(result.series[1]!.data[1],{name:'直达',value:335});const restored=transferPieValue(result.series,{series:1,index:1},{series:0,index:-1});assert.equal(restored.series[0]!.data.length,2);assert.equal(restored.series[0]!.data[0]!.value,335);});
+test('拖出生成数据孤岛；无效位置和溢出拒绝执行',()=>{const input=fixture();assert.deepEqual(transferPieValue(input,{series:0,index:0},null).island,{name:'直达',value:335,seriesName:'访问来源'});assert.throws(()=>transferPieValue(input,{series:0,index:10},null));assert.throws(()=>transferPieValue([{data:[{name:'a',value:1e308},{name:'b',value:1e308}]}],{series:0,index:0},{series:0,index:1}));});
+test('小数合并不会产生0.30000000000000004',()=>{assert.equal(transferPieValue([{data:[{name:'a',value:.1},{name:'b',value:.2}]}],{series:0,index:0},{series:0,index:1}).series[0]!.data[1]!.value,.3);});

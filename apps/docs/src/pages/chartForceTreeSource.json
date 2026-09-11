@@ -1,0 +1,88 @@
+{
+  "id": "force2",
+  "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/force2.html",
+  "status": 200,
+  "hasEditor": true,
+  "option": {
+    "title": {
+      "text": "Force",
+      "subtext": "Force-directed tree",
+      "x": "right",
+      "y": "bottom"
+    },
+    "tooltip": {
+      "trigger": "item",
+      "formatter": "{a} : {b}"
+    },
+    "toolbox": {
+      "show": true,
+      "feature": {
+        "restore": {
+          "show": true
+        },
+        "magicType": {
+          "show": true,
+          "type": [
+            "force",
+            "chord"
+          ]
+        },
+        "saveAsImage": {
+          "show": true
+        }
+      }
+    },
+    "legend": {
+      "x": "left",
+      "data": [
+        "叶子节点",
+        "非叶子节点",
+        "根节点"
+      ]
+    },
+    "series": [
+      {
+        "type": "force",
+        "name": "Force tree",
+        "ribbonType": false,
+        "categories": [
+          {
+            "name": "叶子节点"
+          },
+          {
+            "name": "非叶子节点"
+          },
+          {
+            "name": "根节点"
+          }
+        ],
+        "itemStyle": {
+          "normal": {
+            "label": {
+              "show": false
+            },
+            "nodeStyle": {
+              "brushType": "both",
+              "borderColor": "rgba(255,215,0,0.6)",
+              "borderWidth": 1
+            }
+          }
+        },
+        "minRadius": {
+          "$expression": "constMinRadius"
+        },
+        "maxRadius": {
+          "$expression": "constMaxRadius"
+        },
+        "coolDown": 0.995,
+        "steps": 1,
+        "nodes": {
+          "$expression": "nodes"
+        },
+        "links": {
+          "$expression": "links"
+        }
+      }
+    ]
+  }
+}

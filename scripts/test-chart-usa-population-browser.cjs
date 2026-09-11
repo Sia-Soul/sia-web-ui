@@ -1,0 +1,30 @@
+const assert=require('node:assert/strict'),path=require('node:path');
+const {chromium}=require(path.join(process.argv[2],'playwright'));
+const source=require('../apps/docs/src/pages/chartUsaPopulationSource.json')[0],geo=require('../apps/docs/src/pages/chartUsaGeography.json').geography;
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:process.argv[3]});try{
+ const page=await browser.newPage({viewport:{width:1600,height:1200}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('http://localhost:4174/components/chart?reference='+encodeURIComponent(source.url));const root=page.locator('.chart-world-population');await root.scrollIntoViewIfNeeded();
+ assert.equal(geo.features.length,52);assert.equal(await root.locator('[data-map-region]').count(),52);
+ assert.deepEqual(geo.features.map(f=>f.properties.name).sort(),source.option.series[0].data.map(d=>d.name).sort());
+ for(const datum of source.option.series[0].data){await root.locator('[data-map-region="'+datum.name+'"]').focus();assert.equal(await root.getByRole('tooltip').textContent(),'USA PopEstimates'+datum.name+' : '+datum.value.toLocaleString('en-US'));}
+ assert.equal(await root.locator('[data-map-region="California"] path').getAttribute('fill'),'#ff4500');
+ const boxes={};for(const name of ['Alaska','Hawaii','Puerto Rico','Texas'])boxes[name]=await root.locator('[data-map-region="'+name+'"] path').evaluate(p=>{const b=p.getBBox();return {x:b.x,y:b.y,width:b.width,height:b.height};});
+ assert.ok(boxes.Alaska.x<boxes.Hawaii.x&&boxes.Hawaii.x<boxes['Puerto Rico'].x);
+ assert.ok(boxes.Alaska.width>boxes.Hawaii.width&&boxes.Hawaii.width>boxes['Puerto Rico'].width);
+ assert.ok(boxes.Alaska.y>boxes.Texas.y);
+ await root.getByRole('button',{name:'数据视图',exact:true}).click();const input=root.getByRole('textbox',{name:'图表数值数据'});
+ assert.deepEqual(JSON.parse(await input.inputValue()),[source.option.series[0].data.map(d=>d.value)]);
+ const edited=source.option.series[0].data.map(d=>d.value);edited[0]=19250000;await input.fill(JSON.stringify([edited]));await root.getByRole('button',{name:'应用数据',exact:true}).click();await root.getByRole('button',{name:'关闭数据视图',exact:true}).click();
+ assert.equal(await root.locator('[data-map-region="Alabama"] path').getAttribute('fill'),'#ffff00');
+ await root.getByRole('button',{name:'还原',exact:true}).click();
+ const handle=root.getByRole('slider').first(),box=await handle.locator('path').boundingBox(),track=await root.locator('[data-range-track]').boundingBox(),target=root.locator('[data-map-region="Wyoming"] path'),before=await target.getAttribute('fill');
+ await page.mouse.move(box.x+box.width-3,box.y+3);await page.mouse.down();await page.mouse.move(box.x+box.width-3,box.y+3-track.height*.5,{steps:6});assert.equal(await target.getAttribute('fill'),'#ccc');await page.mouse.up();
+ await root.getByRole('button',{name:'还原',exact:true}).click();assert.equal(await target.getAttribute('fill'),before);assert.equal(await handle.getAttribute('aria-valuenow'),'500000');
+ const viewport=root.locator('[data-map-viewport]');await viewport.focus();await page.keyboard.press('ArrowRight');assert.notEqual(await root.locator('[data-map-transform]').getAttribute('transform'),'translate(0 0) scale(1)');await page.keyboard.press('Home');assert.equal(await root.locator('[data-map-transform]').getAttribute('transform'),'translate(0 0) scale(1)');
+ await root.getByRole('button',{name:'标线',exact:true}).click();const surface=await root.locator('[data-chart-mark-surface]').boundingBox();await page.mouse.click(surface.x+surface.width*.4,surface.y+surface.height*.4);await page.mouse.click(surface.x+surface.width*.6,surface.y+surface.height*.6);assert.equal(await root.locator('.sia-chart__user-marks line').count(),1);
+ await root.getByRole('button',{name:'撤销标线',exact:true}).click();assert.equal(await root.locator('.sia-chart__user-marks line').count(),0);await root.getByRole('button',{name:'标线',exact:true}).click();
+ const downloading=page.waitForEvent('download');await root.getByRole('button',{name:'保存为图片',exact:true}).click();const download=await downloading;assert.equal(download.suggestedFilename(),'map7.png');await download.saveAs(path.resolve('apps/docs/chart-map7-export.png'));
+ const textBounds=await root.locator('[data-range-track]').locator('..').locator('text').evaluateAll(nodes=>nodes.map(n=>{const b=n.getBBox();return {x:b.x,right:b.x+b.width};}));assert.ok(textBounds.every(b=>b.x>=0&&b.right<=1000),'值域文字不得裁切');
+ await page.goto('http://localhost:4174/components/chart/map');const card=page.locator('#chart-example-map7');await card.scrollIntoViewIfNeeded();await card.locator('[data-map-region]').first().waitFor();assert.equal(await card.locator('[data-map-region]').count(),52);
+ assert.deepEqual(errors,[]);console.log('map7：52地区及全部人口提示、三个特殊区域、超限色、数据编辑、实时筛选、键盘漫游/还原、标线、完整值域导出和分类卡片通过。');
+}finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});

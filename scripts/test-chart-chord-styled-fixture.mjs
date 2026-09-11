@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
+const saved=JSON.parse(fs.readFileSync('apps/docs/src/pages/chartChordStyledSource.json','utf8'));
+const [live]=JSON.parse(execFileSync(process.execPath,['scripts/inspect-chart-references.mjs','--options','--match=^chord$'],{encoding:'utf8'}));
+assert.equal(live.status,200);assert.deepEqual(saved.option,live.option);
+const series=saved.option.series[0];
+assert.equal(series.matrix.flat().reduce((a,b)=>a+b,0),100000);
+assert.deepEqual(series.markPoint.data.map(m=>[m.x,m.y,m.value,m.symbolSize]),[['5%','50%',100,32],['95%','50%',100,32]]);
+assert.equal(series.clockWise,false);assert.equal(series.sort,'descending');assert.equal(series.sortSub,'descending');
+console.log('chord 原站矩阵、双降序、逆时针和两个星形标注配置逐项一致。');

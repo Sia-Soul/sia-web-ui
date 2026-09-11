@@ -1,0 +1,177 @@
+[
+  {
+    "id": "map17",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/map17.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "backgroundColor": "#228b22",
+      "title": {
+        "text": "2014世界杯",
+        "subtext": "地图SVG扩展",
+        "textStyle": {
+          "color": "#fff"
+        }
+      },
+      "tooltip": {
+        "trigger": "item"
+      },
+      "toolbox": {
+        "show": true,
+        "feature": {
+          "mark": {
+            "show": true
+          },
+          "dataView": {
+            "show": true,
+            "readOnly": false
+          },
+          "restore": {
+            "show": true
+          },
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "series": [
+        {
+          "name": "2014世界杯",
+          "type": "map",
+          "mapType": "football",
+          "roam": true,
+          "itemStyle": {
+            "normal": {
+              "label": {
+                "show": true
+              }
+            },
+            "emphasis": {
+              "label": {
+                "show": true
+              }
+            }
+          },
+          "data": [
+            {
+              "name": "草地",
+              "hoverable": false,
+              "itemStyle": {
+                "normal": {
+                  "label": {
+                    "show": false
+                  }
+                }
+              }
+            }
+          ],
+          "textFixed": {
+            "球门区1": [
+              0,
+              -20
+            ],
+            "球门区2": [
+              0,
+              -20
+            ],
+            "禁区1": [
+              10,
+              20
+            ],
+            "禁区2": [
+              -10,
+              20
+            ],
+            "禁区弧线1": [
+              0,
+              -20
+            ],
+            "禁区弧线2": [
+              0,
+              -20
+            ],
+            "中圈": [
+              0,
+              -20
+            ],
+            "开球点": [
+              0,
+              20
+            ]
+          },
+          "markPoint": {
+            "symbol": "circle",
+            "symbolSize": 20,
+            "effect": {
+              "show": true,
+              "color": "lime"
+            },
+            "data": [
+              {
+                "name": "开球点",
+                "value": 100,
+                "geoCoord": [
+                  425.126,
+                  296.913
+                ]
+              }
+            ]
+          },
+          "markLine": {
+            "smooth": true,
+            "effect": {
+              "show": true,
+              "scaleSize": 1,
+              "period": 20,
+              "color": "#fff",
+              "shadowBlur": 5
+            },
+            "itemStyle": {
+              "normal": {
+                "borderWidth": 1,
+                "color": "gold",
+                "lineStyle": {
+                  "type": "solid"
+                }
+              }
+            },
+            "data": [
+              [
+                {
+                  "name": "1",
+                  "geoCoord": [
+                    96.879,
+                    186.983
+                  ]
+                },
+                {
+                  "name": "2",
+                  "geoCoord": [
+                    693.786,
+                    297.939
+                  ]
+                }
+              ],
+              [
+                {
+                  "name": "2",
+                  "geoCoord": [
+                    753.373,
+                    186.983
+                  ]
+                },
+                {
+                  "name": "1",
+                  "geoCoord": [
+                    156.467,
+                    296.913
+                  ]
+                }
+              ]
+            ]
+          }
+        }
+      ]
+    }
+  }
+]

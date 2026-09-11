@@ -1,0 +1,125 @@
+[
+  {
+    "id": "scatter5",
+    "url": "http://static.dtws110.com/echarts-2.2.7/doc/example/scatter5.html",
+    "status": 200,
+    "hasEditor": true,
+    "option": {
+      "title": {
+        "text": "类目坐标散点图",
+        "subtext": "dataZoom支持"
+      },
+      "tooltip": {
+        "trigger": "axis",
+        "axisPointer": {
+          "show": true,
+          "type": "cross",
+          "lineStyle": {
+            "type": "dashed",
+            "width": 1
+          }
+        }
+      },
+      "toolbox": {
+        "show": true,
+        "feature": {
+          "mark": {
+            "show": true
+          },
+          "dataView": {
+            "show": true,
+            "readOnly": false
+          },
+          "restore": {
+            "show": true
+          },
+          "saveAsImage": {
+            "show": true
+          }
+        }
+      },
+      "dataZoom": {
+        "show": true,
+        "start": 30,
+        "end": 70
+      },
+      "legend": {
+        "data": [
+          "series1",
+          "series2"
+        ]
+      },
+      "dataRange": {
+        "min": 0,
+        "max": 100,
+        "orient": "horizontal",
+        "y": 30,
+        "x": "center",
+        "color": [
+          "lightgreen",
+          "orange"
+        ],
+        "splitNumber": 5
+      },
+      "xAxis": [
+        {
+          "type": "category",
+          "axisLabel": {
+            "formatter": {
+              "$expression": "function(v) {\n                    return '类目' + v\n                }"
+            }
+          },
+          "data": {
+            "$expression": "function (){\n                var list = [];\n                var len = 0;\n                while (len++ < 500) {\n                    list.push(len);\n                }\n                return list;\n            }()"
+          }
+        }
+      ],
+      "yAxis": [
+        {
+          "type": "value"
+        }
+      ],
+      "animation": false,
+      "series": [
+        {
+          "name": "series1",
+          "type": "scatter",
+          "tooltip": {
+            "trigger": "item",
+            "formatter": {
+              "$expression": "function (params) {\n                    return params.seriesName + ' （'  + '类目' + params.value[0] + '）<br/>'\n                           + params.value[1] + ', ' \n                           + params.value[2]; \n                }"
+            },
+            "axisPointer": {
+              "show": true
+            }
+          },
+          "symbolSize": {
+            "$expression": "function (value){\n                return Math.round(value[2]/10);\n            }"
+          },
+          "data": {
+            "$expression": "(function () {\n                var d = [];\n                var len = 0;\n                var value;\n                while (len++ < 500) {\n                    d.push([\n                        len,\n                        (Math.random()*30).toFixed(2) - 0,\n                        (Math.random()*100).toFixed(2) - 0\n                    ]);\n                }\n                return d;\n            })()"
+          }
+        },
+        {
+          "name": "series2",
+          "type": "scatter",
+          "tooltip": {
+            "trigger": "item",
+            "formatter": {
+              "$expression": "function (params) {\n                    return params.seriesName + ' （'  + '类目' + params.value[0] + '）<br/>'\n                           + params.value[1] + ', ' \n                           + params.value[2]; \n                }"
+            },
+            "axisPointer": {
+              "show": true
+            }
+          },
+          "symbolSize": {
+            "$expression": "function (value){\n                return Math.round(value[2]/10);\n            }"
+          },
+          "data": {
+            "$expression": "(function () {\n                var d = [];\n                var len = 0;\n                var value;\n                while (len++ < 500) {\n                    d.push([\n                        len,\n                        (Math.random()*30).toFixed(2) - 0,\n                        (Math.random()*100).toFixed(2) - 0\n                    ]);\n                }\n                return d;\n            })()"
+          }
+        }
+      ]
+    }
+  }
+]
