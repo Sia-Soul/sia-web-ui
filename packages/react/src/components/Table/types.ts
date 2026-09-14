@@ -149,6 +149,7 @@ export interface TableProps<T extends Record<string, unknown> = Record<string, u
   dataSource?: readonly T[];
   columns?: readonly TableColumn<T>[];
   rowKey?: keyof T | string | ((record: T, index: number) => TableKey);
+  /** 默认启用行悬停高亮；传入 createHighlightPlugin({ row: false }) 可关闭。 */
   plugins?: readonly AnyTablePlugin<T>[];
   loading?: boolean;
   emptyText?: ReactNode;

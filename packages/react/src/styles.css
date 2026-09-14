@@ -69,14 +69,22 @@
   height: 0;
 }
 
+/* 共用浮动滚动条交互：保留透明感应区，仅改变滑块粗细。 */
+.sia-scrollbar-track { --sia-scrollbar-size: 3px; }
+.sia-scrollbar-track:hover,
+.sia-scrollbar-track:has(> :active) { --sia-scrollbar-size: 6px; }
+@media (prefers-reduced-motion: reduce) {
+  .sia-scrollbar-track > * { transition: none !important; }
+}
+
 .sia-floating-scrollbar-layer { position: fixed; z-index: 2147483646; inset: 0; width: 0; height: 0; pointer-events: none; }
 .sia-floating-scrollbar { position: fixed; box-sizing: border-box; opacity: 0; pointer-events: none; transition: opacity 150ms ease; }
 .sia-floating-scrollbar[hidden] { display: none; }
 .sia-floating-scrollbar--visible { opacity: 1; pointer-events: auto; }
 .sia-floating-scrollbar__thumb { position: absolute; box-sizing: border-box; cursor: default; background: var(--sia-scrollbar-thumb); border: 1px solid rgb(255 255 255 / 24%); border-radius: 999px; box-shadow: 0 1px 2px rgb(0 0 0 / 14%); touch-action: none; transition: background-color 120ms ease; }
 .sia-floating-scrollbar__thumb:hover { background: var(--sia-scrollbar-thumb-hover); }
-.sia-floating-scrollbar--horizontal .sia-floating-scrollbar__thumb { top: 2px; left: 0; height: 6px; }
-.sia-floating-scrollbar--vertical .sia-floating-scrollbar__thumb { top: 0; left: 2px; width: 6px; }
+.sia-floating-scrollbar--horizontal .sia-floating-scrollbar__thumb { bottom: 0; left: 0; height: var(--sia-scrollbar-size); transition: background-color 120ms ease, height 150ms ease; }
+.sia-floating-scrollbar--vertical .sia-floating-scrollbar__thumb { top: 0; right: 0; width: var(--sia-scrollbar-size); transition: background-color 120ms ease, width 150ms ease; }
 
 .sia-button,
 .sia-input,
@@ -722,8 +730,8 @@
 .sia-table[data-scrollbar-dragging="true"] .sia-table__scrollbar { opacity: 1; pointer-events: auto; }
 .sia-table__scrollbar-thumb { position: absolute; cursor: default; background: rgb(82 82 82 / 68%); border-radius: 999px; box-shadow: 0 0 0 1px rgb(255 255 255 / 22%); touch-action: none; transition: background-color 120ms ease; }
 .sia-table__scrollbar-thumb:hover { background: rgb(64 64 64 / 82%); }
-.sia-table__scrollbar--horizontal .sia-table__scrollbar-thumb { top: 2px; left: 0; width: var(--sia-table-scrollbar-x-size, 0); height: 6px; transform: translateX(var(--sia-table-scrollbar-x-position, 0)); }
-.sia-table__scrollbar--vertical .sia-table__scrollbar-thumb { top: 0; left: 2px; width: 6px; height: var(--sia-table-scrollbar-y-size, 0); transform: translateY(var(--sia-table-scrollbar-y-position, 0)); }
+.sia-table__scrollbar--horizontal .sia-table__scrollbar-thumb { bottom: 0; left: 0; width: var(--sia-table-scrollbar-x-size, 0); height: var(--sia-scrollbar-size); transform: translateX(var(--sia-table-scrollbar-x-position, 0)); transition: background-color 120ms ease, height 150ms ease; }
+.sia-table__scrollbar--vertical .sia-table__scrollbar-thumb { top: 0; right: 0; width: var(--sia-scrollbar-size); height: var(--sia-table-scrollbar-y-size, 0); transform: translateY(var(--sia-table-scrollbar-y-position, 0)); transition: background-color 120ms ease, width 150ms ease; }
 .sia-table__empty { position: absolute; z-index: 7; inset: var(--sia-table-header-height, 38px) 0 0; display: grid; place-items: center; min-width: 0; padding: 24px; overflow: hidden; color: var(--sia-color-text-secondary); text-align: center; text-overflow: ellipsis; background: var(--sia-color-surface); pointer-events: none; }
 .sia-table__loading { position: absolute; z-index: 12; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: var(--sia-color-primary-text); background: color-mix(in srgb, var(--sia-color-surface) 72%, transparent); }
 .sia-table--small .sia-table__header-cell, .sia-table--small .sia-table__cell { height: 32px; padding: 5px 9px; font-size: 12px; }

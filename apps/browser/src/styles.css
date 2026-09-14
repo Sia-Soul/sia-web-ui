@@ -1400,12 +1400,13 @@ input {
   position: absolute;
   top: 0;
   right: 0;
-  width: 6px;
+  width: var(--sia-scrollbar-size);
   min-height: 28px;
   cursor: default;
   background: color-mix(in srgb, var(--sia-color-text-secondary) 58%, transparent);
   border-radius: 999px;
   touch-action: none;
+  transition: background-color 120ms ease, width 150ms ease;
 }
 
 .vertical-tab-tree__overlay-scrollbar-thumb:hover {

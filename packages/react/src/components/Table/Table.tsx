@@ -14,7 +14,7 @@ import type {
   TableRow,
   TableSummaryRow,
 } from "./types";
-import { createResizePlugin } from "./plugins";
+import { createHighlightPlugin, createResizePlugin } from "./plugins";
 import { createTableRows, flattenTableColumns, getTableValue, isTableAutoWidthColumn, mapTableLeafColumns, normalizeFixed, sortTableColumnsByFixed } from "./utils";
 
 const EMPTY_DATA: readonly Record<string, unknown>[] = [];
@@ -252,12 +252,13 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     ? rowKey(record, index)
     : (record[String(rowKey)] as React.Key | undefined) ?? index, [rowKey]);
   const builtInResizePlugin = useMemo(() => createResizePlugin<T>(), []);
+  const builtInHighlightPlugin = useMemo(() => createHighlightPlugin<T>(), []);
   const activePlugins = useMemo(() => {
     const plugins = providedPlugins.filter((plugin) => resizable || plugin.id !== "resize");
-    return resizable && !plugins.some((plugin) => plugin.id === "resize")
-      ? [...plugins, builtInResizePlugin]
-      : plugins;
-  }, [builtInResizePlugin, providedPlugins, resizable]);
+    if (!plugins.some((plugin) => plugin.id === "highlight")) plugins.push(builtInHighlightPlugin);
+    if (resizable && !plugins.some((plugin) => plugin.id === "resize")) plugins.push(builtInResizePlugin);
+    return plugins;
+  }, [builtInHighlightPlugin, builtInResizePlugin, providedPlugins, resizable]);
   const sortedPlugins = useMemo(() => [...activePlugins].sort((a, b) => (a.order ?? 100) - (b.order ?? 100)), [activePlugins]);
   const pluginsByIdRef = useRef<Map<string, AnyTablePlugin<T>>>(new Map());
   pluginsByIdRef.current = new Map(sortedPlugins.map((plugin) => [plugin.id, plugin]));
@@ -741,7 +742,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
         </table>
         </div>
         {pipeline.rows.length === 0 ? <div className="sia-table__empty" role="status">{emptyText}</div> : null}
-        <div className="sia-table__scrollbar sia-table__scrollbar--horizontal" aria-hidden="true">
+        <div className="sia-scrollbar-track sia-table__scrollbar sia-table__scrollbar--horizontal" aria-hidden="true">
           <div
             className="sia-table__scrollbar-thumb"
             onPointerDown={(event) => handleScrollbarPointerDown("x", event)}
@@ -750,7 +751,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
             onPointerCancel={handleScrollbarPointerEnd}
           />
         </div>
-        <div className="sia-table__scrollbar sia-table__scrollbar--vertical" aria-hidden="true">
+        <div className="sia-scrollbar-track sia-table__scrollbar sia-table__scrollbar--vertical" aria-hidden="true">
           <div
             className="sia-table__scrollbar-thumb"
             onPointerDown={(event) => handleScrollbarPointerDown("y", event)}

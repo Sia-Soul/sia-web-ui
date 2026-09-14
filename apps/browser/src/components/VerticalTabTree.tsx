@@ -490,7 +490,7 @@ export default function VerticalTabTree({
             ) : null}
           </div>
           <div
-            className={`vertical-tab-tree__overlay-scrollbar${scrollbarMetrics.visible ? " is-visible" : ""}`}
+            className={`sia-scrollbar-track vertical-tab-tree__overlay-scrollbar${scrollbarMetrics.visible ? " is-visible" : ""}`}
             aria-hidden="true"
           >
             <span

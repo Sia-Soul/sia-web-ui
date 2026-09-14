@@ -16,7 +16,7 @@ export function FloatingScrollbarPage({ enabled, onEnabledChange }: { enabled: b
   return <ComponentDocPage
     eyebrow="组件 / 布局 / FloatingScrollbarProvider"
     title="FloatingScrollbarProvider 浮动滚动条"
-    description="为页面中的原生滚动容器绘制不占布局空间的滚动条，并在鼠标离开后自动隐藏。"
+    description="为页面中的原生滚动容器绘制不占布局空间的滚动条：默认 3px，鼠标靠近时平滑加宽至 6px，移开后自动收窄，离开容器后自动隐藏。"
     name="FloatingScrollbarProvider"
     apiRows={[
       { property: "disabled", description: "停止扫描滚动容器，移除浮动滚动条并恢复原生滚动条", type: "boolean", defaultValue: "false" },

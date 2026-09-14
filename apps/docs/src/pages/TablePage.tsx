@@ -659,7 +659,7 @@ export default function Demo() {
 const apiRows = [
   { property: "dataSource / columns", description: "基础数据和列定义，支持嵌套字段与分组表头", type: "T[] / TableColumn<T>[]", defaultValue: "[]" },
   { property: "rowKey", description: "行唯一键字段或计算函数", type: "string | (record, index) => Key", defaultValue: "'id'" },
-  { property: "plugins", description: "按需加载的表格功能模块", type: "TablePlugin<T>[]", defaultValue: "[]" },
+  { property: "plugins", description: "按需加载的表格功能模块；默认启用行悬停高亮，可用 createHighlightPlugin({ row: false }) 关闭", type: "TablePlugin<T>[]", defaultValue: "[]" },
   { property: "resizable", description: "是否允许拖拽表头边界调整列宽；默认内置启用，可传 false 关闭", type: "boolean", defaultValue: "true" },
   { property: "TableColumn.autoWidth", description: "按渲染内容自动测量列宽；未指定 width 的操作列会自动开启", type: "boolean", defaultValue: "操作列 true，其他列 false" },
   { property: "TableColumn.flex", description: "按权重承接表格剩余宽度，固定列和操作列不会被意外拉伸；未设置时由最宽的非固定普通列承接", type: "number", defaultValue: "自动" },
@@ -775,7 +775,7 @@ export function TablePage() {
     <PageHeader eyebrow="组件 / 数据展示 / Table" title="Table 表格" description="高性能基础表格，通过插件按需组合选择、排序、分页、编辑、树形、列设置等能力。" />
     <DocsTabs activeKey={tab} onChange={setTab} />
     {tab === "examples" ? <div className="demo-stack">
-      <DemoCard title="基础表格" description="核心负责数据、列、分组表头、固定列、滚动和渲染，并默认支持拖拽调整列宽。" code={basicCode}>
+      <DemoCard title="基础表格" description="核心负责数据、列、分组表头、固定列、滚动和渲染，并默认支持行悬停高亮和拖拽调整列宽。" code={basicCode}>
         <Table className="table-demo" rowKey="id" columns={basicColumns} dataSource={basicData} height={350} />
       </DemoCard>
       <DemoCard title="插件组合" description="选择、序号、排序、分页、编辑、列设置、汇总和工具栏均可按需加载；拖拽列宽已默认启用。" code={pluginCode}>
@@ -792,7 +792,7 @@ export function TablePage() {
         <p style={{ marginTop: 0 }}>当前已选 {selectedCellCount} 个单元格</p>
         <Table className="table-demo cell-selection-table-demo" rowKey="id" columns={basicColumns} dataSource={basicData} plugins={cellSelectionPlugins} height={350} />
       </DemoCard>
-      <DemoCard title="合并、高亮与导出" description="连续分类单元格自动合并；行、列、单元格高亮和 CSV 导出均由独立插件加载。" code={enhancedCode}>
+      <DemoCard title="合并、高亮与导出" description="连续分类单元格自动合并；行悬停高亮默认启用；可通过插件自定义行、列、单元格高亮，并加载 CSV 导出。" code={enhancedCode}>
         <Table className="table-demo" rowKey="id" columns={enhancedColumns} dataSource={groupedData} plugins={enhancedPlugins} height={420} />
       </DemoCard>
       <DemoCard title="5000 行虚拟滚动" description="只渲染视口附近的行；排序和行选择仍可作为独立插件组合使用。" code={virtualCode}>

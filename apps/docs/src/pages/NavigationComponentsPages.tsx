@@ -74,7 +74,7 @@ export default function Demo() {
 
 export function DropdownPage() {
   const [lastAction, setLastAction] = useState("尚未选择");
-  return <ComponentDocPage eyebrow="组件 / 导航 / Dropdown" title="Dropdown 下拉菜单" description="从触发器展开页面级菜单，支持点击、悬停、右键、多级菜单和组合按钮。" name="Dropdown" apiRows={[
+  return <ComponentDocPage eyebrow="组件 / 导航 / Dropdown" title="Dropdown 下拉菜单" description="从触发器展开页面级菜单，面板默认按选项内容自适应宽度，不设最小宽度，最大宽度限制在视口内；支持点击、悬停、右键、多级菜单和组合按钮。" name="Dropdown" apiRows={[
     { property: "menu", description: "菜单项、选中状态与点击回调", type: "DropdownMenuProps", defaultValue: "-" },
     { property: "trigger", description: "触发方式，可以组合使用", type: "(click | hover | contextMenu)[]", defaultValue: "[hover]" },
     { property: "placement", description: "相对触发器的展开方向", type: "bottomLeft | bottomRight | topLeft | topRight", defaultValue: "bottomLeft" },

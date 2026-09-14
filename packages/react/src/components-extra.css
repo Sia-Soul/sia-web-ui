@@ -432,7 +432,7 @@
 .sia-menu--horizontal > .sia-menu__entry { margin: 0 2px; }
 .sia-menu--horizontal > .sia-menu__entry > .sia-menu__item { border-radius: var(--sia-radius) var(--sia-radius) 0 0; }
 .sia-menu--horizontal > .sia-menu__entry.is-selected::after { position: absolute; right: 8px; bottom: -1px; left: 8px; height: 2px; content: ""; background: var(--sia-color-primary); border-radius: 2px 2px 0 0; }
-.sia-menu__popup { min-width: 180px; padding: 4px; color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: var(--sia-radius); box-shadow: var(--sia-shadow-popup); transform-origin: top left; }
+.sia-menu__popup { width: max-content; padding: 4px; color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: var(--sia-radius); box-shadow: var(--sia-shadow-popup); transform-origin: top left; }
 .sia-menu__popup-list, .sia-menu__popup-list ul { box-sizing: border-box; min-width: 0; margin: 0; padding: 0; color: inherit; list-style: none; background: transparent; }
 .sia-menu__popup-list > .sia-menu__entry:first-child { margin-top: 0; }
 .sia-menu__popup-list > .sia-menu__entry:last-child { margin-bottom: 0; }
@@ -479,11 +479,11 @@
 .sia-dropdown { position: relative; display: inline-flex; vertical-align: middle; }
 .sia-dropdown.is-disabled { cursor: not-allowed; opacity: .55; }
 .sia-dropdown__context-anchor { position: fixed; width: 0; height: 0; pointer-events: none; }
-.sia-dropdown__popup { min-width: 180px; padding: 4px; color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: var(--sia-radius); box-shadow: var(--sia-shadow-popup); transform-origin: top left; }
+.sia-dropdown__popup { width: max-content; padding: 4px; color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: var(--sia-radius); box-shadow: var(--sia-shadow-popup); transform-origin: top left; }
 .sia-dropdown__popup[data-placement^="top"] { transform-origin: bottom left; }
 .sia-dropdown__popup.is-open { animation: sia-dropdown-popup-in 160ms cubic-bezier(.2, 0, 0, 1) both; }
 .sia-dropdown__popup.is-closing { pointer-events: none; animation: sia-dropdown-popup-out 150ms cubic-bezier(.4, 0, 1, 1) both; }
-.sia-dropdown__menu { min-width: 180px; padding: 0; background: transparent; border: 0; }
+.sia-dropdown__menu { min-width: 0; padding: 0; background: transparent; border: 0; }
 .sia-dropdown__menu > .sia-menu__entry:first-child { margin-top: 0; }
 .sia-dropdown__menu > .sia-menu__entry:last-child { margin-bottom: 0; }
 .sia-editor-control__context-popup { min-width: 188px; }

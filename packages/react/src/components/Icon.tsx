@@ -42,7 +42,7 @@ const coreIconPaths = {
   "zoom-out": <><circle cx="10.8" cy="10.8" r="6.8" /><path d="m15.8 15.8 5.2 5.2M7.8 10.8h6" /></>,
   download: <><path d="M12 3v12M7 10l5 5 5-5M4 20h16" /></>,
   upload: <><path d="M12 16V4M7 9l5-5 5 5M4 20h16" /></>,
-  refresh: <><path d="M20 7v5h-5" /><path d="M19 12a7.5 7.5 0 1 1-2-5" /></>,
+  refresh: <><path d="M20 4v4.686h-4.686" /><path d="M20 8.686 17.657 6.343A8 8 0 1 0 20 12" /></>,
   loader: <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" />,
   calendar: <><rect x="3" y="5" width="18" height="16" rx="2.5" /><path d="M8 3v4M16 3v4M3 10h18M7 14h2M11 14h2M15 14h2M7 18h2M11 18h2" /></>,
   clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3.5 2" /></>,

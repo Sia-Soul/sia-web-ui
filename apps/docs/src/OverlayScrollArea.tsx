@@ -103,7 +103,7 @@ export const OverlayScrollArea = forwardRef<HTMLElement, OverlayScrollAreaProps>
       >
         <div ref={contentRef} className="overlay-scroll-area__content">{children}</div>
       </Viewport>
-      <div className="overlay-scroll-area__scrollbar" aria-hidden="true">
+      <div className="sia-scrollbar-track overlay-scroll-area__scrollbar" aria-hidden="true">
         <div
           className="overlay-scroll-area__thumb"
           onPointerDown={handlePointerDown}

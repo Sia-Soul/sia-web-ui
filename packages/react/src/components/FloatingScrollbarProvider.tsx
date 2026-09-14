@@ -86,7 +86,7 @@ function visibleRect(target: HTMLElement) {
 function createTrack(axis: ScrollAxis) {
   const track = document.createElement("div");
   const thumb = document.createElement("div");
-  track.className = `sia-floating-scrollbar sia-floating-scrollbar--${axis}`;
+  track.className = `sia-scrollbar-track sia-floating-scrollbar sia-floating-scrollbar--${axis}`;
   thumb.className = "sia-floating-scrollbar__thumb";
   track.dataset.axis = axis;
   track.setAttribute("aria-hidden", "true");
