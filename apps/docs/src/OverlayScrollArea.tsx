@@ -38,7 +38,8 @@ export const OverlayScrollArea = forwardRef<HTMLElement, OverlayScrollAreaProps>
     const viewport = viewportRef.current;
     if (!root || !viewport) return;
     const maxScroll = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
-    const trackLength = Math.max(0, viewport.clientHeight - 8);
+    root.dataset.overflowY = String(maxScroll > 1);
+    const trackLength = root.querySelector<HTMLElement>(".overlay-scroll-area__scrollbar")?.clientHeight ?? 0;
     const thumbLength = maxScroll > 1
       ? Math.min(trackLength, Math.max(40, trackLength * viewport.clientHeight / viewport.scrollHeight))
       : 0;
@@ -64,17 +65,23 @@ export const OverlayScrollArea = forwardRef<HTMLElement, OverlayScrollAreaProps>
 
   const handlePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const viewport = viewportRef.current;
-    const track = event.currentTarget.parentElement;
-    if (!viewport || !track) return;
+    const track = event.currentTarget;
+    const thumb = track.firstElementChild as HTMLElement | null;
+    if (!viewport || !thumb || event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
     const maxScroll = viewport.scrollHeight - viewport.clientHeight;
+    const thumbRect = thumb.getBoundingClientRect();
+    if (event.clientY < thumbRect.top || event.clientY > thumbRect.bottom) {
+      const ratio = Math.max(0, Math.min(1, (event.clientY - track.getBoundingClientRect().top - thumb.offsetHeight / 2) / Math.max(1, track.clientHeight - thumb.offsetHeight)));
+      viewport.scrollTop = ratio * maxScroll;
+    }
     dragRef.current = {
       pointerId: event.pointerId,
       startCoordinate: event.clientY,
       startScroll: viewport.scrollTop,
-      scrollPerPixel: maxScroll / Math.max(1, track.clientHeight - event.currentTarget.offsetHeight),
+      scrollPerPixel: maxScroll / Math.max(1, track.clientHeight - thumb.offsetHeight),
     };
     if (rootRef.current) rootRef.current.dataset.scrollbarDragging = "true";
   }, []);
@@ -103,14 +110,13 @@ export const OverlayScrollArea = forwardRef<HTMLElement, OverlayScrollAreaProps>
       >
         <div ref={contentRef} className="overlay-scroll-area__content">{children}</div>
       </Viewport>
-      <div className="sia-scrollbar-track overlay-scroll-area__scrollbar" aria-hidden="true">
-        <div
-          className="overlay-scroll-area__thumb"
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerEnd}
-          onPointerCancel={handlePointerEnd}
-        />
+      <div className="sia-scrollbar-track overlay-scroll-area__scrollbar" aria-hidden="true"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerEnd}
+        onPointerCancel={handlePointerEnd}
+      >
+        <div className="overlay-scroll-area__thumb" />
       </div>
     </div>
   );

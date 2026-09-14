@@ -158,6 +158,8 @@ export interface TableProps<T extends Record<string, unknown> = Record<string, u
   tableHeight?: number | string;
   size?: TableSize;
   bordered?: boolean;
+  /** 是否将工具栏纳入表格边框，默认 false；表格主体边框仍由 bordered 控制。 */
+  toolbarBordered?: boolean;
   striped?: boolean;
   virtual?: boolean;
   virtualThreshold?: number;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useScrollbarProximity } from "./useScrollbarProximity";
 
 export interface FloatingScrollbarProviderProps {
   disabled?: boolean;
@@ -95,6 +96,7 @@ function createTrack(axis: ScrollAxis) {
 }
 
 export function FloatingScrollbarProvider({ disabled = false }: FloatingScrollbarProviderProps) {
+  useScrollbarProximity();
   useEffect(() => {
     if (disabled) return;
 
@@ -131,7 +133,7 @@ export function FloatingScrollbarProvider({ disabled = false }: FloatingScrollba
       const hasHorizontal = canScroll(target, "horizontal");
       const hasVertical = canScroll(target, "vertical");
       const rect = visibleRect(target);
-      const thickness = 8;
+      const thickness = 10;
 
       horizontalTrack.hidden = !hasHorizontal || rect.width <= thickness || rect.height <= 0;
       verticalTrack.hidden = !hasVertical || rect.height <= thickness || rect.width <= 0;

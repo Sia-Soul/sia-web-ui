@@ -2,6 +2,8 @@ import { isValidElement, useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { Button } from "../Button";
 import { Checkbox } from "../Checkbox";
+import { Dropdown } from "../Dropdown";
+import type { MenuItem } from "../Navigation";
 import { Drawer } from "../Drawer";
 import { Icon } from "../Icon";
 import { Input } from "../Input";
@@ -1410,6 +1412,10 @@ export function createResizePlugin<T extends Record<string, unknown>>(options: T
 
 // Column setting plugin and persistence adapter
 export interface TableColumnSettingPluginOptions<T> {
+  /** 追加到设置下拉菜单中的业务操作。 */
+  menuItems?: readonly TableToolbarItem<T>[];
+  /** 是否显示设置菜单中的导出操作，默认 true。 */
+  showExport?: boolean;
   defaultVisibleKeys?: readonly string[];
   showButton?: boolean;
   onVisibleChange?: (columns: readonly TableColumn<T>[]) => void;
@@ -1516,7 +1522,27 @@ export function createColumnSettingPlugin<T extends Record<string, unknown>>(opt
         void save({ columns: currentItems(context), pageSize, version: 1 });
       }
     },
-    renderToolbarEnd: options.showButton === false ? undefined : (context) => <Button size="small" variant="text" className="sia-table__toolbar-icon" icon={<Icon name="settings" size={16} />} aria-label="打开列设置" title="列设置" onClick={() => context.setState((state) => ({ ...state, open: true }))} />,
+    renderToolbarEnd: options.showButton === false ? undefined : (context) => {
+      const exportApi = () => context.getPluginApi<TableExportApi<T>>("export")
+        ?? createExportPlugin<T>().getApi!({ ...context, state: undefined, setState: () => {} });
+      const customItems = (options.menuItems ?? []).filter(item => !(item.hidden === true || typeof item.hidden === "function" && item.hidden(context)));
+      const items: MenuItem[] = [
+        ...(options.showExport === false ? [] : [
+          { key: "builtin:export", label: "表格导出", icon: <Icon name="download" size={18} />, disabled: exportApi().getRows().length === 0 },
+          { key: "builtin:divider", type: "divider" as const },
+        ]),
+        { key: "builtin:columns", label: "列设置", icon: <Icon name="settings" size={18} /> },
+        ...customItems.map(item => ({ key: "custom:" + item.key, label: item.label, icon: item.icon, danger: item.danger,
+          disabled: item.disabled === true || typeof item.disabled === "function" && item.disabled(context) })),
+      ];
+      return <Dropdown trigger={["hover", "click"]} placement="bottomRight" popupClassName="sia-table__settings-dropdown" menu={{ items, onClick: ({ key }) => {
+        if (key === "builtin:export") void exportApi().download();
+        else if (key === "builtin:columns") context.setState(state => ({ ...state, open: true }));
+        else void customItems.find(item => "custom:" + item.key === key)?.onClick?.(context);
+      } }}>
+        <Button size="small" variant="text" className="sia-table__toolbar-icon" icon={<Icon name="settings" size={16} />} aria-label="表格设置" />
+      </Dropdown>;
+    },
     renderOverlay: (context) => <ColumnSettingPanel open={context.state.open} items={currentItems(context)} columns={context.baseColumns} onClose={() => context.setState((state) => ({ ...state, open: false }))} onApply={(items) => apply(items, context)} />,
     getApi: (context) => ({ open: () => context.setState((state) => ({ ...state, open: true })), close: () => context.setState((state) => ({ ...state, open: false })), getSettings: () => currentItems(context), apply: (items) => apply(items, context) }),
   };

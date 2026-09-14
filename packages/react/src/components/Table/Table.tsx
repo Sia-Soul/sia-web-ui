@@ -1,3 +1,4 @@
+import { useScrollbarProximity } from "../useScrollbarProximity";
 import { TableCellContent } from "./TableCellContent";
 import { Fragment, forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactElement, ReactNode, Ref } from "react";
@@ -218,6 +219,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     tableHeight,
     size = "medium",
     bordered = true,
+    toolbarBordered = false,
     striped = true,
     virtual,
     virtualThreshold = 100,
@@ -237,6 +239,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
   const rootRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
+  useScrollbarProximity();
   const scrollbarDragRef = useRef<{
     axis: "x" | "y";
     pointerId: number;
@@ -354,8 +357,10 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     if (element.scrollLeft > maxLeft) element.scrollLeft = maxLeft > 1 ? maxLeft : 0;
     const logicalScrollLeft = Math.min(element.scrollLeft, maxLeft);
     const maxTop = Math.max(0, element.scrollHeight - element.clientHeight);
-    const horizontalTrack = Math.max(0, element.clientWidth - 8);
-    const verticalTrack = Math.max(0, element.clientHeight - 8);
+    root.dataset.overflowX = String(maxLeft > 1);
+    root.dataset.overflowY = String(maxTop > 1);
+    const horizontalTrack = root.querySelector<HTMLElement>(".sia-table__scrollbar--horizontal")?.clientWidth ?? 0;
+    const verticalTrack = root.querySelector<HTMLElement>(".sia-table__scrollbar--vertical")?.clientHeight ?? 0;
     const horizontalThumb = maxLeft > 1
       ? Math.min(horizontalTrack, Math.max(36, horizontalTrack * element.clientWidth / horizontalContentWidth))
       : 0;
@@ -515,18 +520,28 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     updateScrollMetrics();
   }, [shouldVirtualize, updateScrollMetrics]);
 
-  const handleScrollbarPointerDown = useCallback((axis: "x" | "y", event: React.PointerEvent<HTMLDivElement>) => {
+  const handleScrollbarPointerDown = useCallback((axis: "x" | "y", event: React.PointerEvent<HTMLDivElement>, track = event.currentTarget) => {
     const element = scrollRef.current;
-    const track = event.currentTarget.parentElement;
-    if (!element || !track) return;
+    const thumb = track.firstElementChild as HTMLElement | null;
+    if (!element || !thumb || event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
-    event.currentTarget.setPointerCapture(event.pointerId);
+    track.setPointerCapture(event.pointerId);
     const trackLength = axis === "x" ? track.clientWidth : track.clientHeight;
-    const thumbLength = axis === "x" ? event.currentTarget.offsetWidth : event.currentTarget.offsetHeight;
+    const thumbLength = axis === "x" ? thumb.offsetWidth : thumb.offsetHeight;
     const maxScroll = axis === "x"
       ? getTableHorizontalMetrics(element, tableRef.current).maxLeft
       : element.scrollHeight - element.clientHeight;
+    const thumbRect = thumb.getBoundingClientRect();
+    const coordinate = axis === "x" ? event.clientX : event.clientY;
+    const thumbStart = axis === "x" ? thumbRect.left : thumbRect.top;
+    if (coordinate < thumbStart || coordinate > thumbStart + thumbLength) {
+      const trackRect = track.getBoundingClientRect();
+      const trackStart = axis === "x" ? trackRect.left : trackRect.top;
+      const ratio = Math.max(0, Math.min(1, (coordinate - trackStart - thumbLength / 2) / Math.max(1, trackLength - thumbLength)));
+      if (axis === "x") element.scrollLeft = ratio * maxScroll;
+      else element.scrollTop = ratio * maxScroll;
+    }
     scrollbarDragRef.current = {
       axis,
       pointerId: event.pointerId,
@@ -630,6 +645,17 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     }, {});
   }
 
+  function scrollbarAtPoint(event: { clientX: number; clientY: number }) {
+    const tracks = rootRef.current?.querySelectorAll<HTMLDivElement>(".sia-table__scrollbar");
+    for (const track of tracks ?? []) {
+      if (track.closest(".sia-table") !== rootRef.current) continue;
+      const rect = track.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0 && event.clientX >= rect.left && event.clientX < rect.right && event.clientY >= rect.top && event.clientY < rect.bottom) {
+        return { track, axis: track.classList.contains("sia-table__scrollbar--vertical") ? "y" as const : "x" as const };
+      }
+    }
+  }
+
   function renderSummaryRow(summary: TableSummaryRow) {
     let labelRendered = false;
     return <tr key={summary.key} className={`sia-table__summary-row ${summary.className ?? ""}`.trim()}>{leafColumns.map((column) => {
@@ -647,13 +673,43 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
   return (
     <div
       ref={rootRef}
-      className={`sia-table sia-table--${size}${bordered ? " sia-table--bordered" : ""} ${className}`.trim()}
+      className={`sia-table sia-table--${size}${bordered ? " sia-table--bordered" : ""}${hasToolbar && !toolbarBordered ? " sia-table--borderless-toolbar" : ""} ${className}`.trim()}
       style={rootStyle}
       data-has-fixed-left={left > 0}
       data-has-fixed-right={right > 0}
       data-scrolled-left="false"
       data-scrolled-right="true"
       {...htmlProps}
+      onPointerDownCapture={(event) => {
+        htmlProps.onPointerDownCapture?.(event);
+        if (event.defaultPrevented || loading || internalLoading) return;
+        const hit = scrollbarAtPoint(event);
+        if (hit) handleScrollbarPointerDown(hit.axis, event, hit.track);
+      }}
+      onPointerMoveCapture={(event) => {
+        htmlProps.onPointerMoveCapture?.(event);
+        const hit = scrollbarAtPoint(event);
+        rootRef.current?.querySelectorAll<HTMLElement>(".sia-table__scrollbar").forEach(track => {
+          const hovered = track === hit?.track;
+          if (hovered !== track.hasAttribute("data-pointer-hover")) track.toggleAttribute("data-pointer-hover", hovered);
+        });
+        if (hit || scrollbarDragRef.current) {
+          handleScrollbarPointerMove(event);
+          event.stopPropagation();
+        }
+      }}
+      onPointerLeave={(event) => {
+        htmlProps.onPointerLeave?.(event);
+        rootRef.current?.querySelectorAll("[data-pointer-hover]").forEach(track => track.removeAttribute("data-pointer-hover"));
+      }}
+      onClickCapture={(event) => {
+        if (scrollbarAtPoint(event)) { event.preventDefault(); event.stopPropagation(); return; }
+        htmlProps.onClickCapture?.(event);
+      }}
+      onDoubleClickCapture={(event) => {
+        if (scrollbarAtPoint(event)) { event.preventDefault(); event.stopPropagation(); return; }
+        htmlProps.onDoubleClickCapture?.(event);
+      }}
     >
       {hasToolbar ? <div className="sia-table__toolbar"><div>{toolbarStart}</div><div>{toolbarEnd}</div></div> : null}
       <div className="sia-table__viewport-wrap">
@@ -744,23 +800,25 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
         </table>
         </div>
         {pipeline.rows.length === 0 ? <div className="sia-table__empty" role="status">{emptyText}</div> : null}
-        <div className="sia-scrollbar-track sia-table__scrollbar sia-table__scrollbar--horizontal" aria-hidden="true">
-          <div
-            className="sia-table__scrollbar-thumb"
-            onPointerDown={(event) => handleScrollbarPointerDown("x", event)}
-            onPointerMove={handleScrollbarPointerMove}
-            onPointerUp={handleScrollbarPointerEnd}
-            onPointerCancel={handleScrollbarPointerEnd}
-          />
+        <div className="sia-scrollbar-track sia-table__scrollbar sia-table__scrollbar--horizontal" aria-hidden="true"
+          onPointerDown={(event) => handleScrollbarPointerDown("x", event)}
+          onClick={(event) => event.stopPropagation()}
+          onDoubleClick={(event) => event.stopPropagation()}
+          onPointerMove={handleScrollbarPointerMove}
+          onPointerUp={handleScrollbarPointerEnd}
+          onPointerCancel={handleScrollbarPointerEnd}
+        >
+          <div className="sia-table__scrollbar-thumb" />
         </div>
-        <div className="sia-scrollbar-track sia-table__scrollbar sia-table__scrollbar--vertical" aria-hidden="true">
-          <div
-            className="sia-table__scrollbar-thumb"
-            onPointerDown={(event) => handleScrollbarPointerDown("y", event)}
-            onPointerMove={handleScrollbarPointerMove}
-            onPointerUp={handleScrollbarPointerEnd}
-            onPointerCancel={handleScrollbarPointerEnd}
-          />
+        <div className="sia-scrollbar-track sia-table__scrollbar sia-table__scrollbar--vertical" aria-hidden="true"
+          onPointerDown={(event) => handleScrollbarPointerDown("y", event)}
+          onClick={(event) => event.stopPropagation()}
+          onDoubleClick={(event) => event.stopPropagation()}
+          onPointerMove={handleScrollbarPointerMove}
+          onPointerUp={handleScrollbarPointerEnd}
+          onPointerCancel={handleScrollbarPointerEnd}
+        >
+          <div className="sia-table__scrollbar-thumb" />
         </div>
       </div>
       {footers.length > 0 ? <div className="sia-table__footer">{footers}</div> : null}

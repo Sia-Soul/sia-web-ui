@@ -1380,12 +1380,13 @@ input {
 }
 
 .vertical-tab-tree__overlay-scrollbar {
+  --sia-scrollbar-hit-size: 10px;
   position: absolute;
   z-index: 5;
   top: 0;
   right: 2px;
   bottom: 0;
-  width: 7px;
+  width: 10px;
   pointer-events: none;
   opacity: 0;
   transition: opacity 100ms ease;

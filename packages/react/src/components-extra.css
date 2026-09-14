@@ -13,8 +13,8 @@
 .sia-space-compact--horizontal > *:not(:first-child), .sia-space-compact--horizontal > *:not(:first-child) .sia-button, .sia-space-compact--horizontal > *:not(:first-child) .sia-input-control { border-top-left-radius: 0; border-bottom-left-radius: 0; }
 .sia-space-compact--horizontal > *:not(:last-child), .sia-space-compact--horizontal > *:not(:last-child) .sia-button, .sia-space-compact--horizontal > *:not(:last-child) .sia-input-control { border-top-right-radius: 0; border-bottom-right-radius: 0; }
 .sia-space-compact--vertical > *:not(:first-child) { margin-top: -1px; }
-.sia-space-compact--horizontal > *:not(:first-child) :is(.sia-input, .sia-input-control, .sia-select, .sia-tree-select__trigger, .sia-picker, .sia-input-number) { border-top-left-radius: 0; border-bottom-left-radius: 0; }
-.sia-space-compact--horizontal > *:not(:last-child) :is(.sia-input, .sia-input-control, .sia-select, .sia-tree-select__trigger, .sia-picker, .sia-input-number) { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.sia-space-compact--horizontal > *:not(:first-child) :is(.sia-input, .sia-input-control, .sia-select, .sia-select__trigger, .sia-cascader__trigger, .sia-tree-select__trigger, .sia-picker, .sia-input-number) { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.sia-space-compact--horizontal > *:not(:last-child) :is(.sia-input, .sia-input-control, .sia-select, .sia-select__trigger, .sia-cascader__trigger, .sia-tree-select__trigger, .sia-picker, .sia-input-number) { border-top-right-radius: 0; border-bottom-right-radius: 0; }
 .sia-space-compact > *:focus-within { z-index: 1; }
 
 .sia-row { --sia-grid-gutter-x: 0px; --sia-grid-gutter-y: 0px; display: flex; min-width: 0; margin-inline: calc(var(--sia-grid-gutter-x) / -2); row-gap: var(--sia-grid-gutter-y); }

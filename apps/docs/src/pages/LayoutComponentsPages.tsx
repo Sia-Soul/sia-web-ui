@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Col, Divider, Flex, Row, Space, Splitter } from "@sia.soul/sia-react-ui";
+import { Button, Col, Divider, Flex, Row, Select, Space, Splitter } from "@sia.soul/sia-react-ui";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
@@ -106,7 +106,7 @@ export function GridPage() {
   </DocPage>;
 }
 
-const spaceCode = `import { Button, Divider, Space } from "@sia.soul/sia-react-ui";
+const spaceCode = `import { Button, Divider, Select, Space } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return (
@@ -116,6 +116,10 @@ export default function Demo() {
       </Space>
       <Space.Compact block>
         <Button>左侧</Button><Button>中间</Button><Button>右侧</Button>
+      </Space.Compact>
+      <Space.Compact block>
+        <Select style={{ width: 160 }} placeholder="标签匹配模式" placeholderMode="floating" defaultValue="include" options={[{ value: "include", label: "包含标签" }, { value: "exclude", label: "排除标签" }]} />
+        <Select style={{ flex: 1, minWidth: 0 }} placeholder="品牌方标签" options={[{ value: "brand", label: "品牌方标签" }]} />
       </Space.Compact>
     </>
   );
@@ -142,6 +146,11 @@ export function SpacePage() {
       <Divider />
       <Space.Compact block>
         <Button>左侧</Button><Button>中间</Button><Button variant="primary">右侧</Button>
+      </Space.Compact>
+      <Divider />
+      <Space.Compact block>
+        <Select style={{ width: 160 }} placeholder="标签匹配模式" placeholderMode="floating" defaultValue="include" options={[{ value: "include", label: "包含标签" }, { value: "exclude", label: "排除标签" }]} />
+        <Select style={{ flex: 1, minWidth: 0 }} placeholder="品牌方标签" options={[{ value: "brand", label: "品牌方标签" }]} />
       </Space.Compact>
     </DemoCard>
   </DocPage>;
