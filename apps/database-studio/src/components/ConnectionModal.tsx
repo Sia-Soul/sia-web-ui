@@ -9,7 +9,7 @@ import {
   Modal,
   Segmented,
   Select,
-} from "@sia-ui/react";
+} from "@sia.soul/sia-react-ui";
 import { defaultDatabase } from "../services/connectionDefaults";
 import { testConnection } from "../services/databaseGateway";
 import type { ConnectionProfile, DatabaseKind } from "../types";

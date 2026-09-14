@@ -1,4 +1,4 @@
-import { SIA_THEME } from "@sia-ui/react";
+import { SIA_THEME } from "@sia.soul/sia-react-ui";
 import { PageHeader } from "./PageHeader";
 
 const tokenRows = [

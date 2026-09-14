@@ -1,5 +1,5 @@
 import {useMemo,useState} from 'react';
-import {Button,ScatterChart} from '@sia-ui/react';
+import {Button,ScatterChart} from '@sia.soul/sia-react-ui';
 import {createScatterRangeData} from './chartScatterRangeData';
 const bounds={x:80,y:60,width:503,height:259};
 const visualMap={dimension:'value' as const,min:0,max:100,colors:['#ffff00','#90ee90'] as const,calculable:true,orientation:'vertical' as const,x:28,y:105,width:150};

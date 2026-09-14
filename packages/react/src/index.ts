@@ -57,6 +57,8 @@ export type { SelectDateRangeProps, SelectDateRangeValue } from "./components/Se
 export { TimePicker } from "./components/TimePicker";
 export type { TimePickerProps, TimeRangePickerProps } from "./components/TimePicker";
 export { TreeSelect } from "./components/TreeSelect";
+export { buildFlatTree } from "./components/flatTree";
+export type { FlatTreeOptions, FlatTreeNode } from "./components/flatTree";
 export type { TreeSelectNode, TreeSelectProps, TreeSelectValue } from "./components/TreeSelect";
 export { Upload } from "./components/Upload";
 export type { UploadChangeInfo, UploadDraggerProps, UploadFile, UploadFileStatus, UploadProps, UploadRequestOptions } from "./components/Upload";
@@ -120,3 +122,5 @@ export type { SiaThemeMode } from "./theme";
 export * from "./chart";
 export {ChartWhirlingLoading} from './components/ChartWhirlingLoading';
 export type {ChartWhirlingLoadingProps} from './components/ChartWhirlingLoading';
+export * from './components/SelectionPanel';
+export * from './components/InputSelect';

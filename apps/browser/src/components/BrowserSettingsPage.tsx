@@ -8,7 +8,7 @@ import {
   Switch,
   Upload,
   message,
-} from "@sia-ui/react";
+} from "@sia.soul/sia-react-ui";
 import {
   formatUpdatedAt,
   parsePasswordCsv,

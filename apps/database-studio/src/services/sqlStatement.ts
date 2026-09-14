@@ -1,4 +1,4 @@
-import type { EditorRange } from "@sia-ui/react";
+import type { EditorRange } from "@sia.soul/sia-react-ui";
 
 export interface SqlStatement {
   range: EditorRange;

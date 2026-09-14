@@ -1,6 +1,6 @@
 import {useMemo,useRef,useState} from 'react';
-import {ChartComposite,ChartLegend,ChartDataEditor,MapChart,SiaChart} from '@sia-ui/react';
-import type {ChartCompositeRef,GeoJsonFeatureCollection,MapChartProps} from '@sia-ui/react';
+import {ChartComposite,ChartLegend,ChartDataEditor,MapChart,SiaChart} from '@sia.soul/sia-react-ui';
+import type {ChartCompositeRef,GeoJsonFeatureCollection,MapChartProps} from '@sia.soul/sia-react-ui';
 import {createMapSalesData,aggregateMapSales} from './chartMapSalesData';
 import geography from './chartChinaSource.json';
 import inset from './chartChinaInsetSource.json';

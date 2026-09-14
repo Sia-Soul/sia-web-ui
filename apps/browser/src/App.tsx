@@ -10,7 +10,7 @@ import {
   message,
   type IconName,
   type WindowAction,
-} from "@sia-ui/react";
+} from "@sia.soul/sia-react-ui";
 import HorizontalTabStrip from "./components/HorizontalTabStrip";
 import VerticalTabTree from "./components/VerticalTabTree";
 import type { BrowserOverlayPayload } from "./components/BrowserOverlayWindow";

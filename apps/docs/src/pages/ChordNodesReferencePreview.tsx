@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {Button,ChordChart} from '@sia-ui/react';
+import {Button,ChordChart} from '@sia.soul/sia-react-ui';
 import source from './chartChordNodesSource.json';
 const option=source.option,original=option.series[0]!;
 const palette=['#2ec7c9','#b6a2de','#5ab1ef','#ffb980','#d87a80','#8d98b3','#e5cf0d','#97b552','#95706d','#dc69aa','#07a2a4','#9a7fd1','#588dd5','#f5994e','#c05050','#59678c','#c9ab00'];

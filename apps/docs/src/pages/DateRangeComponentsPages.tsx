@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { SelectDateRange, Space, Tag } from "@sia-ui/react";
-import type { SelectDateRangeValue, SelectOption } from "@sia-ui/react";
+import { SelectDateRange, Space, Tag } from "@sia.soul/sia-react-ui";
+import type { SelectDateRangeValue, SelectOption } from "@sia.soul/sia-react-ui";
 import { ComponentDocPage } from "./ComponentDocPage";
 import { DemoCard } from "./DemoCard";
 
@@ -17,7 +17,7 @@ const presets = [
 ];
 
 const selectDateRangeCode = `import { useState } from "react";
-import { SelectDateRange } from "@sia-ui/react";
+import { SelectDateRange } from "@sia.soul/sia-react-ui";
 
 const options = [
   { label: "创建时间", value: "createdAt" },

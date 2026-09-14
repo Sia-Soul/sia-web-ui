@@ -1,4 +1,4 @@
-import type {ScatterDatum} from '@sia-ui/react';
+import type {ScatterDatum} from '@sia.soul/sia-react-ui';
 export const scatterDistributionData:readonly ScatterDatum[] = [
   {
     "name": "女性 1",

@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
-import {ChartAxis,ChartLegend,MixedChart,ChartWhirlingLoading} from '@sia-ui/react';
-import type {MixedSeries} from '@sia-ui/react';
+import {ChartAxis,ChartLegend,MixedChart,ChartWhirlingLoading} from '@sia.soul/sia-react-ui';
+import type {MixedSeries} from '@sia.soul/sia-react-ui';
 import source from './chartLegendReferenceSource.json';
 
 const option=source[0]!.option;

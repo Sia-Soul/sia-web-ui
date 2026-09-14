@@ -10,7 +10,7 @@ import {
   message,
   type TreeNode,
   type WindowAction,
-} from "@sia-ui/react";
+} from "@sia.soul/sia-react-ui";
 import { ConnectionModal } from "./components/ConnectionModal";
 import { DatabaseUserModal } from "./components/DatabaseUserModal";
 import {

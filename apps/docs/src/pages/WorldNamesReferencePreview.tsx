@@ -1,6 +1,6 @@
 import {useState} from 'react';
-import {MapChart} from '@sia-ui/react';
-import type {GeoJsonFeatureCollection} from '@sia-ui/react';
+import {MapChart} from '@sia.soul/sia-react-ui';
+import type {GeoJsonFeatureCollection} from '@sia.soul/sia-react-ui';
 import world from './chartWorldSource.json';
 import source from './chartWorldNamesSource.json';
 export function WorldNamesReferencePreview(){

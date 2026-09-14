@@ -1,11 +1,11 @@
-import { Button, Icon, Tabs } from "@sia-ui/react";
+import { Button, Icon, Tabs } from "@sia.soul/sia-react-ui";
 import { useRef, useState } from "react";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
 import { PageHeader } from "./PageHeader";
 
-const basicCode = `import { Tabs } from "@sia-ui/react";
+const basicCode = `import { Tabs } from "@sia.soul/sia-react-ui";
 
 const items = [
   { key: "overview", label: "项目概览", children: <p>这里展示项目概览。</p> },
@@ -17,7 +17,7 @@ export default function Demo() {
   return <Tabs items={items} defaultActiveKey="overview" />;
 }`;
 
-const positionCode = `import { Tabs } from "@sia-ui/react";
+const positionCode = `import { Tabs } from "@sia.soul/sia-react-ui";
 
 const items = [
   { key: "overview", label: "概览", children: "概览内容" },
@@ -34,7 +34,7 @@ export default function Demo() {
   </>;
 }`;
 
-const variantCode = `import { Tabs } from "@sia-ui/react";
+const variantCode = `import { Tabs } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const items = [
@@ -48,7 +48,7 @@ export default function Demo() {
   </>;
 }`;
 
-const techCode = `import { Tabs } from "@sia-ui/react";
+const techCode = `import { Tabs } from "@sia.soul/sia-react-ui";
 
 const items = [
   { key: "all", label: "全部部门", children: "全部部门数据" },
@@ -67,7 +67,7 @@ export default function Demo() {
   />;
 }`;
 
-const techLineCode = `import { Tabs } from "@sia-ui/react";
+const techLineCode = `import { Tabs } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <Tabs
@@ -84,7 +84,7 @@ export default function Demo() {
 }`;
 
 const controlledCode = `import { useRef, useState } from "react";
-import { Button, Tabs } from "@sia-ui/react";
+import { Button, Tabs } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const [activeKey, setActiveKey] = useState("design");
@@ -109,7 +109,7 @@ export default function Demo() {
 }`;
 
 const closableCode = `import { useState } from "react";
-import { Tabs } from "@sia-ui/react";
+import { Tabs } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const [items, setItems] = useState([

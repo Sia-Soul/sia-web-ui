@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Form, Input, Modal, Tag } from "@sia-ui/react";
+import { Button, Form, Input, Modal, Tag } from "@sia.soul/sia-react-ui";
 import type { DatabaseKind, DatabaseUser, DatabaseUserInput } from "../types";
 
 interface DatabaseUserModalProps {

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { FILLED_ICON_NAMES, ICON_NAMES, Icon } from "@sia-ui/react";
-import type { IconName, IconVariant } from "@sia-ui/react";
+import { FILLED_ICON_NAMES, ICON_NAMES, Icon } from "@sia.soul/sia-react-ui";
+import type { IconName, IconVariant } from "@sia.soul/sia-react-ui";
 
 type IconGroup = {
   title: string;

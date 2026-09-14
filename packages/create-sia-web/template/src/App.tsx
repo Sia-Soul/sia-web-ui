@@ -1,4 +1,4 @@
-import { Alert, Button, Card, Space } from "@sia-ui/react";
+import { Alert, Button, Card, Space } from "@sia.soul/sia-react-ui";
 
 export default function App() {
   return (
@@ -11,7 +11,7 @@ export default function App() {
         <h1>项目已经准备好了</h1>
         <p>组件、设计令牌与基础样式已接入，可以从这里开始构建业务。</p>
         <Alert title="Sia Web UI 已启用" description="修改 src/App.tsx 开始开发。" />
-        <Card title="快速操作" description="这些组件来自 @sia-ui/react">
+        <Card title="快速操作" description="这些组件来自 @sia.soul/sia-react-ui">
           <Space wrap><Button variant="primary">主要操作</Button><Button>次要操作</Button><Button variant="dashed">更多操作</Button></Space>
         </Card>
       </section>

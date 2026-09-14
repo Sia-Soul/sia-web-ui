@@ -949,7 +949,7 @@ CityCycleReferencePreview 实现滚轮正反切换、区域选择下一项、首
 
 ### 2026-09-10：map19 线路绘制与独立入口接入
 
-补充独立包类型检查结果：pnpm --filter @sia-ui/react typecheck 未通过，报错在既有测试文件的 .ts 导入（TS5097）及 graphLayout.test.ts 的 iteration 类型推断（TS2339），不在本次新增线路组件。不能将生产构建/DTS/docs 类型检查通过概括为全部类型检查通过；这些包级测试类型问题仍需修复。
+补充独立包类型检查结果：pnpm --filter @sia.soul/sia-react-ui typecheck 未通过，报错在既有测试文件的 .ts 导入（TS5097）及 graphLayout.test.ts 的 iteration 类型推断（TS2339），不在本次新增线路组件。不能将生产构建/DTS/docs 类型检查通过概括为全部类型检查通过；这些包级测试类型问题仍需修复。
 
 注册后验证：map19 地图分类独立卡片实际加载 22 球员、1 条传球线路、12 时间节点；完整浏览器测试通过。21 分类导航回归确认地图 19 已接入 + 7 待实现，总目录 144 项。docs 生产构建通过（保留既有超过 500kB 分块警告），map1 交互/导出/分类卡片回归通过。已查看 map19 PNG 导出画面；本次源文件未发现 U+FFFD 替换字符，源码 import/require 和包清单未发现 ECharts/zrender 运行时依赖。
 

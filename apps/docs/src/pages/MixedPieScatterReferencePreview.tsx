@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
-import {ChartAxis,ChartComposite,ChartDataEditor,PieChart,SiaChart,chartTicks,linearScale,niceChartDomain} from '@sia-ui/react';
-import type {ChartCompositeRef} from '@sia-ui/react';
+import {ChartAxis,ChartComposite,ChartDataEditor,PieChart,SiaChart,chartTicks,linearScale,niceChartDomain} from '@sia.soul/sia-react-ui';
+import type {ChartCompositeRef} from '@sia.soul/sia-react-ui';
 import {createMixedPieScatterData,mixedPieScatterGlyphs} from './chartMixedPieScatterData';
 
 export function MixedPieScatterReferencePreview(){

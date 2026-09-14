@@ -1,5 +1,5 @@
 import {useMemo,useState} from 'react';
-import {Button,ForceChart} from '@sia-ui/react';
+import {Button,ForceChart} from '@sia.soul/sia-react-ui';
 import {createForceTreeData} from './chartForceTreeData';
 const categories=['叶子节点','非叶子节点','根节点'];
 const colors=['#2ec7c9','#b6a2de','#5ab1ef'];

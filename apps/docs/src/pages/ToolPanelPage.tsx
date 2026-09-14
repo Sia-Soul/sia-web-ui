@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Button, Icon, Input, Space, Tag, ToolPanel } from "@sia-ui/react";
+import { Button, Icon, Input, Space, Tag, ToolPanel } from "@sia.soul/sia-react-ui";
 import { ComponentDocPage } from "./ComponentDocPage";
 import { DemoCard } from "./DemoCard";
 
-const toolPanelCode = `import { Icon, Input, ToolPanel } from "@sia-ui/react";
+const toolPanelCode = `import { Icon, Input, ToolPanel } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <div style={{ display: "flex", height: 320 }}>

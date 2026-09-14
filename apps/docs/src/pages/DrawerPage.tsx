@@ -1,14 +1,14 @@
 import { useState } from "react";
-import { Button, Drawer, Input, Space, Tag, message } from "@sia-ui/react";
-import type { DrawerPlacement } from "@sia-ui/react";
+import { Button, Drawer, Input, Space, Tag, message } from "@sia.soul/sia-react-ui";
+import type { DrawerPlacement } from "@sia.soul/sia-react-ui";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
 import { PageHeader } from "./PageHeader";
 
 const placementCode = `import { useState } from "react";
-import { Button, Drawer } from "@sia-ui/react";
-import type { DrawerPlacement } from "@sia-ui/react";
+import { Button, Drawer } from "@sia.soul/sia-react-ui";
+import type { DrawerPlacement } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const [open, setOpen] = useState(false);
@@ -23,7 +23,7 @@ export default function Demo() {
   </>;
 }`;
 
-const apiCode = `import { Button, Drawer, Input } from "@sia-ui/react";
+const apiCode = `import { Button, Drawer, Input } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   function openDrawer() {
@@ -37,7 +37,7 @@ export default function Demo() {
 }`;
 
 const nestedCode = `import { useState } from "react";
-import { Button, Drawer } from "@sia-ui/react";
+import { Button, Drawer } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const [parentOpen, setParentOpen] = useState(false);

@@ -1,4 +1,4 @@
-import { Button, Dropdown, Icon, Input, Tag, Tree, type MenuItem, type TreeKey, type TreeNode } from "@sia-ui/react";
+import { Button, Dropdown, Icon, Input, Tag, Tree, type MenuItem, type TreeKey, type TreeNode } from "@sia.soul/sia-react-ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ConnectionProfile, DatabaseKind, DatabaseObjectCategory, DatabaseUser, DatabaseUserSnapshot, SchemaSnapshot } from "../types";
 

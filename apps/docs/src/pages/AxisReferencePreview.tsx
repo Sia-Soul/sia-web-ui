@@ -1,5 +1,5 @@
-import {ChartAxis,MixedChart} from '@sia-ui/react';
-import type {MixedSeries} from '@sia-ui/react';
+import {ChartAxis,MixedChart} from '@sia.soul/sia-react-ui';
+import type {MixedSeries} from '@sia.soul/sia-react-ui';
 import source from './chartAxisReferenceSource.json';
 const option=source[0]!.option;
 const categories=option.xAxis[0]!.data.map(item=>typeof item==='string'?item:item.value);

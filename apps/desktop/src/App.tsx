@@ -10,7 +10,7 @@ import {
   ThemeSwitch,
   applySiaTheme,
   type MenuItem,
-} from "@sia-ui/react";
+} from "@sia.soul/sia-react-ui";
 import SiaEditor from "./features/editor/SiaEditor";
 import ProjectsPage from "./features/projects/ProjectsPage";
 import WorkItemsPage from "./features/work-items/WorkItemsPage";
@@ -185,7 +185,7 @@ export default function App() {
           </div>
 
           <div className="content-grid">
-            <Card title="创建项目" description="这是直接来自 @sia-ui/react 的 Input、Button 和 Card。" accent="primary">
+            <Card title="创建项目" description="这是直接来自 @sia.soul/sia-react-ui 的 Input、Button 和 Card。" accent="primary">
               <div className="project-form">
                 <Input
                   label="项目名称"

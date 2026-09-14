@@ -1,4 +1,4 @@
-import type {TreeChartProps} from '@sia-ui/react';
+import type {TreeChartProps} from '@sia.soul/sia-react-ui';
 import {chartTreeRoamFixture} from './chartTreeRoamFixture';
 export const chartTreeFixtures:Record<string,TreeChartProps> = {
   tree2: chartTreeRoamFixture,

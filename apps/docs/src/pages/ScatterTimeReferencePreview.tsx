@@ -1,5 +1,5 @@
 import {useMemo,useState} from 'react';
-import {Button,ScatterChart} from '@sia-ui/react';
+import {Button,ScatterChart} from '@sia.soul/sia-react-ui';
 import {createScatterTimeData} from './chartScatterTimeData';
 import {scatterCategorySize,scatterCategoryPieces} from './chartScatterCategoryData';
 const bounds={x:80,y:80,width:503,height:219};

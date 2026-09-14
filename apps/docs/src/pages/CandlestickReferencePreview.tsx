@@ -1,4 +1,4 @@
-import {CandlestickChart} from '@sia-ui/react';
+import {CandlestickChart} from '@sia.soul/sia-react-ui';
 import {chartCandlestickFixtures} from './chartCandlestickFixtures';
 export function CandlestickReferencePreview({id}:{id:string}) {
  return <><div className="chart-parity__viewport"><CandlestickChart {...chartCandlestickFixtures[id]!} width={663} height={379} viewBoxSize={[663,379]} toolbox={{features:['mark','dataView','restore','saveAsImage'],magicTypes:id==='k1'?['line','bar']:[]}}/></div>

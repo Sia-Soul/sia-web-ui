@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {Button,TreemapChart} from '@sia-ui/react';
+import {Button,TreemapChart} from '@sia.soul/sia-react-ui';
 import {chartTreemapFixtures} from './chartTreemapFixtures';
 const palette=['#ff7f50','#87cefa','#da70d6','#32cd32','#6495ed','#ff69b4','#ba55d3'];
 const bounds={x:66.3,y:37.9,width:530.4,height:303.2};

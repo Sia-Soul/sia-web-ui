@@ -1,9 +1,9 @@
-import { Button, Space, message } from "@sia-ui/react";
+import { Button, Space, message } from "@sia.soul/sia-react-ui";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
 import { PageHeader } from "./PageHeader";
 
-const typeCode = `import { Button, message } from "@sia-ui/react";
+const typeCode = `import { Button, message } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   function showLoading() {
@@ -19,7 +19,7 @@ export default function Demo() {
   </>;
 }`;
 
-const closeCode = `import { Button, message } from "@sia-ui/react";
+const closeCode = `import { Button, message } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <>

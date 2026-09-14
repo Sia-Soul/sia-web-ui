@@ -25,7 +25,7 @@ import {
   type TableColumn,
   type TreemapNode,
   type WindowAction,
-} from "@sia-ui/react";
+} from "@sia.soul/sia-react-ui";
 import {
   cancelNativeScan,
   chooseDirectory,

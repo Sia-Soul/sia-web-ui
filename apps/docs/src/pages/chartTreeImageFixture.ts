@@ -1,4 +1,4 @@
-import type {TreeChartProps} from '@sia-ui/react';
+import type {TreeChartProps} from '@sia.soul/sia-react-ui';
 // Not registered as implemented: all five original image endpoints are currently unavailable.
 export const chartTreeImageFixture:TreeChartProps = {
   "title": "手机品牌",

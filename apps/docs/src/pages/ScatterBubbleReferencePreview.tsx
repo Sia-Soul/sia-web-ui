@@ -1,5 +1,5 @@
 import {useMemo,useState} from 'react';
-import {Button,ScatterChart} from '@sia-ui/react';
+import {Button,ScatterChart} from '@sia.soul/sia-react-ui';
 import {createScatterBubbleData,scatterBubbleSize} from './chartScatterBubbleData';
 const bounds={x:80,y:60,width:503,height:259};
 export function ScatterBubbleReferencePreview(){

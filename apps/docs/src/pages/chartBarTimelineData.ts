@@ -1,6 +1,6 @@
 import macro from './chartMacroTimelineData.json';
 import source from './chartBarTimelineSource.json';
-import type {MixedSeries} from '@sia-ui/react';
+import type {MixedSeries} from '@sia.soul/sia-react-ui';
 
 export const barTimelineYears=source[0]!.option.timeline.data.map(date=>date.slice(0,4));
 export const barTimelineCategories=source[0]!.option.options[0]!.xAxis![0]!.data;

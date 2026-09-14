@@ -1,4 +1,4 @@
-import type {BarSeries} from '@sia-ui/react';
+import type {BarSeries} from '@sia.soul/sia-react-ui';
 import source from './chartPersonalizedBarSource.json';
 export const original=source[0]!.option;
 export const series:BarSeries[]=original.series.map(s=>({name:s.name,data:s.data.map(d=>typeof d==='number'?d:typeof d==='string'?{value:NaN,hidden:true}:{value:d.value}),stack:'stack' in s?s.stack:undefined}));

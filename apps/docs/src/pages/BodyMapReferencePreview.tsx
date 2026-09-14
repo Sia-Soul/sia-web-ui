@@ -1,6 +1,6 @@
 import {useRef,useState} from 'react';
-import {ChartComposite,ChartDataEditor,ChartVisualMap,SiaChart,SvgMapPlot} from '@sia-ui/react';
-import type {ChartCompositeRef} from '@sia-ui/react';
+import {ChartComposite,ChartDataEditor,ChartVisualMap,SiaChart,SvgMapPlot} from '@sia.soul/sia-react-ui';
+import type {ChartCompositeRef} from '@sia.soul/sia-react-ui';
 import source from './chartBodyMapSource.json';
 import male from './chartBodyMale.svg?raw';
 import female from './chartBodyFemale.svg?raw';

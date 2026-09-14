@@ -10,7 +10,7 @@ import {
   createResizePlugin,
   type AnyTablePlugin,
   type TableColumn,
-} from "@sia-ui/react";
+} from "@sia.soul/sia-react-ui";
 import type {
   ConnectionProfile,
   ExecutionHistoryPage,

@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { TextArea } from "@sia-ui/react";
+import { TextArea } from "@sia.soul/sia-react-ui";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
 import { PageHeader } from "./PageHeader";
 
 const basicCode = `import { useState } from "react";
-import { TextArea } from "@sia-ui/react";
+import { TextArea } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const [value, setValue] = useState("");

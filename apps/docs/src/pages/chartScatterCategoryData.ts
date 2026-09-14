@@ -1,4 +1,4 @@
-import type {ScatterDatum} from '@sia-ui/react';
+import type {ScatterDatum} from '@sia.soul/sia-react-ui';
 export const scatterCategories=Array.from({length:500},(_,i)=>i+1);
 export function createScatterCategoryData(seed:number):ScatterDatum[]{
  let state=seed>>>0;

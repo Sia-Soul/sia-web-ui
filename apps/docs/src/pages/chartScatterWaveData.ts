@@ -1,4 +1,4 @@
-import type {ScatterDatum} from '@sia-ui/react';
+import type {ScatterDatum} from '@sia.soul/sia-react-ui';
 /** Locally implemented original formula, with a seeded random source for reproducible verification. */
 export function createScatterWaveData(seed:number):ScatterDatum[]{
  let state=seed;const random=()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return state/4294967296;};

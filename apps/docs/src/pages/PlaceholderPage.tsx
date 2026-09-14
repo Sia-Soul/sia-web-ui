@@ -1,4 +1,4 @@
-import { Button, Card, Icon } from "@sia-ui/react";
+import { Button, Card, Icon } from "@sia.soul/sia-react-ui";
 import type { NavItem } from "../navigation";
 import { PageHeader } from "./PageHeader";
 

@@ -1,4 +1,4 @@
-import type { BarChartProps } from "@sia-ui/react";
+import type { BarChartProps } from "@sia.soul/sia-react-ui";
 
 
 // 原始数据来源：ECharts 2.2.7 示例页。这里只保留数据与自研组件属性，不执行源站代码。

@@ -35,8 +35,8 @@ import {ProvinceSelectorReferencePreview} from './ProvinceSelectorReferencePrevi
 import {MixedScatterReferencePreview} from './MixedScatterReferencePreview';
 import {MixedGdpReferencePreview} from './MixedGdpReferencePreview';
 import { useSearchParams } from "react-router-dom";
-import { Button, Card, LineChart, Select, Slider } from "@sia-ui/react";
-import type { LineSeries, LineChartProps } from "@sia-ui/react";
+import { Button, Card, LineChart, Select, Slider } from "@sia.soul/sia-react-ui";
+import type { LineSeries, LineChartProps } from "@sia.soul/sia-react-ui";
 import { chartReferenceExamples } from "./chartReferenceExamples";
 import { chartBarFixtures } from "./chartBarFixtures";
 import { BarReferencePreview } from "./BarReferencePreview";

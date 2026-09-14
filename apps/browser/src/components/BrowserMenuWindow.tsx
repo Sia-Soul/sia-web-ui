@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, Icon, Input, Menu, applySiaTheme } from "@sia-ui/react";
-import type { MenuItem } from "@sia-ui/react";
+import { Button, Icon, Input, Menu, applySiaTheme } from "@sia.soul/sia-react-ui";
+import type { MenuItem } from "@sia.soul/sia-react-ui";
 
 export interface BrowserMenuItem {
   type?: "divider";

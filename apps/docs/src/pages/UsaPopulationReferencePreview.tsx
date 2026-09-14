@@ -1,6 +1,6 @@
 import {useRef,useState} from 'react';
-import {ChartComposite,ChartDataEditor,MapChart} from '@sia-ui/react';
-import type {ChartCompositeRef,GeoJsonFeatureCollection} from '@sia-ui/react';
+import {ChartComposite,ChartDataEditor,MapChart} from '@sia.soul/sia-react-ui';
+import type {ChartCompositeRef,GeoJsonFeatureCollection} from '@sia.soul/sia-react-ui';
 import geography from './chartUsaGeography.json';
 import source from './chartUsaPopulationSource.json';
 const worldPopulationData=source[0]!.option.series[0]!.data;

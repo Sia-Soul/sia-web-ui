@@ -1,5 +1,5 @@
 import {useMemo,useState} from 'react';
-import {Button,HeatmapChart} from '@sia-ui/react';
+import {Button,HeatmapChart} from '@sia.soul/sia-react-ui';
 import {createReferenceHeatData,customHeatGradient} from './chartHeatmapData';
 export function HeatmapReferencePreview({id}:{id:'heatmap'|'heatmap2'}){
  const [seed,setSeed]=useState(41),points=useMemo(()=>createReferenceHeatData(seed),[seed]);

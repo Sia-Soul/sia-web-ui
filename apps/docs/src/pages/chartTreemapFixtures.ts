@@ -1,4 +1,4 @@
-import type {TreemapChartProps} from '@sia-ui/react';
+import type {TreemapChartProps} from '@sia.soul/sia-react-ui';
 // Statically transcribed reference data; no downloaded scripts execute in the application.
 export const chartTreemapFixtures:Record<string,Pick<TreemapChartProps,'title'|'description'|'data'|'itemStyle'|'emphasis'>> = {
   "treemap": {

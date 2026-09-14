@@ -1,5 +1,5 @@
 import {useRef,useState} from 'react';
-import {LineShareChart,serializeChartStack,saveCompositeImage} from '@sia-ui/react';
+import {LineShareChart,serializeChartStack,saveCompositeImage} from '@sia.soul/sia-react-ui';
 import snapshot from './chartMixedShareSource.json';
 const source=snapshot[0]!;
 const data=source.bindings.data.map((value,index)=>({name:source.option.xAxis[0]!.data[index+1]!,value}));

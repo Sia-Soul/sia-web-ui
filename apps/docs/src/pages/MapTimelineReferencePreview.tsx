@@ -1,6 +1,6 @@
 import {useCallback,useRef,useState} from 'react';
-import {ChartComposite,ChartDataEditor,MapChart} from '@sia-ui/react';
-import type {ChartCompositeRef,GeoJsonFeatureCollection,MapChartProps} from '@sia-ui/react';
+import {ChartComposite,ChartDataEditor,MapChart} from '@sia.soul/sia-react-ui';
+import type {ChartCompositeRef,GeoJsonFeatureCollection,MapChartProps} from '@sia.soul/sia-react-ui';
 import source from './chartMapTimelineSource.json';
 import macro from './chartMacroTimelineData.json';
 import geography from './chartChinaSource.json';

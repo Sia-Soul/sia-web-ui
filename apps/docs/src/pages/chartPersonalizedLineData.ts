@@ -1,4 +1,4 @@
-import type {LineSeries} from '@sia-ui/react';
+import type {LineSeries} from '@sia.soul/sia-react-ui';
 import source from './chartPersonalizedLineSource.json';
 import {personalizedLineIcon} from './chartPersonalizedLineIcon';
 export const personalizedLineCategories=source[0]!.option.xAxis[0]!.data;

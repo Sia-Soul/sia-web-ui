@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {Button,TreeChart} from '@sia-ui/react';
+import {Button,TreeChart} from '@sia.soul/sia-react-ui';
 import {chartTreeFixtures} from './chartTreeFixtures';
 export function TreeReferencePreview({id}:{id:string}) {
  const [replay,setReplay]=useState(0);

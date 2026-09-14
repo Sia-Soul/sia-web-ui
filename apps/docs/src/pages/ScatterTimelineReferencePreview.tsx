@@ -1,5 +1,5 @@
 import {useMemo, useState} from 'react';
-import {ScatterChart} from '@sia-ui/react';
+import {ScatterChart} from '@sia.soul/sia-react-ui';
 import macro from './chartMacroTimelineData.json';
 import reference from './chartScatterTimelineSource.json';
 

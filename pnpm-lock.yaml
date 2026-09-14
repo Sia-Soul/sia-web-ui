@@ -17,7 +17,7 @@ importers:
 
   apps/browser:
     dependencies:
-      '@sia-ui/react':
+      '@sia.soul/sia-react-ui':
         specifier: workspace:*
         version: link:../../packages/react
       react:
@@ -45,7 +45,7 @@ importers:
 
   apps/database-studio:
     dependencies:
-      '@sia-ui/react':
+      '@sia.soul/sia-react-ui':
         specifier: workspace:*
         version: link:../../packages/react
       react:
@@ -76,7 +76,7 @@ importers:
 
   apps/desktop:
     dependencies:
-      '@sia-ui/react':
+      '@sia.soul/sia-react-ui':
         specifier: workspace:*
         version: link:../../packages/react
       dompurify:
@@ -110,7 +110,7 @@ importers:
 
   apps/disk-space:
     dependencies:
-      '@sia-ui/react':
+      '@sia.soul/sia-react-ui':
         specifier: workspace:*
         version: link:../../packages/react
       react:
@@ -138,7 +138,7 @@ importers:
 
   apps/docs:
     dependencies:
-      '@sia-ui/react':
+      '@sia.soul/sia-react-ui':
         specifier: workspace:*
         version: link:../../packages/react
       react:
@@ -172,7 +172,7 @@ importers:
       '@prettier/plugin-xml':
         specifier: 3.4.2
         version: 3.4.2(prettier@3.9.6)
-      '@sia-ui/react':
+      '@sia.soul/sia-react-ui':
         specifier: workspace:*
         version: link:../../packages/react
       '@tauri-apps/plugin-clipboard-manager':
@@ -404,6 +404,15 @@ importers:
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
+
+  packages/react-business:
+    dependencies:
+      react:
+        specifier: '>=18'
+        version: 18.3.1
+      react-dom:
+        specifier: '>=18'
+        version: 18.3.1(react@18.3.1)
 
 packages:
 

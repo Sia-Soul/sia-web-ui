@@ -1,4 +1,4 @@
-import type {ScatterDatum} from '@sia-ui/react';
+import type {ScatterDatum} from '@sia.soul/sia-react-ui';
 
 /** Original mix4 evaluation order: 200 x/y/value triples, then 30 line values. */
 export function createMixedScatterData(random:()=>number=Math.random){

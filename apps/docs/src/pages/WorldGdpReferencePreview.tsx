@@ -1,6 +1,6 @@
 import {useRef,useState} from 'react';
-import {ChartComposite,ChartDataEditor,ChartVisualMap,MapChart,SiaChart} from '@sia-ui/react';
-import type {ChartCompositeRef,GeoJsonFeatureCollection} from '@sia-ui/react';
+import {ChartComposite,ChartDataEditor,ChartVisualMap,MapChart,SiaChart} from '@sia.soul/sia-react-ui';
+import type {ChartCompositeRef,GeoJsonFeatureCollection} from '@sia.soul/sia-react-ui';
 import source from './chartWorldGdpSource.json';
 import world from './chartWorldSource.json';
 

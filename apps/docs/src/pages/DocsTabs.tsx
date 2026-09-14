@@ -1,5 +1,5 @@
-import { Tabs } from "@sia-ui/react";
-import type { TabItem } from "@sia-ui/react";
+import { Tabs } from "@sia.soul/sia-react-ui";
+import type { TabItem } from "@sia.soul/sia-react-ui";
 
 export type DocsTabKey = "examples" | "api";
 

@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {Button,ChordChart} from '@sia-ui/react';
+import {Button,ChordChart} from '@sia.soul/sia-react-ui';
 import {chordReferenceNames as names,chordReferenceMatrix as source} from './chartChordData';
 const colors=['#2ec7c9','#b6a2de','#5ab1ef','#ffb980'];
 export function ChordReferencePreview(){

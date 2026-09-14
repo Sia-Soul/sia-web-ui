@@ -1,4 +1,4 @@
-import type {CandlestickChartProps} from '@sia-ui/react';
+import type {CandlestickChartProps} from '@sia.soul/sia-react-ui';
 export const chartCandlestickFixtures:Record<string,CandlestickChartProps> = {
   "k": {
     "markPoints": [{"name":"最高","date":"2013/2/18","value":2444.8,"y":2466}],

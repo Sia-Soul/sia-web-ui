@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Space, Typography } from "@sia-ui/react";
+import { Space, Typography } from "@sia.soul/sia-react-ui";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
@@ -29,7 +29,7 @@ export function TypographyPage() {
     <PageHeader eyebrow="组件 / 通用 / Typography" title="Typography 排版" description="统一标题、正文与辅助文本的视觉层级，支持复制、编辑与省略展开。" />
     <DocsTabs activeKey={tab} onChange={setTab} />
     {tab === "api" ? <ApiTable name="Typography" rows={apiRows} /> : <div className="demo-stack">
-      <DemoCard title="标题层级" description="五级标题使用真实的标题语义，建立清晰的信息层次。" code={'import { Typography } from "@sia-ui/react";\n\n<Typography.Title level={1}>一级标题</Typography.Title>\n<Typography.Title level={2}>二级标题</Typography.Title>\n<Typography.Title level={3}>三级标题</Typography.Title>\n<Typography.Title level={4}>四级标题</Typography.Title>\n<Typography.Title level={5}>五级标题</Typography.Title>'}>
+      <DemoCard title="标题层级" description="五级标题使用真实的标题语义，建立清晰的信息层次。" code={'import { Typography } from "@sia.soul/sia-react-ui";\n\n<Typography.Title level={1}>一级标题</Typography.Title>\n<Typography.Title level={2}>二级标题</Typography.Title>\n<Typography.Title level={3}>三级标题</Typography.Title>\n<Typography.Title level={4}>四级标题</Typography.Title>\n<Typography.Title level={5}>五级标题</Typography.Title>'}>
         <Title>一级标题 · Sia Design</Title><Title level={2}>二级标题 · 页面章节</Title><Title level={3}>三级标题 · 内容分组</Title><Title level={4}>四级标题 · 小节标题</Title><Title level={5}>五级标题 · 局部说明</Title>
       </DemoCard>
       <DemoCard title="段落与文本状态" description="正文、辅助说明与状态信息共用主题令牌。" code={'<Typography.Paragraph>正文内容</Typography.Paragraph>\n<Typography.Text type="secondary">辅助说明</Typography.Text>\n<Typography.Text type="success">操作成功</Typography.Text>\n<Typography.Text type="warning">请留意</Typography.Text>\n<Typography.Text type="danger">操作失败</Typography.Text>'}>

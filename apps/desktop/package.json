@@ -11,7 +11,7 @@
     "tauri": "cargo tauri"
   },
   "dependencies": {
-    "@sia-ui/react": "workspace:*",
+    "@sia.soul/sia-react-ui": "workspace:*",
     "dompurify": "3.4.8",
     "marked": "14.0.0",
     "react": "^18.3.1",

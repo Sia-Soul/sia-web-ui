@@ -1,0 +1,26 @@
+{
+  "name": "@sia-ui/react-business",
+  "version": "0.1.8",
+  "description": "SiaWebUI business controls, without editors or chart dependencies",
+  "type": "module",
+  "main": "./dist/business.cjs",
+  "module": "./dist/business.js",
+  "types": "./dist/business.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/business.d.ts",
+      "import": "./dist/business.js",
+      "require": "./dist/business.cjs"
+    },
+    "./styles.css": "./dist/business.css"
+  },
+  "sideEffects": ["**/*.css"],
+  "files": ["dist"],
+  "scripts": {
+    "build": "node ../../scripts/build-business.mjs"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  }
+}

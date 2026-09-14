@@ -1,10 +1,10 @@
 import {useState} from 'react';
-import {ChartComposite,ChartDataEditor,ChartLegend,ChartVisualMap,MapChart,PieChart,SiaChart} from '@sia-ui/react';
-import type {GeoJsonFeatureCollection} from '@sia-ui/react';
+import {ChartComposite,ChartDataEditor,ChartLegend,ChartVisualMap,MapChart,PieChart,SiaChart} from '@sia.soul/sia-react-ui';
+import type {GeoJsonFeatureCollection} from '@sia.soul/sia-react-ui';
 import snapshot from './chartMixedGdpSource.json';
 import geography from './chartChinaSource.json';
 import insetSource from './chartChinaInsetSource.json';
-import type {MapChartProps} from '@sia-ui/react';
+import type {MapChartProps} from '@sia.soul/sia-react-ui';
 
 const option=snapshot[0]!.option;
 const original=option.series[0]!.data as {name:string;value:number;selected?:boolean}[];

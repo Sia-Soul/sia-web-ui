@@ -1,6 +1,6 @@
 import {useState} from 'react';
-import {Button,VennChart} from '@sia-ui/react';
-import type {VennChartProps} from '@sia-ui/react';
+import {Button,VennChart} from '@sia.soul/sia-react-ui';
+import type {VennChartProps} from '@sia.soul/sia-react-ui';
 export const vennReferenceFixture:VennChartProps={title:'访问 vs 咨询',description:'各个数据的集合',sets:[{name:'访问',value:100},{name:'咨询',value:50}],intersection:{name:'公共',value:20},appearance:'macarons',emphasisColor:'#cc99cc',emphasisBorderColor:'#996699',emphasisBorderWidth:3};
 export function VennReferencePreview(){
  const [replay,setReplay]=useState(0);

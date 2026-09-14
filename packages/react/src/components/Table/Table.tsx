@@ -1,5 +1,5 @@
 import { Fragment, forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode, Ref } from "react";
+import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactElement, ReactNode, Ref } from "react";
 import { Tooltip } from "../FloatingDisplay";
 import { Icon } from "../Icon";
 import type {
@@ -769,4 +769,4 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
 
 export const Table = forwardRef(TableInner) as <T extends Record<string, unknown> = Record<string, unknown>>(
   props: TableProps<T> & { ref?: Ref<TableRef<T>> },
-) => ReactNode;
+) => ReactElement | null;

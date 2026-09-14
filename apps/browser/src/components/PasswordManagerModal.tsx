@@ -8,7 +8,7 @@ import {
   Tag,
   Upload,
   message,
-} from "@sia-ui/react";
+} from "@sia.soul/sia-react-ui";
 
 export interface PasswordSubmission {
   tabId: string;

@@ -4,7 +4,7 @@ import { Icon } from "./Icon";
 
 export type DatePickerShowTime = boolean | {
   showSecond?: boolean;
-  defaultValue?: string;
+  defaultValue?: string | readonly [string, string];
 };
 
 export function pad(value: number) {
@@ -52,14 +52,15 @@ export function withTime(date: string, time: string, showSecond = false) {
   return `${date} ${hour}:${minute}${showSecond ? `:${second}` : ""}`;
 }
 
-export function normalizeDateValue(value: string, showTime: DatePickerShowTime) {
+export function normalizeDateValue(value: string, showTime: DatePickerShowTime, index: 0 | 1 = 0) {
   if (!value) return "";
   const date = parseDate(value);
   if (!date) return value;
   const day = dateKey(date);
   if (!showTime) return day;
   const config = typeof showTime === "object" ? showTime : {};
-  return withTime(day, timePart(value, config.defaultValue ?? "00:00:00"), Boolean(config.showSecond));
+  const fallback = typeof config.defaultValue === "string" ? config.defaultValue : config.defaultValue?.[index] ?? "00:00:00";
+  return withTime(day, timePart(value, fallback), Boolean(config.showSecond));
 }
 
 type CalendarMonthProps = {

@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import {
   Alert, Button, Card, Divider, Icon, Popconfirm, Progress, Space, Spin, Tour, Watermark, message, notification,
-} from "@sia-ui/react";
+} from "@sia.soul/sia-react-ui";
 import { ComponentDocPage } from "./ComponentDocPage";
 import { DemoCard } from "./DemoCard";
 

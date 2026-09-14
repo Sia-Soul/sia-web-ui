@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MarkdownEditor, Space, Tag, message } from "@sia-ui/react";
+import { MarkdownEditor, Space, Tag, message } from "@sia.soul/sia-react-ui";
 import { ComponentDocPage } from "./ComponentDocPage";
 import { DemoCard } from "./DemoCard";
 
@@ -18,7 +18,7 @@ const initialMarkdown = `# 产品需求说明
 `;
 
 const editorCode = `import { useState } from "react";
-import { MarkdownEditor, message } from "@sia-ui/react";
+import { MarkdownEditor, message } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const [value, setValue] = useState("# 产品需求说明");

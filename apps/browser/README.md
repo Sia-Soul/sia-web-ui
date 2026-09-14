@@ -4,7 +4,7 @@ Sia Browser 是基于 Sia WebUI 与 Tauri 2 的桌面浏览器原型。
 
 ## 结构
 
-- React 与 `@sia-ui/react` 负责无边框窗体、标签栏、地址栏、书签栏和新标签页。
+- React 与 `@sia.soul/sia-react-ui` 负责无边框窗体、标签栏、地址栏、书签栏和新标签页。
 - Tauri 主窗口关闭系统标题栏，由标签栏承担拖动和双击最大化。
 - 每个真实网页标签使用独立的 Tauri 子 WebView，避免普通 `iframe` 的跨域和 `X-Frame-Options` 限制。
 - 远程网页不在 capability 中，不能调用浏览器外壳的 Tauri IPC。

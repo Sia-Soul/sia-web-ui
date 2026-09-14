@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Button, Card } from "@sia-ui/react";
+import { Button, Card } from "@sia.soul/sia-react-ui";
 import { ChartReferencePreview, implementedChartReferenceIds } from "./ChartParityPanel";
 import { chartReferenceExamples } from "./chartReferenceExamples";
 import { chartCategories, chartCategoryForUrl } from "./chartCategories";

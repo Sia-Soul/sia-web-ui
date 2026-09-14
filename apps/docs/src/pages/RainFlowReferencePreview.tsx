@@ -1,5 +1,5 @@
 import {useMemo,useState} from 'react';
-import {Button,Slider,ChartDataZoom,MixedChart} from '@sia-ui/react';
+import {Button,Slider,ChartDataZoom,MixedChart} from '@sia.soul/sia-react-ui';
 import {rainFlowCategories,rainFlowOption,rainFlowSeries} from './chartRainFlowData';
 export function RainFlowReferencePreview(){
  const [zoom,setZoom]=useState<[number,number]>([0,100]);

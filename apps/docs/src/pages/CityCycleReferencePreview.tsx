@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import {useEffect,useRef,useState} from 'react';
-import {MapChart} from '@sia-ui/react';
-import type {GeoJsonFeatureCollection} from '@sia-ui/react';
+import {MapChart} from '@sia.soul/sia-react-ui';
+import type {GeoJsonFeatureCollection} from '@sia.soul/sia-react-ui';
 import source from './chartCityCycleSource.json';
 import {cityCycleEntries,cityCycleNext} from './chartCityCycleData';
 const loaders=import.meta.glob<{default:GeoJsonFeatureCollection}>('./chartCityMaps/*.json');

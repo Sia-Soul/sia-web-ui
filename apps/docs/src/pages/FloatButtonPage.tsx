@@ -1,16 +1,16 @@
 import { useCallback, useRef, useState } from "react";
-import { Button, FloatButton, Icon, Space, message } from "@sia-ui/react";
+import { Button, FloatButton, Icon, Space, message } from "@sia.soul/sia-react-ui";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
 import { PageHeader } from "./PageHeader";
 import { ApiTable } from "./ApiTable";
 
 const inline = { position: "relative" as const, right: "auto", bottom: "auto" };
-const basicCode = `import { FloatButton, Icon, message } from "@sia-ui/react";
+const basicCode = `import { FloatButton, Icon, message } from "@sia.soul/sia-react-ui";
 
 <FloatButton tooltip="帮助" onClick={() => message.info("帮助中心")} />
 <FloatButton type="primary" shape="square" description="反馈" style={{ right: 80 }} />`;
-const groupCode = `import { FloatButton, Icon, message } from "@sia-ui/react";
+const groupCode = `import { FloatButton, Icon, message } from "@sia.soul/sia-react-ui";
 
 <FloatButton.Group trigger="click" type="primary" placement="top">
   <FloatButton tooltip="帮助" onClick={() => message.info("帮助入口")} />

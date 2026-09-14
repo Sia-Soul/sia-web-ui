@@ -1,11 +1,11 @@
-import { Icon, Space, Tag } from "@sia-ui/react";
+import { Icon, Space, Tag } from "@sia.soul/sia-react-ui";
 import { useState } from "react";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
 import { PageHeader } from "./PageHeader";
 
-const statusCode = `import { Icon, Space, Tag } from "@sia-ui/react";
+const statusCode = `import { Icon, Space, Tag } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <Space wrap>
@@ -17,7 +17,7 @@ export default function Demo() {
   </Space>;
 }`;
 
-const variantCode = `import { Space, Tag } from "@sia-ui/react";
+const variantCode = `import { Space, Tag } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <Space wrap>
@@ -30,7 +30,7 @@ export default function Demo() {
 }`;
 
 const closeCode = `import { useState } from "react";
-import { Space, Tag } from "@sia-ui/react";
+import { Space, Tag } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const [tags, setTags] = useState(["React", "TypeScript", "Vite"]);

@@ -9,11 +9,11 @@ export default defineConfig({
   resolve: {
     alias: [
       {
-        find: "@sia-ui/react/styles.css",
+        find: "@sia.soul/sia-react-ui/styles.css",
         replacement: fileURLToPath(new URL("../../packages/react/src/styles.css", import.meta.url)),
       },
       {
-        find: /^@sia-ui\/react$/,
+        find: /^@sia\.soul\/sia-react-ui$/,
         replacement: fileURLToPath(new URL("../../packages/react/src/index.ts", import.meta.url)),
       },
     ],

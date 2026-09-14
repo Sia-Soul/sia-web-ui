@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { Select } from "@sia-ui/react";
-import type { SelectChangeValue, SelectOption, SelectValue } from "@sia-ui/react";
+import { Select } from "@sia.soul/sia-react-ui";
+import type { SelectChangeValue, SelectOption, SelectValue } from "@sia.soul/sia-react-ui";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
 import { PageHeader } from "./PageHeader";
 
 const basicCode = `import { useState } from "react";
-import { Select } from "@sia-ui/react";
+import { Select } from "@sia.soul/sia-react-ui";
 
 const options = [
   { label: "React", value: "react" },
@@ -28,7 +28,7 @@ export default function Demo() {
 }`;
 
 const multipleCode = `import { useState } from "react";
-import { Select } from "@sia-ui/react";
+import { Select } from "@sia.soul/sia-react-ui";
 
 const options = Array.from({ length: 1000 }, (_, index) => ({
   label: "项目成员 " + String(index + 1).padStart(4, "0"),
@@ -51,7 +51,7 @@ export default function Demo() {
   />;
 }`;
 
-const sizeStatusCode = `import { Select } from "@sia-ui/react";
+const sizeStatusCode = `import { Select } from "@sia.soul/sia-react-ui";
 
 const options = [
   { label: "React", value: "react" },
@@ -67,7 +67,7 @@ export default function Demo() {
   </>;
 }`;
 
-const stateCode = `import { Select } from "@sia-ui/react";
+const stateCode = `import { Select } from "@sia.soul/sia-react-ui";
 
 const options = [
   { label: "React", value: "react" },
@@ -83,7 +83,7 @@ export default function Demo() {
 }`;
 
 const customInputCode = `import { useState } from "react";
-import { Select } from "@sia-ui/react";
+import { Select } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const [value, setValue] = useState(["React"]);

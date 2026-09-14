@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {Button,ForceChart} from '@sia-ui/react';
+import {Button,ForceChart} from '@sia.soul/sia-react-ui';
 import source from './chartForceJobsSource.json';
 const option=source.option,series=option.series[0]!;
 const colors=['#5ab1ef','#2ec7c9','#b6a2de'];

@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Breadcrumb, Icon, Typography } from "@sia-ui/react";
+import { Breadcrumb, Icon, Typography } from "@sia.soul/sia-react-ui";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
 import { PageHeader } from "./PageHeader";
 import { ApiTable } from "./ApiTable";
 
-const basicCode = `import { Breadcrumb } from "@sia-ui/react";
+const basicCode = `import { Breadcrumb } from "@sia.soul/sia-react-ui";
 
 <Breadcrumb items={[
   { title: "首页", href: "/introduction" },

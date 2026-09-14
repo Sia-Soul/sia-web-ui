@@ -14,8 +14,8 @@ import {
   TreeSelect,
   Upload,
   message,
-} from "@sia-ui/react";
-import type { CheckboxValue, FormRule, SliderValue, TreeSelectNode } from "@sia-ui/react";
+} from "@sia.soul/sia-react-ui";
+import type { CheckboxValue, FormRule, SliderValue, TreeSelectNode } from "@sia.soul/sia-react-ui";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
@@ -40,7 +40,7 @@ function DocPage({ eyebrow, title, description, name, apiRows, children }: DocPa
 }
 
 const checkboxCode = `import { useState } from "react";
-import { Checkbox, Space } from "@sia-ui/react";
+import { Checkbox, Space } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const options = ["查看", "编辑", "管理"];
@@ -82,7 +82,7 @@ export function CheckboxPage() {
   </DocPage>;
 }
 
-const colorCode = `import { ColorPicker } from "@sia-ui/react";
+const colorCode = `import { ColorPicker } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return (
@@ -115,7 +115,7 @@ export function ColorPickerPage() {
   </DocPage>;
 }
 
-const dateBasicCode = `import { DatePicker, Space } from "@sia-ui/react";
+const dateBasicCode = `import { DatePicker, Space } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return (
@@ -127,7 +127,7 @@ export default function Demo() {
   );
 }`;
 
-const dateSelectionCode = `import { DatePicker, Space } from "@sia-ui/react";
+const dateSelectionCode = `import { DatePicker, Space } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return (
@@ -138,7 +138,7 @@ export default function Demo() {
   );
 }`;
 
-const dateAdvancedCode = `import { DatePicker, Space } from "@sia-ui/react";
+const dateAdvancedCode = `import { DatePicker, Space } from "@sia.soul/sia-react-ui";
 
 const presets = [
   { label: "最近 7 天", value: ["2026-07-14 00:00", "2026-07-20 23:59"] },
@@ -204,7 +204,7 @@ export function DatePickerPage() {
 const USERNAME_RULES: readonly FormRule[] = [{ required: true, message: "请输入用户名" }, { min: 3, message: "至少输入 3 个字符" }];
 const EMAIL_RULES: readonly FormRule[] = [{ required: true, message: "请输入邮箱" }, { type: "email", message: "邮箱格式不正确" }];
 
-const formCode = `import { Button, Checkbox, Form, Input, Space } from "@sia-ui/react";
+const formCode = `import { Button, Checkbox, Form, Input, Space } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const [form] = Form.useForm();
@@ -267,7 +267,7 @@ export function FormPage() {
 }
 
 const radioCode = `import { useState } from "react";
-import { Divider, Radio } from "@sia-ui/react";
+import { Divider, Radio } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const [value, setValue] = useState("daily");
@@ -309,7 +309,7 @@ export function RadioPage() {
   </DocPage>;
 }
 
-const sliderCode = `import { Divider, Slider } from "@sia-ui/react";
+const sliderCode = `import { Divider, Slider } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <>
@@ -341,7 +341,7 @@ export function SliderPage() {
   </DocPage>;
 }
 
-const timeCode = `import { TimePicker } from "@sia-ui/react";
+const timeCode = `import { TimePicker } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return (
@@ -384,7 +384,7 @@ const TREE_DATA: readonly TreeSelectNode[] = [
   { title: "研发中心", value: "rd", children: [{ title: "前端组", value: "frontend" }, { title: "后端组", value: "backend" }] },
 ];
 
-const treeSelectCode = `import { TreeSelect } from "@sia-ui/react";
+const treeSelectCode = `import { TreeSelect } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return (
@@ -414,7 +414,7 @@ export function TreeSelectPage() {
   </DocPage>;
 }
 
-const uploadListCode = `import { Upload, message } from "@sia-ui/react";
+const uploadListCode = `import { Upload, message } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   function beforeUpload(file) {
@@ -434,7 +434,7 @@ export default function Demo() {
   );
 }`;
 
-const uploadDraggerCode = `import { Upload, message } from "@sia-ui/react";
+const uploadDraggerCode = `import { Upload, message } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   function beforeUpload(file) {

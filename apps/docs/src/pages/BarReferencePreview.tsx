@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BarChart, Button, LineChart, Slider } from "@sia-ui/react";
+import { BarChart, Button, LineChart, Slider } from "@sia.soul/sia-react-ui";
 import type { BarReferenceFixture } from "./chartBarFixtures";
 
 export function BarReferencePreview({ fixture, id }: { fixture: BarReferenceFixture; id: string }) {

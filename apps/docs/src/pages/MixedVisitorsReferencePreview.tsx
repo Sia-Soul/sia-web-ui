@@ -1,6 +1,6 @@
 import {useEffect,useRef,useState} from 'react';
-import {ChartComposite,ChartValueIsland,SiaChart,MixedChart,PieChart,transferCompositeValue} from '@sia-ui/react';
-import type {ChartCompositeRef,ChartValueTransferHandler,MixedSeries} from '@sia-ui/react';
+import {ChartComposite,ChartValueIsland,SiaChart,MixedChart,PieChart,transferCompositeValue} from '@sia.soul/sia-react-ui';
+import type {ChartCompositeRef,ChartValueTransferHandler,MixedSeries} from '@sia.soul/sia-react-ui';
 import snapshot from './chartMixedVisitorsSource.json';
 
 const option=snapshot[0]!.option,other=snapshot[0]!.bindings.option2;

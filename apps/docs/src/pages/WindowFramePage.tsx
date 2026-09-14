@@ -9,7 +9,7 @@ import {
   WindowTitleBar,
   type WindowAction,
   type WindowTitleBarActionsAlign,
-} from "@sia-ui/react";
+} from "@sia.soul/sia-react-ui";
 import { ComponentDocPage } from "./ComponentDocPage";
 import { DemoCard } from "./DemoCard";
 
@@ -19,7 +19,7 @@ const basicCode = `import {
   WindowFrame,
   WindowTitleBar,
   type WindowAction,
-} from "@sia-ui/react";
+} from "@sia.soul/sia-react-ui";
 
 function App() {
   const handleWindowAction = (action: WindowAction) => {

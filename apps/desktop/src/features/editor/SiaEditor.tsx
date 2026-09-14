@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Editor, Icon, Input, Segmented, Tag } from "@sia-ui/react";
-import type { EditorHandle } from "@sia-ui/react";
+import { Button, Editor, Icon, Input, Segmented, Tag } from "@sia.soul/sia-react-ui";
+import type { EditorHandle } from "@sia.soul/sia-react-ui";
 import {
   DEFAULT_DOCUMENT,
   loadWorkbenchDocument,

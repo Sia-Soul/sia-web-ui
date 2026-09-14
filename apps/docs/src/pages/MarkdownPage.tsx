@@ -1,4 +1,4 @@
-import { Markdown } from "@sia-ui/react";
+import { Markdown } from "@sia.soul/sia-react-ui";
 import { ComponentDocPage } from "./ComponentDocPage";
 import { DemoCard } from "./DemoCard";
 
@@ -23,7 +23,7 @@ Sia Web UI 新增了 **Markdown 渲染**、富文本编辑器和日期组合查�
 <Markdown content={content} />
 \`\`\``;
 
-const markdownCode = `import { Markdown } from "@sia-ui/react";
+const markdownCode = `import { Markdown } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <Markdown content={\`# 发布说明

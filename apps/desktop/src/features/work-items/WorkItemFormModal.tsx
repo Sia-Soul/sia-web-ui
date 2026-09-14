@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Alert, Col, DatePicker, Form, Modal, Row, Select, TextArea, Input } from "@sia-ui/react";
-import type { FormRule, FormValues } from "@sia-ui/react";
+import { Alert, Col, DatePicker, Form, Modal, Row, Select, TextArea, Input } from "@sia.soul/sia-react-ui";
+import type { FormRule, FormValues } from "@sia.soul/sia-react-ui";
 import type { ProjectRecord } from "../projects/projectRepository";
 import type {
   SaveWorkItemInput,

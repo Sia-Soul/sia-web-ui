@@ -1,6 +1,6 @@
 import {useRef,useState} from 'react';
-import {ChartLegend,SiaChart,ChartComposite,ChartDataEditor,MixedChart,PieChart,transferCompositeValue} from '@sia-ui/react';
-import type {MixedSeries,ChartCompositeRef,ChartValueTransferHandler} from '@sia-ui/react';
+import {ChartLegend,SiaChart,ChartComposite,ChartDataEditor,MixedChart,PieChart,transferCompositeValue} from '@sia.soul/sia-react-ui';
+import type {MixedSeries,ChartCompositeRef,ChartValueTransferHandler} from '@sia.soul/sia-react-ui';
 import source from './chartMixedTrafficSource.json';
 
 const option=source[0]!.option;

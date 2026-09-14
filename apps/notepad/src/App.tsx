@@ -26,7 +26,7 @@ import {
   type TreeKey,
   type TreeNode,
   type WindowAction,
-} from "@sia-ui/react";
+} from "@sia.soul/sia-react-ui";
 import { readText as readClipboardText } from "@tauri-apps/plugin-clipboard-manager";
 import {
   createWelcomeSnapshot,

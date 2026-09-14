@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Button, Dropdown, Icon, Menu, Pagination, Segmented, Space, Steps } from "@sia-ui/react";
-import type { MenuItem, SegmentedValue } from "@sia-ui/react";
+import { Button, Dropdown, Icon, Menu, Pagination, Segmented, Space, Steps } from "@sia.soul/sia-react-ui";
+import type { MenuItem, SegmentedValue } from "@sia.soul/sia-react-ui";
 import { ComponentDocPage } from "./ComponentDocPage";
 import { DemoCard } from "./DemoCard";
 
@@ -12,7 +12,7 @@ const menuItems: readonly MenuItem[] = [
   { type: "divider", key: "divider" },
   { key: "settings", label: "系统设置", icon: <Icon name="settings" />, danger: true },
 ];
-const menuCode = `import { Icon, Menu } from "@sia-ui/react";
+const menuCode = `import { Icon, Menu } from "@sia.soul/sia-react-ui";
 
 const items = [
   { key: "dashboard", label: "工作台", icon: <Icon name="home" /> },
@@ -52,7 +52,7 @@ const dropdownItems: readonly MenuItem[] = [
   { type: "divider", key: "divider" },
   { key: "delete", label: "删除项目", icon: <Icon name="trash" />, danger: true },
 ];
-const dropdownCode = `import { Button, Dropdown } from "@sia-ui/react";
+const dropdownCode = `import { Button, Dropdown } from "@sia.soul/sia-react-ui";
 
 const items = [
   { key: "edit", label: "编辑项目" },
@@ -113,7 +113,7 @@ export function DropdownPage() {
   </ComponentDocPage>;
 }
 
-const paginationCode = `import { Pagination } from "@sia-ui/react";
+const paginationCode = `import { Pagination } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return (
@@ -145,7 +145,7 @@ export function PaginationPage() {
   </ComponentDocPage>;
 }
 
-const stepsCode = `import { Steps } from "@sia-ui/react";
+const stepsCode = `import { Steps } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <Steps current={1} items={[
@@ -172,7 +172,7 @@ export function StepsPage() {
   </ComponentDocPage>;
 }
 
-const segmentedCode = `import { Icon, Segmented } from "@sia-ui/react";
+const segmentedCode = `import { Icon, Segmented } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <Segmented block options={[

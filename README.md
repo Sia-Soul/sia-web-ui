@@ -11,7 +11,7 @@ apps/database-studio/       数据库连接与 SQL 工作台
 apps/browser/               无边框 Tauri 浏览器
 apps/disk-space/            实时磁盘空间探测器
 apps/notepad/               多标签、自动保存的轻量记事本
-packages/react/             @sia-ui/react 组件包
+packages/react/             @sia.soul/sia-react-ui 组件包
 packages/create-sia-web/    create-sia-web 项目生成器
 docs/design/                Web 端视觉基准
 ```
@@ -129,7 +129,7 @@ pnpm dev
 常用图标采用 24×24 视图和圆角描边，可按名称调用：
 
 ```tsx
-import { Icon } from "@sia-ui/react";
+import { Icon } from "@sia.soul/sia-react-ui";
 
 <Icon name="search" />
 <Icon name="settings" size={20} />

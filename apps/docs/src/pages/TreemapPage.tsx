@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Space, Tag, Treemap } from "@sia-ui/react";
-import type { TreemapNode } from "@sia-ui/react";
+import { Space, Tag, Treemap } from "@sia.soul/sia-react-ui";
+import type { TreemapNode } from "@sia.soul/sia-react-ui";
 import { ComponentDocPage } from "./ComponentDocPage";
 import { DemoCard } from "./DemoCard";
 
@@ -24,7 +24,7 @@ const data: readonly TreemapNode[] = [
   { key: "config", label: "package.json", value: 7, color: "#f6903d" },
 ];
 
-const treemapCode = `import { Treemap } from "@sia-ui/react";
+const treemapCode = `import { Treemap } from "@sia.soul/sia-react-ui";
 
 const data = [
   {

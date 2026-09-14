@@ -1,4 +1,4 @@
-import type { TreeNode } from "@sia-ui/react";
+import type { TreeNode } from "@sia.soul/sia-react-ui";
 
 export type DatabaseKind = "postgres" | "mysql" | "sqlserver" | "sqlite";
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Icon } from "@sia-ui/react";
+import { Icon } from "@sia.soul/sia-react-ui";
 
 interface BrowserFaviconProps {
   url: string;

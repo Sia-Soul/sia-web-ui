@@ -1,6 +1,6 @@
 import {useState} from 'react';
-import {Button,TreeChart} from '@sia-ui/react';
-import type {TreeDatum,TreeChartProps} from '@sia-ui/react';
+import {Button,TreeChart} from '@sia.soul/sia-react-ui';
+import type {TreeDatum,TreeChartProps} from '@sia.soul/sia-react-ui';
 import source from './chartPhoneTreeSource.json';
 type Style=NonNullable<TreeChartProps['itemStyle']>;
 type OriginalStyle=Omit<Style,'label'>&{label?:Omit<NonNullable<Style['label']>,'color'|'fontSize'|'fontWeight'>&{textStyle?:{color?:string;fontSize?:number;fontWeight?:string}}};

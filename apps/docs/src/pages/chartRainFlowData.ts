@@ -1,4 +1,4 @@
-import type {MixedSeries} from '@sia-ui/react';
+import type {MixedSeries} from '@sia.soul/sia-react-ui';
 import source from './chartRainFlowSource.json';
 import rainfall from './chartRainFlowRainfall.json';
 export const rainFlowOption=source[0]!.option;

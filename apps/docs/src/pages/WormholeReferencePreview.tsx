@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {Button,RadarChart} from '@sia-ui/react';
+import {Button,RadarChart} from '@sia.soul/sia-react-ui';
 import {wormholeIndicators,wormholeSeries} from './chartWormholeData';
 const radars=[{indicators:wormholeIndicators,series:wormholeSeries,center:[360,240] as const,radius:150}];
 export function WormholeReferencePreview(){

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, FloatingScrollbarProvider, Icon, ThemeSwitch, applySiaTheme } from "@sia-ui/react";
+import { Button, FloatingScrollbarProvider, Icon, ThemeSwitch, applySiaTheme } from "@sia.soul/sia-react-ui";
 import { Navigate, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { SiaMark } from "./Icons";
 import { OverlayScrollArea } from "./OverlayScrollArea";

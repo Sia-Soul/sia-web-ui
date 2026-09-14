@@ -14,7 +14,7 @@
     "tauri:build:bin": "cargo tauri build --no-bundle"
   },
   "dependencies": {
-    "@sia-ui/react": "workspace:*",
+    "@sia.soul/sia-react-ui": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

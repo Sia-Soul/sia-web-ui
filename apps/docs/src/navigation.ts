@@ -1,4 +1,4 @@
-import type { IconName } from "@sia-ui/react";
+import type { IconName } from "@sia.soul/sia-react-ui";
 import {chartCategories} from "./pages/chartCategories";
 
 export type NavItem = {

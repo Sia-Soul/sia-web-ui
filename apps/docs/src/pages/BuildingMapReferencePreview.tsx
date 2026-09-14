@@ -1,6 +1,6 @@
 import {useRef,useState} from 'react';
-import {ChartComposite,ChartDataEditor,ChartLegend,SiaChart,SvgMapPlot} from '@sia-ui/react';
-import type {ChartCompositeRef} from '@sia-ui/react';
+import {ChartComposite,ChartDataEditor,ChartLegend,SiaChart,SvgMapPlot} from '@sia.soul/sia-react-ui';
+import type {ChartCompositeRef} from '@sia.soul/sia-react-ui';
 import source from './chartBuildingMapSource.json';
 import building from './chartBuilding.svg?raw';
 import {createBuildingMapData} from './chartBuildingMapData';

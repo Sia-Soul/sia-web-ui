@@ -1,12 +1,13 @@
 {
   "name": "sia-web-ui-workspace",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@9.15.9",
   "scripts": {
+    "build:business": "node scripts/build-business.mjs",
     "dev": "pnpm --filter @sia-ui/docs dev",
-    "build": "pnpm --filter @sia-ui/react build && pnpm --filter @sia-ui/docs build",
+    "build": "pnpm --filter @sia.soul/sia-react-ui build && pnpm --filter @sia-ui/docs build",
     "desktop:dev": "pnpm --filter @sia-ui/desktop tauri dev",
     "desktop:build": "pnpm --filter @sia-ui/desktop tauri build --no-bundle",
     "desktop:bundle": "pnpm --filter @sia-ui/desktop tauri build",

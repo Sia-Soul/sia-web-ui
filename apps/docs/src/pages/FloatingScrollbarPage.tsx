@@ -1,8 +1,8 @@
-import { Checkbox, Space } from "@sia-ui/react";
+import { Checkbox, Space } from "@sia.soul/sia-react-ui";
 import { ComponentDocPage } from "./ComponentDocPage";
 import { DemoCard } from "./DemoCard";
 
-const providerCode = `import { FloatingScrollbarProvider } from "@sia-ui/react";
+const providerCode = `import { FloatingScrollbarProvider } from "@sia.soul/sia-react-ui";
 
 export default function App() {
   return <>

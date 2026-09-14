@@ -1,11 +1,11 @@
-import { Button, Divider, Space } from "@sia-ui/react";
+import { Button, Divider, Space } from "@sia.soul/sia-react-ui";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
 import { PageHeader } from "./PageHeader";
 import { useState } from "react";
 
-const basicCode = `import { Divider } from "@sia-ui/react";
+const basicCode = `import { Divider } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <>
@@ -18,7 +18,7 @@ export default function Demo() {
   </>;
 }`;
 
-const variantCode = `import { Button, Divider, Space } from "@sia-ui/react";
+const variantCode = `import { Button, Divider, Space } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <>

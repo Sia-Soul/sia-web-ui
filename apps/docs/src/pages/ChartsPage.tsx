@@ -22,8 +22,8 @@ import {
   VennChart,
   WordCloudChart,
   registerChartMap,
-} from "@sia-ui/react";
-import type { GeoJsonFeatureCollection, SiaChartRef } from "@sia-ui/react";
+} from "@sia.soul/sia-react-ui";
+import type { GeoJsonFeatureCollection, SiaChartRef } from "@sia.soul/sia-react-ui";
 import type { ReactNode } from "react";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
@@ -43,7 +43,7 @@ const demoMap: GeoJsonFeatureCollection = {
 };
 registerChartMap(demoMapName, demoMap);
 
-const overviewCode = `import { LineChart } from "@sia-ui/react";
+const overviewCode = `import { LineChart } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <LineChart
@@ -60,7 +60,7 @@ export default function Demo() {
   />;
 }`;
 
-const mapCode = `import { MapChart, registerChartMap } from "@sia-ui/react";
+const mapCode = `import { MapChart, registerChartMap } from "@sia.soul/sia-react-ui";
 import china from "./china.json";
 
 registerChartMap("china", china);

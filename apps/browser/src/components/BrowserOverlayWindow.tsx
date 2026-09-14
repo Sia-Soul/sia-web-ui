@@ -5,7 +5,7 @@ import {
   Modal,
   applySiaTheme,
   message,
-} from "@sia-ui/react";
+} from "@sia.soul/sia-react-ui";
 import PasswordManagerModal, { type PasswordSubmission } from "./PasswordManagerModal";
 
 export type BrowserOverlayFormKind =

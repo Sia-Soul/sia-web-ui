@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Icon, Switch } from "@sia-ui/react";
+import { Icon, Switch } from "@sia.soul/sia-react-ui";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
 import { PageHeader } from "./PageHeader";
 
 const basicCode = `import { useState } from "react";
-import { Switch } from "@sia-ui/react";
+import { Switch } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const [enabled, setEnabled] = useState(true);
@@ -18,7 +18,7 @@ export default function Demo() {
 }`;
 
 const iconCode = `import { useState } from "react";
-import { Icon, Switch } from "@sia-ui/react";
+import { Icon, Switch } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const [dark, setDark] = useState(false);
@@ -32,7 +32,7 @@ export default function Demo() {
   />;
 }`;
 
-const textCode = `import { Switch } from "@sia-ui/react";
+const textCode = `import { Switch } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <>

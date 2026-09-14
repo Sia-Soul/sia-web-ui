@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {Button, XYChart} from '@sia-ui/react';
+import {Button, XYChart} from '@sia.soul/sia-react-ui';
 import {createLineTimeData, lineTimeSymbolRadius} from './chartLineTimeData';
 import source from './chartLineTimeSource.json';
 

@@ -1,6 +1,6 @@
 import {useMemo,useRef,useState} from 'react';
-import {ChartComposite,ChartDataEditor,FunnelChart,GaugeChart,SiaChart} from '@sia-ui/react';
-import type {ChartCompositeRef,FunnelSeries} from '@sia-ui/react';
+import {ChartComposite,ChartDataEditor,FunnelChart,GaugeChart,SiaChart} from '@sia.soul/sia-react-ui';
+import type {ChartCompositeRef,FunnelSeries} from '@sia.soul/sia-react-ui';
 import snapshot from './chartMixedBusinessSource.json';
 const option=snapshot[0]!.option;
 const initial=option.series.map(series=>series.data.map(item=>item.value));

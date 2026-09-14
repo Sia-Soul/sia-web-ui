@@ -1,6 +1,6 @@
 import {useState} from 'react';
-import {MixedChart} from '@sia-ui/react';
-import type {MixedSeries} from '@sia-ui/react';
+import {MixedChart} from '@sia.soul/sia-react-ui';
+import type {MixedSeries} from '@sia.soul/sia-react-ui';
 import source from './chartMixedWaterSource.json';
 
 const option=source[0]!.option;

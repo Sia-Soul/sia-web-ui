@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Alert, Col, DatePicker, Form, Input, Modal, Row, Select, TextArea } from "@sia-ui/react";
-import type { FormRule, FormValues } from "@sia-ui/react";
+import { Alert, Col, DatePicker, Form, Input, Modal, Row, Select, TextArea } from "@sia.soul/sia-react-ui";
+import type { FormRule, FormValues } from "@sia.soul/sia-react-ui";
 import type { ProjectPriority, ProjectRecord, ProjectStatus, SaveProjectInput } from "./projectRepository";
 
 interface ProjectFormModalProps {

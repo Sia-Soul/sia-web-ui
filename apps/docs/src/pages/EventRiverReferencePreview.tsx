@@ -1,5 +1,5 @@
-import {EventRiverChart} from '@sia-ui/react';
-import type {EventRiverSeries} from '@sia-ui/react';
+import {EventRiverChart} from '@sia.soul/sia-react-ui';
+import type {EventRiverSeries} from '@sia.soul/sia-react-ui';
 import source from './chartEventRiverSource.json';
 import {personalizedLineIcon} from './chartPersonalizedLineIcon';
 const option=source[0]!.option;

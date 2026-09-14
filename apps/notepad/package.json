@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@prettier/plugin-xml": "3.4.2",
-    "@sia-ui/react": "workspace:*",
+    "@sia.soul/sia-react-ui": "workspace:*",
     "@tauri-apps/plugin-clipboard-manager": "^2.0.0",
     "@wasm-fmt/clang-format": "22.1.8",
     "prettier": "3.9.6",

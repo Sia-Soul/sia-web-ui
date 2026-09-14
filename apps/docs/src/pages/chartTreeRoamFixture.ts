@@ -1,4 +1,4 @@
-import type {TreeChartProps} from '@sia-ui/react';
+import type {TreeChartProps} from '@sia.soul/sia-react-ui';
 export const chartTreeRoamFixture:TreeChartProps = {
   "title": "冰桶挑战",
   "data": {

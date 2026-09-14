@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useState} from "react";
-import {Button,GaugeChart,Slider} from "@sia-ui/react";
+import {Button,GaugeChart,Slider} from "@sia.soul/sia-react-ui";
 import {chartGaugeFixtures} from "./chartGaugeFixtures";
 export function GaugeReferencePreview({id}:{id:string}){
  const fixture=chartGaugeFixtures[id]!;

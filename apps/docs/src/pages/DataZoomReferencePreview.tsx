@@ -1,4 +1,4 @@
-import {LineChart} from '@sia-ui/react';
+import {LineChart} from '@sia.soul/sia-react-ui';
 import source from './chartDataZoomSource.json';
 const categories=source.option.xAxis[0]!.data.map(String);
 const series=source.option.series.map(item=>({name:item.name,data:item.data,color:'#2ec7c9',curve:'smooth' as const,hollowSymbol:true,symbolSize:6}));

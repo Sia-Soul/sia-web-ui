@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import {useEffect,useState} from 'react';
-import {ChartComposite,ChartDataEditor,ChartLegend,ChartVisualMap,MapChart,SiaChart} from '@sia-ui/react';
-import type {GeoJsonFeatureCollection,MapDatum,MapChartProps} from '@sia-ui/react';
+import {ChartComposite,ChartDataEditor,ChartLegend,ChartVisualMap,MapChart,SiaChart} from '@sia.soul/sia-react-ui';
+import type {GeoJsonFeatureCollection,MapDatum,MapChartProps} from '@sia.soul/sia-react-ui';
 import china from './chartChinaSource.json';
 import inset from './chartChinaInsetSource.json';
 import {createProvinceSelectorValues} from './chartProvinceSelectorData';

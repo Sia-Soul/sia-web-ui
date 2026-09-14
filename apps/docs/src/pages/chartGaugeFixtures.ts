@@ -1,4 +1,4 @@
-import type {GaugeDatum} from "@sia-ui/react";
+import type {GaugeDatum} from "@sia.soul/sia-react-ui";
 export const chartGaugeFixtures:Record<string,{background?:string;data:(GaugeDatum&{labelMap?:Record<string,string>})[]}>={
   "gauge": {
     "data": [

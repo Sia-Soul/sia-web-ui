@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Icon } from "@sia-ui/react";
-import type { IconName } from "@sia-ui/react";
+import { Icon } from "@sia.soul/sia-react-ui";
+import type { IconName } from "@sia.soul/sia-react-ui";
 
 interface MenuState {
   x: number;

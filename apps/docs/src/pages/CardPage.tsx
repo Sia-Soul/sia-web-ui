@@ -1,11 +1,11 @@
-import { Button, Card } from "@sia-ui/react";
+import { Button, Card } from "@sia.soul/sia-react-ui";
 import { useState } from "react";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
 import { PageHeader } from "./PageHeader";
 
-const basicCode = `import { Card } from "@sia-ui/react";
+const basicCode = `import { Card } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <Card
@@ -17,7 +17,7 @@ export default function Demo() {
   </Card>;
 }`;
 
-const collapseCode = `import { Button, Card } from "@sia-ui/react";
+const collapseCode = `import { Button, Card } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <Card
@@ -33,7 +33,7 @@ export default function Demo() {
   </Card>;
 }`;
 
-const scrollCode = `import { Card } from "@sia-ui/react";
+const scrollCode = `import { Card } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <Card

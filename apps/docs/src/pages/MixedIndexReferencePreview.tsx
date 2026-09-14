@@ -1,6 +1,6 @@
 import {useMemo,useRef,useState} from 'react';
-import {CandlestickChart,ChartComposite,ChartDataEditor,ChartDataZoom,ChartLegend,ChartMark,MixedChart,SiaChart,niceChartDomain,paddedValueExtent} from '@sia-ui/react';
-import type {ChartCompositeRef} from '@sia-ui/react';
+import {CandlestickChart,ChartComposite,ChartDataEditor,ChartDataZoom,ChartLegend,ChartMark,MixedChart,SiaChart,niceChartDomain,paddedValueExtent} from '@sia.soul/sia-react-ui';
+import type {ChartCompositeRef} from '@sia.soul/sia-react-ui';
 import snapshot from './chartMixedIndexSource.json';
 
 const option=snapshot[0]!.option;

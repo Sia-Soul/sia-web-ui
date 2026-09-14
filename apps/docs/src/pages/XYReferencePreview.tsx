@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Button, Slider, XYChart } from "@sia-ui/react";
-import type { XYSeries } from "@sia-ui/react";
+import { Button, Slider, XYChart } from "@sia.soul/sia-react-ui";
+import type { XYSeries } from "@sia.soul/sia-react-ui";
 
 export const xyReferenceIds = ["line7", "bar13"] as const;
 

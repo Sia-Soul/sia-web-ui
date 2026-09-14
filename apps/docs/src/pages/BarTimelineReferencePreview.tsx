@@ -1,5 +1,5 @@
 import {useMemo,useState} from 'react';
-import {MixedChart} from '@sia-ui/react';
+import {MixedChart} from '@sia.soul/sia-react-ui';
 import {barTimelineYears,barTimelineCategories,barTimelineSelected,barTimelineSeries} from './chartBarTimelineData';
 
 export function BarTimelineReferencePreview(){

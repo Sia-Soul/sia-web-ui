@@ -1,4 +1,4 @@
-import type { FunnelSeries, RadarPanel } from "@sia-ui/react";
+import type { FunnelSeries, RadarPanel } from "@sia.soul/sia-react-ui";
 export interface AdditionalFixture {
   kind: "funnel" | "radar";
   title?:string; description?:string; palette?:string[];

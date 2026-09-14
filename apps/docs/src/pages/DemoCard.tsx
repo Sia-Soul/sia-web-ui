@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Button, Card, Divider, Icon } from "@sia-ui/react";
-import type { CardProps } from "@sia-ui/react";
+import { Button, Card, Divider, Icon } from "@sia.soul/sia-react-ui";
+import type { CardProps } from "@sia.soul/sia-react-ui";
 
 export interface DemoCardProps extends Omit<CardProps, "extra"> {
   code: string;

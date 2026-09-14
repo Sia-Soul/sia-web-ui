@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Button, Icon, SIA_THEME, Space } from "@sia-ui/react";
-import type { ButtonSize } from "@sia-ui/react";
+import { Button, Icon, SIA_THEME, Space } from "@sia.soul/sia-react-ui";
+import type { ButtonSize } from "@sia.soul/sia-react-ui";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
@@ -8,7 +8,7 @@ import { PageHeader } from "./PageHeader";
 
 function getButtonTypeCode(size: ButtonSize) {
   const sizeProp = size === "medium" ? "" : ` size="${size}"`;
-  return `import { Button, Space } from "@sia-ui/react";
+  return `import { Button, Space } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return (
@@ -23,7 +23,7 @@ export default function Demo() {
 }`;
 }
 
-const buttonStateCode = `import { Button, Icon, Space } from "@sia-ui/react";
+const buttonStateCode = `import { Button, Icon, Space } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return (

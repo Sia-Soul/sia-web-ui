@@ -3,7 +3,7 @@ import type {
   EditorCompletionItem,
   EditorCompletionProvider,
   TreeNode,
-} from "@sia-ui/react";
+} from "@sia.soul/sia-react-ui";
 import type { DatabaseKind, DatabaseSchema } from "../types";
 import { currentSqlStatement } from "./sqlStatement";
 

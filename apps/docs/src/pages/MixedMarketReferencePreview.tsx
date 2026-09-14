@@ -1,5 +1,5 @@
 import {useMemo,useRef,useState} from 'react';
-import {CandlestickChart,ChartDataZoom,ChartLegend,MixedChart,SiaChart,niceChartDomain,paddedValueExtent,serializeChartStack,saveCompositeImage} from '@sia-ui/react';
+import {CandlestickChart,ChartDataZoom,ChartLegend,MixedChart,SiaChart,niceChartDomain,paddedValueExtent,serializeChartStack,saveCompositeImage} from '@sia.soul/sia-react-ui';
 import {mixedMarketRows,mixedMarketWindow} from './chartMixedMarketData';
 
 const names=['上证指数','成交金额(万)','虚拟数据'];

@@ -1,4 +1,4 @@
-import type {ScatterDatum} from '@sia-ui/react';
+import type {ScatterDatum} from '@sia.soul/sia-react-ui';
 import snapshot from './chartPersonalizedScatterSnapshot.json';
 import {personalizedLineIcon} from './chartPersonalizedLineIcon';
 export function personalizedScatterSize(item:ScatterDatum){

@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {LineChart,Button,Slider} from '@sia-ui/react';
+import {LineChart,Button,Slider} from '@sia.soul/sia-react-ui';
 import {personalizedLineCategories,personalizedLineSeries} from './chartPersonalizedLineData';
 export function PersonalizedLineReferencePreview(){
  const [replay,setReplay]=useState(0);

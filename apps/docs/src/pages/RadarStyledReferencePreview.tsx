@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {Button,RadarChart,type RadarPanel} from '@sia-ui/react';
+import {Button,RadarChart,type RadarPanel} from '@sia.soul/sia-react-ui';
 import source from './chartRadarStyledSource.json';
 const option=source[0]!.option;
 const colors=['#2ec7c9','#b6a2de','#5ab1ef','#ffb980','#d87a80'];

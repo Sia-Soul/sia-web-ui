@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Button, Input, Modal, Space, message } from "@sia-ui/react";
+import { Button, Input, Modal, Space, message } from "@sia.soul/sia-react-ui";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
 import { PageHeader } from "./PageHeader";
 
 const basicCode = `import { useState } from "react";
-import { Button, Input, Modal, message } from "@sia-ui/react";
+import { Button, Input, Modal, message } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const [open, setOpen] = useState(false);
@@ -27,7 +27,7 @@ export default function Demo() {
   </>;
 }`;
 
-const apiCode = `import { Button, Modal } from "@sia-ui/react";
+const apiCode = `import { Button, Modal } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <>

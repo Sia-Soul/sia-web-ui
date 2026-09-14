@@ -1,6 +1,6 @@
 import {useRef,useState} from 'react';
-import {ChartComposite,ChartDataEditor,SiaChart,SvgMapPlot} from '@sia-ui/react';
-import type {ChartCompositeRef} from '@sia-ui/react';
+import {ChartComposite,ChartDataEditor,SiaChart,SvgMapPlot} from '@sia.soul/sia-react-ui';
+import type {ChartCompositeRef} from '@sia.soul/sia-react-ui';
 import source from './chartFootballMapSource.json';
 import pitch from './chartFootball.svg?raw';
 const option=source[0]!.option,series=option.series[0]!;

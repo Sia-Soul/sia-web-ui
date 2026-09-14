@@ -137,6 +137,21 @@ function isEmpty(value: unknown) {
   return value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
 }
 
+/** 表单快照保留日期及不可序列化值的语义，不能通过 structuredClone 丢掉类原型。 */
+function cloneFormValue<T>(value: T, seen = new WeakMap<object, unknown>()): T {
+  if (!value || typeof value !== "object") return value;
+  if (seen.has(value)) return seen.get(value) as T;
+  if (value instanceof Date) return new Date(value.getTime()) as T;
+  if (value instanceof RegExp) return new RegExp(value.source, value.flags) as T;
+  const cloneable = value as { clone?: () => T };
+  if (typeof cloneable.clone === "function") return cloneable.clone();
+  if (!Array.isArray(value) && Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) return value;
+  const next: any = Array.isArray(value) ? [] : {};
+  seen.set(value, next);
+  Object.keys(value).forEach((key) => { next[key] = cloneFormValue((value as any)[key], seen); });
+  return next;
+}
+
 class FormStore implements FormInstance {
   private values: FormValues = {};
   private initialValues: FormValues = {};
@@ -145,12 +160,14 @@ class FormStore implements FormInstance {
   private listeners = new Set<() => void>();
   private callbacks: FormCallbacks = {};
   private version = 0;
+  private initialized = false;
 
   configure(initialValues: FormValues | undefined, callbacks: FormCallbacks) {
     this.callbacks = callbacks;
-    if (initialValues && Object.keys(this.initialValues).length === 0) {
-      this.initialValues = structuredClone(initialValues);
-      this.values = structuredClone(initialValues);
+    if (!this.initialized) {
+      this.initialized = true;
+      this.initialValues = cloneFormValue(initialValues ?? {});
+      this.values = cloneFormValue(initialValues ?? {});
     }
   }
 
@@ -177,7 +194,7 @@ class FormStore implements FormInstance {
   }
 
   getFieldValue = (name: NamePath) => getValue(this.values, pathArray(name));
-  getFieldsValue = () => structuredClone(this.values);
+  getFieldsValue = () => cloneFormValue(this.values);
   getFieldError = (name: NamePath) => this.errors.get(pathKey(name)) ?? [];
 
   setFieldValue = (name: NamePath, value: unknown) => {
@@ -198,7 +215,7 @@ class FormStore implements FormInstance {
 
   resetFields = (names?: readonly NamePath[]) => {
     if (!names) {
-      this.values = structuredClone(this.initialValues);
+      this.values = cloneFormValue(this.initialValues);
       this.errors.clear();
     } else {
       names.forEach((name) => {
@@ -428,7 +445,7 @@ function FormItem({
     }
   }
 
-  if (noStyle) return content;
+  if (noStyle) return <>{content}</>;
   const inputWrap = <div className="sia-form-item__input-wrap">{content}</div>;
   const hasError = status === "error" && Boolean(helpContent);
   return <div ref={itemRef} className={`sia-form-item${status ? ` sia-form-item--${status}` : ""} ${className}`.trim()} data-sia-form-field={key || undefined}>

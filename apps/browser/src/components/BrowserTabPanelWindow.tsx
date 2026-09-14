@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { applySiaTheme, message } from "@sia-ui/react";
+import { applySiaTheme, message } from "@sia.soul/sia-react-ui";
 import type { BrowserGroup, BrowserTab } from "../browserTypes";
 import { ROOT_GROUP_ID } from "../browserTypes";
 import VerticalTabTree from "./VerticalTabTree";

@@ -1,4 +1,4 @@
-import type { PieChartProps } from "@sia-ui/react";
+import type { PieChartProps } from "@sia.soul/sia-react-ui";
 
 // Static original data only; no downloaded configuration or callback is executed.
 export interface PieReferenceFixture extends Omit<PieChartProps,"toolbox"> { magicTypes:string[]; gaps:string[]; frames?:readonly {label:string;series:NonNullable<PieChartProps["series"]>}[] }

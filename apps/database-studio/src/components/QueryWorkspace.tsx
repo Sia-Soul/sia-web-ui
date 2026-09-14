@@ -29,7 +29,7 @@ import {
   type TableColumn,
   type TableExportApi,
   type TableRef,
-} from "@sia-ui/react";
+} from "@sia.soul/sia-react-ui";
 import { saveCsvFile } from "../services/fileExport";
 import { currentSqlStatement } from "../services/sqlStatement";
 import { createSqlCompletionProvider } from "../services/sqlCompletion";

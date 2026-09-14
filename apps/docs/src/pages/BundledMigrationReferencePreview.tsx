@@ -1,6 +1,6 @@
 import {useState} from 'react';
-import {MapChart} from '@sia-ui/react';
-import type {GeoJsonFeatureCollection,MapChartProps} from '@sia-ui/react';
+import {MapChart} from '@sia.soul/sia-react-ui';
+import type {GeoJsonFeatureCollection,MapChartProps} from '@sia.soul/sia-react-ui';
 import source from './chartBundledMigrationSource.json';
 import geography from './chartChinaSource.json';
 import inset from './chartChinaInsetSource.json';

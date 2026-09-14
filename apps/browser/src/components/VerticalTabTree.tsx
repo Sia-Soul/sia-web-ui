@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { Button, Icon, Tooltip } from "@sia-ui/react";
+import { Button, Icon, Tooltip } from "@sia.soul/sia-react-ui";
 import { ROOT_GROUP_ID, type BrowserGroup, type BrowserTab } from "../browserTypes";
 import BrowserFavicon from "./BrowserFavicon";
 

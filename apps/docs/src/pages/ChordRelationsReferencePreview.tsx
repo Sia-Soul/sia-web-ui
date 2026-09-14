@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {Button,ChordChart} from '@sia-ui/react';
+import {Button,ChordChart} from '@sia.soul/sia-react-ui';
 import source from './chartChordRelationsSource.json';
 const option=source.option;
 const names=option.series[0]!.data.map(node=>node.name);

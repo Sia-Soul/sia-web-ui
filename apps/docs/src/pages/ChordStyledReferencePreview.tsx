@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {Button,ChordChart} from '@sia-ui/react';
+import {Button,ChordChart} from '@sia.soul/sia-react-ui';
 import source from './chartChordStyledSource.json';
 const option=source.option,series=option.series[0]!,names=series.data.map(n=>n.name);
 const colors=['#2ec7c9','#b6a2de','#5ab1ef','#ffb980'];

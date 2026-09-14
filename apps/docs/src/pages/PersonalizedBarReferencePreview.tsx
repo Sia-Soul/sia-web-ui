@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {BarChart,Button,Slider} from '@sia-ui/react';
+import {BarChart,Button,Slider} from '@sia.soul/sia-react-ui';
 import {original,series} from './chartPersonalizedBarData';
 export function PersonalizedBarReferencePreview(){
  const [replay,setReplay]=useState(0);

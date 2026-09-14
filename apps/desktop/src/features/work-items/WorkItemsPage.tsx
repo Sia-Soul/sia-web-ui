@@ -10,8 +10,8 @@ import {
   Select,
   Table,
   Tag,
-} from "@sia-ui/react";
-import type { TableColumn } from "@sia-ui/react";
+} from "@sia.soul/sia-react-ui";
+import type { TableColumn } from "@sia.soul/sia-react-ui";
 import { listProjects, type ProjectRecord } from "../projects/projectRepository";
 import WorkItemFormModal from "./WorkItemFormModal";
 import {

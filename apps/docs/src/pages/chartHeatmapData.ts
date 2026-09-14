@@ -1,4 +1,4 @@
-import type {HeatmapPoint} from '@sia-ui/react';
+import type {HeatmapPoint} from '@sia.soul/sia-react-ui';
 /** Three distinct source regions, with unrounded floating point coordinates/weights. */
 export function createReferenceHeatData(seed:number):HeatmapPoint[]{
  let state=seed>>>0;

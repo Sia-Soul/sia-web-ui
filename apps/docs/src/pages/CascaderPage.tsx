@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Cascader, Divider } from "@sia-ui/react";
-import type { CascaderOption, CascaderValue } from "@sia-ui/react";
+import { Cascader, Divider } from "@sia.soul/sia-react-ui";
+import type { CascaderOption, CascaderValue } from "@sia.soul/sia-react-ui";
 import { ComponentDocPage } from "./ComponentDocPage";
 import { DemoCard } from "./DemoCard";
 
@@ -13,7 +13,7 @@ const options: readonly CascaderOption[] = [
     { value: "nanjing", label: "南京", children: [{ value: "xuanwu", label: "玄武区" }, { value: "gulou", label: "鼓楼区" }] },
   ] },
 ];
-const code = `import { Cascader } from "@sia-ui/react";
+const code = `import { Cascader } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return (

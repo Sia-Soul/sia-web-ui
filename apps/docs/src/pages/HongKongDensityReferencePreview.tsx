@@ -1,6 +1,6 @@
 import {useRef,useState} from 'react';
-import {ChartComposite,ChartDataEditor,MapChart} from '@sia-ui/react';
-import type {ChartCompositeRef,GeoJsonFeatureCollection,MapChartProps} from '@sia-ui/react';
+import {ChartComposite,ChartDataEditor,MapChart} from '@sia.soul/sia-react-ui';
+import type {ChartCompositeRef,GeoJsonFeatureCollection,MapChartProps} from '@sia.soul/sia-react-ui';
 import geography from './chartHongKongGeography.json';
 import source from './chartHongKongDensitySource.json';
 const option=source[0]!.option,series=option.series[0]!;

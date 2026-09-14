@@ -1,6 +1,6 @@
 import {useRef,useState} from 'react';
-import {ChartComposite,ChartDataEditor,LineChart,ScatterChart} from '@sia-ui/react';
-import type {ChartCompositeRef} from '@sia-ui/react';
+import {ChartComposite,ChartDataEditor,LineChart,ScatterChart} from '@sia.soul/sia-react-ui';
+import type {ChartCompositeRef} from '@sia.soul/sia-react-ui';
 import {createMixedScatterData} from './chartMixedScatterData';
 
 const pieces=['#ffff00','#e3fb24','#c8f748','#acf26c','#90ee90'].map((color,index)=>({min:index*20,max:(index+1)*20,color,label:`${index*20} - ${(index+1)*20}`}));

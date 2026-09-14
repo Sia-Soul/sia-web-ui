@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import "@sia-ui/react/styles.css";
+import "@sia.soul/sia-react-ui/styles.css";
 import App from "./App";
 import "./styles.css";
 

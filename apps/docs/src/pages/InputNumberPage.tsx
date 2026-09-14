@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { InputNumber } from "@sia-ui/react";
+import { InputNumber } from "@sia.soul/sia-react-ui";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
 import { PageHeader } from "./PageHeader";
 
 const controlledCode = `import { useState } from "react";
-import { InputNumber } from "@sia-ui/react";
+import { InputNumber } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const [value, setValue] = useState<number | null>(3.5);
@@ -21,7 +21,7 @@ export default function Demo() {
   />;
 }`;
 
-const precisionCode = `import { InputNumber } from "@sia-ui/react";
+const precisionCode = `import { InputNumber } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <>
@@ -32,7 +32,7 @@ export default function Demo() {
   </>;
 }`;
 
-const sizeCode = `import { InputNumber } from "@sia-ui/react";
+const sizeCode = `import { InputNumber } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <>
@@ -42,7 +42,7 @@ export default function Demo() {
   </>;
 }`;
 
-const floatingPlaceholderCode = `import { InputNumber } from "@sia-ui/react";
+const floatingPlaceholderCode = `import { InputNumber } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <>

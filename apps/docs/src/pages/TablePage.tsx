@@ -22,8 +22,8 @@ import {
   createToolbarPlugin,
   createTreePlugin,
   message,
-} from "@sia-ui/react";
-import type { AnyTablePlugin, TableColumn } from "@sia-ui/react";
+} from "@sia.soul/sia-react-ui";
+import type { AnyTablePlugin, TableColumn } from "@sia.soul/sia-react-ui";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
@@ -187,7 +187,7 @@ const benchmarkColumns: readonly TableColumn<BenchmarkRow>[] = benchmarkColumnDe
 }));
 
 const benchmarkCode = `import { useEffect, useState } from "react";
-import { Table, Tag, createSortPlugin } from "@sia-ui/react";
+import { Table, Tag, createSortPlugin } from "@sia.soul/sia-react-ui";
 
 const definitions = ${JSON.stringify(benchmarkColumnDefinitions, null, 2)};
 const labels = {
@@ -416,7 +416,7 @@ const enhancedColumns: readonly TableColumn<ProductRow>[] = [
   { key: "status", name: "状态", width: 100, align: "center", render: (value) => statusTag(value as ProductRow["status"]), exportRender: (value) => String(value) },
 ];
 
-const basicCode = `import { Table, Tag } from "@sia-ui/react";
+const basicCode = `import { Table, Tag } from "@sia.soul/sia-react-ui";
 
 const columns = [
   { key: "name", name: "商品名称", width: 190, fixed: "left" },
@@ -434,7 +434,7 @@ export default function Demo() {
 
 const pluginCode = `import { useMemo } from "react";
 import { Table, createSelectionPlugin, createSortPlugin, createPaginationPlugin,
-  createEditablePlugin, createColumnSettingPlugin } from "@sia-ui/react";
+  createEditablePlugin, createColumnSettingPlugin } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const plugins = useMemo(() => [
@@ -465,7 +465,7 @@ import {
   createSummaryPlugin,
   createToolbarPlugin,
   message,
-} from "@sia-ui/react";
+} from "@sia.soul/sia-react-ui";
 
 const statusTag = (status) => (
   <Tag compact status={status === "在售" ? "success" : status === "缺货" ? "warning" : "default"}>
@@ -554,7 +554,7 @@ export default function Demo() {
   );
 }`;
 
-const treeCode = `import { Table, createTreePlugin } from "@sia-ui/react";
+const treeCode = `import { Table, createTreePlugin } from "@sia.soul/sia-react-ui";
 
 const plugins = [createTreePlugin({
   ignoreChildrenColumn: false,
@@ -565,7 +565,7 @@ export default function Demo() {
   return <Table rowKey="id" columns={columns} dataSource={treeData} plugins={plugins} />;
 }`;
 
-const virtualCode = `import { Table, createIndexPlugin } from "@sia-ui/react";
+const virtualCode = `import { Table, createIndexPlugin } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <Table
@@ -581,7 +581,7 @@ export default function Demo() {
 }`;
 
 const cellSelectionCode = `import { useMemo, useState } from "react";
-import { Table, createCellSelectionPlugin } from "@sia-ui/react";
+import { Table, createCellSelectionPlugin } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const [selectedCount, setSelectedCount] = useState(0);
@@ -613,7 +613,7 @@ const enhancedCode = `import {
   createExportPlugin,
   createHighlightPlugin,
   createRowSpanPlugin,
-} from "@sia-ui/react";
+} from "@sia.soul/sia-react-ui";
 
 const statusTag = (status) => (
   <Tag status={status === "在售" ? "success" : status === "缺货" ? "warning" : "default"}>

@@ -1,5 +1,5 @@
 import {useMemo,useState} from 'react';
-import {Button,WordCloudChart} from '@sia-ui/react';
+import {Button,WordCloudChart} from '@sia.soul/sia-react-ui';
 import {chartWordCloudData} from './chartWordCloudData';
 const bounds={x:66.3,y:37.9,width:530.4,height:303.2};
 const rotations=[0,45,90,-45];

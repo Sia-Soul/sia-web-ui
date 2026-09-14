@@ -32,6 +32,8 @@ export interface ModalProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"
   onOk?: () => ModalActionResult;
   onCancel?: () => void;
   onOpenChange?: (open: boolean) => void;
+  /** 动画完成后触发，适用于聚焦内容和释放外部挂载点。 */
+  afterOpenChange?: (open: boolean) => void;
 }
 
 export interface ModalOpenConfig extends Omit<ModalProps, "open"> {}
@@ -75,6 +77,7 @@ const ModalRoot = forwardRef<HTMLDivElement, ModalProps>(function Modal(
     onOk,
     onCancel,
     onOpenChange,
+    afterOpenChange,
     className = "",
     style,
     ...props
@@ -86,6 +89,15 @@ const ModalRoot = forwardRef<HTMLDivElement, ModalProps>(function Modal(
   const [submitting, setSubmitting] = useState(false);
   const [rendered, setRendered] = useState(open);
   const [closing, setClosing] = useState(false);
+  const afterOpenChangeRef = useRef(afterOpenChange);
+  afterOpenChangeRef.current = afterOpenChange;
+  const submitLock = useRef(false);
+
+  useEffect(() => {
+    if (!open || !rendered) return undefined;
+    const timer = window.setTimeout(() => afterOpenChangeRef.current?.(true), MODAL_MOTION_DURATION);
+    return () => window.clearTimeout(timer);
+  }, [open, rendered]);
 
   useEffect(() => {
     if (open) {
@@ -98,6 +110,7 @@ const ModalRoot = forwardRef<HTMLDivElement, ModalProps>(function Modal(
     const timer = window.setTimeout(() => {
       setRendered(false);
       setClosing(false);
+      afterOpenChangeRef.current?.(false);
     }, MODAL_MOTION_DURATION);
     return () => window.clearTimeout(timer);
   }, [open, rendered]);
@@ -115,8 +128,11 @@ const ModalRoot = forwardRef<HTMLDivElement, ModalProps>(function Modal(
   }
 
   async function handleOk() {
+    if (submitLock.current || confirmLoading) return;
+    submitLock.current = true;
     if (!onOk) {
       onOpenChange?.(false);
+      submitLock.current = false;
       return;
     }
     try {
@@ -131,6 +147,7 @@ const ModalRoot = forwardRef<HTMLDivElement, ModalProps>(function Modal(
     } catch {
       return;
     } finally {
+      submitLock.current = false;
       setSubmitting(false);
     }
   }

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, RichTextContent, RichTextEditor, Space, message } from "@sia-ui/react";
+import { Button, RichTextContent, RichTextEditor, Space, message } from "@sia.soul/sia-react-ui";
 import { ComponentDocPage } from "./ComponentDocPage";
 import { DemoCard } from "./DemoCard";
 
@@ -15,7 +15,7 @@ const initialMarkdown = `## 迭代计划
 > 使用 Ctrl / Command + S 触发保存。`;
 
 const basicCode = `import { useState } from "react";
-import { RichTextContent, RichTextEditor } from "@sia-ui/react";
+import { RichTextContent, RichTextEditor } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const [value, setValue] = useState("<p>开始编辑内容</p>");
@@ -26,7 +26,7 @@ export default function Demo() {
 }`;
 
 const fullCode = `import { useState } from "react";
-import { RichTextEditor, message } from "@sia-ui/react";
+import { RichTextEditor, message } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const [value, setValue] = useState("## 迭代计划");

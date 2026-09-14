@@ -1,5 +1,5 @@
-import {EventRiverChart} from '@sia-ui/react';
-import type {EventRiverSeries} from '@sia-ui/react';
+import {EventRiverChart} from '@sia.soul/sia-react-ui';
+import type {EventRiverSeries} from '@sia.soul/sia-react-ui';
 import source from './chartLargeEventRiverPlotSource.json';
 const series:EventRiverSeries[]=source.groups.map(group=>({name:group.name,weight:group.weight,data:group.data.map(event=>({id:event.event_id,name:event.name,weight:event.weight,evolution:event.evolution.map(point=>({time:point.time,value:point.value}))}))}));
 export function LargeEventRiverReferencePreview(){return <div className="chart-large-event-river-reference">

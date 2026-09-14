@@ -5,7 +5,7 @@ import {
   Dropdown,
   Icon,
   type MenuItem,
-} from "@sia-ui/react";
+} from "@sia.soul/sia-react-ui";
 import type { BrowserTab } from "../browserTypes";
 import BrowserFavicon from "./BrowserFavicon";
 

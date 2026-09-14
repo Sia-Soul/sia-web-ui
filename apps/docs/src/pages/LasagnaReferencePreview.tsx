@@ -1,6 +1,6 @@
 import {useState} from 'react';
-import {Button,PieChart} from '@sia-ui/react';
-import type {PieSeries} from '@sia-ui/react';
+import {Button,PieChart} from '@sia.soul/sia-react-ui';
+import type {PieSeries} from '@sia.soul/sia-react-ui';
 import source from './chartLasagnaSource.json';
 
 const names=['Chrome','Firefox','Safari','IE9+','IE8-'];

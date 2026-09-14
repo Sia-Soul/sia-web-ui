@@ -1,8 +1,8 @@
 import { useState } from "react";
 import {
   Badge, Button, Calendar, Card, Carousel, Collapse, Icon, Image as SiaImage, ImagePreview, Popover, Rate, Space, Tag, TextArea, Timeline, Tooltip, Tree,
-} from "@sia-ui/react";
-import type { CollapseKey, TreeKey, TreeNode } from "@sia-ui/react";
+} from "@sia.soul/sia-react-ui";
+import type { CollapseKey, TreeKey, TreeNode } from "@sia.soul/sia-react-ui";
 import { ComponentDocPage } from "./ComponentDocPage";
 import { DemoCard } from "./DemoCard";
 
@@ -133,7 +133,7 @@ export function ImagePage() {
       <SiaImage width={420} style={{ borderRadius: 24 }} src={imageSrc} alt="Sia Web UI 渐变风景示意图" placeholder={<SpinPlaceholder />} />
     </DemoCard>
     <DemoCard title="独立控制预览层" description="ImagePreview 可以脱离缩略图单独使用，适合表格操作列、附件列表或自定义触发器。" code={`import { useState } from "react";
-import { Button, ImagePreview } from "@sia-ui/react";
+import { Button, ImagePreview } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const [open, setOpen] = useState(false);

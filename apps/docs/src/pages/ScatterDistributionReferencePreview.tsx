@@ -1,4 +1,4 @@
-import {ScatterChart} from '@sia-ui/react';
+import {ScatterChart} from '@sia.soul/sia-react-ui';
 import {scatterDistributionData} from './chartScatterDistributionData';
 const bounds={x:80,y:60,width:503,height:259};
 export function ScatterDistributionReferencePreview(){

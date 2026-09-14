@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Editor } from "@sia-ui/react";
+import { Editor } from "@sia.soul/sia-react-ui";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
@@ -21,7 +21,7 @@ const EDITOR_OPTIONS = {
 };
 
 const basicCode = `import { useState } from "react";
-import { Editor } from "@sia-ui/react";
+import { Editor } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const [value, setValue] = useState("# 产品需求文档");

@@ -1,9 +1,9 @@
-import { Icon, Space } from "@sia-ui/react";
+import { Icon, Space } from "@sia.soul/sia-react-ui";
 import { IconGallery } from "../IconGallery";
 import { DemoCard } from "./DemoCard";
 import { PageHeader } from "./PageHeader";
 
-const iconCode = `import { Icon, Space } from "@sia-ui/react";
+const iconCode = `import { Icon, Space } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <Space size={18}>

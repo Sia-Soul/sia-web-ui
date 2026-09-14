@@ -1,4 +1,4 @@
-import { Breadcrumb } from "@sia-ui/react";
+import { Breadcrumb } from "@sia.soul/sia-react-ui";
 
 type PageHeaderProps = {
   eyebrow: string;

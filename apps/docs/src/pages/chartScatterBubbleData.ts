@@ -1,4 +1,4 @@
-import type {ScatterDatum} from '@sia-ui/react';
+import type {ScatterDatum} from '@sia.soul/sia-react-ui';
 /** Original random(): rounded 0–100, even positive and odd negative. */
 export function createScatterBubbleData(seed:number):ScatterDatum[]{
  let state=seed>>>0;

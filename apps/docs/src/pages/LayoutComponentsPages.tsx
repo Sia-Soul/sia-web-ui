@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Col, Divider, Flex, Row, Space, Splitter } from "@sia-ui/react";
+import { Button, Col, Divider, Flex, Row, Space, Splitter } from "@sia.soul/sia-react-ui";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
@@ -23,7 +23,7 @@ function DocPage({ eyebrow, title, description, name, apiRows, children }: DocPa
   </>;
 }
 
-const flexCode = `import { Button, Flex } from "@sia-ui/react";
+const flexCode = `import { Button, Flex } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return (
@@ -64,7 +64,7 @@ export function FlexPage() {
   </DocPage>;
 }
 
-const gridCode = `import { Col, Row } from "@sia-ui/react";
+const gridCode = `import { Col, Row } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return (
@@ -106,7 +106,7 @@ export function GridPage() {
   </DocPage>;
 }
 
-const spaceCode = `import { Button, Divider, Space } from "@sia-ui/react";
+const spaceCode = `import { Button, Divider, Space } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return (
@@ -147,7 +147,7 @@ export function SpacePage() {
   </DocPage>;
 }
 
-const splitterCode = `import { Splitter } from "@sia-ui/react";
+const splitterCode = `import { Splitter } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return (

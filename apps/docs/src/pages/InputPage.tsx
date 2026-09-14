@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { Icon, Input } from "@sia-ui/react";
-import type { ControlStatus } from "@sia-ui/react";
+import { Icon, Input } from "@sia.soul/sia-react-ui";
+import type { ControlStatus } from "@sia.soul/sia-react-ui";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
 import { PageHeader } from "./PageHeader";
 
 const basicCode = `import { useState } from "react";
-import { Icon, Input } from "@sia-ui/react";
+import { Icon, Input } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const [value, setValue] = useState("Sia Web UI");
@@ -23,7 +23,7 @@ export default function Demo() {
   />;
 }`;
 
-const sizeCode = `import { Input } from "@sia-ui/react";
+const sizeCode = `import { Input } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <>
@@ -33,7 +33,7 @@ export default function Demo() {
   </>;
 }`;
 
-const floatingPlaceholderCode = `import { Input } from "@sia-ui/react";
+const floatingPlaceholderCode = `import { Input } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   return <>
@@ -43,7 +43,7 @@ export default function Demo() {
 }`;
 
 const validationCode = `import { useState } from "react";
-import { Input } from "@sia-ui/react";
+import { Input } from "@sia.soul/sia-react-ui";
 
 export default function Demo() {
   const [username, setUsername] = useState("Sia用户");
