@@ -43,6 +43,7 @@ export interface TableColumn<T = Record<string, unknown>> {
   align?: TableAlign;
   fixed?: TableFixed | boolean;
   hidden?: boolean;
+  /** 默认单行显示并省略溢出内容（含 Space 标签组）；设为 false 允许多行。 */
   ellipsis?: boolean;
   showTitle?: boolean;
   sortable?: boolean;

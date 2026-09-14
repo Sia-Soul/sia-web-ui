@@ -1,3 +1,4 @@
+import { TableCellContent } from "./TableCellContent";
 import { Fragment, forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactElement, ReactNode, Ref } from "react";
 import { Tooltip } from "../FloatingDisplay";
@@ -190,14 +191,14 @@ const TableBodyRow = memo(function TableBodyRow<T>({
             onPointerDown={(event) => onCellPointerDown(column, event)}
             onPointerMove={(event) => onCellPointerMove(column, event)}
           >
-            <div
-              className="sia-table__cell-content"
+            <TableCellContent
+              ellipsis={column.ellipsis !== false}
               title={column.showTitle !== false && column.ellipsis !== false && typeof value === "string" ? value : undefined}
             >
               {pluginCellProps.content !== undefined
                 ? pluginCellProps.content
                 : column.render ? column.render(value, row.record, row.sourceIndex, { row, rowIndex, column }) : value as ReactNode}
-            </div>
+            </TableCellContent>
           </td>
         );
       })}

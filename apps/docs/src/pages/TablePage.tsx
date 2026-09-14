@@ -666,6 +666,7 @@ const apiRows = [
   { property: "TableColumn.rowSpan", description: "加载 RowSpan 插件后合并连续相同值的单元格", type: "boolean / data path / function", defaultValue: "false" },
   { property: "TableColumn.mergeSticky", description: "合并单元格滚动越过表头时保持内容可见", type: "boolean / config", defaultValue: "false" },
   { property: "TableColumn.description", description: "列头说明；悬停说明图标后以页面级 Tooltip 展示", type: "ReactNode", defaultValue: "-" },
+  { property: "TableColumn.ellipsis", description: "默认单行显示，文字及 Space 标签组超出列宽时显示省略号；设为 false 允许多行", type: "boolean", defaultValue: "true" },
   { property: "TableColumn.showTitle", description: "文本截断时是否保留浏览器原生 title；使用自定义 Tooltip 时可关闭", type: "boolean", defaultValue: "true" },
   { property: "TableColumn.exportable / exportRender", description: "控制导出列及自定义导出内容", type: "boolean / function", defaultValue: "true / 原始值" },
   { property: "TableColumn.filterable / createFilterPlugin", description: "为列头增加文本筛选面板，支持自定义匹配函数和受控筛选值", type: "boolean / TableFilterPluginOptions<T>", defaultValue: "false / -" },
