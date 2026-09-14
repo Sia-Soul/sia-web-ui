@@ -670,6 +670,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
               return <th
                 key={`${cell.column.key}-${depth}`}
                 data-column-key={cell.column.key}
+                data-last-leaf-column={cell.leaf && cell.column.key === leafColumns[leafColumns.length - 1]?.key || undefined}
                 colSpan={cell.colSpan}
                 rowSpan={cell.rowSpan}
                 className={`sia-table__header-cell sia-table__cell--${cell.column.align ?? "left"}${fixed ? ` sia-table__cell--fixed sia-table__cell--fixed-${fixed}` : ""}${fixedEdgeClass}${autoWidthClass} ${cell.column.headerClassName ?? ""} ${pluginHeaderProps.className ?? ""}`.trim()}

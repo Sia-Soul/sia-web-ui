@@ -1,3 +1,5 @@
+import { useFloatingPlaceholder } from "./FloatingPlaceholder";
+import type { InputPlaceholderMode } from "./shared";
 import { useEffect, useId, useRef, useState } from "react";
 import type { InputHTMLAttributes, ReactNode } from "react";
 import { Icon } from "./Icon";
@@ -8,6 +10,7 @@ import type { ControlSize, ControlStatus } from "./shared";
 import { useControllableState } from "./shared";
 
 export interface TimePickerProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "size" | "value" | "defaultValue" | "onChange"> {
+  placeholderMode?: InputPlaceholderMode;
   value?: string;
   defaultValue?: string;
   size?: ControlSize;
@@ -37,7 +40,7 @@ function seconds(value: string) {
 export function TimePicker({
   value, defaultValue = "", size = "medium", status = "default", allowClear = true,
   use12Hours = false, showSecond = false, suffixIcon, disabledTime, disabled, readOnly,
-  className = "", style, onChange, onOpenChange, placeholder = "请选择时间", min, max, step,
+  className = "", style, onChange, onOpenChange, placeholder = "请选择时间", placeholderMode, min, max, step,
   ...props
 }: TimePickerProps) {
   const id = useId();
@@ -93,7 +96,8 @@ export function TimePicker({
     changeOpen(false);
     inputRef.current?.focus();
   }
-  return <span ref={rootRef} style={style} className={`sia-picker sia-time-picker sia-picker--${size} sia-picker--${status}${disabled ? " is-disabled" : ""} ${className}`.trim()}>
+  const floating = useFloatingPlaceholder({ mode: placeholderMode, placeholder, filled: Boolean(display), active: open });
+  return <span ref={rootRef} style={style} className={`sia-picker sia-time-picker${floating.className} sia-picker--${size} sia-picker--${status}${disabled ? " is-disabled" : ""} ${className}`.trim()}>
     <input {...props} ref={inputRef} id={props.id ?? id} type="text" readOnly value={display} disabled={disabled}
       placeholder={placeholder} role="combobox" aria-expanded={open && !disabled && !readOnly} aria-haspopup="dialog" aria-controls={open ? id + "-panel" : undefined}
       aria-label={props["aria-label"] ?? "时间"} aria-invalid={status === "error" || undefined}
@@ -108,6 +112,7 @@ export function TimePicker({
         }
         if (event.key === "Escape") changeOpen(false);
       }} />
+    {floating.label}
     {allowClear && currentValue && !disabled && !readOnly ? <button type="button" className="sia-picker__clear" aria-label="清除时间" onMouseDown={(event) => event.preventDefault()} onClick={() => { setValue(""); changeOpen(false); }}><Icon name="circle-close" variant="filled" size={15} /></button> : null}
     <span className="sia-picker__icon" aria-hidden="true">{suffixIcon ?? <Icon name="clock" size={16} />}</span>
     <PopupPortal ref={popupRef} anchorRef={rootRef} open={open && !disabled && !readOnly} id={id + "-panel"} role="dialog" aria-label="选择时间"
@@ -124,7 +129,7 @@ export function TimePicker({
 }
 
 function TimeRangePicker({ value, defaultValue = ["", ""], placeholder = ["开始时间", "结束时间"], separator = "→", onChange, className = "", style, ...props }: TimeRangePickerProps) {
-  const [currentValue, setValue] = useControllableState<readonly [string, string]>({ value, defaultValue, onChange });
+  const [currentValue, setValue] = useControllableState<readonly [string, string]>({ value: value === undefined ? undefined : Array.isArray(value) ? value : ["", ""], defaultValue, onChange });
   function update(index: 0 | 1, next: string) {
     const pair: [string, string] = [currentValue[0], currentValue[1]];
     pair[index] = next;

@@ -102,6 +102,12 @@ export function DropdownPage() {
         </Dropdown>
       </Space>
     </DemoCard>
+    <DemoCard title="链接组合按钮" description="link 模式在主按钮和下拉按钮之间显示垂直分隔条，两侧分别执行主操作和展开菜单。" code={`<Dropdown.Button menu={{ items }} buttonProps={{ variant: "link" }} onClick={save}>保存</Dropdown.Button>`}>
+      <Space>
+        <Dropdown.Button menu={{ items: dropdownItems }} buttonProps={{ variant: "link" }} onClick={() => setLastAction("立即保存")}>立即保存</Dropdown.Button>
+        <Dropdown.Button menu={{ items: dropdownItems }} buttonProps={{ variant: "link" }} disabled>禁用操作</Dropdown.Button>
+      </Space>
+    </DemoCard>
     <DemoCard title="组合按钮与右键菜单" description="主按钮执行默认动作，箭头展开更多操作；也可以在指定区域使用右键菜单。" code={`<Dropdown.Button menu={{ items }} onClick={save}>保存</Dropdown.Button>\n\n<Dropdown menu={{ items }} trigger={["contextMenu"]} style={{ width: 420, maxWidth: "100%", minHeight: 92, border: "1px dashed #d9d9d9" }}>在此区域单击右键</Dropdown>`}>
       <Space direction="vertical" size={16}>
         <Dropdown.Button menu={{ items: dropdownItems }} buttonProps={{ variant: "primary" }} onClick={() => setLastAction("立即保存")}>立即保存</Dropdown.Button>

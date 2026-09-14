@@ -131,6 +131,7 @@ const apiRows = [
   { property: "showSearch", description: "显示选项搜索框", type: "boolean", defaultValue: "false" },
   { property: "allowInput", description: "允许将搜索内容作为自定义选项提交", type: "boolean", defaultValue: "false" },
   { property: "inputMaxLength", description: "手动输入内容的最大长度", type: "number", defaultValue: "-" },
+  { property: "maxTagCount", description: "最多显示的选中标签数；按可用宽度自动继续折叠并预留 +N 空间，始终保持单行", type: "number", defaultValue: "2" },
   { property: "showSelectAll", description: "多选时显示全选和清除操作", type: "boolean", defaultValue: "false" },
   { property: "virtual", description: "长列表启用窗口化渲染", type: "boolean", defaultValue: "true" },
   { property: "virtualThreshold", description: "启用虚拟滚动的选项数量", type: "number", defaultValue: "100" },

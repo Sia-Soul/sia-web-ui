@@ -1,5 +1,6 @@
 import { forwardRef, useId, useRef, useState } from "react";
 import type { ChangeEvent, InputHTMLAttributes, ReactNode } from "react";
+import { usePlaceholderMode } from "./shared";
 import { Icon } from "./Icon";
 import type { ControlSize, ControlStatus, InputPlaceholderMode } from "./shared";
 
@@ -27,7 +28,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     allowClear = false,
     onClear,
     showCount = false,
-    placeholderMode = "default",
+    placeholderMode,
     placeholder,
     className = "",
     id,
@@ -46,7 +47,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   const [uncontrolledValue, setUncontrolledValue] = useState(() => defaultValue === undefined ? "" : String(defaultValue));
   const currentText = value !== undefined ? String(value) : uncontrolledValue;
   const hasValue = currentText.length > 0;
-  const floatingPlaceholder = placeholderMode === "floating" && Boolean(placeholder);
+  const floatingPlaceholder = usePlaceholderMode(placeholderMode) === "floating" && Boolean(placeholder);
   const hintId = `${inputId}-hint`;
   const describedBy = [props["aria-describedby"], hint ? hintId : null].filter(Boolean).join(" ") || undefined;
 

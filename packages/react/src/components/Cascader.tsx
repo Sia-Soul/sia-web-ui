@@ -1,3 +1,5 @@
+import { useFloatingPlaceholder } from "./FloatingPlaceholder";
+import type { InputPlaceholderMode } from "./shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
 import { Checkbox } from "./Checkbox";
@@ -25,6 +27,7 @@ export interface CascaderProps extends Omit<HTMLAttributes<HTMLDivElement>, "def
   changeOnSelect?: boolean;
   expandTrigger?: "click" | "hover";
   placeholder?: ReactNode;
+  placeholderMode?: InputPlaceholderMode;
   disabled?: boolean;
   fieldNames?: CascaderFieldNames;
   displayRender?: (labels: ReactNode[], selectedOptions: CascaderOption[]) => ReactNode;
@@ -62,7 +65,7 @@ function leafPaths(options: readonly CascaderOption[], fields: Required<Cascader
 
 export function Cascader({
   options, value, defaultValue, multiple = false, showSearch = false, allowClear = false, changeOnSelect = false,
-  expandTrigger = "click", placeholder = "请选择", disabled = false, fieldNames, displayRender, loadData, onChange, className = "", ...props
+  expandTrigger = "click", placeholder = "请选择", placeholderMode, disabled = false, fieldNames, displayRender, loadData, onChange, className = "", ...props
 }: CascaderProps) {
   const fields = useMemo(() => ({ label: fieldNames?.label ?? "label", value: fieldNames?.value ?? "value", children: fieldNames?.children ?? "children" }), [fieldNames]);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -75,7 +78,7 @@ export function Cascader({
   const [search, setSearch] = useState("");
   const [loadingKey, setLoadingKey] = useState("");
   const selectedPaths = multiple
-    ? (current as readonly (readonly CascaderValue[])[] | undefined) ?? []
+    ? (Array.isArray(current) ? current as readonly (readonly CascaderValue[])[] : [])
     : current?.length && !Array.isArray(current[0])
       ? [current as readonly CascaderValue[]]
       : [];
@@ -158,12 +161,14 @@ export function Cascader({
   const columns: (readonly CascaderOption[])[] = [options];
   active.forEach((option) => { const children = optionChildren(option, fields); if (children?.length) columns.push(children); });
 
+  const floating = useFloatingPlaceholder({ mode: placeholderMode, placeholder, filled: selectedPaths.length > 0, active: open });
   return <div ref={rootRef} className={`sia-cascader${open ? " is-open" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()} {...props}>
-    <button type="button" className="sia-cascader__trigger" disabled={disabled} aria-haspopup="listbox" aria-expanded={open} onClick={toggleOpen}>
+    <button type="button" className={`sia-cascader__trigger${floating.className}`} disabled={disabled} aria-haspopup="listbox" aria-expanded={open} onClick={toggleOpen}>
       <span className="sia-cascader__value">{display
         ? multiple && Array.isArray(display) ? display.map((label, index) => <span className="sia-cascader__tag" key={pathKey(selectedPaths[index] ?? [])}>{label}</span>) : display
         : <span className="sia-cascader__placeholder">{placeholder}</span>}</span>
       {allowClear && selectedPaths.length ? <span className="sia-cascader__clear" role="button" aria-label="清除选择" onClick={(event) => { event.stopPropagation(); clearSelection(); }}><Icon name="circle-close" variant="filled" size={15} /></span> : null}
+      {floating.label}
       <Icon name={open ? "chevron-up" : "chevron-down"} size={14} />
     </button>
     <PopupPortal ref={popupRef} anchorRef={rootRef} open={open} className="sia-cascader__popup">

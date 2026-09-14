@@ -1,3 +1,5 @@
+import { useFloatingPlaceholder } from "./FloatingPlaceholder";
+import type { InputPlaceholderMode } from "./shared";
 import { forwardRef, useId, useState } from "react";
 import type { ChangeEvent, ReactNode, TextareaHTMLAttributes } from "react";
 import type { ControlStatus } from "./shared";
@@ -7,6 +9,7 @@ export interface TextAreaProps extends TextareaHTMLAttributes<HTMLTextAreaElemen
   hint?: ReactNode;
   status?: ControlStatus;
   showCount?: boolean;
+  placeholderMode?: InputPlaceholderMode;
 }
 
 export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function TextArea(
@@ -15,6 +18,8 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function 
     hint,
     status = "default",
     showCount = false,
+    placeholder,
+    placeholderMode,
     className = "",
     id,
     disabled,
@@ -30,6 +35,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function 
   const textAreaId = id ?? fallbackId;
   const [uncontrolledValue, setUncontrolledValue] = useState(() => defaultValue === undefined ? "" : String(defaultValue));
   const currentText = value !== undefined ? String(value) : uncontrolledValue;
+  const floating = useFloatingPlaceholder({ mode: placeholderMode, placeholder, filled: currentText.length > 0 });
   const hintId = `${textAreaId}-hint`;
   const describedBy = [props["aria-describedby"], hint ? hintId : null].filter(Boolean).join(" ") || undefined;
 
@@ -39,7 +45,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function 
   }
 
   const control = (
-    <span className={`sia-textarea-control sia-textarea-control--${status}${disabled ? " is-disabled" : ""}`}>
+    <span className={`sia-textarea-control sia-textarea-control--${status}${floating.className}${disabled ? " is-disabled" : ""}`}>
       <textarea
         {...props}
         ref={ref}
@@ -49,10 +55,12 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function 
         value={value}
         defaultValue={defaultValue}
         maxLength={maxLength}
+        placeholder={placeholder}
         aria-describedby={describedBy}
         aria-invalid={status === "error" || undefined}
         onChange={handleChange}
       />
+      {floating.label}
       {showCount ? (
         <span className={`sia-textarea-control__count${maxLength !== undefined && currentText.length >= maxLength ? " is-limit" : ""}`} aria-live="polite">
           {currentText.length}{maxLength !== undefined ? `/${maxLength}` : null}

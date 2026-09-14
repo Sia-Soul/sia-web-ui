@@ -1,3 +1,5 @@
+import { useFloatingPlaceholder } from "./FloatingPlaceholder";
+import type { InputPlaceholderMode } from "./shared";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { InputHTMLAttributes, ReactNode } from "react";
 import { Icon } from "./Icon";
@@ -29,6 +31,7 @@ export type DatePickerDisabledInfo = { from?: string; type: "date" };
 type SharedDatePickerProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "size" | "value" | "defaultValue" | "onChange" | "multiple">;
 
 export interface DatePickerProps extends SharedDatePickerProps {
+  placeholderMode?: InputPlaceholderMode;
   value?: DatePickerValue;
   defaultValue?: DatePickerValue;
   picker?: DatePickerType;
@@ -145,6 +148,7 @@ export function DatePicker({
   onChange,
   onOpenChange,
   placeholder,
+  placeholderMode,
   formatValue = (value) => value,
   renderExtraFooter,
   ...props
@@ -232,9 +236,10 @@ export function DatePicker({
   }
 
   const display = Array.isArray(currentValue) ? currentValue.map(formatValue).join("、") : currentValue ? formatValue(currentValue as string) : "";
+  const floating = useFloatingPlaceholder({ mode: placeholderMode, placeholder: placeholder ?? placeholderFor(picker, showTime, multiple), filled: Boolean(display), active: visible });
   const triggerLabel = props["aria-label"] ?? (typeof placeholder === "string" ? placeholder : "日期选择器");
 
-  return <span ref={rootRef} className={`sia-picker sia-picker--${size} sia-picker--${status}${visible ? " is-open" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()}>
+  return <span ref={rootRef} className={`sia-picker${floating.className} sia-picker--${size} sia-picker--${status}${visible ? " is-open" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()}>
     <button
       type="button"
       id={props.id ?? id}
@@ -259,6 +264,7 @@ export function DatePicker({
 
       <span className="sia-picker__icon" aria-hidden="true">{suffixIcon ?? <Icon name="calendar" size={16} />}</span>
     </button>
+    {floating.label}
     {allowClear && display && !disabled ? <button type="button" className="sia-picker__clear" aria-label="清除日期" onClick={clearValue}><Icon name="circle-close" variant="filled" size={15} /></button> : null}
     <PopupPortal ref={popupRef} anchorRef={rootRef} open={visible} className={`sia-date-panel${showTime ? " sia-date-panel--with-time" : ""}${presets?.length ? " sia-date-panel--with-presets" : ""}`} role="dialog" aria-label="日期选择面板">
       <div className="sia-date-panel__body">
@@ -304,6 +310,7 @@ function DateRangePicker({
   value,
   defaultValue = ["", ""],
   placeholder = ["开始日期", "结束日期"],
+  placeholderMode,
   separator = "→",
   presets,
   maxRangeDays,
@@ -333,7 +340,7 @@ function DateRangePicker({
   const id = useId();
   const rootRef = useRef<HTMLSpanElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
-  const [currentValue, setCurrentValue] = useControllableState<readonly [string, string]>({ value, defaultValue, onChange });
+  const [currentValue, setCurrentValue] = useControllableState<readonly [string, string]>({ value: value === undefined ? undefined : Array.isArray(value) ? value : ["", ""], defaultValue, onChange });
   const [visible, setVisible] = useControllableState({ value: open, defaultValue: defaultOpen, onChange: onOpenChange });
   const [draftValue, setDraftValue] = useState<readonly [string, string]>(currentValue);
   const [activeIndex, setActiveIndex] = useState<0 | 1>(currentValue[0] && !currentValue[1] ? 1 : 0);
@@ -568,7 +575,8 @@ function DateRangePicker({
     </div>;
   }
 
-  return <span ref={rootRef} className={`sia-picker sia-picker-range-control sia-picker--${size} sia-picker--${status}${visible ? " is-open" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()}>
+  const floating = useFloatingPlaceholder({ mode: placeholderMode, placeholder: placeholder.filter(Boolean).join(" / "), filled: currentValue.some(Boolean), active: visible });
+  return <span ref={rootRef} className={`sia-picker${floating.className} sia-picker-range-control sia-picker--${size} sia-picker--${status}${visible ? " is-open" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()}>
     <button
       type="button"
       id={props.id ?? id}
@@ -589,6 +597,7 @@ function DateRangePicker({
 
       <span className="sia-picker__icon" aria-hidden="true">{suffixIcon ?? <Icon name="calendar" size={16} />}</span>
     </button>
+    {floating.label}
     {allowClear && (currentValue[0] || currentValue[1]) && !disabled ? <button type="button" className="sia-picker__clear" aria-label="清除日期范围" onClick={clearValue}><Icon name="circle-close" variant="filled" size={15} /></button> : null}
     <PopupPortal ref={popupRef} anchorRef={rootRef} open={visible} className={`sia-date-panel sia-date-panel--range${showTime ? ` sia-date-panel--with-time sia-date-panel--range-time-${compactDateTime ? "compact" : "paired"}` : ""}${presets?.length ? " sia-date-panel--with-presets" : ""}`} role="dialog" aria-label="日期范围选择面板">
       <div className="sia-date-panel__body">

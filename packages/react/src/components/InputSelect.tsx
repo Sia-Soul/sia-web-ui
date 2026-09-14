@@ -1,3 +1,4 @@
+import type { InputPlaceholderMode } from "./shared";
 import { forwardRef, useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { Button } from "./Button";
@@ -18,6 +19,7 @@ export interface InputSelectProps {
   displayField?: "label" | "value";
   showValue?: boolean;
   placeholder?: string;
+  placeholderMode?: InputPlaceholderMode;
   size?: ControlSize;
   status?: ControlStatus;
   disabled?: boolean;
@@ -37,7 +39,7 @@ export interface InputSelectProps {
 }
 
 export const InputSelect = forwardRef<HTMLInputElement, InputSelectProps>(function InputSelect({ options, value, defaultValue, onChange,
-  multiple = false, displayField = "label", showValue = false, placeholder = "请选择", size = "medium", status,
+  multiple = false, displayField = "label", showValue = false, placeholder = "请选择", placeholderMode, size = "medium", status,
   disabled = false, loading = false, allowClear = true, hideSearch, inputMaxLength, parseInput,
   enableModal, suffix, style, className = "", onOpenChange, ...inputProps }, forwardedRef) {
   const [internal, setInternal] = useState(defaultValue);
@@ -83,12 +85,12 @@ export const InputSelect = forwardRef<HTMLInputElement, InputSelectProps>(functi
     if (disabled || loading) return;
     changeOpen(false); setModalValues([...values]); setSelectedOnly(false); setModalOpen(true);
   }
-  return <div ref={rootRef} style={style} className={`sia-input-select ${className}`} onKeyDown={event => {
+  return <div ref={rootRef} style={style} className={`sia-input-select${open || modalOpen ? " is-open" : ""} ${className}`} onKeyDown={event => {
     if (event.key === "Escape" && open) { event.stopPropagation(); changeOpen(false); inputRef.current?.focus(); }
   }}>
     <Input {...inputProps} ref={node => { inputRef.current = node; if (typeof forwardedRef === "function") forwardedRef(node); else if (forwardedRef) forwardedRef.current = node; }}
       role="combobox" aria-label={inputProps["aria-label"] ?? placeholder} aria-expanded={open} aria-haspopup="listbox"
-      size={size} status={status} disabled={disabled} readOnly={displayField === "label" || loading} placeholder={placeholder}
+      size={size} status={status} disabled={disabled} readOnly={displayField === "label" || loading} placeholder={placeholder} placeholderMode={placeholderMode}
       value={draft} maxLength={inputMaxLength && inputMaxLength > 0 ? inputMaxLength : undefined} showCount={!!inputMaxLength && inputMaxLength > 0}
       onClick={() => changeOpen(!open)} autoComplete="off"
       onKeyDown={event => {

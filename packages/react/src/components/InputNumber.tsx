@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useId, useRef, useState } from "react";
 import type { FocusEvent, InputHTMLAttributes, KeyboardEvent, ReactNode } from "react";
+import { usePlaceholderMode } from "./shared";
 import { Icon } from "./Icon";
 import type { ControlSize, ControlStatus, InputPlaceholderMode } from "./shared";
 import { useControllableState } from "./shared";
@@ -39,7 +40,7 @@ export const InputNumber = forwardRef<HTMLInputElement, InputNumberProps>(functi
     prefix,
     suffix,
     controls = true,
-    placeholderMode = "default",
+    placeholderMode,
     placeholder,
     disabled,
     readOnly,
@@ -118,7 +119,7 @@ export const InputNumber = forwardRef<HTMLInputElement, InputNumberProps>(functi
 
   const increaseDisabled = disabled || readOnly || (max !== undefined && currentValue !== null && currentValue >= max);
   const decreaseDisabled = disabled || readOnly || (min !== undefined && currentValue !== null && currentValue <= min);
-  const floatingPlaceholder = placeholderMode === "floating" && Boolean(placeholder);
+  const floatingPlaceholder = usePlaceholderMode(placeholderMode) === "floating" && Boolean(placeholder);
 
   const input = (
     <input

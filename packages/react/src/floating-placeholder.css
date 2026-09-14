@@ -1,0 +1,38 @@
+.sia-placeholder-floating { position: relative; }
+.sia-select__trigger.sia-placeholder-floating { overflow: visible; }
+.sia-floating-placeholder { position: absolute; z-index: 20; top: var(--sia-placeholder-idle-top, 50%); left: 7px; box-sizing: border-box; max-width: calc(100% - 42px); overflow: hidden; padding-inline: 4px; color: var(--sia-color-text-secondary); background: transparent; pointer-events: none; opacity: .65; font: 400 var(--sia-font-size-small)/1 system-ui, sans-serif; text-overflow: ellipsis; white-space: nowrap; transform: translateY(-50%); transform-origin: left center; transition: top 160ms ease, color 160ms ease, background-color 160ms ease, opacity 160ms ease, transform 160ms ease; }
+.sia-placeholder-floating:focus-within > .sia-floating-placeholder,
+.sia-placeholder-floating--filled > .sia-floating-placeholder,
+.sia-placeholder-floating--active > .sia-floating-placeholder { top: 0; background: var(--sia-color-surface); opacity: 1; transform: translateY(-50%) scale(.85); }
+.sia-placeholder-floating:focus-within > .sia-floating-placeholder,
+.sia-placeholder-floating--active > .sia-floating-placeholder { color: var(--sia-color-primary); }
+.sia-placeholder-floating.sia-time-picker > input::placeholder,
+.sia-placeholder-floating > input::placeholder,
+.sia-placeholder-floating > textarea::placeholder { color: transparent; }
+.sia-placeholder-floating > .sia-select__value.is-placeholder,
+.sia-placeholder-floating > .sia-picker__trigger .is-placeholder,
+.sia-placeholder-floating > .sia-tree-select__value .sia-tree-select__placeholder,
+.sia-placeholder-floating > .sia-cascader__value .sia-cascader__placeholder { color: transparent; }
+.sia-placeholder-floating.is-disabled > .sia-floating-placeholder,
+.sia-placeholder-floating:disabled > .sia-floating-placeholder,
+fieldset:disabled .sia-placeholder-floating > .sia-floating-placeholder { background: var(--sia-color-control-hover); }
+.sia-form-item--error .sia-placeholder-floating > .sia-floating-placeholder,
+.sia-select--error .sia-placeholder-floating > .sia-floating-placeholder,
+.sia-tree-select--error .sia-placeholder-floating > .sia-floating-placeholder,
+.sia-picker--error.sia-placeholder-floating > .sia-floating-placeholder,
+.sia-textarea-control--error.sia-placeholder-floating > .sia-floating-placeholder { color: var(--sia-color-error); }
+.sia-form-item--warning .sia-placeholder-floating > .sia-floating-placeholder,
+.sia-select--warning .sia-placeholder-floating > .sia-floating-placeholder,
+.sia-tree-select--warning .sia-placeholder-floating > .sia-floating-placeholder,
+.sia-picker--warning.sia-placeholder-floating > .sia-floating-placeholder,
+.sia-textarea-control--warning.sia-placeholder-floating > .sia-floating-placeholder { color: var(--sia-color-warning); }
+.sia-textarea-control.sia-placeholder-floating { --sia-placeholder-idle-top: 18px; overflow: visible; }
+.sia-textarea-control > .sia-floating-placeholder { max-width: calc(100% - 16px); }
+.sia-rich-text-editor.sia-placeholder-floating { --sia-placeholder-idle-top: 66px; overflow: visible; }
+.sia-rich-text-editor.sia-placeholder-floating .tiptap p.is-editor-empty:first-child::before { content: none; }
+.sia-markdown-editor.sia-placeholder-floating { --sia-placeholder-idle-top: 80px; }
+.sia-markdown-editor.sia-placeholder-floating [data-placeholder]::before { content: none !important; }
+@media (prefers-reduced-motion: reduce) { .sia-floating-placeholder { transition: none; } }
+
+.sia-rich-text-editor.sia-placeholder-floating > .sia-rich-text-editor__toolbar { border-start-start-radius: inherit; border-start-end-radius: inherit; }
+fieldset:disabled .sia-input-control__floating-placeholder, fieldset:disabled .sia-input-number__floating-placeholder { background: var(--sia-color-control-hover); }

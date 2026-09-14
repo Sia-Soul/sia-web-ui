@@ -1,6 +1,9 @@
+import { useFloatingPlaceholder } from "./FloatingPlaceholder";
+import type { InputPlaceholderMode } from "./shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
 import { Checkbox } from "./Checkbox";
+import { OverflowTags } from "./OverflowTags";
 import { Icon } from "./Icon";
 import { PopupPortal } from "./PopupPortal";
 import type { ControlSize, ControlStatus } from "./shared";
@@ -29,7 +32,9 @@ export interface TreeSelectProps extends Omit<HTMLAttributes<HTMLDivElement>, "d
   allowClear?: boolean;
   treeDefaultExpandAll?: boolean;
   placeholder?: ReactNode;
+  placeholderMode?: InputPlaceholderMode;
   searchPlaceholder?: string;
+  /** 最多显示的标签数；空间不足时会继续折叠，并为 +N 预留宽度。 */
   maxTagCount?: number;
   disabled?: boolean;
   size?: ControlSize;
@@ -92,6 +97,7 @@ export function TreeSelect({
   allowClear = false,
   treeDefaultExpandAll = false,
   placeholder = "请选择",
+  placeholderMode,
   searchPlaceholder = "搜索节点",
   maxTagCount = 3,
   disabled = false,
@@ -133,7 +139,7 @@ export function TreeSelect({
     collect(treeData);
     return new Set(values);
   });
-  const selectedValues = Array.isArray(currentValue) ? [...currentValue] : currentValue === undefined ? [] : [currentValue];
+  const selectedValues = Array.isArray(currentValue) ? [...currentValue] : (currentValue === undefined || currentValue === "" && !nodeIndex.has("")) ? [] : [currentValue];
   const expandedSet = treeExpandedKeys ? new Set(treeExpandedKeys) : expanded;
   const selectedNodes = resolveNodes(selectedValues);
   const visibleNodes = flattenTree(treeData, expandedSet, search, filterTreeNode);
@@ -246,12 +252,13 @@ export function TreeSelect({
     }
   }
 
+  const floating = useFloatingPlaceholder({ mode: placeholderMode, placeholder, filled: selectedNodes.length > 0, active: open });
   return <div ref={rootRef} className={`sia-tree-select sia-tree-select--${size} sia-tree-select--${status}${open ? " is-open" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()} {...props}
     onKeyDown={event => { props.onKeyDown?.(event); if (event.key === "Escape") { event.stopPropagation(); changeOpen(false); } }}>
     {renderTrigger ? renderTrigger({ open, toggle: () => changeOpen(!open), clear }) : <>
     <button
       type="button"
-      className="sia-tree-select__trigger"
+      className={`sia-tree-select__trigger${floating.className}`}
       disabled={disabled}
       aria-haspopup="tree"
       aria-expanded={open}
@@ -263,11 +270,9 @@ export function TreeSelect({
       }}
     >
       <span className="sia-tree-select__value">
-        {selectedNodes.length ? (displayRender ? displayRender(selectedNodes) : multi ? <>
-          {selectedNodes.slice(0, maxTagCount).map((node) => <span className="sia-tree-select__tag" key={node.value}>{node.title}</span>)}
-          {selectedNodes.length > maxTagCount ? <span className="sia-tree-select__tag">+{selectedNodes.length - maxTagCount}</span> : null}
-        </> : selectedNodes[0]?.title) : <span className="sia-tree-select__placeholder">{placeholder}</span>}
+        {selectedNodes.length ? (displayRender ? displayRender(selectedNodes) : multi ? <OverflowTags tagClassName="sia-tree-select__tag" maxCount={maxTagCount} items={selectedNodes.map(node => ({ key: node.value, label: node.title }))} /> : selectedNodes[0]?.title) : <span className="sia-tree-select__placeholder">{placeholder}</span>}
       </span>
+      {floating.label}
       <Icon name={open ? "chevron-up" : "chevron-down"} size={14} />
     </button>
     {allowClear && selectedValues.length > 0 && !disabled ? <button type="button" className="sia-tree-select__clear" aria-label="清除选择" onClick={clear}><Icon name="circle-close" variant="filled" size={15} /></button> : null}

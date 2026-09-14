@@ -1,3 +1,4 @@
+import { FloatingPlaceholderDemo } from "./FloatingPlaceholderDemo";
 import { useMemo, useState } from "react";
 import {
   Button,
@@ -243,12 +244,21 @@ export function FormPage() {
   const [result, setResult] = useState("尚未提交");
   return <DocPage eyebrow="组件 / 数据录入 / Form" title="Form 表单" description="统一管理字段值、校验、气泡错误提示、提交和动态字段。" name="Form" apiRows={[
     { property: "form / Form.useForm", description: "表单实例与命令式 API", type: "FormInstance", defaultValue: "自动创建" },
+    { property: "placeholderMode", description: "统一设置输入和选择组件的占位符模式；组件自身的同名属性优先", type: "'default' | 'floating'", defaultValue: "'default'" },
     { property: "initialValues", description: "表单初始值", type: "FormValues", defaultValue: "{}" },
     { property: "onFinish / onFinishFailed", description: "提交成功和失败回调", type: "function", defaultValue: "-" },
     { property: "submit", description: "提交失败时自动滚动并聚焦首个错误字段", type: "() => void", defaultValue: "-" },
     { property: "Form.Item", description: "字段绑定、标签、校验规则和非占位错误气泡", type: "name / rules / valuePropName", defaultValue: "-" },
     { property: "Form.List", description: "动态数组字段", type: "render function", defaultValue: "-" },
   ]}>
+    <DemoCard title="统一浮动标签" description="空值时显示占位文字，聚焦、展开或已有值时浮到边框；可填入示例值，再清空检查所有组件。范围日期合并显示两端标签，范围时间分别显示。" code={`<Form placeholderMode="floating" layout="vertical">
+  <Form.Item name="name"><Input placeholder="姓名" /></Form.Item>
+  <Form.Item name="type"><Select options={options} placeholder="业务类型" /></Form.Item>
+  <Form.Item name="notes"><TextArea placeholder="备注" /></Form.Item>
+  <Form.Item name="normal"><Input placeholderMode="default" placeholder="普通占位符" /></Form.Item>
+</Form>`}>
+      <FloatingPlaceholderDemo />
+    </DemoCard>
     <DemoCard title="字段绑定与实时校验" description={`${result}；提交失败会自动定位到首个错误字段。`} code={formCode}>
       <Form form={form} layout="vertical" initialValues={{ username: "", email: "", remember: true }} onFinish={(values) => {
         setResult(`提交成功：${JSON.stringify(values)}`);

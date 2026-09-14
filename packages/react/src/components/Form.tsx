@@ -1,5 +1,7 @@
 import { Children, cloneElement, createContext, forwardRef, isValidElement, useContext, useEffect, useId, useMemo, useRef, useSyncExternalStore } from "react";
 import type { ChangeEventHandler, FormHTMLAttributes, InputHTMLAttributes, ReactElement, ReactNode } from "react";
+import { PlaceholderModeContext, usePlaceholderMode } from "./shared";
+import type { InputPlaceholderMode } from "./shared";
 import { Tooltip } from "./FloatingDisplay";
 import { Icon } from "./Icon";
 
@@ -309,6 +311,7 @@ export interface FormProps extends Omit<FormHTMLAttributes<HTMLFormElement>, "on
   form?: FormInstance;
   initialValues?: FormValues;
   layout?: "horizontal" | "vertical" | "inline";
+  placeholderMode?: InputPlaceholderMode;
   disabled?: boolean;
   requiredMark?: boolean | "optional";
   onFinish?: (values: FormValues) => void;
@@ -320,6 +323,7 @@ function FormRoot({
   form,
   initialValues,
   layout = "horizontal",
+  placeholderMode,
   disabled = false,
   requiredMark = true,
   className = "",
@@ -329,11 +333,12 @@ function FormRoot({
   children,
   ...props
 }: FormProps) {
+  const resolvedPlaceholderMode = usePlaceholderMode(placeholderMode);
   const [internalForm] = useForm(form);
   const instance = internalForm as InternalFormInstance;
   instance.configure(initialValues, { onFinish, onFinishFailed, onValuesChange });
   const context = useMemo(() => instance, [instance]);
-  return <FormContext.Provider value={context}>
+  return <FormContext.Provider value={context}><PlaceholderModeContext.Provider value={resolvedPlaceholderMode}>
     <form
       {...props}
       className={`sia-form sia-form--${layout}${disabled ? " is-disabled" : ""} ${className}`.trim()}
@@ -342,7 +347,7 @@ function FormRoot({
     >
       <fieldset disabled={disabled}>{children}</fieldset>
     </form>
-  </FormContext.Provider>;
+  </PlaceholderModeContext.Provider></FormContext.Provider>;
 }
 
 export interface FormItemProps {

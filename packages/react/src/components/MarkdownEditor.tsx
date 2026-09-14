@@ -1,3 +1,5 @@
+import { useFloatingPlaceholder } from "./FloatingPlaceholder";
+import type { InputPlaceholderMode } from "./shared";
 import type { CSSProperties, HTMLAttributes } from "react";
 import { useEffect, useRef, useState } from "react";
 import "vditor/dist/index.css";
@@ -26,6 +28,7 @@ export interface MarkdownEditorProps
   onChange?: (markdown: string) => void;
   mode?: MarkdownEditorMode;
   placeholder?: string;
+  placeholderMode?: InputPlaceholderMode;
   minHeight?: number | string;
   disabled?: boolean;
   ariaLabel?: string;
@@ -150,6 +153,7 @@ export function MarkdownEditor({
   onChange,
   mode = "wysiwyg",
   placeholder = "请输入 Markdown 正文",
+  placeholderMode,
   minHeight = 320,
   disabled = false,
   ariaLabel = "Markdown 编辑器",
@@ -170,9 +174,12 @@ export function MarkdownEditor({
   const smartMarkdownPasteRef = useRef(smartMarkdownPaste);
   const valueRef = useRef(value ?? defaultValue);
   const lastEmittedValueRef = useRef(value ?? defaultValue);
+  const [hasContent, setHasContent] = useState(Boolean((value ?? defaultValue).trim()));
+  const floating = useFloatingPlaceholder({ mode: placeholderMode, placeholder, filled: hasContent });
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState("");
   const hasImageUpload = Boolean(onUploadImage);
+  useEffect(() => { if (value !== undefined) setHasContent(Boolean(value.trim())); }, [value]);
 
   onChangeRef.current = onChange;
   saveShortcutRef.current = saveShortcut;
@@ -244,6 +251,7 @@ export function MarkdownEditor({
             } }
           : {}),
         input: (markdown) => {
+          setHasContent(Boolean(markdown.trim()));
           lastEmittedValueRef.current = markdown;
           onChangeRef.current?.(markdown);
         },
@@ -325,11 +333,17 @@ export function MarkdownEditor({
 
   return (
     <div
-      className={["sia-markdown-editor", className].filter(Boolean).join(" ")}
+      className={["sia-markdown-editor", floating.className, disabled ? "is-disabled" : "", className].filter(Boolean).join(" ")}
       style={editorStyle}
       data-ready={ready ? "true" : "false"}
       {...props}
+      onBlurCapture={(event) => {
+        props.onBlurCapture?.(event);
+        const current = editorRef.current?.getValue();
+        if (current !== undefined) setHasContent(Boolean(current.trim()));
+      }}
     >
+      {floating.label}
       <div ref={mountRef} className="sia-markdown-editor__mount" />
       {!ready ? (
         <div className="sia-markdown-editor__loading" aria-live="polite">

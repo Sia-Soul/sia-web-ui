@@ -1,8 +1,15 @@
-import { useCallback, useState } from "react";
+import { createContext, useCallback, useContext, useState } from "react";
 
 export type ControlSize = "small" | "medium" | "large";
 export type ControlStatus = "default" | "warning" | "error";
 export type InputPlaceholderMode = "default" | "floating";
+
+export const PlaceholderModeContext = createContext<InputPlaceholderMode>("default");
+
+export function usePlaceholderMode(mode?: InputPlaceholderMode) {
+  const inherited = useContext(PlaceholderModeContext);
+  return mode ?? inherited;
+}
 
 type ControllableStateOptions<T> = {
   value: T | undefined;

@@ -1,3 +1,4 @@
+import type { InputPlaceholderMode } from "./shared";
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { DatePicker } from "./DatePicker";
 import type { DateRangePickerPreset } from "./DatePicker";
@@ -16,6 +17,7 @@ export interface SelectDateRangeProps extends Omit<HTMLAttributes<HTMLDivElement
   value?: SelectDateRangeValue;
   defaultValue?: SelectDateRangeValue;
   selectPlaceholder?: ReactNode;
+  placeholderMode?: InputPlaceholderMode;
   /** 左侧选择器宽度，数字单位为 px；右侧日期范围自动填充剩余宽度。 */
   selectWidth?: CSSProperties["width"];
   rangePlaceholder?: readonly [string, string];
@@ -33,6 +35,7 @@ export function SelectDateRange({
   value,
   defaultValue,
   selectPlaceholder = "请选择类型",
+  placeholderMode,
   selectWidth = 180,
   rangePlaceholder = ["开始日期", "结束日期"],
   selectAriaLabel = "选择类型",
@@ -47,7 +50,7 @@ export function SelectDateRange({
   ...props
 }: SelectDateRangeProps) {
   const initialValue = defaultValue ?? { select: options[0]?.value ?? "", range: ["", ""] };
-  const [currentValue, setCurrentValue] = useControllableState<SelectDateRangeValue>({ value, defaultValue: initialValue, onChange });
+  const [currentValue, setCurrentValue] = useControllableState<SelectDateRangeValue>({ value: value === undefined ? undefined : value && typeof value === "object" ? value : { select: "", range: ["", ""] }, defaultValue: initialValue, onChange });
 
   return <div className={`sia-select-date-range sia-select-date-range--${size} ${className}`.trim()} role="group" aria-label={`${selectAriaLabel}与${rangeAriaLabel}`} {...props} style={{ ...style, "--sia-select-date-range-select-width": typeof selectWidth === "number" ? `${selectWidth}px` : selectWidth } as CSSProperties}>
     <Select
@@ -56,6 +59,7 @@ export function SelectDateRange({
       options={options}
       value={currentValue.select}
       placeholder={selectPlaceholder}
+      placeholderMode={placeholderMode}
       size={size}
       status={status}
       disabled={disabled}
@@ -69,6 +73,7 @@ export function SelectDateRange({
       aria-label={rangeAriaLabel}
       value={currentValue.range}
       placeholder={rangePlaceholder}
+      placeholderMode={placeholderMode}
       presets={presets}
       size={size}
       status={status}

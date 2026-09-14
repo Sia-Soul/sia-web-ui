@@ -1,7 +1,7 @@
 @import "./focus.css";
 
 .sia-float-button-root, .sia-float-button-group { position: fixed; z-index: 99; right: 24px; bottom: 24px; width: max-content; }
-.sia-float-button { display: inline-flex; align-items: center; justify-content: center; width: 40px; min-height: 40px; padding: 0; color: var(--sia-color-text); cursor: pointer; background: var(--sia-color-surface); border: 1px solid color-mix(in srgb, var(--sia-color-border) 45%, transparent); box-shadow: 0 6px 16px rgb(0 0 0 / 12%), 0 2px 4px rgb(0 0 0 / 6%); transition: background 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
+.sia-float-button { display: inline-flex; align-items: center; justify-content: center; width: 40px; min-height: 40px; padding: 0; color: var(--sia-color-text); cursor: pointer; background: var(--sia-color-surface); border: 1px solid color-mix(in srgb, var(--sia-color-border) 45%, transparent); box-shadow: var(--sia-shadow-popup); transition: background 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
 .sia-float-button--circle { border-radius: 50%; }
 .sia-float-button--square { border-radius: 8px; }
 .sia-float-button:hover:not(:disabled) { background: var(--sia-color-control-hover); transform: translateY(-1px); }

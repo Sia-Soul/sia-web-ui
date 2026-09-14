@@ -1,3 +1,5 @@
+import { useFloatingPlaceholder } from "./FloatingPlaceholder";
+import type { InputPlaceholderMode } from "./shared";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { FormEvent, HTMLAttributes, ReactNode } from "react";
 import DOMPurify from "dompurify";
@@ -27,6 +29,7 @@ export interface RichTextEditorProps extends Omit<HTMLAttributes<HTMLDivElement>
   contentFormat?: RichTextContentFormat;
   toolbar?: RichTextToolbar;
   placeholder?: string;
+  placeholderMode?: InputPlaceholderMode;
   disabled?: boolean;
   minHeight?: number | string;
   pasteImageHint?: ReactNode;
@@ -74,6 +77,7 @@ export function RichTextEditor({
   contentFormat = "html",
   toolbar = "basic",
   placeholder = "请输入内容",
+  placeholderMode,
   disabled = false,
   minHeight = 150,
   pasteImageHint = "可直接粘贴图片",
@@ -191,6 +195,7 @@ export function RichTextEditor({
     if (!editor || value === undefined || value === lastEmittedValueRef.current) return;
     editor.commands.setContent(value, { emitUpdate: false, contentType: contentFormat });
     lastEmittedValueRef.current = value;
+    setEditorRevision(current => current + 1);
   }, [contentFormat, editor, value]);
 
   function openLinkEditor(open: boolean) {
@@ -250,7 +255,9 @@ export function RichTextEditor({
     },
   };
 
-  return <div {...props} id={id} style={mergedStyle} className={`sia-rich-text-editor${disabled ? " is-disabled" : ""} sia-rich-text-editor--${toolbar} ${className}`.trim()}>
+  const floating = useFloatingPlaceholder({ mode: placeholderMode, placeholder, filled: editor ? !editor.isEmpty : Boolean(value ?? defaultValue) });
+  return <div {...props} id={id} style={mergedStyle} className={`sia-rich-text-editor${floating.className}${disabled ? " is-disabled" : ""} sia-rich-text-editor--${toolbar} ${className}`.trim()}>
+    {floating.label}
     <div className="sia-rich-text-editor__toolbar" aria-label="文本格式工具栏">
       <div className="sia-rich-text-editor__toolbar-main">
         {toolbar === "full" ? <>

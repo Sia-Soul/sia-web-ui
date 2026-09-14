@@ -1,5 +1,8 @@
+import { useFloatingPlaceholder } from "./FloatingPlaceholder";
+import type { InputPlaceholderMode } from "./shared";
 import { forwardRef, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ButtonHTMLAttributes, KeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode, UIEvent } from "react";
+import { OverflowTags } from "./OverflowTags";
 import { Icon } from "./Icon";
 import { PopupPortal } from "./PopupPortal";
 import type { ControlSize, ControlStatus } from "./shared";
@@ -22,6 +25,7 @@ export interface SelectProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
   defaultValue?: SelectChangeValue;
   onChange?: (value: SelectChangeValue, option: SelectOption | SelectOption[] | null) => void;
   placeholder?: ReactNode;
+  placeholderMode?: InputPlaceholderMode;
   size?: ControlSize;
   status?: ControlStatus;
   allowClear?: boolean;
@@ -34,6 +38,7 @@ export interface SelectProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
   onSearch?: (query: string) => void;
   filterOption?: (query: string, option: SelectOption) => boolean;
   showSelectAll?: boolean;
+  /** 最多显示的标签数；空间不足时会继续折叠，并为 +N 预留宽度。 */
   maxTagCount?: number;
   virtual?: boolean;
   virtualThreshold?: number;
@@ -54,6 +59,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
     defaultValue,
     onChange,
     placeholder = "请选择",
+    placeholderMode,
     size = "medium",
     status = "default",
     allowClear = false,
@@ -299,15 +305,15 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
     </div>;
   }
 
-  const visibleTags = selectedOptions.slice(0, Math.max(0, maxTagCount));
-  const hiddenTagCount = selectedOptions.length - visibleTags.length;
+
+  const floating = useFloatingPlaceholder({ mode: placeholderMode, placeholder, filled: hasValue, active: open });
 
   return (
     <div ref={rootRef} className={`sia-select sia-select--${size} sia-select--${status}${open ? " is-open" : ""}${disabled ? " is-disabled" : ""}${multiple ? " sia-select--multiple" : ""} ${className}`.trim()}>
       <button
         {...props}
         ref={forwardedRef}
-        className="sia-select__trigger"
+        className={`sia-select__trigger${floating.className}`}
         id={selectId}
         type="button"
         role="combobox"
@@ -320,11 +326,9 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
         onClick={() => open ? closeDropdown() : openDropdown()}
         onKeyDown={handleTriggerKeyDown}
       >
-        {multiple && hasValue ? <span className="sia-select__tags">
-          {visibleTags.map((option) => <span className="sia-select__tag" key={`${typeof option.value}-${option.value}`}>{option.label}</span>)}
-          {hiddenTagCount > 0 ? <span className="sia-select__tag sia-select__tag--rest">+{hiddenTagCount}</span> : null}
-        </span> : <span className={`sia-select__value${hasValue ? "" : " is-placeholder"}`}>{selectedOptions[0]?.label ?? placeholder}</span>}
+        {multiple && hasValue ? <OverflowTags className="sia-select__tags" tagClassName="sia-select__tag" restClassName="sia-select__tag--rest" maxCount={maxTagCount} items={selectedOptions.map(option => ({ key: `${typeof option.value}-${option.value}`, label: option.label }))} /> : <span className={`sia-select__value${hasValue ? "" : " is-placeholder"}`}>{selectedOptions[0]?.label ?? placeholder}</span>}
         {loading ? <span className="sia-select__spinner" aria-hidden="true" /> : null}
+        {floating.label}
         <Icon className="sia-select__arrow" name="chevron-down" size={15} />
       </button>
       {allowClear && hasValue && !disabled && !loading ? <button className="sia-select__clear" type="button" aria-label="清空选择" onClick={clearValue}><Icon name="circle-close" variant="filled" size={15} /></button> : null}
