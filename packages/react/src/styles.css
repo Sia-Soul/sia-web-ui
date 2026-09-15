@@ -701,8 +701,9 @@
 .sia-table__header-description { display: inline-grid; place-items: center; flex: 0 0 20px; width: 20px; height: 20px; padding: 0; color: var(--sia-color-text-secondary); cursor: help; background: transparent; border: 0; border-radius: 50%; }
 .sia-table__header-description:hover, .sia-table__header-description:focus-visible { color: var(--sia-color-primary-text); background: color-mix(in srgb, var(--sia-color-primary) 10%, transparent); outline: none; }
 .sia-table__cell--ellipsis > .sia-table__cell-content { position: relative; display: block; min-width: 0; height: auto; background: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sia-table__cell--ellipsis > .sia-table__cell-content > .sia-space { display: inline-flex; width: max-content; flex-wrap: nowrap !important; flex-direction: row; vertical-align: middle; }
-.sia-table__cell--ellipsis > .sia-table__cell-content > .sia-space > * { flex-shrink: 0; }
+.sia-table__cell--ellipsis > .sia-table__cell-content :is(.sia-space, .sia-flex, [data-table-inline-layout]) { display: inline-flex; width: max-content; flex-wrap: nowrap !important; flex-direction: row !important; vertical-align: middle; }
+.sia-table__cell--ellipsis > .sia-table__cell-content :is(.sia-space, .sia-flex, [data-table-inline-layout]) > * { flex-shrink: 0; width: auto; flex-direction: row; }
+.sia-table__cell--ellipsis > .sia-table__cell-content[data-custom-content] { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; }
 .sia-table__cell--ellipsis > .sia-table__cell-content[data-content-overflow="true"]::after { position: absolute; top: 0; right: 0; bottom: 0; display: grid; place-items: center end; width: 1.4em; content: "…"; color: inherit; background: inherit; pointer-events: none; }
 .sia-table__cell--auto-width .sia-table__cell-content { white-space: nowrap; }
 .sia-table__row { content-visibility: auto; contain-intrinsic-size: auto 38px; }
