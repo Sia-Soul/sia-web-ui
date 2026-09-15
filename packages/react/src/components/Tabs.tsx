@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from "react";
+import { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { HTMLAttributes, KeyboardEvent, ReactNode } from "react";
 import { Dropdown } from "./Dropdown";
 import { Icon } from "./Icon";
@@ -14,7 +14,7 @@ export interface TabItem {
   closable?: boolean;
 }
 
-export type TabsType = "line" | "card" | "pill" | "tech" | "tech-line";
+export type TabsType = "line" | "card" | "pill" | "capsule" | "underline" | "tech" | "tech-line";
 export type TabsOrientation = "horizontal" | "vertical";
 export type TabsPosition = "top" | "right" | "bottom" | "left";
 export type TabsContextMenuClickInfo = MenuClickInfo & {
@@ -70,6 +70,38 @@ export function Tabs({
   const resolvedPosition = tabPosition ?? (orientation === "vertical" ? "left" : "top");
   const resolvedOrientation: TabsOrientation = resolvedPosition === "left" || resolvedPosition === "right" ? "vertical" : "horizontal";
 
+  const sliding = ["capsule", "line", "underline", "tech", "tech-line"].includes(type);
+  const listRef = useRef<HTMLDivElement>(null);
+  const indicatorRef = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    if (!sliding) return;
+    const list = listRef.current;
+    const indicator = indicatorRef.current;
+    if (!list || !indicator) return;
+    function updateIndicator() {
+      if (!list || !indicator) return;
+      const active = list.querySelector<HTMLButtonElement>('[role="tab"][aria-selected="true"]');
+      if (!active) { indicator.style.visibility = "hidden"; return; }
+      const listRect = list.getBoundingClientRect();
+      const rect = active.getBoundingClientRect();
+      indicator.style.transform = `translate(${rect.left - listRect.left - list.clientLeft + list.scrollLeft}px, ${rect.top - listRect.top - list.clientTop + list.scrollTop}px)`;
+      indicator.style.width = `${rect.width}px`;
+      indicator.style.height = `${rect.height}px`;
+      indicator.style.visibility = "visible";
+      if (!indicator.dataset.ready) {
+        // 首次直接定位，后续选中项变化才播放滑动动画。
+        indicator.getBoundingClientRect();
+        indicator.dataset.ready = "true";
+      }
+    }
+    updateIndicator();
+    const observer = new ResizeObserver(updateIndicator);
+    observer.observe(list);
+    list.querySelectorAll('[role="tab"]').forEach(tab => observer.observe(tab));
+    return () => observer.disconnect();
+  }, [sliding, type, selectedKey, items, size, resolvedPosition, centered, closable]);
+
   function selectTab(key: string) {
     if (key === selectedKey) return;
     if (activeKey === undefined) setInternalActiveKey(key);
@@ -98,7 +130,7 @@ export function Tabs({
 
   return (
     <div
-      className={`sia-tabs sia-tabs--${type} sia-tabs--${size} sia-tabs--${resolvedOrientation} sia-tabs--${resolvedPosition}${centered ? " sia-tabs--centered" : ""} ${className}`.trim()}
+      className={`sia-tabs sia-tabs--${type}${type === "underline" ? " sia-tabs--line" : ""} sia-tabs--${size} sia-tabs--${resolvedOrientation} sia-tabs--${resolvedPosition}${centered ? " sia-tabs--centered" : ""} ${className}`.trim()}
       {...props}
     >
       <div className="sia-tabs__header">
@@ -107,7 +139,21 @@ export function Tabs({
             <path d="M0 39 H5 Q8 39 10 35 L28 3 Q29 1 32 1" fill="none" stroke="currentColor" strokeWidth="1.5" />
           </svg>
         ) : null}</div> : null}
-        <div className="sia-tabs__list" role="tablist" aria-orientation={resolvedOrientation}>
+        <div ref={listRef} className={`sia-tabs__list${sliding ? " sia-tabs__list--sliding" : ""}`} role="tablist" aria-orientation={resolvedOrientation}>
+          {sliding ? <span key={type} ref={indicatorRef} className={`sia-tabs__indicator${type === "capsule" ? " sia-tabs__capsule-indicator" : ""}`} aria-hidden="true">
+            {type === "tech-line" ? (                    <svg className="sia-tabs__indicator-shape" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true">
+                      <defs>
+                        <linearGradient id={`${baseId}-tab-fill-indicator`} x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0" stopColor="var(--sia-tabs-line-fill-edge, var(--sia-tabs-line-fill))" />
+                          <stop offset=".53" stopColor="var(--sia-tabs-line-fill-center, var(--sia-tabs-line-fill))" />
+                          <stop offset="1" stopColor="var(--sia-tabs-line-fill-edge, var(--sia-tabs-line-fill))" />
+                        </linearGradient>
+                      </defs>
+                      <path d="M19 1 H96 Q99 1 97.5 4 L83.5 30 Q82 33 79 33 H4 Q1 33 2.5 30 L16.5 4 Q18 1 19 1 Z"
+                        fill={`url(#${baseId}-tab-fill-indicator)`}
+                        stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+                    </svg>) : null}
+          </span> : null}
           {items.map((item) => {
             const selected = item.key === selectedKey;
             const canClose = item.closable ?? closable;

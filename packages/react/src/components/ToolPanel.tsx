@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import type {
   CSSProperties,
   HTMLAttributes,
@@ -9,9 +9,21 @@ import type {
 
 export type ToolPanelPlacement = "left" | "right";
 
-export interface ToolPanelProps extends Omit<HTMLAttributes<HTMLDivElement>, "title" | "onResize"> {
+export interface ToolPanelItem {
+  key: string;
   title: ReactNode;
   icon?: ReactNode;
+  children: ReactNode;
+  disabled?: boolean;
+}
+
+export interface ToolPanelProps extends Omit<HTMLAttributes<HTMLDivElement>, "title" | "onResize"> {
+  title?: ReactNode;
+  icon?: ReactNode;
+  items?: readonly ToolPanelItem[];
+  activeKey?: string;
+  defaultActiveKey?: string;
+  onActiveKeyChange?: (key: string) => void;
   placement?: ToolPanelPlacement;
   open?: boolean;
   defaultOpen?: boolean;
@@ -30,6 +42,10 @@ function clamp(value: number, min: number, max: number) {
 export function ToolPanel({
   title,
   icon,
+  items,
+  activeKey,
+  defaultActiveKey,
+  onActiveKeyChange,
   placement = "left",
   open,
   defaultOpen = true,
@@ -44,9 +60,58 @@ export function ToolPanel({
   children,
   ...props
 }: ToolPanelProps) {
+  const panelId = useId();
+  const [internalActiveKey, setInternalActiveKey] = useState(defaultActiveKey);
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
   const [size, setSize] = useState(() => clamp(defaultSize, minSize, maxSize));
-  const isOpen = open ?? internalOpen;
+  const panels: readonly ToolPanelItem[] = items ?? [{ key: "single", title, icon, children }];
+  const requestedKey = activeKey ?? internalActiveKey;
+  const activePanel = panels.find(item => item.key === requestedKey && !item.disabled) ?? panels.find(item => !item.disabled);
+  const isOpen = (open ?? internalOpen) && Boolean(activePanel);
+
+  const railRef = useRef<HTMLDivElement>(null);
+  const indicatorRef = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const rail = railRef.current;
+    const indicator = indicatorRef.current;
+    if (!rail || !indicator) return;
+    function updateIndicator() {
+      if (!rail || !indicator) return;
+      const active = rail.querySelector<HTMLButtonElement>('.sia-tool-panel__activity.is-active');
+      if (!active) {
+        indicator.style.visibility = "hidden";
+        delete indicator.dataset.ready;
+        return;
+      }
+      const railRect = rail.getBoundingClientRect();
+      const rect = active.getBoundingClientRect();
+      const x = rect.left - railRect.left - rail.clientLeft + rail.scrollLeft + (placement === "left" ? rect.width - 3 : 0);
+      const y = rect.top - railRect.top - rail.clientTop + rail.scrollTop;
+      indicator.style.transform = `translate(${x}px, ${y}px)`;
+      indicator.style.height = `${rect.height}px`;
+      indicator.style.visibility = "visible";
+      if (!indicator.dataset.ready) {
+        indicator.getBoundingClientRect();
+        indicator.dataset.ready = "true";
+      }
+    }
+    updateIndicator();
+    const observer = new ResizeObserver(updateIndicator);
+    observer.observe(rail);
+    rail.querySelectorAll('.sia-tool-panel__activity').forEach(item => observer.observe(item));
+    return () => observer.disconnect();
+  }, [isOpen, activePanel?.key, items, title, icon, placement]);
+
+  function activatePanel(item: ToolPanelItem) {
+    if (item.disabled) return;
+    if (item.key === activePanel?.key) {
+      setOpen(!isOpen);
+    } else {
+      if (activeKey === undefined) setInternalActiveKey(item.key);
+      onActiveKeyChange?.(item.key);
+      if (!isOpen) setOpen(true);
+    }
+  }
 
   function setOpen(nextOpen: boolean) {
     if (open === undefined) setInternalOpen(nextOpen);
@@ -90,25 +155,43 @@ export function ToolPanel({
     resize(size + (placement === "left" ? direction : -direction) * 12, true);
   }
 
-  const titleText = typeof title === "string" ? title : "工具";
+  const titleText = typeof activePanel?.title === "string" ? activePanel.title : "工具";
   const rail = (
-    <div className="sia-tool-panel__rail">
-      <button
-        type="button"
-        className={`sia-tool-panel__activity${isOpen ? " is-active" : ""}`}
-        aria-expanded={isOpen}
-        aria-label={`${isOpen ? "收起" : "展开"}${titleText}面板`}
-        title={typeof title === "string" ? title : undefined}
-        onClick={() => setOpen(!isOpen)}
-      >
-        {icon ? <span className="sia-tool-panel__activity-icon">{icon}</span> : null}
-        <span className="sia-tool-panel__activity-label">{title}</span>
-      </button>
+    <div ref={railRef} className="sia-tool-panel__rail">
+      <span ref={indicatorRef} className="sia-tool-panel__indicator" aria-hidden="true" />
+      {panels.map((item, index) => {
+        const expanded = isOpen && item.key === activePanel?.key;
+        const label = typeof item.title === "string" ? item.title : "工具";
+        return (
+          <button
+            key={item.key}
+            id={`${panelId}-activity-${index}`}
+            type="button"
+            className={`sia-tool-panel__activity${expanded ? " is-active" : ""}`}
+            aria-expanded={expanded}
+            aria-controls={`${panelId}-content-${index}`}
+            aria-label={`${expanded ? "收起" : "展开"}${label}面板`}
+            title={typeof item.title === "string" ? item.title : undefined}
+            disabled={item.disabled}
+            onClick={() => activatePanel(item)}
+          >
+            {item.icon ? <span className="sia-tool-panel__activity-icon">{item.icon}</span> : null}
+            <span className="sia-tool-panel__activity-label">{item.title}</span>
+          </button>
+        );
+      })}
     </div>
   );
   const content = (
     <div className="sia-tool-panel__content" hidden={!isOpen} aria-hidden={!isOpen}>
-      {children}
+      {panels.map((item, index) => <div
+        key={item.key}
+        id={`${panelId}-content-${index}`}
+        className="sia-tool-panel__pane"
+        role="region"
+        aria-labelledby={`${panelId}-activity-${index}`}
+        hidden={!isOpen || item.key !== activePanel?.key}
+      >{item.children}</div>)}
     </div>
   );
   const resizeHandle = (

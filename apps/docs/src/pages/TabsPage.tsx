@@ -1,9 +1,27 @@
-import { Button, Icon, Tabs } from "@sia.soul/sia-react-ui";
+import { Badge, Button, Icon, Tabs } from "@sia.soul/sia-react-ui";
+import type { CSSProperties } from "react";
 import { useRef, useState } from "react";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
 import { PageHeader } from "./PageHeader";
+
+const capsuleCode = `<Tabs type="capsule" defaultActiveKey="motion" items={[
+  { key: "design", label: "设计", children: "设计规范" },
+  { key: "motion", label: "动效", children: "动效规范" },
+  { key: "tokens", label: "令牌", children: "设计令牌" },
+]} />`;
+const underlineCode = `import { Badge, Tabs } from "@sia.soul/sia-react-ui";
+import type { CSSProperties } from "react";
+
+<Tabs type="underline" defaultActiveKey="tasks"
+  style={{ "--sia-tabs-accent": "#00b578" } as CSSProperties}
+  items={[
+    { key: "messages", label: <Badge count={12} size="small">消息</Badge>, children: "消息内容" },
+    { key: "tasks", label: <Badge count={3} size="small">任务</Badge>, children: "待办任务" },
+    { key: "archive", label: "归档", disabled: true },
+  ]}
+/>`;
 
 const basicCode = `import { Tabs } from "@sia.soul/sia-react-ui";
 
@@ -130,7 +148,7 @@ const apiRows = [
   { property: "items", description: "标签项，包含 key、label、children、icon、disabled 和 closable", type: "TabItem[]", defaultValue: "[]" },
   { property: "activeKey / defaultActiveKey", description: "受控激活项与默认激活项", type: "string", defaultValue: "首个可用项" },
   { property: "onChange", description: "激活项变化回调", type: "(key: string) => void", defaultValue: "-" },
-  { property: "type", description: "线型、卡片型、胶囊型、科技大屏型或折线科技型", type: "'line' | 'card' | 'pill' | 'tech' | 'tech-line'", defaultValue: "'line'" },
+  { property: "type", description: "线型、卡片型、胶囊型、圆角胶囊、紧凑下划线或科技样式", type: "'line' | 'card' | 'pill' | 'capsule' | 'underline' | 'tech' | 'tech-line'", defaultValue: "'line'" },
   { property: "tabPosition", description: "标签栏位于内容的上、右、下或左侧", type: "'top' | 'right' | 'bottom' | 'left'", defaultValue: "'top'" },
   { property: "orientation", description: "兼容旧版横向、纵向排列，推荐使用 tabPosition", type: "'horizontal' | 'vertical'", defaultValue: "'horizontal'" },
   { property: "size / centered", description: "尺寸与居中排列", type: "ControlSize / boolean", defaultValue: "'medium' / false" },
@@ -186,7 +204,7 @@ export function TabsPage() {
     <PageHeader eyebrow="组件 / 导航 / Tabs" title="Tabs 标签页" description="在同一层级的内容分组之间切换，支持完整键盘与无障碍语义。" />
     <DocsTabs activeKey={tab} onChange={setTab} />
     {tab === "examples" ? <div className="demo-stack">
-      <DemoCard title="基础用法" description="使用方向键切换标签，Home 和 End 可快速跳转首尾。" code={basicCode}>
+      <DemoCard title="基础用法" description="底部指示条随选中项平滑滑动；使用方向键切换标签，Home 和 End 可快速跳转首尾。" code={basicCode}>
         <Tabs items={basicItems} defaultActiveKey="overview" />
       </DemoCard>
       <DemoCard title="四个标签位置" description="标签栏可以放在内容区域的上、右、下、左四个方向。" code={positionCode}>
@@ -203,10 +221,24 @@ export function TabsPage() {
           <Tabs type="pill" items={variantItems} />
         </div>
       </DemoCard>
-      <DemoCard title="科技大屏样式" description="选中项使用框架主题实色，顶部装饰线由深到浅，并自动适配亮色与暗色模式。" code={techCode}>
+      <DemoCard title="圆角胶囊导航" description="白色圆角外框搭配浅色选中胶囊，切换时以 240ms 滑动到目标项并适应宽度，通过 --sia-tabs-accent 和 --sia-tabs-selection-bg 自定义颜色。" code={capsuleCode}>
+        <Tabs type="capsule" defaultActiveKey="motion" items={[
+          { key: "design", label: "设计", children: <p>设计规范：统一界面中的视觉语言。</p> },
+          { key: "motion", label: "动效", children: <div style={{ background: "var(--sia-color-primary-light)", padding: 24, borderRadius: 16 }}><h3>动效规范</h3><p>标签栏、内容面板、选中态可以通过外部样式定制。</p><span>Duration: 240ms</span></div> },
+          { key: "tokens", label: "令牌", children: <p>通过设计令牌统一颜色、间距和圆角。</p> },
+        ]} />
+      </DemoCard>
+      <DemoCard title="下划线导航与角标" description="紧凑相邻标签、整项下划线，使用框架 Badge 展示数量；禁用项跳过点击和键盘切换。" code={underlineCode}>
+        <Tabs type="underline" defaultActiveKey="tasks" style={{ "--sia-tabs-accent": "#00b578" } as CSSProperties} items={[
+          { key: "messages", label: <Badge count={12} size="small">消息</Badge>, children: <p>共 12 条消息。</p> },
+          { key: "tasks", label: <Badge count={3} size="small">任务</Badge>, children: <div style={{ background: "color-mix(in srgb, var(--sia-color-warning) 7%, var(--sia-color-surface))", padding: 24, borderRadius: 16 }}><h3>待办任务</h3><p>禁用前也可以参与排序与分组。</p><span>待处理 3 项</span></div> },
+          { key: "archive", label: "归档", disabled: true },
+        ]} />
+      </DemoCard>
+      <DemoCard title="科技大屏样式" description="选中背景以 240ms 滑动切换，使用框架主题实色，顶部装饰线由深到浅，并自动适配亮色与暗色模式。" code={techCode}>
         <Tabs type="tech" tabBarTitle="查看部门" items={techItems} defaultActiveKey="private" />
       </DemoCard>
-      <DemoCard title="折线科技大屏样式" description="标题底线向上折入标签栏，右侧紧凑斜切选项支持明暗主题。" code={techLineCode}>
+      <DemoCard title="折线科技大屏样式" description="标题底线向上折入标签栏，右侧斜切选中背景平滑滑动，并支持明暗主题。" code={techLineCode}>
         <Tabs type="tech-line" tabBarTitle="今日销售分布" style={{ width: 636, maxWidth: "100%" }} items={[
           { key: "amount", label: "金额" },
           { key: "orders", label: "订单数" },

@@ -96,6 +96,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
     optionHeight = showValue ? 54 : 34,
     disabled,
     className = "",
+    style,
     id,
     notFoundContent = "暂无数据",
     onKeyDown,
@@ -346,7 +347,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
   const floating = useFloatingPlaceholder({ mode: placeholderMode, placeholder, filled: hasValue, active: open });
 
   return (
-    <div ref={rootRef} className={`sia-select sia-select--${size} sia-select--${status}${open ? " is-open" : ""}${disabled ? " is-disabled" : ""}${multiple ? " sia-select--multiple" : ""} ${className}`.trim()}>
+    <div ref={rootRef} className={`sia-select sia-select--${size} sia-select--${status}${open ? " is-open" : ""}${disabled ? " is-disabled" : ""}${multiple ? " sia-select--multiple" : ""} ${className}`.trim()} style={style}>
       <button
         {...props}
         ref={forwardedRef}

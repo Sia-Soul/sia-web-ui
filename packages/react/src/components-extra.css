@@ -83,19 +83,24 @@
 /* Tool panel */
 .sia-tool-panel { --sia-tool-panel-rail-size: 38px; --sia-tool-panel-handle-size: 4px; --sia-tool-panel-divider-color: var(--sia-color-border); display: flex; flex: 0 0 var(--sia-tool-panel-rail-size); width: var(--sia-tool-panel-rail-size); height: 100%; min-width: 0; min-height: 0; overflow: hidden; color: var(--sia-color-text); background: var(--sia-color-surface); }
 .sia-tool-panel.is-open { flex-basis: calc(var(--sia-tool-panel-rail-size) + var(--sia-tool-panel-size) + var(--sia-tool-panel-handle-size)); width: calc(var(--sia-tool-panel-rail-size) + var(--sia-tool-panel-size) + var(--sia-tool-panel-handle-size)); }
-.sia-tool-panel__rail { display: flex; align-items: flex-start; flex: 0 0 var(--sia-tool-panel-rail-size); width: var(--sia-tool-panel-rail-size); min-width: 0; background: var(--sia-color-surface); }
+.sia-tool-panel__rail { position: relative; display: flex; flex-direction: column; align-items: flex-start; flex: 0 0 var(--sia-tool-panel-rail-size); width: var(--sia-tool-panel-rail-size); min-width: 0; overflow-y: auto; background: var(--sia-color-surface); }
 .sia-tool-panel--left:not(.is-open) .sia-tool-panel__rail { border-inline-end: 1px solid var(--sia-tool-panel-divider-color); }
 .sia-tool-panel--right:not(.is-open) .sia-tool-panel__rail { border-inline-start: 1px solid var(--sia-tool-panel-divider-color); }
 .sia-tool-panel__activity { display: flex; align-items: center; flex-direction: column; gap: 7px; width: 100%; height: auto; min-height: 0; padding: 10px 7px; color: var(--sia-color-text-secondary); cursor: pointer; background: transparent; border: 0; outline: 0; font: 400 var(--sia-font-size-small)/1 system-ui, sans-serif; }
 .sia-tool-panel__activity:hover { color: var(--sia-color-text); background: var(--sia-color-control-hover); }
-.sia-tool-panel__activity:focus-visible { outline: none; }
+.sia-tool-panel__activity:focus-visible { outline: 2px solid var(--sia-color-primary); outline-offset: -2px; }
+.sia-tool-panel__activity { flex-shrink: 0; }
+.sia-tool-panel__activity:disabled { cursor: not-allowed; opacity: .45; background: transparent; color: var(--sia-color-text-secondary); }
 .sia-tool-panel__activity.is-active { color: var(--sia-color-primary-text); }
-.sia-tool-panel--left .sia-tool-panel__activity.is-active { box-shadow: inset -3px 0 0 var(--sia-color-primary); }
-.sia-tool-panel--right .sia-tool-panel__activity.is-active { box-shadow: inset 3px 0 0 var(--sia-color-primary); }
+.sia-tool-panel__indicator { position: absolute; top: 0; left: 0; z-index: 1; width: 3px; visibility: hidden; background: var(--sia-color-primary); pointer-events: none; }
+.sia-tool-panel__indicator[data-ready="true"] { transition: transform 240ms ease, height 240ms ease; }
+@media (prefers-reduced-motion: reduce) { .sia-tool-panel__indicator[data-ready="true"] { transition: none; } }
 .sia-tool-panel__activity-icon { display: inline-flex; flex: none; }
 .sia-tool-panel__activity-label { line-height: 1; letter-spacing: .02em; writing-mode: vertical-rl; text-orientation: upright; }
 .sia-tool-panel__content { flex: 0 0 var(--sia-tool-panel-size); width: var(--sia-tool-panel-size); min-width: 0; min-height: 0; overflow: hidden; }
 .sia-tool-panel__content[hidden] { display: none; }
+.sia-tool-panel__pane { height: 100%; min-height: 0; overflow: auto; }
+.sia-tool-panel__pane[hidden] { display: none; }
 .sia-tool-panel__resize-handle { position: relative; z-index: 2; flex: 0 0 var(--sia-tool-panel-handle-size); width: var(--sia-tool-panel-handle-size); cursor: ew-resize; outline: 0; touch-action: none; }
 .sia-tool-panel__resize-handle::after { position: absolute; inset: 0 1px; content: ""; background: var(--sia-tool-panel-divider-color); transition: background 120ms ease, box-shadow 120ms ease; }
 .sia-tool-panel__resize-handle:hover::after,

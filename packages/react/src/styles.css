@@ -864,8 +864,8 @@
 @media (max-width: 650px) { .sia-modal-root { padding: 16px 12px; } .sia-modal { width: min(var(--sia-modal-width), calc(100vw - 24px)); } .sia-modal__header { padding-inline: 16px; } .sia-modal__body { padding-inline: 16px; } .sia-modal__footer { flex-wrap: wrap; padding-inline: 16px; } .sia-modal__footer .sia-button { flex: 1 1 110px; } }
 @media (prefers-reduced-motion: reduce) { .sia-button, .sia-input-control, .sia-input-control__clear, .sia-input-control__floating-placeholder, .sia-input-number, .sia-input-number__floating-placeholder, .sia-select__trigger, .sia-select__arrow, .sia-select__clear, .sia-switch, .sia-switch__thumb, .sia-switch__content-item, .sia-switch__segment, .sia-theme-switch, .sia-theme-switch__selection, .sia-theme-switch__icon, .sia-drawer { transition: none; } .sia-button::after, .sia-icon--spin, .sia-icon--pulse, .sia-modal-root, .sia-modal, .sia-drawer, .sia-drawer__mask, .sia-message { animation: none !important; } .sia-modal-root[data-state="closing"] { visibility: hidden; } }
 
-.sia-table__settings-dropdown .sia-menu__item { min-height: 44px; padding: 10px 16px; gap: 12px; }
-.sia-table__settings-dropdown .sia-menu__divider { margin: 8px 12px; }
+.sia-table__settings-dropdown .sia-menu__item { min-height: 34px; padding: 4px 12px; gap: 10px; font-size: 14px; line-height: 24px; }
+.sia-table__settings-dropdown .sia-menu__divider { margin: 4px 8px; }
 
 .sia-table--borderless-toolbar { border: 0; }
 .sia-table--borderless-toolbar > .sia-table__toolbar { border: 0; }
@@ -897,3 +897,42 @@
 .sia-select__option-value { font-size: 12px; line-height: 18px; color: var(--sia-color-text-secondary); font-weight: 400; }
 .sia-select__option > .sia-icon { flex-shrink: 0; }
 .sia-selection-panel__label, .sia-selection-panel__text small { display: block; min-width: 0; margin: 0; padding: 0; text-align: left; text-indent: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+/* 圆角胶囊与紧凑下划线标签，共用 Tabs 的键盘和面板行为。 */
+.sia-tabs--capsule, .sia-tabs--underline { --sia-tabs-accent: var(--sia-color-primary); --sia-tabs-selection-bg: var(--sia-color-primary-light); }
+.sia-tabs--capsule .sia-tabs__list { position: relative; isolation: isolate; flex: 0 1 auto; gap: 4px; padding: 5px; border: 1px solid var(--sia-color-border); border-radius: 999px; background: var(--sia-color-surface); box-shadow: 0 3px 7px -3px rgb(0 0 0 / 24%); }
+.sia-tabs--capsule .sia-tabs__tab { height: 34px; padding-inline: 22px; border-radius: 999px; transition: background-color 240ms ease, color 240ms ease; }
+.sia-tabs--capsule .sia-tabs__tab[aria-selected="true"] { color: var(--sia-tabs-accent); background: transparent; font-weight: 500; }
+.sia-tabs--capsule.sia-tabs--small .sia-tabs__tab { height: 26px; padding-inline: 16px; }
+.sia-tabs--capsule.sia-tabs--large .sia-tabs__tab { height: 42px; padding-inline: 26px; }
+.sia-tabs--capsule.sia-tabs--centered .sia-tabs__header { justify-content: center; }
+.sia-tabs--capsule.sia-tabs--vertical .sia-tabs__list { border-radius: 24px; }
+.sia-tabs--underline .sia-tabs__list { gap: 0; }
+.sia-tabs--underline .sia-tabs__tab { padding-inline: 22px; transition: color 240ms ease; }
+.sia-tabs--underline .sia-tabs__tab[aria-selected="true"] { color: var(--sia-tabs-accent); font-weight: 500; }
+.sia-tabs--underline .sia-tabs__tab[aria-selected="true"]::after { background: var(--sia-tabs-accent); }
+.sia-tabs--underline .sia-tabs__tab .sia-badge { margin-inline-end: 8px; }
+.sia-tabs--capsule .sia-tabs__tab:focus-visible, .sia-tabs--underline .sia-tabs__tab:focus-visible { outline: 2px solid var(--sia-tabs-accent); outline-offset: -2px; }
+@media (prefers-reduced-motion: reduce) { .sia-tabs--capsule .sia-tabs__tab, .sia-tabs--underline .sia-tabs__tab { transition: none; } }
+
+.sia-tabs__capsule-indicator { position: absolute; top: 0; left: 0; z-index: -1; visibility: hidden; border-radius: 999px; background: var(--sia-tabs-selection-bg); pointer-events: none; }
+.sia-tabs__capsule-indicator[data-ready="true"] { transition: transform 240ms ease, width 240ms ease, height 240ms ease; }
+@media (prefers-reduced-motion: reduce) { .sia-tabs__capsule-indicator[data-ready="true"] { transition: none; } }
+
+.sia-tabs__list--sliding { position: relative; isolation: isolate; }
+.sia-tabs__indicator { position: absolute; top: 0; left: 0; z-index: -1; visibility: hidden; pointer-events: none; }
+.sia-tabs__indicator[data-ready="true"] { transition: transform 240ms ease, width 240ms ease, height 240ms ease; }
+.sia-tabs--line .sia-tabs__tab[aria-selected="true"]::after { display: none; }
+.sia-tabs--line .sia-tabs__indicator::after { position: absolute; content: ""; background: var(--sia-tabs-accent, var(--sia-color-primary)); }
+.sia-tabs--line.sia-tabs--top .sia-tabs__indicator::after { bottom: -1px; left: 0; right: 0; height: 2px; border-radius: 2px 2px 0 0; }
+.sia-tabs--line.sia-tabs--bottom .sia-tabs__indicator::after { top: -1px; left: 0; right: 0; height: 2px; border-radius: 0 0 2px 2px; }
+.sia-tabs--line.sia-tabs--left .sia-tabs__indicator::after { top: 0; bottom: 0; right: -1px; width: 2px; }
+.sia-tabs--line.sia-tabs--right .sia-tabs__indicator::after { top: 0; bottom: 0; left: -1px; width: 2px; }
+.sia-tabs--tech .sia-tabs__tab[aria-selected="true"]::before, .sia-tabs--tech .sia-tabs__tab[aria-selected="true"]::after { display: none; }
+.sia-tabs--tech .sia-tabs__indicator::before, .sia-tabs--tech .sia-tabs__indicator::after { position: absolute; content: ""; clip-path: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%); }
+.sia-tabs--tech .sia-tabs__indicator::before { inset: 1px 0; background: var(--sia-tabs-tech-accent); }
+.sia-tabs--tech .sia-tabs__indicator::after { inset: 2px 1px; background: var(--sia-tabs-tech-selection); }
+.sia-tabs--tech-line .sia-tabs__tab[aria-selected="true"] .sia-tabs__tab-shape { visibility: hidden; }
+.sia-tabs__indicator-shape { display: block; width: 100%; height: 100%; color: var(--sia-tabs-line-accent); }
+[data-sia-theme="dark"] .sia-tabs--tech-line .sia-tabs__indicator { --sia-tabs-line-fill-edge: var(--sia-tabs-line-surface); --sia-tabs-line-fill-center: var(--sia-color-primary); }
+@media (prefers-reduced-motion: reduce) { .sia-tabs__indicator[data-ready="true"] { transition: none; } }

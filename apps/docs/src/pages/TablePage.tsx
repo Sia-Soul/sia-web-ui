@@ -444,19 +444,84 @@ export default function Demo() {
   return <Table rowKey="id" columns={columns} dataSource={data} plugins={plugins} />;
 }`;
 
-const pluginCode = `import { useMemo } from "react";
-import { Table, createSelectionPlugin, createSortPlugin, createPaginationPlugin,
-  createEditablePlugin, createColumnSettingPlugin } from "@sia.soul/sia-react-ui";
+const pluginCode = `import { useMemo, useState } from "react";
+import {
+  Icon, Table, Tag, message,
+  createToolbarPlugin, createColumnSettingPlugin,
+  createLocalStorageTableSettingsAdapter, createSelectionPlugin,
+  createIndexPlugin, createSortPlugin, createPaginationPlugin,
+  createEditablePlugin, createSummaryPlugin,
+} from "@sia.soul/sia-react-ui";
+import type { AnyTablePlugin, TableColumn } from "@sia.soul/sia-react-ui";
+
+interface ProductRow extends Record<string, unknown> {
+  id: number;
+  name: string;
+  category: string;
+  price: number;
+  stock: number;
+  status: "在售" | "缺货" | "下架";
+  owner: string;
+}
+
+const columns: readonly TableColumn<ProductRow>[] = [
+  { key: "name", name: "商品名称", width: 180, fixed: "left", sortable: true, editable: true },
+  { key: "category", name: "分类", width: 130, sortable: true },
+  { key: "price", name: "价格", width: 120, align: "right", sortable: true, editable: { type: "inputNumber" }, render: (value) => "¥ " + Number(value).toFixed(2) },
+  { key: "stock", name: "库存", width: 100, align: "right", sortable: true, editable: { type: "inputNumber" } },
+  { key: "status", name: "状态", width: 110, align: "center", editable: { type: "select", options: [{ label: "在售", value: "在售" }, { label: "缺货", value: "缺货" }, { label: "下架", value: "下架" }] }, render: (value) => <Tag compact status={value === "在售" ? "success" : value === "缺货" ? "warning" : "default"}>{String(value)}</Tag> },
+  { key: "owner", name: "负责人", width: 120 },
+];
 
 export default function Demo() {
-  const plugins = useMemo(() => [
-    createSelectionPlugin({ showSelectedCount: true }),
-    createSortPlugin(),
-    createPaginationPlugin({ defaultPageSize: 25 }),
-    createEditablePlugin({ onCellChange: saveCell }),
-    createColumnSettingPlugin(),
-  ], []);
-  return <Table rowKey="id" columns={columns} dataSource={data} plugins={plugins} height={430} />;
+  const [data, setData] = useState<ProductRow[]>(() => Array.from({ length: 125 }, (_, index) => ({
+    id: index + 1,
+    name: "商品 " + String(index + 1).padStart(4, "0"),
+    category: ["办公用品", "数码设备", "家具", "耗材"][index % 4],
+    price: 39 + index % 17 * 12,
+    stock: index * 7 % 160,
+    status: index % 11 === 0 ? "下架" : index % 7 === 0 ? "缺货" : "在售",
+    owner: ["张敏", "李华", "王强", "陈晨"][index % 4],
+  })));
+  const adapter = useMemo(() => createLocalStorageTableSettingsAdapter("sia-docs-table"), []);
+  const plugins = useMemo<readonly AnyTablePlugin<ProductRow>[]>(() => [
+    createToolbarPlugin<ProductRow>({
+      start: <strong>商品列表</strong>,
+      items: [
+        { key: "add", label: "新增", icon: <Icon name="plus" size={14} />, onClick: () => { message.info("这里接入新增商品流程"); } },
+        { key: "export", label: "导出", icon: <Icon name="download" size={14} />, position: "end", inSettings: true, onClick: () => { message.success("导出任务已创建"); } },
+      ],
+    }),
+    createColumnSettingPlugin<ProductRow>({
+      adapter,
+      scope: { moduleName: "docs", businessKey: "product-table" },
+      // 在右上角设置菜单中追加操作，保留内置的表格导出和列设置。
+      menuItems: [{
+        key: "custom-report",
+        label: "生成报表",
+        icon: <Icon name="file" size={18} />,
+        onClick: () => {
+          // 在这里调用业务报表接口，或打开报表配置弹窗。
+          message.success("已触发自定义报表操作");
+        },
+      }],
+    }),
+    createSelectionPlugin<ProductRow>({ mode: "multiple", showSelectedCount: true }),
+    createIndexPlugin<ProductRow>(),
+    createSortPlugin<ProductRow>(),
+    createPaginationPlugin<ProductRow>({ defaultPageSize: 25, pageSizeOptions: [10, 25, 50, 100] }),
+    createEditablePlugin<ProductRow>({ onCellChange: async (columnKey, record, value) => {
+      // 实际项目可在这里请求接口，保存成功后更新数据。
+      setData((rows) => rows.map((row) => row.id === record.id ? { ...row, [columnKey]: value } : row));
+      message.success(record.name + " 已更新");
+      return true;
+    } }),
+    createSummaryPlugin<ProductRow>({
+      subTotal: (pageRows) => ({ price: "¥ " + pageRows.reduce((sum, row) => sum + row.price, 0).toFixed(2), stock: pageRows.reduce((sum, row) => sum + row.stock, 0) }),
+      total: { stock: data.reduce((sum, row) => sum + row.stock, 0) },
+    }),
+  ], [data, adapter]);
+  return <Table rowKey="id" columns={columns} dataSource={data} plugins={plugins} height={470} />;
 }`;
 
 const fullFeatureCode = `import { useMemo, useState } from "react";
@@ -805,7 +870,7 @@ export function TablePage() {
         </Space>
         <Table className="border-options-table-demo" rowKey="id" columns={basicColumns} dataSource={basicData} rowBordered={rowBordered} columnBordered={columnBordered} height={250} />
       </DemoCard>
-      <DemoCard title="插件组合" description="选择、序号、排序、分页、编辑、列设置、汇总和工具栏均可按需加载；拖拽列宽已默认启用。" code={pluginCode}>
+      <DemoCard title="插件组合" description="选择、序号、排序、分页、编辑、列设置、汇总和工具栏均可按需加载；拖拽列宽已默认启用。右上角“生成报表”通过 createColumnSettingPlugin 的 menuItems 添加，样例代码包含完整配置和点击回调。" code={pluginCode}>
         <Table className="table-demo" rowKey="id" columns={advancedColumns} dataSource={products} plugins={advancedPlugins} height={470} />
       </DemoCard>
       <DemoCard title="全功能表格" description="组合父子级列头、列头拖拽框选、工具栏、跨页保留选择、序号整行选择、单元格框选、列头说明、排序、分页、编辑、列宽调整、固定列、列设置、汇总、高亮和导出。" code={fullFeatureCode}>
