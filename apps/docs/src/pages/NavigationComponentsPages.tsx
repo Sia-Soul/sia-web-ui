@@ -135,6 +135,7 @@ export function PaginationPage() {
   const [page, setPage] = useState(3);
   const [pageSize, setPageSize] = useState(25);
   return <ComponentDocPage eyebrow="组件 / 导航 / Pagination" title="Pagination 分页" description="从 Table 提取的统一分页组件，支持每页条数、总记录数、首尾页切换与总数刷新。" name="Pagination" apiRows={[
+    { property: "size", description: "small / medium / large 高度为 22 / 30 / 38px；默认继承 Form，组件自身 size 优先", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
     { property: "total", description: "数据总数", type: "number", defaultValue: "0" },
     { property: "current / pageSize", description: "当前页与每页条数", type: "number", defaultValue: "1 / 25" },
     { property: "pageSizeOptions", description: "每页条数候选项", type: "number[]", defaultValue: "10, 25, 50 ... 5000" },
@@ -190,6 +191,7 @@ export default function Demo() {
 export function SegmentedPage() {
   const [value, setValue] = useState<SegmentedValue>("list");
   return <ComponentDocPage eyebrow="组件 / 数据展示 / Segmented" title="Segmented 分段控制器" description="在少量互斥选项之间即时切换视图或状态。" name="Segmented" apiRows={[
+    { property: "size", description: "small / medium / large 高度为 22 / 30 / 38px；默认继承 Form，组件自身 size 优先", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
     { property: "options", description: "文本、数值或带图标选项", type: "SegmentedOption[]", defaultValue: "[]" },
     { property: "value / defaultValue", description: "受控值或默认值", type: "string | number", defaultValue: "首项" },
     { property: "block / vertical", description: "撑满容器或纵向排列", type: "boolean", defaultValue: "false" },

@@ -214,7 +214,7 @@ export function MarkdownEditor({
         width: "100%",
         height: "100%",
         minHeight: typeof minHeight === "number" ? minHeight : undefined,
-        placeholder,
+        placeholder: floating.enabled ? "" : placeholder,
         cdn: assetBaseUrl,
         cache: { enable: false },
         toolbar,
@@ -307,7 +307,7 @@ export function MarkdownEditor({
       if (editorRef.current === createdEditor) editorRef.current = null;
       if (editorInitialized) createdEditor?.destroy();
     };
-  }, [ariaLabel, assetBaseUrl, hasImageUpload, minHeight, mode, placeholder]);
+  }, [ariaLabel, assetBaseUrl, hasImageUpload, minHeight, mode, placeholder, floating.enabled]);
 
   useEffect(() => {
     const editor = editorRef.current;

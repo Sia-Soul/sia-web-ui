@@ -1,3 +1,4 @@
+import { useControlSize } from "./shared";
 import { useFloatingPlaceholder } from "./FloatingPlaceholder";
 import type { InputPlaceholderMode } from "./shared";
 import { useEffect, useId, useRef, useState } from "react";
@@ -38,11 +39,12 @@ function seconds(value: string) {
 }
 
 export function TimePicker({
-  value, defaultValue = "", size = "medium", status = "default", allowClear = true,
+  value, defaultValue = "", size: sizeProp, status = "default", allowClear = true,
   use12Hours = false, showSecond = false, suffixIcon, disabledTime, disabled, readOnly,
   className = "", style, onChange, onOpenChange, placeholder = "请选择时间", placeholderMode, min, max, step,
   ...props
 }: TimePickerProps) {
+  const size = useControlSize(sizeProp);
   const id = useId();
   const rootRef = useRef<HTMLSpanElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -129,13 +131,14 @@ export function TimePicker({
 }
 
 function TimeRangePicker({ value, defaultValue = ["", ""], placeholder = ["开始时间", "结束时间"], separator = "→", onChange, className = "", style, ...props }: TimeRangePickerProps) {
+  const size = useControlSize(props.size);
   const [currentValue, setValue] = useControllableState<readonly [string, string]>({ value: value === undefined ? undefined : Array.isArray(value) ? value : ["", ""], defaultValue, onChange });
   function update(index: 0 | 1, next: string) {
     const pair: [string, string] = [currentValue[0], currentValue[1]];
     pair[index] = next;
     setValue(pair);
   }
-  return <span style={style} className={`sia-time-range sia-picker--${props.size ?? "medium"} sia-picker--${props.status ?? "default"}${props.disabled ? " is-disabled" : ""} ${className}`.trim()}>
+  return <span style={style} className={`sia-time-range sia-picker--${size} sia-picker--${props.status ?? "default"}${props.disabled ? " is-disabled" : ""} ${className}`.trim()}>
     <TimePicker {...props} aria-label={props["aria-label"] ? props["aria-label"] + "开始时间" : "开始时间"} value={currentValue[0]} placeholder={placeholder[0]} max={currentValue[1] && (!props.max || seconds(currentValue[1]) < seconds(String(props.max))) ? currentValue[1] : props.max} onChange={(next) => update(0, next)} />
     <span className="sia-time-range__separator">{separator}</span>
     <TimePicker {...props} id={props.id ? props.id + "-end" : undefined} aria-label={props["aria-label"] ? props["aria-label"] + "结束时间" : "结束时间"} value={currentValue[1]} placeholder={placeholder[1]} min={currentValue[0] && (!props.min || seconds(currentValue[0]) > seconds(String(props.min))) ? currentValue[0] : props.min} onChange={(next) => update(1, next)} />

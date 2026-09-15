@@ -1,3 +1,4 @@
+import { useControlSize } from "./shared";
 import { forwardRef, useEffect, useId, useRef, useState } from "react";
 import type { FocusEvent, InputHTMLAttributes, KeyboardEvent, ReactNode } from "react";
 import { usePlaceholderMode } from "./shared";
@@ -35,7 +36,7 @@ export const InputNumber = forwardRef<HTMLInputElement, InputNumberProps>(functi
     max,
     step = 1,
     precision,
-    size = "medium",
+    size: sizeProp,
     status = "default",
     prefix,
     suffix,
@@ -52,6 +53,7 @@ export const InputNumber = forwardRef<HTMLInputElement, InputNumberProps>(functi
   },
   forwardedRef,
 ) {
+  const size = useControlSize(sizeProp);
   const fallbackId = useId();
   const inputId = id ?? fallbackId;
   const localRef = useRef<HTMLInputElement | null>(null);

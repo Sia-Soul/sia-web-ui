@@ -1,10 +1,13 @@
+import { ControlSizeContext, useControlSize } from "./shared";
+import type { ControlSize } from "./shared";
 import { createContext, forwardRef, useContext, useEffect, useId, useMemo, useRef } from "react";
 import type { ChangeEvent, InputHTMLAttributes, ReactNode } from "react";
 import { useControllableState } from "./shared";
 
 export type CheckboxValue = string | number;
 
-export interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "value" | "onChange"> {
+export interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "size" | "value" | "onChange"> {
+  size?: ControlSize;
   value?: CheckboxValue;
   indeterminate?: boolean;
   children?: ReactNode;
@@ -18,6 +21,7 @@ export interface CheckboxOption {
 }
 
 export interface CheckboxGroupProps {
+  size?: ControlSize;
   value?: readonly CheckboxValue[];
   defaultValue?: readonly CheckboxValue[];
   options?: readonly (CheckboxOption | CheckboxValue)[];
@@ -38,9 +42,10 @@ type CheckboxGroupContextValue = {
 const CheckboxGroupContext = createContext<CheckboxGroupContextValue | null>(null);
 
 const CheckboxRoot = forwardRef<HTMLInputElement, CheckboxProps>(function Checkbox(
-  { value, indeterminate = false, children, disabled, checked, defaultChecked, className = "", onChange, ...props },
+  { value, size: sizeProp, indeterminate = false, children, disabled, checked, defaultChecked, className = "", onChange, ...props },
   forwardedRef,
 ) {
+  const size = useControlSize(sizeProp);
   const group = useContext(CheckboxGroupContext);
   const localRef = useRef<HTMLInputElement | null>(null);
   const fallbackId = useId();
@@ -57,7 +62,7 @@ const CheckboxRoot = forwardRef<HTMLInputElement, CheckboxProps>(function Checkb
     else if (forwardedRef) forwardedRef.current = node;
   }
 
-  return <label className={`sia-checkbox${disabled || group?.disabled ? " is-disabled" : ""} ${className}`.trim()}>
+  return <label className={`sia-checkbox sia-checkbox--${size}${disabled || group?.disabled ? " is-disabled" : ""} ${className}`.trim()}>
     <input
       {...props}
       ref={setRef}
@@ -80,6 +85,7 @@ const CheckboxRoot = forwardRef<HTMLInputElement, CheckboxProps>(function Checkb
 });
 
 function CheckboxGroup({
+  size: sizeProp,
   value,
   defaultValue = [],
   options,
@@ -89,6 +95,7 @@ function CheckboxGroup({
   children,
   onChange,
 }: CheckboxGroupProps) {
+  const size = useControlSize(sizeProp);
   const [values, setValues] = useControllableState<readonly CheckboxValue[]>({ value, defaultValue, onChange });
   const context = useMemo<CheckboxGroupContextValue>(() => ({
     values,
@@ -102,7 +109,7 @@ function CheckboxGroup({
     },
   }), [disabled, name, setValues, values]);
 
-  return <CheckboxGroupContext.Provider value={context}>
+  return <ControlSizeContext.Provider value={size}><CheckboxGroupContext.Provider value={context}>
     <div className={`sia-checkbox-group ${className}`.trim()} role="group">
       {options?.map((option) => {
         const normalized = typeof option === "object" ? option : { label: String(option), value: option };
@@ -110,7 +117,7 @@ function CheckboxGroup({
       })}
       {children}
     </div>
-  </CheckboxGroupContext.Provider>;
+  </CheckboxGroupContext.Provider></ControlSizeContext.Provider>;
 }
 
 export const Checkbox = Object.assign(CheckboxRoot, { Group: CheckboxGroup });

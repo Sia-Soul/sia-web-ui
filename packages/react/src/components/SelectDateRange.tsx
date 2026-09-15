@@ -1,3 +1,4 @@
+import { useControlSize } from "./shared";
 import type { InputPlaceholderMode } from "./shared";
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { DatePicker } from "./DatePicker";
@@ -41,7 +42,7 @@ export function SelectDateRange({
   selectAriaLabel = "选择类型",
   rangeAriaLabel = "日期范围",
   presets,
-  size = "medium",
+  size: sizeProp,
   status = "default",
   disabled = false,
   onChange,
@@ -49,6 +50,7 @@ export function SelectDateRange({
   style,
   ...props
 }: SelectDateRangeProps) {
+  const size = useControlSize(sizeProp);
   const initialValue = defaultValue ?? { select: options[0]?.value ?? "", range: ["", ""] };
   const [currentValue, setCurrentValue] = useControllableState<SelectDateRangeValue>({ value: value === undefined ? undefined : value && typeof value === "object" ? value : { select: "", range: ["", ""] }, defaultValue: initialValue, onChange });
 

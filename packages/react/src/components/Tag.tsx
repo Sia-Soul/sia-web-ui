@@ -10,6 +10,8 @@ export interface TagProps extends HTMLAttributes<HTMLSpanElement> {
   variant?: TagVariant;
   icon?: ReactNode;
   closable?: boolean;
+  /** 悬停或键盘聚焦时展开关闭按钮。 */
+  closeOnHover?: boolean;
   disabled?: boolean;
   onClose?: (event: MouseEvent<HTMLButtonElement>) => void;
 }
@@ -20,6 +22,7 @@ export function Tag({
   variant = "soft",
   icon,
   closable = false,
+  closeOnHover = false,
   disabled = false,
   onClose,
   className = "",
@@ -28,7 +31,7 @@ export function Tag({
 }: TagProps) {
   return (
     <span
-      className={`sia-tag sia-tag--${status} sia-tag--${variant}${compact ? " sia-tag--compact" : ""}${disabled ? " sia-tag--disabled" : ""} ${className}`.trim()}
+      className={`sia-tag${closable && closeOnHover ? " sia-tag--close-on-hover" : ""} sia-tag--${status} sia-tag--${variant}${compact ? " sia-tag--compact" : ""}${disabled ? " sia-tag--disabled" : ""} ${className}`.trim()}
       aria-disabled={disabled || undefined}
       {...props}
     >

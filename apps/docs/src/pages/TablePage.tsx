@@ -495,6 +495,7 @@ export default function Demo() {
     createColumnSettingPlugin<ProductRow>({
       adapter,
       scope: { moduleName: "docs", businessKey: "product-table" },
+      buttonProps: { className: "product-table-settings", style: { color: "#1677ff", borderRadius: 6 } },
       // 在右上角设置菜单中追加操作，保留内置的表格导出和列设置。
       menuItems: [{
         key: "custom-report",
@@ -750,6 +751,7 @@ const apiRows = [
   { property: "createCellSelectionPlugin", description: "支持单元格拖拽框选、序号整行选择、父子列头整列选择及 Ctrl+C 复制", type: "TableCellSelectionPluginOptions<T>", defaultValue: "-" },
   { property: "createColumnSettingPlugin.menuItems", description: "追加设置菜单操作，支持 key、label、icon、disabled、hidden、danger、onClick(context)", type: "readonly TableToolbarItem<T>[]", defaultValue: "[]" },
   { property: "createColumnSettingPlugin.showExport", description: "显示表格导出；优先使用已配置的导出插件，否则导出当前可见数据为 CSV", type: "boolean", defaultValue: "true" },
+  { property: "createColumnSettingPlugin.buttonProps", description: "设置按钮完整属性，支持样式、图标、文字、disabled、loading、onClick 等；disabled/loading 同时禁用菜单触发", type: "ButtonProps", defaultValue: "small / text / 设置图标" },
   { property: "createColumnSettingPlugin.showButton", description: "控制是否显示表格设置下拉按钮；悬停展开导出、列设置和自定义操作", type: "boolean", defaultValue: "true" },
   { property: "createSelectionPlugin.showSelectedCount", description: "显示可点击的已选数量、已选项面板和跨页保留勾选开关", type: "boolean", defaultValue: "false" },
   { property: "createSelectionPlugin.preserveSelectedRowKeys", description: "初始开启跨页保留勾选；未开启时翻页会清空上一页选择", type: "boolean", defaultValue: "false" },
@@ -763,7 +765,7 @@ const apiRows = [
   { property: "rowBordered", description: "显示行分隔线，作用于表头、数据行及汇总行；独立于外边框 bordered", type: "boolean", defaultValue: "true" },
   { property: "columnBordered", description: "显示列分隔线，独立于外边框 bordered；边框默认颜色为 #EFF2F6，可用 --sia-table-border-color 覆盖", type: "boolean", defaultValue: "true" },
   { property: "onCellContextMenu", description: "单元格右键事件，可用于业务上下文菜单", type: "(record, column, index, event) => void", defaultValue: "-" },
-  { property: "TableSettingsAdapter", description: "列设置持久化适配器，可接云端或本地存储", type: "{ load(scope), save(scope, settings) }", defaultValue: "-" },
+  { property: "TableSettingsAdapter", description: "列设置持久化适配器；挂载及每次打开列设置时 load，加载中禁止编辑，失败可重试；应用时 save", type: "{ load(scope), save(scope, settings) }", defaultValue: "-" },
 ] as const;
 
 export function TablePage() {
@@ -783,7 +785,7 @@ export function TablePage() {
         { key: "export", label: "导出", icon: <Icon name="download" size={14} />, position: "end", inSettings: true, onClick: () => { message.success("导出任务已创建"); } },
       ],
     }),
-    createColumnSettingPlugin<ProductRow>({ adapter: storageAdapter, scope: { moduleName: "docs", businessKey: "product-table" }, menuItems: [{ key: "custom-report", label: "生成报表", icon: <Icon name="file" size={18} />, onClick: () => { message.success("已触发自定义报表操作"); } }] }),
+    createColumnSettingPlugin<ProductRow>({ adapter: storageAdapter, scope: { moduleName: "docs", businessKey: "product-table" }, buttonProps: { className: "product-table-settings", style: { color: "#1677ff", borderRadius: 6 } }, menuItems: [{ key: "custom-report", label: "生成报表", icon: <Icon name="file" size={18} />, onClick: () => { message.success("已触发自定义报表操作"); } }] }),
     createSelectionPlugin<ProductRow>({ mode: "multiple", showSelectedCount: true }),
     createIndexPlugin<ProductRow>(),
     createSortPlugin<ProductRow>(),
@@ -870,7 +872,7 @@ export function TablePage() {
         </Space>
         <Table className="border-options-table-demo" rowKey="id" columns={basicColumns} dataSource={basicData} rowBordered={rowBordered} columnBordered={columnBordered} height={250} />
       </DemoCard>
-      <DemoCard title="插件组合" description="选择、序号、排序、分页、编辑、列设置、汇总和工具栏均可按需加载；拖拽列宽已默认启用。右上角“生成报表”通过 createColumnSettingPlugin 的 menuItems 添加，样例代码包含完整配置和点击回调。" code={pluginCode}>
+      <DemoCard title="插件组合" description="选择、序号、排序、分页、编辑、列设置、汇总和工具栏均可按需加载；拖拽列宽已默认启用。列设置中左固定移至左区末尾，右固定移至右区首位；拖拽实时预览排序，跨区域拖动时同步目标区域的固定状态，点击应用后生效。右上角“生成报表”通过 createColumnSettingPlugin 的 menuItems 添加，样例代码包含完整配置和点击回调。" code={pluginCode}>
         <Table className="table-demo" rowKey="id" columns={advancedColumns} dataSource={products} plugins={advancedPlugins} height={470} />
       </DemoCard>
       <DemoCard title="全功能表格" description="组合父子级列头、列头拖拽框选、工具栏、跨页保留选择、序号整行选择、单元格框选、列头说明、排序、分页、编辑、列宽调整、固定列、列设置、汇总、高亮和导出。" code={fullFeatureCode}>

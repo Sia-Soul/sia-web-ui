@@ -52,6 +52,7 @@ export default function Demo() {
 }`;
 
 const apiRows = [
+    { property: "size", description: "small / medium / large 高度为 22 / 30 / 38px；默认继承 Form，组件自身 size 优先", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
   { property: "value", description: "当前数值（受控）", type: "number | null", defaultValue: "-" },
   { property: "defaultValue", description: "初始数值", type: "number | null", defaultValue: "null" },
   { property: "min / max", description: "允许的数值边界", type: "number", defaultValue: "-" },

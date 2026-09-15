@@ -66,7 +66,7 @@ export default function Demo() {
 }`;
 
 const apiRows = [
-  { property: "size", description: "控件尺寸", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
+  { property: "size", description: "small / medium / large 高度为 22 / 30 / 38px；默认继承 Form，组件自身 size 优先", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
   { property: "status", description: "校验状态", type: "'default' | 'warning' | 'error'", defaultValue: "'default'" },
   { property: "prefix", description: "输入框前缀", type: "ReactNode", defaultValue: "-" },
   { property: "suffix", description: "输入框后缀", type: "ReactNode", defaultValue: "-" },

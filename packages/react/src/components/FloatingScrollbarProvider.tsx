@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
+import type { RefObject } from "react";
 import { useScrollbarProximity } from "./useScrollbarProximity";
 
 export interface FloatingScrollbarProviderProps {
   disabled?: boolean;
+  /** 仅接管指定容器；不传时接管页面中的滚动容器。 */
+  targetRef?: RefObject<HTMLElement | null>;
 }
 
 type ScrollAxis = "horizontal" | "vertical";
@@ -95,7 +98,7 @@ function createTrack(axis: ScrollAxis) {
   return { track, thumb };
 }
 
-export function FloatingScrollbarProvider({ disabled = false }: FloatingScrollbarProviderProps) {
+export function FloatingScrollbarProvider({ disabled = false, targetRef }: FloatingScrollbarProviderProps) {
   useScrollbarProximity();
   useEffect(() => {
     if (disabled) return;
@@ -330,14 +333,14 @@ export function FloatingScrollbarProvider({ disabled = false }: FloatingScrollba
 
     const scanTargets = () => {
       scanFrame = 0;
-      const candidates = [document.scrollingElement, ...document.querySelectorAll<HTMLElement>("*")]
+      const candidates = (targetRef ? [targetRef.current] : [document.scrollingElement, ...document.querySelectorAll<HTMLElement>("*")])
         .filter((target): target is HTMLElement => target instanceof HTMLElement);
       const nextTargets = new Set<HTMLElement>();
 
       candidates.forEach((target) => {
         if (canScroll(target, "horizontal") || canScroll(target, "vertical")) {
           nextTargets.add(target);
-          addTarget(target);
+          if (entries.has(target) || !target.hasAttribute("data-sia-floating-scrollbar")) addTarget(target);
         }
       });
       entries.forEach((_entry, target) => {
@@ -370,7 +373,7 @@ export function FloatingScrollbarProvider({ disabled = false }: FloatingScrollba
       entries.clear();
       layer.remove();
     };
-  }, [disabled]);
+  }, [disabled, targetRef]);
 
   return null;
 }

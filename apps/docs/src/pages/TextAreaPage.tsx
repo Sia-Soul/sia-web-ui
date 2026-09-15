@@ -21,6 +21,7 @@ export default function Demo() {
 }`;
 
 const apiRows = [
+  { property: "size", description: "调整字号和内边距；保留 rows 和内容决定的多行高度。默认继承 Form", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
   { property: "status", description: "校验状态", type: "'default' | 'warning' | 'error'", defaultValue: "'default'" },
   { property: "rows", description: "默认可见行数", type: "number", defaultValue: "2" },
   { property: "maxLength", description: "允许输入的最大字符数", type: "number", defaultValue: "-" },

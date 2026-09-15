@@ -43,6 +43,7 @@ const apiRows = [
   { property: "status", description: "语义状态", type: "'default' | 'success' | 'processing' | 'warning' | 'error'", defaultValue: "'default'" },
   { property: "variant", description: "视觉样式", type: "'soft' | 'outlined' | 'filled'", defaultValue: "'soft'" },
   { property: "icon", description: "标签前置图标", type: "ReactNode", defaultValue: "-" },
+  { property: "closeOnHover", description: "悬停或聚焦时向右展开关闭按钮；QueryForm 的快捷标签默认开启", type: "boolean", defaultValue: "false" },
   { property: "closable / onClose", description: "显示关闭按钮及其回调", type: "boolean / (event) => void", defaultValue: "false / -" },
   { property: "compact", description: "紧凑尺寸", type: "boolean", defaultValue: "false" },
   { property: "disabled", description: "禁用关闭操作", type: "boolean", defaultValue: "false" },

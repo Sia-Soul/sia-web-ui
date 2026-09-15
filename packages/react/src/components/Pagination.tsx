@@ -4,10 +4,13 @@ import { Button } from "./Button";
 import { Icon } from "./Icon";
 import { Select } from "./Select";
 import { useControllableState } from "./shared";
+import { useControlSize } from "./shared";
+import type { ControlSize } from "./shared";
 
 export const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 200, 500, 1000, 2000, 5000] as const;
 
 export interface PaginationProps extends Omit<HTMLAttributes<HTMLElement>, "onChange"> {
+  size?: ControlSize;
   total?: number;
   current?: number;
   defaultCurrent?: number;
@@ -25,6 +28,7 @@ export interface PaginationProps extends Omit<HTMLAttributes<HTMLElement>, "onCh
 }
 
 export function Pagination({
+  size: sizeProp,
   total = 0,
   current,
   defaultCurrent = 1,
@@ -42,6 +46,7 @@ export function Pagination({
   className = "",
   ...props
 }: PaginationProps) {
+  const controlSize = useControlSize(sizeProp);
   const [size, setSize] = useControllableState({ value: pageSize, defaultValue: Math.max(1, defaultPageSize) });
   const [page, setPage] = useControllableState({ value: current, defaultValue: Math.max(1, defaultCurrent) });
   const [internalRefreshing, setInternalRefreshing] = useState(false);
@@ -81,13 +86,13 @@ export function Pagination({
   }
 
   return (
-    <nav className={`sia-pagination ${className}`.trim()} aria-label="分页" {...props}>
+    <nav className={`sia-pagination sia-pagination--${controlSize} ${className}`.trim()} aria-label="分页" {...props}>
       {showSizeChanger ? (
         <div className="sia-pagination__size">
           <span>每页显示</span>
           <Select
             className="sia-pagination__size-select"
-            size="small"
+            size={controlSize}
             aria-label="每页条数"
             value={size}
             options={sizes.map((value) => ({ label: `${value} 条`, value }))}
@@ -102,7 +107,7 @@ export function Pagination({
         ) : (
           <Button
             variant="text"
-            size="small"
+            size={controlSize}
             className="sia-pagination__total"
             disabled={disabled || !onRefreshTotal || loading}
             title={onRefreshTotal ? "点击刷新总记录数" : undefined}
@@ -115,11 +120,11 @@ export function Pagination({
         )
       ) : null}
       <div className="sia-pagination__buttons">
-        <Button size="small" variant="text" aria-label="第一页" disabled={disabled || safePage <= 1} onClick={() => change(1)}><Icon name="double-left" size={15} /></Button>
-        <Button size="small" variant="text" aria-label="上一页" disabled={disabled || safePage <= 1} onClick={() => change(safePage - 1)}><Icon name="chevron-left" size={15} /></Button>
+        <Button size={controlSize} variant="text" aria-label="第一页" disabled={disabled || safePage <= 1} onClick={() => change(1)}><Icon name="double-left" size={15} /></Button>
+        <Button size={controlSize} variant="text" aria-label="上一页" disabled={disabled || safePage <= 1} onClick={() => change(safePage - 1)}><Icon name="chevron-left" size={15} /></Button>
         <span aria-live="polite">{safePage} / {totalPages}</span>
-        <Button size="small" variant="text" aria-label="下一页" disabled={disabled || safePage >= totalPages} onClick={() => change(safePage + 1)}><Icon name="chevron-right" size={15} /></Button>
-        <Button size="small" variant="text" aria-label="最后一页" disabled={disabled || safePage >= totalPages} onClick={() => change(totalPages)}><Icon name="double-right" size={15} /></Button>
+        <Button size={controlSize} variant="text" aria-label="下一页" disabled={disabled || safePage >= totalPages} onClick={() => change(safePage + 1)}><Icon name="chevron-right" size={15} /></Button>
+        <Button size={controlSize} variant="text" aria-label="最后一页" disabled={disabled || safePage >= totalPages} onClick={() => change(totalPages)}><Icon name="double-right" size={15} /></Button>
       </div>
     </nav>
   );

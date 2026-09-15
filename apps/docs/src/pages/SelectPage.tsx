@@ -122,6 +122,7 @@ function asMultipleValue(nextValue: SelectChangeValue) {
 }
 
 const apiRows = [
+    { property: "size", description: "small / medium / large 高度为 22 / 30 / 38px；默认继承 Form，组件自身 size 优先", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
   { property: "popupMode", description: "普通下拉或模态框选择；弹框点击确定才提交", type: "'dropdown' | 'modal'", defaultValue: "'dropdown'" },
   { property: "modalConfig", description: "弹框 title、width、columns、maxHeight 与左下角扩展 footerExtra", type: "object", defaultValue: "width: 900, columns: 3" },
   { property: "options.group", description: "弹框内的选项分组标题", type: "string", defaultValue: "-" },

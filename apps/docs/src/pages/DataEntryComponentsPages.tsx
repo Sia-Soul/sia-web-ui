@@ -1,4 +1,6 @@
 import { FloatingPlaceholderDemo } from "./FloatingPlaceholderDemo";
+import { FormSizeDemo } from "./FormSizeDemo";
+import formSizeCode from "./FormSizeDemo.tsx?raw";
 import { useMemo, useState } from "react";
 import {
   Button,
@@ -68,6 +70,7 @@ export function CheckboxPage() {
   const [selected, setSelected] = useState<readonly CheckboxValue[]>(["查看"]);
   const allChecked = selected.length === allOptions.length;
   return <DocPage eyebrow="组件 / 数据录入 / Checkbox" title="Checkbox 多选框" description="在一组独立选项中选择零项、多项或全部。" name="Checkbox" apiRows={[
+    { property: "size", description: "图形尺寸为 14 / 16 / 18px；支持 Form、Group 继承及单项覆盖", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
     { property: "checked / defaultChecked", description: "受控或默认选中状态", type: "boolean", defaultValue: "false" },
     { property: "indeterminate", description: "半选状态", type: "boolean", defaultValue: "false" },
     { property: "onChange", description: "选中状态变化", type: "(checked, event) => void", defaultValue: "-" },
@@ -100,6 +103,7 @@ export default function Demo() {
 export function ColorPickerPage() {
   const [color, setColor] = useState("#1677FF");
   return <DocPage eyebrow="组件 / 数据录入 / ColorPicker" title="ColorPicker 颜色选择器" description="选择单色、渐变色、透明度或无色，并输出可直接使用的 CSS 颜色值。" name="ColorPicker" apiRows={[
+    { property: "size", description: "small / medium / large 高度为 22 / 30 / 38px；默认继承 Form，组件自身 size 优先", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
     { property: "value / defaultValue", description: "颜色值", type: "HEX | linear-gradient | ''", defaultValue: "'#1677FF'" },
     { property: "mode / defaultMode", description: "当前或默认颜色模式", type: "'solid' | 'gradient'", defaultValue: "'solid'" },
     { property: "modes", description: "允许切换的颜色模式", type: "ColorPickerMode[]", defaultValue: "['solid', 'gradient']" },
@@ -160,6 +164,7 @@ export function DatePickerPage() {
   const [multipleDates, setMultipleDates] = useState<readonly string[]>(["2026-07-01", "2026-07-05", "2026-07-14"]);
   const [dateTimeRange, setDateTimeRange] = useState<readonly [string, string]>(["", ""]);
   return <DocPage eyebrow="组件 / 数据录入 / DatePicker" title="DatePicker 日期选择器" description="选择日期、多个日期、日期时间或受约束的日期范围。" name="DatePicker" apiRows={[
+    { property: "size", description: "日期与范围日期高度为 22 / 30 / 38px、字号为 12 / 14 / 16px；默认继承 Form，组件自身 size 优先", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
     { property: "value / defaultValue", description: "单值或多选日期值", type: "string | readonly string[]", defaultValue: "''" },
     { property: "picker", description: "日期粒度", type: "date | week | month | year | quarter", defaultValue: "'date'" },
     { property: "multiple", description: "在同一面板内选择多个日期", type: "boolean", defaultValue: "false" },
@@ -244,6 +249,7 @@ export function FormPage() {
   const [result, setResult] = useState("尚未提交");
   return <DocPage eyebrow="组件 / 数据录入 / Form" title="Form 表单" description="统一管理字段值、校验、气泡错误提示、提交和动态字段。" name="Form" apiRows={[
     { property: "form / Form.useForm", description: "表单实例与命令式 API", type: "FormInstance", defaultValue: "自动创建" },
+    { property: "size", description: "统一子组件尺寸；small / medium / large 的单行控件高度为 22 / 30 / 38px。组件自身 size 优先，Checkbox.Group 和 Radio.Group 可覆盖组内默认尺寸", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
     { property: "placeholderMode", description: "统一设置输入和选择组件的占位符模式；组件自身的同名属性优先", type: "'default' | 'floating'", defaultValue: "'default'" },
     { property: "initialValues", description: "表单初始值", type: "FormValues", defaultValue: "{}" },
     { property: "onFinish / onFinishFailed", description: "提交成功和失败回调", type: "function", defaultValue: "-" },
@@ -251,6 +257,9 @@ export function FormPage() {
     { property: "Form.Item", description: "字段绑定、标签、校验规则和非占位错误气泡", type: "name / rules / valuePropName", defaultValue: "-" },
     { property: "Form.List", description: "动态数组字段", type: "render function", defaultValue: "-" },
   ]}>
+    <DemoCard title="统一组件尺寸" description="输入、选择、日期、按钮、颜色与分段控件统一为 22 / 30 / 38px，日期和时间文字为 12 / 14 / 16px；Checkbox 和 Radio 图形为 14 / 16 / 18px，标准 Switch 高度为 16 / 22 / 28px，Rate 星形为 15 / 20 / 25px。多行文本保留多行高度。支持 Form 继承、组尺寸和组件单独覆盖，切换尺寸不丢失已输入内容。" code={formSizeCode}>
+      <FormSizeDemo />
+    </DemoCard>
     <DemoCard title="统一浮动标签" description="空值时显示占位文字，聚焦、展开或已有值时浮到边框；可填入示例值，再清空检查所有组件。范围日期合并显示两端标签，范围时间分别显示。" code={`<Form placeholderMode="floating" layout="vertical">
   <Form.Item name="name"><Input placeholder="姓名" /></Form.Item>
   <Form.Item name="type"><Select options={options} placeholder="业务类型" /></Form.Item>
@@ -302,6 +311,7 @@ export default function Demo() {
 export function RadioPage() {
   const [value, setValue] = useState("daily");
   return <DocPage eyebrow="组件 / 数据录入 / Radio" title="Radio 单选框" description="在一组互斥选项中选择一个值，支持按钮形态。" name="Radio" apiRows={[
+    { property: "size", description: "图形尺寸为 14 / 16 / 18px，按钮形态高度为 22 / 30 / 38px；支持 Form、Group 继承及单项覆盖", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
     { property: "value / checked", description: "选项值与选中状态", type: "string | number / boolean", defaultValue: "-" },
     { property: "Radio.Group", description: "统一管理互斥值", type: "value / options / onChange", defaultValue: "-" },
     { property: "optionType", description: "普通或按钮形态", type: "'default' | 'button'", defaultValue: "'default'" },
@@ -365,6 +375,7 @@ export default function Demo() {
 export function TimePickerPage() {
   const [range, setRange] = useState<readonly [string, string]>(["09:00", "18:00"]);
   return <DocPage eyebrow="组件 / 数据录入 / TimePicker" title="TimePicker 时间选择器" description="选择时、分、秒或时间范围。" name="TimePicker" apiRows={[
+    { property: "size", description: "small / medium / large 高度为 22 / 30 / 38px；默认继承 Form，组件自身 size 优先", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
     { property: "value / defaultValue", description: "标准时间字符串", type: "string", defaultValue: "''" },
     { property: "showSecond / use12Hours", description: "秒和 12 小时制", type: "boolean", defaultValue: "false" },
     { property: "disabledTime", description: "禁用时间判断", type: "(value) => boolean", defaultValue: "-" },
@@ -412,6 +423,7 @@ export default function Demo() {
 export function TreeSelectPage() {
   const [value, setValue] = useState<readonly (string | number)[]>(["frontend"]);
   return <DocPage eyebrow="组件 / 数据录入 / TreeSelect" title="TreeSelect 树选择" description="在层级结构中搜索、展开并选择一个或多个节点。" name="TreeSelect" apiRows={[
+    { property: "size", description: "small / medium / large 高度为 22 / 30 / 38px；默认继承 Form，组件自身 size 优先", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
     { property: "treeData", description: "树形选项数据", type: "TreeSelectNode[]", defaultValue: "[]" },
     { property: "multiple / treeCheckable", description: "多选和勾选模式", type: "boolean", defaultValue: "false" },
     { property: "showSearch", description: "显示节点搜索", type: "boolean", defaultValue: "false" },

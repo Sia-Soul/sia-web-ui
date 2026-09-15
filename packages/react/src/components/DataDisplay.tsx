@@ -4,8 +4,11 @@ import { createPortal } from "react-dom";
 import { Icon } from "./Icon";
 import { useOverlayLifecycle } from "./Overlay";
 import { useControllableState } from "./shared";
+import { useControlSize } from "./shared";
+import type { ControlSize } from "./shared";
 
 export interface RateProps extends Omit<HTMLAttributes<HTMLDivElement>, "defaultValue" | "onChange"> {
+  size?: ControlSize;
   value?: number;
   defaultValue?: number;
   count?: number;
@@ -18,12 +21,13 @@ export interface RateProps extends Omit<HTMLAttributes<HTMLDivElement>, "default
   onHoverChange?: (value: number) => void;
 }
 
-export function Rate({ value, defaultValue = 0, count = 5, allowHalf = false, allowClear = true, disabled = false, character, tooltips, onChange, onHoverChange, className = "", ...props }: RateProps) {
+export function Rate({ value, size: sizeProp, defaultValue = 0, count = 5, allowHalf = false, allowClear = true, disabled = false, character, tooltips, onChange, onHoverChange, className = "", ...props }: RateProps) {
+  const size = useControlSize(sizeProp);
   const [current, setCurrent] = useControllableState({ value, defaultValue, onChange });
   const [hover, setHover] = useState(0);
   const shown = hover || current;
   function choose(next: number) { setCurrent(allowClear && next === current ? 0 : next); }
-  return <div className={`sia-rate${disabled ? " is-disabled" : ""} ${className}`.trim()} role="radiogroup" aria-label="评分" onMouseLeave={() => { setHover(0); onHoverChange?.(0); }} {...props}>
+  return <div className={`sia-rate sia-rate--${size}${disabled ? " is-disabled" : ""} ${className}`.trim()} role="radiogroup" aria-label="评分" onMouseLeave={() => { setHover(0); onHoverChange?.(0); }} {...props}>
     {Array.from({ length: count }, (_, index) => {
       const whole = index + 1;
       const fill = Math.max(0, Math.min(1, shown - index));

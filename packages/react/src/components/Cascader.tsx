@@ -1,5 +1,6 @@
 import { useFloatingPlaceholder } from "./FloatingPlaceholder";
-import type { InputPlaceholderMode } from "./shared";
+import type { ControlSize, InputPlaceholderMode } from "./shared";
+import { useControlSize } from "./shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
 import { Checkbox } from "./Checkbox";
@@ -18,6 +19,7 @@ export interface CascaderOption {
 }
 export interface CascaderFieldNames { label?: string; value?: string; children?: string }
 export interface CascaderProps extends Omit<HTMLAttributes<HTMLDivElement>, "defaultValue" | "onChange"> {
+  size?: ControlSize;
   options: readonly CascaderOption[];
   value?: readonly CascaderValue[] | readonly (readonly CascaderValue[])[];
   defaultValue?: readonly CascaderValue[] | readonly (readonly CascaderValue[])[];
@@ -64,9 +66,10 @@ function leafPaths(options: readonly CascaderOption[], fields: Required<Cascader
 }
 
 export function Cascader({
-  options, value, defaultValue, multiple = false, showSearch = false, allowClear = false, changeOnSelect = false,
+  options, value, defaultValue, size: sizeProp, multiple = false, showSearch = false, allowClear = false, changeOnSelect = false,
   expandTrigger = "click", placeholder = "请选择", placeholderMode, disabled = false, fieldNames, displayRender, loadData, onChange, className = "", ...props
 }: CascaderProps) {
+  const size = useControlSize(sizeProp);
   const fields = useMemo(() => ({ label: fieldNames?.label ?? "label", value: fieldNames?.value ?? "value", children: fieldNames?.children ?? "children" }), [fieldNames]);
   const rootRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -162,7 +165,7 @@ export function Cascader({
   active.forEach((option) => { const children = optionChildren(option, fields); if (children?.length) columns.push(children); });
 
   const floating = useFloatingPlaceholder({ mode: placeholderMode, placeholder, filled: selectedPaths.length > 0, active: open });
-  return <div ref={rootRef} className={`sia-cascader${open ? " is-open" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()} {...props}>
+  return <div ref={rootRef} className={`sia-cascader sia-cascader--${size}${open ? " is-open" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()} {...props}>
     <button type="button" className={`sia-cascader__trigger${floating.className}`} disabled={disabled} aria-haspopup="listbox" aria-expanded={open} onClick={toggleOpen}>
       <span className="sia-cascader__value">{display
         ? multiple && Array.isArray(display) ? display.map((label, index) => <span className="sia-cascader__tag" key={pathKey(selectedPaths[index] ?? [])}>{label}</span>) : display

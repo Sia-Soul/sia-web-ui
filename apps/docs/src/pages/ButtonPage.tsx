@@ -47,7 +47,7 @@ const tokenRows = [
 
 const apiRows = [
   { property: "variant", description: "按钮视觉类型", type: "'primary' | 'default' | 'dashed' | 'filled' | 'text' | 'link'", defaultValue: "'default'" },
-  { property: "size", description: "按钮尺寸", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
+  { property: "size", description: "small / medium / large 高度为 22 / 30 / 38px；默认继承 Form，组件自身 size 优先", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
   { property: "loading", description: "显示加载状态并禁止重复点击", type: "boolean", defaultValue: "false" },
   { property: "danger", description: "危险操作样式", type: "boolean", defaultValue: "false" },
   { property: "icon", description: "按钮图标", type: "ReactNode", defaultValue: "-" },

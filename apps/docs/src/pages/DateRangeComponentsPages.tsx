@@ -57,7 +57,7 @@ export function SelectDateRangePage() {
       { property: "style.width", description: "整个组合控件的宽度，可设为 100% 填满父容器", type: "CSSProperties['width']", defaultValue: "min(560px, 100%)" },
       { property: "rangePlaceholder", description: "开始和结束日期占位内容", type: "readonly [string, string]", defaultValue: "['开始日期', '结束日期']" },
       { property: "presets", description: "日期范围快捷选项", type: "readonly DateRangePickerPreset[]", defaultValue: "-" },
-      { property: "size / status", description: "统一设置两个子控件的尺寸和校验状态", type: "ControlSize / ControlStatus", defaultValue: "'medium' / 'default'" },
+      { property: "size / status", description: "统一设置两个子控件的尺寸和校验状态，高度为 22 / 30 / 38px；默认继承 Form", type: "ControlSize / ControlStatus", defaultValue: "'medium' / 'default'" },
       { property: "disabled", description: "禁用整个组合控件", type: "boolean", defaultValue: "false" },
       { property: "onChange", description: "任一子控件变化时返回完整组合值", type: "(value: SelectDateRangeValue) => void", defaultValue: "-" },
     ]}

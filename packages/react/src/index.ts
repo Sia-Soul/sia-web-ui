@@ -124,3 +124,6 @@ export {ChartWhirlingLoading} from './components/ChartWhirlingLoading';
 export type {ChartWhirlingLoadingProps} from './components/ChartWhirlingLoading';
 export * from './components/SelectionPanel';
 export * from './components/InputSelect';
+
+export { QueryForm } from "./components/QueryForm";
+export type { QueryFormProps, QueryFormField, QueryFormShortcut, QueryFormSearchInfo } from "./components/QueryForm";

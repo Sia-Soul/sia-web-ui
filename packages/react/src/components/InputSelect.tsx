@@ -1,3 +1,4 @@
+import { useControlSize } from "./shared";
 import type { InputPlaceholderMode } from "./shared";
 import { forwardRef, useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
@@ -39,9 +40,10 @@ export interface InputSelectProps {
 }
 
 export const InputSelect = forwardRef<HTMLInputElement, InputSelectProps>(function InputSelect({ options, value, defaultValue, onChange,
-  multiple = false, displayField = "label", showValue = false, placeholder = "请选择", placeholderMode, size = "medium", status,
+  multiple = false, displayField = "label", showValue = false, placeholder = "请选择", placeholderMode, size: sizeProp, status,
   disabled = false, loading = false, allowClear = true, hideSearch, inputMaxLength, parseInput,
   enableModal, suffix, style, className = "", onOpenChange, ...inputProps }, forwardedRef) {
+  const size = useControlSize(sizeProp);
   const [internal, setInternal] = useState(defaultValue);
   const current = value !== undefined ? value : internal;
   const values = current == null ? [] : Array.isArray(current) ? current : [current];

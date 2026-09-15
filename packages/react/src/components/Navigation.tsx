@@ -1,3 +1,4 @@
+import { useControlSize } from "./shared";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { HTMLAttributes, KeyboardEvent, ReactNode, RefObject } from "react";
 import { Icon } from "./Icon";
@@ -289,7 +290,8 @@ export interface SegmentedProps extends Omit<HTMLAttributes<HTMLDivElement>, "de
   onChange?: (value: SegmentedValue) => void;
 }
 
-export function Segmented({ options, value, defaultValue, size = "medium", block = false, vertical = false, disabled = false, onChange, className = "", onKeyDown, ...props }: SegmentedProps) {
+export function Segmented({ options, value, defaultValue, size: sizeProp, block = false, vertical = false, disabled = false, onChange, className = "", onKeyDown, ...props }: SegmentedProps) {
+  const size = useControlSize(sizeProp);
   const normalized = useMemo(() => options.map((option) => typeof option === "object" ? option : { label: option, value: option }), [options]);
   const [current, setCurrent] = useControllableState<SegmentedValue | undefined>({ value, defaultValue: defaultValue ?? normalized[0]?.value, onChange: (next) => next !== undefined && onChange?.(next) });
   function keyboard(event: KeyboardEvent<HTMLDivElement>) {

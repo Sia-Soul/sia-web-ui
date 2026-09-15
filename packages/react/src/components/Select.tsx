@@ -1,3 +1,4 @@
+import { useControlSize } from "./shared";
 import { useFloatingPlaceholder } from "./FloatingPlaceholder";
 import type { InputPlaceholderMode } from "./shared";
 import { forwardRef, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
@@ -10,6 +11,7 @@ import { SelectionPanel } from "./SelectionPanel";
 import { OverflowTags } from "./OverflowTags";
 import { Icon } from "./Icon";
 import { PopupPortal } from "./PopupPortal";
+import { FloatingScrollbarProvider } from "./FloatingScrollbarProvider";
 import type { ControlSize, ControlStatus } from "./shared";
 import { useControllableState } from "./shared";
 
@@ -76,7 +78,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
     onChange,
     placeholder = "请选择",
     placeholderMode,
-    size = "medium",
+    size: sizeProp,
     status = "default",
     allowClear = false,
     loading = false,
@@ -104,6 +106,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
   },
   forwardedRef,
 ) {
+  const size = useControlSize(sizeProp);
   const fallbackId = useId();
   const selectId = id ?? fallbackId;
   const listboxId = `${selectId}-listbox`;
@@ -371,6 +374,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
       </button>
       {allowClear && hasValue && !disabled && !loading ? <button className="sia-select__clear" type="button" aria-label="清空选择" onClick={clearValue}><Icon name="circle-close" variant="filled" size={15} /></button> : null}
       <PopupPortal ref={popupRef} anchorRef={rootRef} open={open && popupMode === "dropdown"} className={`sia-select__dropdown${filteredOptions.length === 0 && !canSubmitInput ? " sia-select__dropdown--empty" : ""}`}>
+        <FloatingScrollbarProvider targetRef={listRef} />
         {showSearch || allowInput ? <label className="sia-select__search"><Icon name="search" size={15} /><input ref={searchRef} value={query} maxLength={inputMaxLength} onChange={handleSearchChange} onKeyDown={(event) => handleInteractionKeyDown(event, true)} placeholder={searchPlaceholder} aria-label={searchPlaceholder} /></label> : null}
         {canSubmitInput ? <button type="button" className="sia-select__input-option" onMouseDown={(event) => event.preventDefault()} onClick={submitInputValue}><Icon name="plus" size={14} /><span>使用“{inputValue}”</span></button> : null}
         <div

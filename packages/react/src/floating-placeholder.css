@@ -1,4 +1,5 @@
 .sia-placeholder-floating { position: relative; }
+.sia-placeholder-floating > .sia-floating-placeholder { font-size: var(--sia-control-font-size, var(--sia-font-size-small)); }
 .sia-select__trigger.sia-placeholder-floating { overflow: visible; }
 .sia-floating-placeholder { position: absolute; z-index: 20; top: var(--sia-placeholder-idle-top, 50%); left: 7px; box-sizing: border-box; max-width: calc(100% - 42px); overflow: hidden; padding-inline: 4px; color: var(--sia-color-text-secondary); background: transparent; pointer-events: none; opacity: .65; font: 400 var(--sia-font-size-small)/1 system-ui, sans-serif; text-overflow: ellipsis; white-space: nowrap; transform: translateY(-50%); transform-origin: left center; transition: top 160ms ease, color 160ms ease, background-color 160ms ease, opacity 160ms ease, transform 160ms ease; }
 .sia-placeholder-floating:focus-within > .sia-floating-placeholder,
@@ -40,3 +41,12 @@ fieldset:disabled .sia-placeholder-floating > .sia-floating-placeholder { backgr
 
 .sia-rich-text-editor.sia-placeholder-floating > .sia-rich-text-editor__toolbar { border-start-start-radius: inherit; border-start-end-radius: inherit; }
 fieldset:disabled .sia-input-control__floating-placeholder, fieldset:disabled .sia-input-number__floating-placeholder { background: var(--sia-color-control-hover); }
+
+.sia-picker-range-control__field { position: relative; display: flex; align-items: center; flex: 1; min-width: 0; height: 100%; }
+.sia-picker-range-control__field.sia-placeholder-floating > .is-placeholder { color: transparent; }
+.sia-picker-range-control__field > .sia-floating-placeholder { left: -4px; max-width: 100%; }
+.sia-picker-range-control__field.sia-placeholder-floating--filled > .sia-floating-placeholder,
+.sia-picker-range-control__field.sia-placeholder-floating--active > .sia-floating-placeholder { max-width: calc(100% / .85); }
+.sia-picker--error .sia-picker-range-control__field > .sia-floating-placeholder { color: var(--sia-color-error); }
+.sia-picker--warning .sia-picker-range-control__field > .sia-floating-placeholder { color: var(--sia-color-warning); }
+.sia-picker.is-disabled .sia-picker-range-control__field > .sia-floating-placeholder { background: var(--sia-color-control-hover); }

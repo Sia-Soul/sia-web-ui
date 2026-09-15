@@ -675,13 +675,14 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     let labelRendered = false;
     return <tr key={summary.key} className={`sia-table__summary-row ${summary.className ?? ""}`.trim()}>{leafColumns.map((column) => {
       const value = summary.values[column.key];
-      const content = value !== undefined ? value : !labelRendered && summary.label !== undefined ? (labelRendered = true, summary.label) : null;
+      const isLabel = value === undefined && !labelRendered && summary.label !== undefined;
+      const content = value !== undefined ? value : isLabel ? (labelRendered = true, summary.label) : null;
       const fixed = normalizeFixed(column.fixed);
       const fixedEdgeClass = fixed === "left" && column.key === leftFixedEdgeKey
         ? " sia-table__cell--fixed-left-edge"
         : fixed === "right" && column.key === rightFixedEdgeKey ? " sia-table__cell--fixed-right-edge" : "";
       const autoWidthClass = column.autoWidth ? " sia-table__cell--auto-width" : "";
-      return <td key={column.key} data-column-key={column.key} className={`sia-table__cell sia-table__cell--${column.align ?? "left"} sia-table__summary-cell${fixed ? ` sia-table__cell--fixed sia-table__cell--fixed-${fixed}` : ""}${fixedEdgeClass}${autoWidthClass}`} style={getFixedStyle(column)}>{content}</td>;
+      return <td key={column.key} data-column-key={column.key} className={`sia-table__cell sia-table__cell--${column.align ?? "left"} sia-table__summary-cell${isLabel ? " sia-table__summary-cell--label" : ""}${fixed ? ` sia-table__cell--fixed sia-table__cell--fixed-${fixed}` : ""}${fixedEdgeClass}${autoWidthClass}`} style={getFixedStyle(column)}>{isLabel ? <span className="sia-table__summary-label" title={typeof content === "string" ? content : undefined}>{content}</span> : content}</td>;
     })}</tr>;
   }
 

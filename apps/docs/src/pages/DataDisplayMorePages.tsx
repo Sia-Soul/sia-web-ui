@@ -9,6 +9,7 @@ import { DemoCard } from "./DemoCard";
 export function RatePage() {
   const [value, setValue] = useState(3.5);
   return <ComponentDocPage eyebrow="组件 / 数据录入 / Rate" title="Rate 评分" description="对内容进行等级评价，支持半星、清除、自定义字符和提示文本。" name="Rate" apiRows={[
+    { property: "size", description: "星形尺寸为 15 / 20 / 25px；默认继承 Form，组件自身 size 优先", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
     { property: "value / defaultValue", description: "受控或默认评分", type: "number", defaultValue: "0" },
     { property: "count / allowHalf", description: "总星数与半星", type: "number / boolean", defaultValue: "5 / false" },
     { property: "allowClear / disabled", description: "再次点击清除与只读", type: "boolean", defaultValue: "true / false" },

@@ -1,3 +1,5 @@
+import { useControlSize } from "./shared";
+import type { ControlSize } from "./shared";
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, HTMLAttributes, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { Icon } from "./Icon";
@@ -12,6 +14,7 @@ export interface ColorPickerPreset {
 }
 
 export interface ColorPickerProps extends Omit<HTMLAttributes<HTMLDivElement>, "defaultValue" | "onChange"> {
+  size?: ControlSize;
   value?: string;
   defaultValue?: string;
   mode?: ColorPickerMode;
@@ -120,6 +123,7 @@ function createDefaultStops(color: string): GradientStop[] {
 }
 
 export function ColorPicker({
+  size: sizeProp,
   value,
   defaultValue = "#1677FF",
   mode,
@@ -137,6 +141,7 @@ export function ColorPicker({
   onClear,
   ...props
 }: ColorPickerProps) {
+  const size = useControlSize(sizeProp);
   const rootRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const lastEmittedValue = useRef<string>();
@@ -251,7 +256,7 @@ export function ColorPicker({
   const triggerText = color || "无色";
   const opaqueColor = rgbaToHex({ ...rgba, a: 100 }, false);
 
-  return <div ref={rootRef} className={`sia-color-picker${disabled ? " is-disabled" : ""} ${className}`.trim()} {...props}>
+  return <div ref={rootRef} className={`sia-color-picker sia-color-picker--${size}${disabled ? " is-disabled" : ""} ${className}`.trim()} {...props}>
     <button
       type="button"
       className="sia-color-picker__trigger"

@@ -42,6 +42,7 @@ export default function Demo() {
 }`;
 
 const apiRows = [
+    { property: "size", description: "标准开关高度为 16 / 22 / 28px，分段开关为 22 / 30 / 38px；默认继承 Form", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
   { property: "checked / defaultChecked", description: "受控值与初始值", type: "boolean", defaultValue: "false" },
   { property: "variant", description: "普通滑块或双选项样式", type: "'standard' | 'segmented'", defaultValue: "'standard'" },
   { property: "checkedContent", description: "选中状态的文字、图标或自定义内容", type: "ReactNode", defaultValue: "-" },

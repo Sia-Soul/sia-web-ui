@@ -4,6 +4,13 @@ export type ControlSize = "small" | "medium" | "large";
 export type ControlStatus = "default" | "warning" | "error";
 export type InputPlaceholderMode = "default" | "floating";
 
+export const ControlSizeContext = createContext<ControlSize>("medium");
+
+export function useControlSize(size?: ControlSize) {
+  const inherited = useContext(ControlSizeContext);
+  return size ?? inherited;
+}
+
 export const PlaceholderModeContext = createContext<InputPlaceholderMode>("default");
 
 export function usePlaceholderMode(mode?: InputPlaceholderMode) {

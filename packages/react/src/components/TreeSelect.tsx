@@ -1,3 +1,4 @@
+import { useControlSize } from "./shared";
 import { useFloatingPlaceholder } from "./FloatingPlaceholder";
 import type { InputPlaceholderMode } from "./shared";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -101,7 +102,7 @@ export function TreeSelect({
   searchPlaceholder = "搜索节点",
   maxTagCount = 3,
   disabled = false,
-  size = "medium",
+  size: sizeProp,
   status = "default",
   className = "",
   onChange,
@@ -114,6 +115,7 @@ export function TreeSelect({
   dropdownFooter, displayRender, renderTrigger, onClear, onSelect, onDeselect,
   ...props
 }: TreeSelectProps) {
+  const size = useControlSize(sizeProp);
   const rootRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const nodeIndex = useMemo(() => {

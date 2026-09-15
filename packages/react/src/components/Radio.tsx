@@ -1,10 +1,13 @@
+import { ControlSizeContext, useControlSize } from "./shared";
+import type { ControlSize } from "./shared";
 import { createContext, forwardRef, useContext, useId, useMemo } from "react";
 import type { ChangeEvent, InputHTMLAttributes, ReactNode } from "react";
 import { useControllableState } from "./shared";
 
 export type RadioValue = string | number;
 
-export interface RadioProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "value" | "onChange"> {
+export interface RadioProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "size" | "value" | "onChange"> {
+  size?: ControlSize;
   value: RadioValue;
   children?: ReactNode;
   onChange?: (checked: boolean, event: ChangeEvent<HTMLInputElement>) => void;
@@ -17,6 +20,7 @@ export interface RadioOption {
 }
 
 export interface RadioGroupProps {
+  size?: ControlSize;
   value?: RadioValue;
   defaultValue?: RadioValue;
   options?: readonly (RadioOption | RadioValue)[];
@@ -42,14 +46,15 @@ const RadioContext = createContext<RadioContextValue | null>(null);
 type RadioRootProps = RadioProps & { button?: boolean };
 
 const RadioRoot = forwardRef<HTMLInputElement, RadioRootProps>(function Radio(
-  { value, children, disabled, checked, defaultChecked, button = false, className = "", onChange, ...props },
+  { value, size: sizeProp, children, disabled, checked, defaultChecked, button = false, className = "", onChange, ...props },
   ref,
 ) {
+  const size = useControlSize(sizeProp);
   const group = useContext(RadioContext);
   const fallbackId = useId();
   const grouped = group !== null;
   const currentChecked = grouped ? group.value === value : checked;
-  return <label className={`sia-radio${button ? " sia-radio--button" : ""}${button && group?.buttonStyle === "solid" ? " sia-radio--solid" : ""}${disabled || group?.disabled ? " is-disabled" : ""} ${className}`.trim()}>
+  return <label className={`sia-radio sia-radio--${size}${button ? " sia-radio--button" : ""}${button && group?.buttonStyle === "solid" ? " sia-radio--solid" : ""}${disabled || group?.disabled ? " is-disabled" : ""} ${className}`.trim()}>
     <input
       {...props}
       ref={ref}
@@ -76,6 +81,7 @@ function RadioButton(props: RadioProps) {
 }
 
 function RadioGroup({
+  size: sizeProp,
   value,
   defaultValue,
   options,
@@ -87,6 +93,7 @@ function RadioGroup({
   children,
   onChange,
 }: RadioGroupProps) {
+  const size = useControlSize(sizeProp);
   const fallbackName = useId();
   const [currentValue, setValue] = useControllableState<RadioValue | undefined>({
     value,
@@ -103,7 +110,7 @@ function RadioGroup({
     setValue,
   }), [buttonStyle, currentValue, disabled, fallbackName, name, setValue]);
   const Component = optionType === "button" ? RadioButton : RadioRoot;
-  return <RadioContext.Provider value={context}>
+  return <ControlSizeContext.Provider value={size}><RadioContext.Provider value={context}>
     <div className={`sia-radio-group${optionType === "button" ? " sia-radio-group--button" : ""} ${className}`.trim()} role="radiogroup">
       {options?.map((option) => {
         const normalized = typeof option === "object" ? option : { label: String(option), value: option };
@@ -111,7 +118,7 @@ function RadioGroup({
       })}
       {children}
     </div>
-  </RadioContext.Provider>;
+  </RadioContext.Provider></ControlSizeContext.Provider>;
 }
 
 export const Radio = Object.assign(RadioRoot, { Button: RadioButton, Group: RadioGroup });

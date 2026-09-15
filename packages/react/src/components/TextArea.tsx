@@ -2,9 +2,11 @@ import { useFloatingPlaceholder } from "./FloatingPlaceholder";
 import type { InputPlaceholderMode } from "./shared";
 import { forwardRef, useId, useState } from "react";
 import type { ChangeEvent, ReactNode, TextareaHTMLAttributes } from "react";
-import type { ControlStatus } from "./shared";
+import type { ControlSize, ControlStatus } from "./shared";
+import { useControlSize } from "./shared";
 
 export interface TextAreaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+  size?: ControlSize;
   label?: ReactNode;
   hint?: ReactNode;
   status?: ControlStatus;
@@ -17,6 +19,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function 
     label,
     hint,
     status = "default",
+    size: sizeProp,
     showCount = false,
     placeholder,
     placeholderMode,
@@ -31,6 +34,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function 
   },
   ref,
 ) {
+  const size = useControlSize(sizeProp);
   const fallbackId = useId();
   const textAreaId = id ?? fallbackId;
   const [uncontrolledValue, setUncontrolledValue] = useState(() => defaultValue === undefined ? "" : String(defaultValue));
@@ -45,7 +49,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function 
   }
 
   const control = (
-    <span className={`sia-textarea-control sia-textarea-control--${status}${floating.className}${disabled ? " is-disabled" : ""}`}>
+    <span className={`sia-textarea-control sia-textarea-control--${size} sia-textarea-control--${status}${floating.className}${disabled ? " is-disabled" : ""}`}>
       <textarea
         {...props}
         ref={ref}

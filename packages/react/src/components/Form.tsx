@@ -1,13 +1,14 @@
 import { Children, cloneElement, createContext, forwardRef, isValidElement, useContext, useEffect, useId, useMemo, useRef, useSyncExternalStore } from "react";
 import type { ChangeEventHandler, FormHTMLAttributes, InputHTMLAttributes, ReactElement, ReactNode } from "react";
-import { PlaceholderModeContext, usePlaceholderMode } from "./shared";
-import type { InputPlaceholderMode } from "./shared";
+import { ControlSizeContext, PlaceholderModeContext, useControlSize, usePlaceholderMode } from "./shared";
+import type { ControlSize, InputPlaceholderMode } from "./shared";
 import { Tooltip } from "./FloatingDisplay";
 import { Icon } from "./Icon";
 
 export type SwitchVariant = "standard" | "segmented";
 
 export interface SwitchProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "size"> {
+  size?: ControlSize;
   label?: ReactNode;
   variant?: SwitchVariant;
   checkedContent?: ReactNode;
@@ -19,6 +20,7 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(function Switch(
   {
     label,
     variant = "standard",
+    size: sizeProp,
     checkedContent,
     uncheckedContent,
     onChange,
@@ -28,6 +30,7 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(function Switch(
   },
   ref,
 ) {
+  const size = useControlSize(sizeProp);
   const hasContent = checkedContent !== undefined || uncheckedContent !== undefined;
   const checkedVisual = checkedContent ?? (variant === "segmented" ? "开" : null);
   const uncheckedVisual = uncheckedContent ?? (variant === "segmented" ? "关" : null);
@@ -37,7 +40,7 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(function Switch(
   };
 
   return (
-    <label className={`sia-switch-wrap ${className}`.trim()}>
+    <label className={`sia-switch-wrap sia-switch-wrap--${size} ${className}`.trim()}>
       <input ref={ref} type="checkbox" role="switch" className="sia-switch-input" onChange={handleChange} {...props} />
       <span
         className={`sia-switch sia-switch--${variant}${variant === "standard" && hasContent ? " sia-switch--with-content" : ""}`}
@@ -308,6 +311,7 @@ export function useForm(form?: FormInstance): readonly [FormInstance] {
 }
 
 export interface FormProps extends Omit<FormHTMLAttributes<HTMLFormElement>, "onSubmit"> {
+  size?: ControlSize;
   form?: FormInstance;
   initialValues?: FormValues;
   layout?: "horizontal" | "vertical" | "inline";
@@ -323,6 +327,7 @@ function FormRoot({
   form,
   initialValues,
   layout = "horizontal",
+  size: sizeProp,
   placeholderMode,
   disabled = false,
   requiredMark = true,
@@ -333,21 +338,22 @@ function FormRoot({
   children,
   ...props
 }: FormProps) {
+  const size = useControlSize(sizeProp);
   const resolvedPlaceholderMode = usePlaceholderMode(placeholderMode);
   const [internalForm] = useForm(form);
   const instance = internalForm as InternalFormInstance;
   instance.configure(initialValues, { onFinish, onFinishFailed, onValuesChange });
   const context = useMemo(() => instance, [instance]);
-  return <FormContext.Provider value={context}><PlaceholderModeContext.Provider value={resolvedPlaceholderMode}>
+  return <FormContext.Provider value={context}><PlaceholderModeContext.Provider value={resolvedPlaceholderMode}><ControlSizeContext.Provider value={size}>
     <form
       {...props}
-      className={`sia-form sia-form--${layout}${disabled ? " is-disabled" : ""} ${className}`.trim()}
+      className={`sia-form sia-form--${layout} sia-form--${size}${disabled ? " is-disabled" : ""} ${className}`.trim()}
       data-required-mark={requiredMark}
       onSubmit={(event) => { event.preventDefault(); instance.submit(); }}
     >
       <fieldset disabled={disabled}>{children}</fieldset>
     </form>
-  </PlaceholderModeContext.Provider></FormContext.Provider>;
+  </ControlSizeContext.Provider></PlaceholderModeContext.Provider></FormContext.Provider>;
 }
 
 export interface FormItemProps {

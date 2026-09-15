@@ -1,3 +1,4 @@
+import { useControlSize } from "./shared";
 import { forwardRef, useRef } from "react";
 import type { ButtonHTMLAttributes, CSSProperties, MouseEvent, ReactNode } from "react";
 import type { ControlSize } from "./shared";
@@ -18,7 +19,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   {
     variant = "default",
-    size = "medium",
+    size: sizeProp,
     loading = false,
     block = false,
     danger = false,
@@ -33,6 +34,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   },
   forwardedRef,
 ) {
+  const size = useControlSize(sizeProp);
   const localRef = useRef<HTMLButtonElement | null>(null);
 
   function setRef(node: HTMLButtonElement | null) {

@@ -1,3 +1,4 @@
+import { useControlSize } from "./shared";
 import { forwardRef, useId, useRef, useState } from "react";
 import type { ChangeEvent, InputHTMLAttributes, MouseEvent, ReactNode } from "react";
 import { usePlaceholderMode } from "./shared";
@@ -22,7 +23,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     label,
     hint,
     status = "default",
-    size = "medium",
+    size: sizeProp,
     prefix,
     suffix,
     allowClear = false,
@@ -41,6 +42,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   },
   forwardedRef,
 ) {
+  const size = useControlSize(sizeProp);
   const fallbackId = useId();
   const inputId = id ?? fallbackId;
   const localRef = useRef<HTMLInputElement | null>(null);

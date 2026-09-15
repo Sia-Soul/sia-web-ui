@@ -1,0 +1,56 @@
+/* Explicit component classes keep local size overrides independent of Form. */
+:is(.sia-picker, .sia-time-range).sia-picker--small { --sia-control-font-size: 12px; font-size: 12px; }
+:is(.sia-picker, .sia-time-range).sia-picker--medium { --sia-control-font-size: 14px; font-size: 14px; }
+:is(.sia-picker, .sia-time-range).sia-picker--large { --sia-control-font-size: 16px; font-size: 16px; }
+.sia-picker .sia-picker__trigger { font: inherit; }
+:is(.sia-select--small, .sia-tree-select--small, .sia-cascader--small) { --sia-control-font-size: 12px; }
+:is(.sia-select--medium, .sia-tree-select--medium, .sia-cascader--medium) { --sia-control-font-size: 14px; }
+:is(.sia-select--large, .sia-tree-select--large, .sia-cascader--large) { --sia-control-font-size: 16px; }
+.sia-tree-select .sia-tree-select__trigger, .sia-cascader .sia-cascader__trigger { font-size: var(--sia-control-font-size, 14px); }
+.sia-segmented.sia-segmented--medium button { font-size: 14px; }
+.sia-segmented.sia-segmented--large button { font-size: 16px; }
+.sia-checkbox.sia-checkbox--small, .sia-radio.sia-radio--small { --sia-choice-size: 14px; --sia-choice-dot: 6px; gap: 6px; font-size: 12px; }
+.sia-checkbox--medium, .sia-radio--medium { --sia-choice-size: 16px; --sia-choice-dot: 8px; font-size: 14px; }
+.sia-checkbox.sia-checkbox--large, .sia-radio.sia-radio--large { --sia-choice-size: 18px; --sia-choice-dot: 10px; gap: 10px; font-size: 16px; }
+.sia-checkbox .sia-checkbox__control, .sia-radio .sia-radio__control { width: var(--sia-choice-size); height: var(--sia-choice-size); }
+.sia-checkbox--small .sia-checkbox__control { border-radius: 4px; }
+.sia-checkbox--small .sia-checkbox__control span { width: 7px; height: 4px; }
+.sia-checkbox--large .sia-checkbox__control span { width: 9px; height: 6px; }
+.sia-radio .sia-radio__control span { width: var(--sia-choice-dot); height: var(--sia-choice-dot); }
+.sia-radio--button.sia-radio--small { height: var(--sia-control-height-small); padding-inline: 9px; }
+.sia-radio--button.sia-radio--medium { height: var(--sia-control-height-medium); }
+.sia-radio--button.sia-radio--large { height: var(--sia-control-height-large); padding-inline: 19px; }
+.sia-switch-wrap.sia-switch-wrap--small { --sia-switch-width: 32px; --sia-switch-height: 16px; --sia-switch-segmented-height: var(--sia-control-height-small); font-size: 12px; }
+.sia-switch-wrap.sia-switch-wrap--medium { --sia-switch-width: 44px; --sia-switch-height: 22px; --sia-switch-segmented-height: var(--sia-control-height-medium); font-size: 14px; }
+.sia-switch-wrap.sia-switch-wrap--large { --sia-switch-width: 52px; --sia-switch-height: 28px; --sia-switch-segmented-height: var(--sia-control-height-large); font-size: 16px; }
+.sia-switch-wrap.sia-switch-wrap--small { gap: 6px; }
+.sia-switch-wrap.sia-switch-wrap--large { gap: 10px; }
+.sia-select--small .sia-select__tag { padding-block: 0; line-height: 16px; }
+.sia-cascader--small .sia-cascader__tag { padding-block: 0; line-height: 16px; }
+.sia-input-select .sia-input-control--small .sia-button { height: 18px; }
+.sia-textarea-control--small .sia-textarea { padding: 4px 7px 22px; font-size: 12px; }
+.sia-textarea-control--large .sia-textarea { padding: 10px 11px 28px; font-size: 16px; }
+.sia-color-picker--small { --sia-color-control-height: var(--sia-control-height-small); font-size: 12px; }
+.sia-color-picker--medium { --sia-color-control-height: var(--sia-control-height-medium); font-size: 14px; }
+.sia-color-picker--large { --sia-color-control-height: var(--sia-control-height-large); font-size: 16px; }
+.sia-color-picker .sia-color-picker__trigger { height: var(--sia-color-control-height); min-height: 0; padding: 3px; font-size: inherit; }
+.sia-color-picker__trigger .sia-color-picker__swatch { width: calc(var(--sia-color-control-height) - 8px); height: calc(var(--sia-color-control-height) - 8px); border-radius: 3px; }
+.sia-segmented.sia-segmented--small { padding: 2px; }
+.sia-segmented.sia-segmented--medium { padding: 2px; }
+.sia-segmented.sia-segmented--large { padding: 2px; }
+.sia-segmented.sia-segmented--small button { height: calc(var(--sia-control-height-small) - 4px); min-height: 0; padding-block: 0; }
+.sia-segmented.sia-segmented--medium button { height: calc(var(--sia-control-height-medium) - 4px); min-height: 0; padding-block: 0; }
+.sia-segmented.sia-segmented--large button { height: calc(var(--sia-control-height-large) - 4px); min-height: 0; padding-block: 0; }
+.sia-form--small > fieldset > .sia-form-item > .sia-form-item__label { padding-top: 1px; }
+.sia-form--medium > fieldset > .sia-form-item > .sia-form-item__label { padding-top: 5px; }
+.sia-form--large > fieldset > .sia-form-item > .sia-form-item__label { padding-top: 9px; }
+.sia-form.sia-form--vertical > fieldset > .sia-form-item > .sia-form-item__label { padding-top: 0; }
+.sia-rate--small .sia-rate__item button { font-size: 15px; }
+.sia-rate--medium .sia-rate__item button { font-size: 20px; }
+.sia-rate--large .sia-rate__item button { font-size: 25px; }
+.sia-pagination .sia-pagination__size-select .sia-select__trigger { min-height: 0; }
+.sia-pagination--small { font-size: 12px; }
+.sia-pagination--medium { font-size: 14px; }
+.sia-pagination--large { font-size: 16px; }
+.sia-pagination--small .sia-pagination__buttons .sia-button { width: 22px; min-width: 22px; }
+.sia-pagination--large .sia-pagination__buttons .sia-button { width: 38px; min-width: 38px; }

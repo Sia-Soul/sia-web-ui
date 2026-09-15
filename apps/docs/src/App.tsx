@@ -35,6 +35,7 @@ import { SwitchPage } from "./pages/SwitchPage";
 import { TabsPage } from "./pages/TabsPage";
 import { TagPage } from "./pages/TagPage";
 import { TablePage } from "./pages/TablePage";
+import { QueryFormPage } from "./pages/QueryFormPage";
 import { ToolPanelPage } from "./pages/ToolPanelPage";
 import { TreemapPage } from "./pages/TreemapPage";
 import { ChartsPage, ChartCategoryPage } from "./pages/ChartsPage";
@@ -168,6 +169,7 @@ export default function App() {
             <Route path="/components/tree-select" element={<TreeSelectPage />} />
             <Route path="/components/upload" element={<UploadPage />} />
             <Route path="/components/form" element={<FormPage />} />
+            <Route path="/components/query-form" element={<QueryFormPage />} />
             <Route path="/components/message" element={<MessagePage />} />
             <Route path="/components/modal" element={<ModalPage />} />
             <Route path="/components/select" element={<SelectPage />} />
