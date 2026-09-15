@@ -426,6 +426,8 @@
 .sia-menu__entry.is-disabled { opacity: .45; }
 .sia-menu__label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sia-menu__icon, .sia-menu__extra { display: inline-flex; flex: 0 0 auto; }
+.sia-menu__icon { justify-content: center; align-items: center; width: var(--sia-menu-icon-size, 16px); flex-basis: var(--sia-menu-icon-size, 16px); }
+.sia-menu__icon > * { max-width: 100%; }
 .sia-menu__extra { color: var(--sia-color-text-secondary); font-size: 12px; }
 .sia-menu__expand-icon { transition: transform 180ms cubic-bezier(.2, 0, 0, 1); }
 .sia-menu__entry.is-open > .sia-menu__item .sia-menu__expand-icon { transform: rotate(180deg); }

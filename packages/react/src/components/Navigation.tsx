@@ -96,11 +96,13 @@ function MenuEntry({
   level,
   parents,
   props,
+  reserveIcon,
 }: {
   item: MenuItem;
   level: number;
   parents: string[];
   props: MenuLevelContext;
+  reserveIcon: boolean;
 }) {
   const anchorRef = useRef<HTMLButtonElement>(null);
   const closeTimerRef = useRef<number | undefined>(undefined);
@@ -147,7 +149,7 @@ function MenuEntry({
       aria-expanded={hasChildren ? isOpen : undefined}
       onClick={(event) => hasChildren ? props.toggle(item.key) : props.select(item, path, event)}
     >
-      {item.icon ? <span className="sia-menu__icon">{item.icon}</span> : null}
+      {reserveIcon ? <span className="sia-menu__icon" aria-hidden={!item.icon || undefined}>{item.icon}</span> : null}
       {!collapsed ? <span className="sia-menu__label">{item.label}</span> : null}
       {!collapsed && item.extra ? <span className="sia-menu__extra">{item.extra}</span> : null}
       {!collapsed && hasChildren ? <Icon className="sia-menu__expand-icon" name="chevron-down" size={13} /> : null}
@@ -167,25 +169,31 @@ function MenuEntry({
   </li>;
 }
 
+function hasMenuIcon(items: readonly MenuItem[]): boolean {
+  return items.some(item => item.type === "group" ? hasMenuIcon(item.children ?? []) : item.type !== "divider" && Boolean(item.icon));
+}
+
 function MenuLevel({
   items,
   level,
   parents,
   props,
+  reserveIcon = hasMenuIcon(items),
 }: {
   items: readonly MenuItem[];
   level: number;
   parents: string[];
   props: MenuLevelContext;
+  reserveIcon?: boolean;
 }) {
   return <>
     {items.map((item, index) => {
       if (item.type === "divider") return <li className="sia-menu__divider" key={item.key || `divider-${index}`} role="separator" />;
       if (item.type === "group") return <li className="sia-menu__group" key={item.key}>
         <div className="sia-menu__group-title">{item.label}</div>
-        <ul role="group"><MenuLevel items={item.children ?? []} level={level + 1} parents={[...parents, item.key]} props={props} /></ul>
+        <ul role="group"><MenuLevel items={item.children ?? []} level={level + 1} parents={[...parents, item.key]} props={props} reserveIcon={reserveIcon} /></ul>
       </li>;
-      return <MenuEntry key={item.key} item={item} level={level} parents={parents} props={props} />;
+      return <MenuEntry key={item.key} item={item} level={level} parents={parents} props={props} reserveIcon={reserveIcon} />;
     })}
   </>;
 }
