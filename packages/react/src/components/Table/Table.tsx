@@ -232,6 +232,8 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     tableHeight,
     size = "medium",
     bordered = true,
+    rowBordered = true,
+    columnBordered = true,
     toolbarBordered = false,
     striped = true,
     virtual,
@@ -686,7 +688,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
   return (
     <div
       ref={rootRef}
-      className={`sia-table sia-table--${size}${bordered ? " sia-table--bordered" : ""}${hasToolbar && !toolbarBordered ? " sia-table--borderless-toolbar" : ""} ${className}`.trim()}
+      className={`sia-table sia-table--${size}${bordered ? " sia-table--bordered" : ""}${!rowBordered ? " sia-table--no-row-borders" : ""}${!columnBordered ? " sia-table--no-column-borders" : ""}${hasToolbar && !toolbarBordered ? " sia-table--borderless-toolbar" : ""} ${className}`.trim()}
       style={rootStyle}
       data-has-fixed-left={left > 0}
       data-has-fixed-right={right > 0}

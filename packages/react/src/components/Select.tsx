@@ -49,6 +49,8 @@ export interface SelectProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
   onSearch?: (query: string) => void;
   filterOption?: (query: string, option: SelectOption) => boolean;
   showSelectAll?: boolean;
+  /** 是否显示下拉面板底部的条数统计与操作行；默认单选隐藏、多选显示，不影响弹框模式。 */
+  showActions?: boolean;
   /** 最多显示的标签数；空间不足时会继续折叠，并为 +N 预留宽度。 */
   maxTagCount?: number;
   virtual?: boolean;
@@ -86,6 +88,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
     onSearch,
     filterOption = defaultFilterOption,
     showSelectAll = true,
+    showActions = mode === "multiple",
     maxTagCount = 2,
     virtual = true,
     virtualThreshold = 100,
@@ -366,7 +369,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
         <Icon className="sia-select__arrow" name="chevron-down" size={15} />
       </button>
       {allowClear && hasValue && !disabled && !loading ? <button className="sia-select__clear" type="button" aria-label="清空选择" onClick={clearValue}><Icon name="circle-close" variant="filled" size={15} /></button> : null}
-      <PopupPortal ref={popupRef} anchorRef={rootRef} open={open && popupMode === "dropdown"} className="sia-select__dropdown">
+      <PopupPortal ref={popupRef} anchorRef={rootRef} open={open && popupMode === "dropdown"} className={`sia-select__dropdown${filteredOptions.length === 0 && !canSubmitInput ? " sia-select__dropdown--empty" : ""}`}>
         {showSearch || allowInput ? <label className="sia-select__search"><Icon name="search" size={15} /><input ref={searchRef} value={query} maxLength={inputMaxLength} onChange={handleSearchChange} onKeyDown={(event) => handleInteractionKeyDown(event, true)} placeholder={searchPlaceholder} aria-label={searchPlaceholder} /></label> : null}
         {canSubmitInput ? <button type="button" className="sia-select__input-option" onMouseDown={(event) => event.preventDefault()} onClick={submitInputValue}><Icon name="plus" size={14} /><span>使用“{inputValue}”</span></button> : null}
         <div
@@ -383,14 +386,14 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
             {renderedOptions.map(renderOption)}
           </div> : renderedOptions.map(renderOption) : canSubmitInput ? null : <div className="sia-select__empty">{notFoundContent}</div>}
         </div>
-        <div className="sia-select__actions">
+        {showActions ? <div className="sia-select__actions">
           <span>共 {filteredOptions.length} 条</span>
           {multiple && showSelectAll ? <>
             <Button variant="link" size="small" disabled={allFilteredSelected || !enabledFilteredOptions.length} onClick={selectAllFiltered}>全选</Button>
             <Button variant="link" size="small" disabled={!enabledFilteredOptions.length} onClick={invertFiltered}>反选</Button>
           </> : null}
           {multiple || allowClear ? <Button variant="link" size="small" danger disabled={!hasValue} onClick={clearSelection}>清空</Button> : null}
-        </div>
+        </div> : null}
       </PopupPortal>
       {popupMode === "modal" ? <Modal className="sia-select-modal" open={open} title={modalConfig?.title ?? placeholder} width={modalConfig?.width ?? 900}
         onOpenChange={(next) => { if (!next) closeDropdown(); }} onCancel={closeDropdown}

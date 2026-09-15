@@ -158,6 +158,10 @@ export interface TableProps<T extends Record<string, unknown> = Record<string, u
   tableHeight?: number | string;
   size?: TableSize;
   bordered?: boolean;
+  /** 是否显示行分隔线（含表头和汇总行），默认 true。 */
+  rowBordered?: boolean;
+  /** 是否显示列分隔线，默认 true。 */
+  columnBordered?: boolean;
   /** 是否将工具栏纳入表格边框，默认 false；表格主体边框仍由 bordered 控制。 */
   toolbarBordered?: boolean;
   striped?: boolean;

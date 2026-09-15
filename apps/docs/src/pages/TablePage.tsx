@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
+  Checkbox,
   Icon,
   Space,
   Table,
@@ -694,11 +695,15 @@ const apiRows = [
   { property: "size", description: "表格密度", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
   { property: "toolbarBordered", description: "工具栏是否纳入表格边框；默认无边框，主体边框仍由 bordered 控制", type: "boolean", defaultValue: "false" },
   { property: "bordered / striped / stickyHeader", description: "边框、斑马纹和粘性表头", type: "boolean", defaultValue: "true" },
+  { property: "rowBordered", description: "显示行分隔线，作用于表头、数据行及汇总行；独立于外边框 bordered", type: "boolean", defaultValue: "true" },
+  { property: "columnBordered", description: "显示列分隔线，独立于外边框 bordered；边框默认颜色为 #EFF2F6，可用 --sia-table-border-color 覆盖", type: "boolean", defaultValue: "true" },
   { property: "onCellContextMenu", description: "单元格右键事件，可用于业务上下文菜单", type: "(record, column, index, event) => void", defaultValue: "-" },
   { property: "TableSettingsAdapter", description: "列设置持久化适配器，可接云端或本地存储", type: "{ load(scope), save(scope, settings) }", defaultValue: "-" },
 ] as const;
 
 export function TablePage() {
+  const [rowBordered, setRowBordered] = useState(true);
+  const [columnBordered, setColumnBordered] = useState(true);
   const [tab, setTab] = useState<"examples" | "api">("examples");
   const [products, setProducts] = useState(() => createProducts(125));
   const [fullFeatureProducts, setFullFeatureProducts] = useState(() => createProducts(60));
@@ -792,6 +797,13 @@ export function TablePage() {
     {tab === "examples" ? <div className="demo-stack">
       <DemoCard title="基础表格" description="核心负责数据、列、分组表头、固定列、滚动和渲染，并默认支持行悬停高亮和拖拽调整列宽。" code={basicCode}>
         <Table className="table-demo" rowKey="id" columns={basicColumns} dataSource={basicData} plugins={basicPlugins} height={350} />
+      </DemoCard>
+      <DemoCard title="行列边框" description="行、列分隔线可独立控制，外边框仍由 bordered 控制。默认边框颜色为 #EFF2F6。" code={'<Table columns={columns} dataSource={data} rowBordered={true} columnBordered={false} />'}>
+        <Space style={{ marginBottom: 12 }}>
+          <Checkbox checked={rowBordered} onChange={setRowBordered}>显示行边框线</Checkbox>
+          <Checkbox checked={columnBordered} onChange={setColumnBordered}>显示列边框线</Checkbox>
+        </Space>
+        <Table className="border-options-table-demo" rowKey="id" columns={basicColumns} dataSource={basicData} rowBordered={rowBordered} columnBordered={columnBordered} height={250} />
       </DemoCard>
       <DemoCard title="插件组合" description="选择、序号、排序、分页、编辑、列设置、汇总和工具栏均可按需加载；拖拽列宽已默认启用。" code={pluginCode}>
         <Table className="table-demo" rowKey="id" columns={advancedColumns} dataSource={products} plugins={advancedPlugins} height={470} />

@@ -137,6 +137,7 @@ const apiRows = [
   { property: "maxTagCount", description: "最多显示的选中标签数；按可用宽度自动继续折叠并预留 +N 空间，始终保持单行", type: "number", defaultValue: "2" },
   { property: "showValue", description: "在选项名称下方显示 value，下拉与弹框模式均支持；不影响按 value 搜索", type: "boolean", defaultValue: "false" },
   { property: "showSelectAll", description: "多选时显示全选、反选；下拉操作栏固定在列表底部", type: "boolean", defaultValue: "true" },
+  { property: "showActions", description: "显示下拉面板底部整行（条数、全选、反选、清空）；默认单选隐藏、多选显示，可显式覆盖；不影响输入框清空按钮或弹框模式", type: "boolean", defaultValue: "mode === 'multiple'" },
   { property: "virtual", description: "长列表启用窗口化渲染", type: "boolean", defaultValue: "true" },
   { property: "virtualThreshold", description: "启用虚拟滚动的选项数量", type: "number", defaultValue: "100" },
   { property: "loading", description: "显示加载状态并禁用展开", type: "boolean", defaultValue: "false" },
@@ -159,6 +160,9 @@ export function SelectPage() {
             <Select aria-label="选择前端框架" options={frameworkOptions} value={value} onChange={(nextValue) => setValue(asSingleValue(nextValue))} allowClear showSearch placeholder="请选择前端框架" />
             <span className="demo-result">当前值：{value ?? "（未选择）"}</span>
           </div>
+        </DemoCard>
+        <DemoCard title="隐藏底部操作行" description="设置 showActions={false} 可隐藏条数、全选、反选和清空整行；选项选择及输入框清空按钮保持可用。" code={'<Select mode="multiple" options={options} showActions={false} allowClear />'}>
+          <Select aria-label="隐藏操作行选择器" mode="multiple" options={frameworkOptions} showActions={false} allowClear placeholder="请选择前端框架" />
         </DemoCard>
         <DemoCard title="显示选项值" description="开启 showValue 后，选项名称下方会增加一行 value；名称和 value 超长时分别单行省略。" code={'<Select showValue options={options} />\n<Select showValue popupMode="modal" options={options} />'}>
           <div className="component-demo">
@@ -218,7 +222,7 @@ export function SelectPage() {
             <Select aria-label="错误状态选择器" status="error" options={frameworkOptions} placeholder="请选择必填项" />
           </div>
         </DemoCard>
-        <DemoCard title="加载、禁用与空数据" description="覆盖异步加载和无候选项的常见场景。" code={stateCode}>
+        <DemoCard title="加载、禁用与空数据" description="面板按内容确定宽度，最小 90px；无选项或搜索无结果时与选择器等宽（仍保留最小宽度）。" code={stateCode}>
           <div className="component-demo">
             <Select aria-label="加载中的选择器" options={frameworkOptions} loading placeholder="加载中" />
             <Select aria-label="禁用的选择器" options={frameworkOptions} defaultValue="vue" disabled />

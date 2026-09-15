@@ -32,6 +32,10 @@ fieldset:disabled .sia-placeholder-floating > .sia-floating-placeholder { backgr
 .sia-rich-text-editor.sia-placeholder-floating .tiptap p.is-editor-empty:first-child::before { content: none; }
 .sia-markdown-editor.sia-placeholder-floating { --sia-placeholder-idle-top: 80px; }
 .sia-markdown-editor.sia-placeholder-floating [data-placeholder]::before { content: none !important; }
+/* Raised labels use the border width; compensate for scaling before ellipsis. */
+.sia-placeholder-floating:focus-within > .sia-floating-placeholder,
+.sia-placeholder-floating--filled > .sia-floating-placeholder,
+.sia-placeholder-floating--active > .sia-floating-placeholder { max-width: calc((100% - 14px) / .85); }
 @media (prefers-reduced-motion: reduce) { .sia-floating-placeholder { transition: none; } }
 
 .sia-rich-text-editor.sia-placeholder-floating > .sia-rich-text-editor__toolbar { border-start-start-radius: inherit; border-start-end-radius: inherit; }
