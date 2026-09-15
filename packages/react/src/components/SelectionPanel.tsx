@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { Checkbox } from "./Checkbox";
 import { Button } from "./Button";
 import { Tooltip } from "./FloatingDisplay";
 import { Input } from "./Input";
@@ -21,6 +22,8 @@ export interface SelectionPanelProps {
   disabled?: boolean;
   loading?: boolean;
   showSearch?: boolean;
+  showActions?: boolean;
+  includeUnknownValues?: boolean;
   searchValue?: string;
   onSearch?: (value: string) => void;
   selectedOnly?: boolean;
@@ -33,7 +36,7 @@ export interface SelectionPanelProps {
 
 /** 可嵌入下拉或弹窗的分组选择面板，长列表按行虚拟化。 */
 export function SelectionPanel({ options, value, onChange, multiple = false, disabled = false, loading = false,
-  showSearch = true, searchValue, onSearch, selectedOnly = false, showValue = false,
+  showSearch = true, showActions = true, includeUnknownValues = true, searchValue, onSearch, selectedOnly = false, showValue = false,
   displayField = "label", columns = 1, maxHeight = 250, autoFocusSearch = false }: SelectionPanelProps) {
   const [localSearch, setLocalSearch] = useState("");
   const search = searchValue ?? localSearch;
@@ -44,9 +47,10 @@ export function SelectionPanel({ options, value, onChange, multiple = false, dis
   const selected = useMemo(() => new Set(value), [value]);
   const count = Math.max(1, Math.floor(columns));
   const allOptions = useMemo<SelectionOption[]>(() => {
+    if (!includeUnknownValues) return [...options];
     const known = new Set(options.filter(option => option.optionType !== "divider").map(option => option.value));
     return [...value.filter(item => !known.has(item)).map(item => ({ value: item, label: String(item), group: "自定义值" })), ...options];
-  }, [options, value]);
+  }, [options, value, includeUnknownValues]);
   const filtered = useMemo(() => allOptions.filter(option => (!selectedOnly || selected.has(option.value)) &&
     (!search || option.optionType !== "divider" && [option.label, option.value].some(text => String(text ?? "").toLowerCase().includes(search.toLowerCase())))),
   [allOptions, selectedOnly, selected, search]);
@@ -85,7 +89,7 @@ export function SelectionPanel({ options, value, onChange, multiple = false, dis
   return <div className="sia-selection-panel">
     {showSearch && <Input aria-label="搜索选项" placeholder="搜索" autoFocus={autoFocusSearch} value={search} allowClear
       onChange={event => { setLocalSearch(event.target.value); onSearch?.(event.target.value); }} />}
-    {multiple && <div className="sia-selection-panel__actions">
+    {multiple && showActions && <div className="sia-selection-panel__actions">
       <Button variant="link" size="small" disabled={disabled || loading || !enabled.length} onClick={() => batch("all")}>全选</Button>
       <Button variant="link" size="small" disabled={disabled || loading || !enabled.length} onClick={() => batch("invert")}>反选</Button>
       <Button variant="link" size="small" disabled={disabled || loading || !value.length} onClick={() => batch("clear")}>清空</Button>
@@ -95,6 +99,7 @@ export function SelectionPanel({ options, value, onChange, multiple = false, dis
       className="sia-selection-panel__list" style={{ maxHeight }} onScroll={event => setScrollTop(event.currentTarget.scrollTop)}
       aria-activedescendant={active !== undefined ? `${id}-${typeof active}-${active}` : undefined}
       onKeyDown={event => {
+        if (event.target instanceof HTMLInputElement) return;
         if (disabled || loading || !enabled.length) return;
         const index = enabled.findIndex(option => option.value === active);
         if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
@@ -111,14 +116,17 @@ export function SelectionPanel({ options, value, onChange, multiple = false, dis
           style={{ position: "absolute", top: row.top, height: row.height, width: "100%", gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` }}>
           {row.title ?? row.items?.map((option, index) => option.optionType === "divider" ? <div role="separator" key={`divider-${index}`} className="sia-selection-panel__divider" /> :
             <Tooltip key={`${typeof option.value}-${option.value}`} title={option.disabled ? option.disabledTip : undefined} placement="right">
-              <button type="button" role="option" id={`${id}-${typeof option.value}-${option.value}`} tabIndex={-1}
+              <div role="option" id={`${id}-${typeof option.value}-${option.value}`} tabIndex={-1}
                 aria-selected={selected.has(option.value)} aria-disabled={disabled || option.disabled || undefined}
                 className={`sia-selection-panel__option${active === option.value ? " is-active" : ""}`}
-                onClick={() => toggle(option)}>
-                {multiple && <span aria-hidden="true" className="sia-selection-panel__check">{selected.has(option.value) ? "✓" : ""}</span>}
-                <span className="sia-selection-panel__text">{showValue || displayField === "label" ? option.label : String(option.value)}
+                onClick={(event) => { if (!(event.target as Element).closest(".sia-checkbox")) toggle(option); }}>
+                {multiple ? <Checkbox checked={selected.has(option.value)} disabled={disabled || loading || option.disabled} tabIndex={-1} onChange={() => toggle(option)}>
+                  <span className="sia-selection-panel__text"><span className="sia-selection-panel__label">{showValue || displayField === "label" ? option.label : String(option.value)}</span>{showValue && <small>{String(option.value)}</small>}</span>
+                </Checkbox> :
+                <span className="sia-selection-panel__text"><span className="sia-selection-panel__label">{showValue || displayField === "label" ? option.label : String(option.value)}</span>
                   {showValue && <small>{String(option.value)}</small>}</span>
-              </button>
+                }
+              </div>
             </Tooltip>)}
         </div>)}</div>}
     </div>

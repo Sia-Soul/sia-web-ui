@@ -2,6 +2,11 @@ import { useFloatingPlaceholder } from "./FloatingPlaceholder";
 import type { InputPlaceholderMode } from "./shared";
 import { forwardRef, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ButtonHTMLAttributes, KeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode, UIEvent } from "react";
+import { Modal } from "./Modal";
+import { Button } from "./Button";
+import { Input } from "./Input";
+import { Checkbox } from "./Checkbox";
+import { SelectionPanel } from "./SelectionPanel";
 import { OverflowTags } from "./OverflowTags";
 import { Icon } from "./Icon";
 import { PopupPortal } from "./PopupPortal";
@@ -16,11 +21,15 @@ export type SelectOption = {
   label: ReactNode;
   value: SelectValue;
   disabled?: boolean;
+  /** 弹框模式中的分组标题。 */
+  group?: string;
 };
 
 export interface SelectProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "defaultValue" | "onChange" | "value"> {
   options: readonly SelectOption[];
   mode?: SelectMode;
+  popupMode?: "dropdown" | "modal";
+  modalConfig?: { title?: ReactNode; width?: number | string; columns?: number; maxHeight?: number; footerExtra?: ReactNode };
   value?: SelectChangeValue;
   defaultValue?: SelectChangeValue;
   onChange?: (value: SelectChangeValue, option: SelectOption | SelectOption[] | null) => void;
@@ -31,6 +40,8 @@ export interface SelectProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
   allowClear?: boolean;
   loading?: boolean;
   showSearch?: boolean;
+  /** 在选项名称下方显示对应的 value。 */
+  showValue?: boolean;
   /** 允许将搜索框内容作为自定义选项提交。 */
   allowInput?: boolean;
   inputMaxLength?: number;
@@ -48,13 +59,16 @@ export interface SelectProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
 }
 
 function defaultFilterOption(query: string, option: SelectOption) {
-  return String(option.label).toLowerCase().includes(query.toLowerCase());
+  const keyword = query.toLowerCase();
+  return [option.label, option.value].some(value => String(value).toLowerCase().includes(keyword));
 }
 
 export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select(
   {
     options,
     mode = "single",
+    popupMode = "dropdown",
+    modalConfig,
     value,
     defaultValue,
     onChange,
@@ -65,17 +79,18 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
     allowClear = false,
     loading = false,
     showSearch = false,
+    showValue = false,
     allowInput = false,
     inputMaxLength,
     searchPlaceholder = "搜索选项",
     onSearch,
     filterOption = defaultFilterOption,
-    showSelectAll = false,
+    showSelectAll = true,
     maxTagCount = 2,
     virtual = true,
     virtualThreshold = 100,
     listHeight = 256,
-    optionHeight = 34,
+    optionHeight = showValue ? 54 : 34,
     disabled,
     className = "",
     id,
@@ -93,6 +108,8 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
   const searchRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
+  const [modalValues, setModalValues] = useState<SelectValue[]>([]);
+  const [selectedOnly, setSelectedOnly] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(-1);
   const [scrollTop, setScrollTop] = useState(0);
@@ -146,18 +163,20 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
   const allFilteredSelected = enabledFilteredOptions.length > 0 && enabledFilteredOptions.every((option) => selectedValueSet.has(option.value));
 
   useEffect(() => {
-    if (!open) return undefined;
+    if (!open || popupMode === "modal") return undefined;
     function closeFromOutside(event: MouseEvent) {
       const target = event.target as Node;
       if (!rootRef.current?.contains(target) && !popupRef.current?.contains(target)) closeDropdown();
     }
     document.addEventListener("mousedown", closeFromOutside);
     return () => document.removeEventListener("mousedown", closeFromOutside);
-  }, [open]);
+  }, [open, popupMode]);
 
   useEffect(() => {
     if (open && (showSearch || allowInput)) searchRef.current?.focus();
   }, [allowInput, open, showSearch]);
+
+  useEffect(() => { if (disabled || loading) closeDropdown(); }, [disabled, loading]);
 
   function firstEnabledIndex() {
     return filteredOptions.findIndex((option) => !option.disabled);
@@ -173,6 +192,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
     if (disabled || loading) return;
     const selectedIndex = filteredOptions.findIndex((option) => selectedValueSet.has(option.value) && !option.disabled);
     setActiveIndex(selectedIndex >= 0 ? selectedIndex : firstEnabledIndex());
+    if (popupMode === "modal") { setModalValues([...selectedValues]); setSelectedOnly(false); }
     setOpen(true);
   }
 
@@ -233,11 +253,17 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
     }
   }
 
+  function invertFiltered() {
+    const enabled = new Set(enabledFilteredOptions.map(option => option.value));
+    setCurrentValue([...selectedValues.filter(value => !enabled.has(value)), ...enabledFilteredOptions.filter(option => !selectedValueSet.has(option.value)).map(option => option.value)]);
+  }
+
   function clearSelection() {
     setCurrentValue(multiple ? [] : null);
   }
 
   function handleInteractionKeyDown(event: KeyboardEvent<HTMLButtonElement | HTMLInputElement>, fromSearch = false) {
+    if (popupMode === "modal" && open) return;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       if (!open) openDropdown();
@@ -301,10 +327,18 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
       onMouseDown={(event) => event.preventDefault()}
       onClick={() => selectOption(option)}
     >
-      <span>{option.label}</span>{selected ? <Icon name="check" size={15} /> : null}
+      <span className="sia-select__option-content"><span className="sia-select__option-label">{option.label}</span>{showValue ? <small className="sia-select__option-value">{String(option.value)}</small> : null}</span>{selected ? <Icon name="check" size={15} /> : null}
     </div>;
   }
 
+
+  const modalAvailable: SelectOption[] = [...availableOptions, ...modalValues.filter(value => !availableOptions.some(option => option.value === value)).map(value => ({ value, label: String(value) }))];
+  const modalFiltered = deferredQuery ? modalAvailable.filter(option => filterOption(deferredQuery, option)) : modalAvailable;
+  const modalEnabled = modalFiltered.filter(option => !option.disabled && (!selectedOnly || modalValues.includes(option.value)));
+  function modalBatch(operation: "all" | "remove" | "invert") {
+    const editable = new Set(modalEnabled.map(option => option.value));
+    setModalValues([...modalValues.filter(value => !editable.has(value)), ...modalEnabled.filter(option => operation === "all" || operation === "invert" && !modalValues.includes(option.value)).map(option => option.value)]);
+  }
 
   const floating = useFloatingPlaceholder({ mode: placeholderMode, placeholder, filled: hasValue, active: open });
 
@@ -317,10 +351,10 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
         id={selectId}
         type="button"
         role="combobox"
-        aria-controls={listboxId}
+        aria-controls={popupMode === "modal" ? undefined : listboxId}
         aria-expanded={open}
-        aria-haspopup="listbox"
-        aria-activedescendant={open && activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined}
+        aria-haspopup={popupMode === "modal" ? "dialog" : "listbox"}
+        aria-activedescendant={popupMode === "dropdown" && open && activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined}
         aria-invalid={status === "error" || undefined}
         disabled={disabled}
         onClick={() => open ? closeDropdown() : openDropdown()}
@@ -332,14 +366,9 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
         <Icon className="sia-select__arrow" name="chevron-down" size={15} />
       </button>
       {allowClear && hasValue && !disabled && !loading ? <button className="sia-select__clear" type="button" aria-label="清空选择" onClick={clearValue}><Icon name="circle-close" variant="filled" size={15} /></button> : null}
-      <PopupPortal ref={popupRef} anchorRef={rootRef} open={open} className="sia-select__dropdown">
+      <PopupPortal ref={popupRef} anchorRef={rootRef} open={open && popupMode === "dropdown"} className="sia-select__dropdown">
         {showSearch || allowInput ? <label className="sia-select__search"><Icon name="search" size={15} /><input ref={searchRef} value={query} maxLength={inputMaxLength} onChange={handleSearchChange} onKeyDown={(event) => handleInteractionKeyDown(event, true)} placeholder={searchPlaceholder} aria-label={searchPlaceholder} /></label> : null}
         {canSubmitInput ? <button type="button" className="sia-select__input-option" onMouseDown={(event) => event.preventDefault()} onClick={submitInputValue}><Icon name="plus" size={14} /><span>使用“{inputValue}”</span></button> : null}
-        {multiple && showSelectAll ? <div className="sia-select__actions">
-          <button type="button" disabled={allFilteredSelected || enabledFilteredOptions.length === 0} onClick={selectAllFiltered}>全选</button>
-          <button type="button" disabled={!hasValue} onClick={clearSelection}>清除</button>
-          <span>{selectedValues.length} 项已选</span>
-        </div> : null}
         <div
           ref={listRef}
           id={listboxId}
@@ -354,7 +383,42 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
             {renderedOptions.map(renderOption)}
           </div> : renderedOptions.map(renderOption) : canSubmitInput ? null : <div className="sia-select__empty">{notFoundContent}</div>}
         </div>
+        <div className="sia-select__actions">
+          <span>共 {filteredOptions.length} 条</span>
+          {multiple && showSelectAll ? <>
+            <Button variant="link" size="small" disabled={allFilteredSelected || !enabledFilteredOptions.length} onClick={selectAllFiltered}>全选</Button>
+            <Button variant="link" size="small" disabled={!enabledFilteredOptions.length} onClick={invertFiltered}>反选</Button>
+          </> : null}
+          {multiple || allowClear ? <Button variant="link" size="small" danger disabled={!hasValue} onClick={clearSelection}>清空</Button> : null}
+        </div>
       </PopupPortal>
+      {popupMode === "modal" ? <Modal className="sia-select-modal" open={open} title={modalConfig?.title ?? placeholder} width={modalConfig?.width ?? 900}
+        onOpenChange={(next) => { if (!next) closeDropdown(); }} onCancel={closeDropdown}
+        footer={<div className="sia-select-modal__footer"><div>{modalConfig?.footerExtra}</div><div>
+          <Button onClick={closeDropdown}>取消</Button>
+          <Button variant="primary" disabled={disabled || loading} onClick={() => { setCurrentValue(multiple ? modalValues : modalValues[0] ?? null); closeDropdown(); }}>确定</Button>
+        </div></div>}>
+        {open ? <>
+          <div className="sia-select-modal__heading">
+            <div role="tablist" aria-label="选项范围">
+              <Button role="tab" aria-selected={!selectedOnly} variant="link" onClick={() => setSelectedOnly(false)}>全部</Button>
+              <Button role="tab" aria-selected={selectedOnly} variant="link" onClick={() => setSelectedOnly(true)}>已选项({modalValues.length})</Button>
+            </div>
+            <Input aria-label={searchPlaceholder} placeholder={searchPlaceholder} prefix={<Icon name="search" size={14} />} value={query} allowClear
+              onChange={(event) => { setQuery(event.target.value); onSearch?.(event.target.value); }} />
+          </div>
+          {multiple && showSelectAll ? <div className="sia-select-modal__actions">
+            <Checkbox checked={modalEnabled.length > 0 && modalEnabled.every(option => modalValues.includes(option.value))}
+              indeterminate={modalEnabled.some(option => modalValues.includes(option.value)) && !modalEnabled.every(option => modalValues.includes(option.value))}
+              disabled={!modalEnabled.length} onChange={(checked) => modalBatch(checked ? "all" : "remove")}>全选</Checkbox>
+            <Button variant="link" size="small" disabled={!modalEnabled.length} onClick={() => modalBatch("invert")}>反选</Button>
+            <Button variant="link" size="small" danger disabled={!modalValues.length} onClick={() => setModalValues([])}>清空</Button>
+          </div> : null}
+          {allowInput && canSubmitInput ? <Button variant="link" onClick={() => { setModalValues(multiple ? [...new Set([...modalValues, inputValue])] : [inputValue]); setQuery(""); }}>使用“{inputValue}”</Button> : null}
+          <SelectionPanel options={modalFiltered} value={modalValues} onChange={setModalValues} multiple={multiple} selectedOnly={selectedOnly}
+            showValue={showValue} showSearch={false} showActions={false} includeUnknownValues={false} columns={modalConfig?.columns ?? 3} maxHeight={modalConfig?.maxHeight ?? 360} />
+        </> : null}
+      </Modal> : null}
     </div>
   );
 });

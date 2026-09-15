@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Select } from "@sia.soul/sia-react-ui";
+import { Select, Button, message } from "@sia.soul/sia-react-ui";
 import type { SelectChangeValue, SelectOption, SelectValue } from "@sia.soul/sia-react-ui";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
@@ -122,6 +122,9 @@ function asMultipleValue(nextValue: SelectChangeValue) {
 }
 
 const apiRows = [
+  { property: "popupMode", description: "普通下拉或模态框选择；弹框点击确定才提交", type: "'dropdown' | 'modal'", defaultValue: "'dropdown'" },
+  { property: "modalConfig", description: "弹框 title、width、columns、maxHeight 与左下角扩展 footerExtra", type: "object", defaultValue: "width: 900, columns: 3" },
+  { property: "options.group", description: "弹框内的选项分组标题", type: "string", defaultValue: "-" },
   { property: "options", description: "下拉选项", type: "SelectOption[]", defaultValue: "[]" },
   { property: "value", description: "当前值（受控）", type: "string | number | null", defaultValue: "-" },
   { property: "mode", description: "单选或多选模式", type: "'single' | 'multiple'", defaultValue: "'single'" },
@@ -132,7 +135,8 @@ const apiRows = [
   { property: "allowInput", description: "允许将搜索内容作为自定义选项提交", type: "boolean", defaultValue: "false" },
   { property: "inputMaxLength", description: "手动输入内容的最大长度", type: "number", defaultValue: "-" },
   { property: "maxTagCount", description: "最多显示的选中标签数；按可用宽度自动继续折叠并预留 +N 空间，始终保持单行", type: "number", defaultValue: "2" },
-  { property: "showSelectAll", description: "多选时显示全选和清除操作", type: "boolean", defaultValue: "false" },
+  { property: "showValue", description: "在选项名称下方显示 value，下拉与弹框模式均支持；不影响按 value 搜索", type: "boolean", defaultValue: "false" },
+  { property: "showSelectAll", description: "多选时显示全选、反选；下拉操作栏固定在列表底部", type: "boolean", defaultValue: "true" },
   { property: "virtual", description: "长列表启用窗口化渲染", type: "boolean", defaultValue: "true" },
   { property: "virtualThreshold", description: "启用虚拟滚动的选项数量", type: "number", defaultValue: "100" },
   { property: "loading", description: "显示加载状态并禁用展开", type: "boolean", defaultValue: "false" },
@@ -155,6 +159,18 @@ export function SelectPage() {
             <Select aria-label="选择前端框架" options={frameworkOptions} value={value} onChange={(nextValue) => setValue(asSingleValue(nextValue))} allowClear showSearch placeholder="请选择前端框架" />
             <span className="demo-result">当前值：{value ?? "（未选择）"}</span>
           </div>
+        </DemoCard>
+        <DemoCard title="显示选项值" description="开启 showValue 后，选项名称下方会增加一行 value；名称和 value 超长时分别单行省略。" code={'<Select showValue options={options} />\n<Select showValue popupMode="modal" options={options} />'}>
+          <div className="component-demo">
+            <Select aria-label="显示值下拉选择" showValue options={frameworkOptions} placeholder="下拉显示 value" />
+            <Select aria-label="显示值弹框选择" showValue popupMode="modal" mode="multiple" options={frameworkOptions} placeholder="弹框显示 value" />
+          </div>
+        </DemoCard>
+        <DemoCard title="弹框选择" description="点击直接打开弹框；支持分组、全部/已选项、搜索和批量选择，取消不修改原值。左下角可扩展维护操作。" code={'<Select popupMode="modal" mode="multiple" options={options} modalConfig={{ title: "请选择合作方店铺标签", footerExtra: <Button onClick={onMaintain}>维护</Button> }} />'}>
+          <Select aria-label="弹框多选标签" popupMode="modal" mode="multiple" placeholder="请选择合作方店铺标签" placeholderMode="floating" allowClear
+            options={Array.from({ length: 16 }, (_, index) => ({ value: index, label: index === 15 ? "这是一个用于演示单行省略的超长合作方店铺标签名称" : "标签 " + (index + 1), group: index < 8 ? "自定义标签" : "平台标签", disabled: index === 7 }))}
+            modalConfig={{ title: "请选择合作方店铺标签", footerExtra: <Button onClick={() => message.info("这里接入标签维护功能")}>维护</Button> }} />
+          <Select aria-label="弹框单选框架" popupMode="modal" options={frameworkOptions} placeholder="弹框单选" modalConfig={{ title: "选择前端框架" }} />
         </DemoCard>
         <DemoCard title="允许输入自定义选项" description="输入候选项之外的内容后按 Enter，或点击“使用”选项，即可把文本作为新值提交。" code={customInputCode}>
           <div className="component-demo component-demo--column">

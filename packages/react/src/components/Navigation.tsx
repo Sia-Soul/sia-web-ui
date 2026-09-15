@@ -139,7 +139,7 @@ function MenuEntry({
       ref={anchorRef}
       type="button"
       className="sia-menu__item"
-      style={{ paddingInlineStart: collapsed ? undefined : 12 + level * props.inlineIndent }}
+      style={{ paddingInlineStart: props.mode === "inline" && !props.inlineCollapsed ? 12 + level * props.inlineIndent : undefined }}
       title={collapsed ? item.title ?? (typeof item.label === "string" ? item.label : undefined) : item.title}
       disabled={item.disabled}
       aria-current={isSelected ? "page" : undefined}

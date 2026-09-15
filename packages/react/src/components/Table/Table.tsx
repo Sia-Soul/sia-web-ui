@@ -31,6 +31,9 @@ interface HeaderCell<T> {
   rowSpan: number;
   depth: number;
   leaf: boolean;
+  fixed?: "left" | "right";
+  firstLeafKey: string;
+  lastLeafKey: string;
 }
 
 function getColumnDepth<T>(columns: readonly TableColumn<T>[]): number {
@@ -57,7 +60,17 @@ function buildHeaderRows<T>(columns: readonly TableColumn<T>[]): HeaderCell<T>[]
       const colSpan = countLeaves(column);
       if (colSpan === 0) continue;
       const leaf = !column.children?.length;
-      rows[depth].push({ column, colSpan, rowSpan: leaf ? maxDepth - depth : 1, depth, leaf });
+      const descendants = flattenTableColumns([column]);
+      const segments: TableColumn<T>[][] = [];
+      for (const descendant of descendants) {
+        const previous = segments[segments.length - 1];
+        if (previous && normalizeFixed(previous[0].fixed) === normalizeFixed(descendant.fixed)) previous.push(descendant);
+        else segments.push([descendant]);
+      }
+      for (const segment of segments) {
+        rows[depth].push({ column, colSpan: segment.length, rowSpan: leaf ? maxDepth - depth : 1, depth, leaf,
+          fixed: normalizeFixed(segment[0].fixed), firstLeafKey: segment[0].key, lastLeafKey: segment[segment.length - 1].key });
+      }
       if (!leaf) walk(column.children!, depth + 1);
     }
   };
@@ -666,7 +679,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
         ? " sia-table__cell--fixed-left-edge"
         : fixed === "right" && column.key === rightFixedEdgeKey ? " sia-table__cell--fixed-right-edge" : "";
       const autoWidthClass = column.autoWidth ? " sia-table__cell--auto-width" : "";
-      return <td key={column.key} data-column-key={column.key} className={`sia-table__cell sia-table__summary-cell${fixed ? ` sia-table__cell--fixed sia-table__cell--fixed-${fixed}` : ""}${fixedEdgeClass}${autoWidthClass}`} style={getFixedStyle(column)}>{content}</td>;
+      return <td key={column.key} data-column-key={column.key} className={`sia-table__cell sia-table__cell--${column.align ?? "left"} sia-table__summary-cell${fixed ? ` sia-table__cell--fixed sia-table__cell--fixed-${fixed}` : ""}${fixedEdgeClass}${autoWidthClass}`} style={getFixedStyle(column)}>{content}</td>;
     })}</tr>;
   }
 
@@ -718,20 +731,20 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
           <colgroup>{leafColumns.map((column) => <col key={column.key} data-column-key={column.key} style={{ width: columnWidths.get(column.key) ?? DEFAULT_WIDTH }} />)}</colgroup>
           <thead className={stickyHeader ? "sia-table__head sia-table__head--sticky" : "sia-table__head"}>
             {headerRows.map((headerRow, depth) => <tr key={depth}>{headerRow.map((cell) => {
-              const fixed = cell.leaf ? normalizeFixed(cell.column.fixed) : undefined;
+              const fixed = cell.fixed;
               const pluginHeaderProps = getPluginHeaderCellProps(cell.column);
               const fixedEdgeClass = fixed === "left" && cell.column.key === leftFixedEdgeKey
                 ? " sia-table__cell--fixed-left-edge"
                 : fixed === "right" && cell.column.key === rightFixedEdgeKey ? " sia-table__cell--fixed-right-edge" : "";
               const autoWidthClass = cell.column.autoWidth ? " sia-table__cell--auto-width" : "";
               return <th
-                key={`${cell.column.key}-${depth}`}
+                key={`${cell.column.key}-${depth}-${cell.firstLeafKey}`}
                 data-column-key={cell.column.key}
                 data-last-leaf-column={cell.leaf && cell.column.key === leafColumns[leafColumns.length - 1]?.key || undefined}
                 colSpan={cell.colSpan}
                 rowSpan={cell.rowSpan}
                 className={`sia-table__header-cell sia-table__cell--${cell.column.align ?? "left"}${fixed ? ` sia-table__cell--fixed sia-table__cell--fixed-${fixed}` : ""}${fixedEdgeClass}${autoWidthClass} ${cell.column.headerClassName ?? ""} ${pluginHeaderProps.className ?? ""}`.trim()}
-                style={{ ...getFixedStyle(cell.column), top: stickyHeader ? depth * rowHeight : undefined, ...pluginHeaderProps.style }}
+                style={{ ...(fixed === "left" ? { left: leftOffsets.get(cell.firstLeafKey) } : fixed === "right" ? { right: rightOffsets.get(cell.lastLeafKey) } : {}), top: stickyHeader ? depth * rowHeight : undefined, ...pluginHeaderProps.style }}
                 scope="col"
                 onPointerDown={(event) => {
                   for (const plugin of sortedPlugins) plugin.onHeaderPointerDown?.(cell.column, event, getContext(plugin));

@@ -378,13 +378,18 @@ const statusTag = (status: ProductRow["status"]) => <Tag compact status={status 
 const basicColumns: readonly TableColumn<ProductRow>[] = [
   { key: "name", name: "商品名称", width: 190, fixed: "left" },
   { key: "productInfo", title: "商品信息", children: [
-    { key: "category", name: "分类", width: 130 },
+    { key: "category", name: "分类", width: 130, fixed: "left" },
     { key: "owner", name: "负责人", width: 110 },
   ] },
   { key: "price", name: "价格", width: 110, align: "right", render: (value) => `¥ ${Number(value).toFixed(2)}` },
   { key: "stock", name: "库存", width: 100, align: "right" },
   { key: "status", name: "状态", width: 100, fixed: "right", align: "center", render: (value) => statusTag(value as ProductRow["status"]) },
 ];
+
+const basicPlugins = [createSummaryPlugin<ProductRow>({
+  subTotalLabel: "合计",
+  subTotal: (rows) => ({ stock: rows.reduce((sum, row) => sum + row.stock, 0) }),
+})];
 
 const advancedColumns: readonly TableColumn<ProductRow>[] = [
   { key: "name", name: "商品名称", width: 180, fixed: "left", sortable: true, editable: true },
@@ -416,20 +421,26 @@ const enhancedColumns: readonly TableColumn<ProductRow>[] = [
   { key: "status", name: "状态", width: 100, align: "center", render: (value) => statusTag(value as ProductRow["status"]), exportRender: (value) => String(value) },
 ];
 
-const basicCode = `import { Table, Tag } from "@sia.soul/sia-react-ui";
+const basicCode = `import { Table, createSummaryPlugin } from "@sia.soul/sia-react-ui";
 
 const columns = [
   { key: "name", name: "商品名称", width: 190, fixed: "left" },
   { key: "productInfo", title: "商品信息", children: [
-    { key: "category", name: "分类", width: 130 },
+    { key: "category", name: "分类", width: 130, fixed: "left" },
     { key: "owner", name: "负责人", width: 110 },
   ] },
   { key: "price", name: "价格", width: 110, align: "right" },
+  { key: "stock", name: "库存", width: 100, align: "right" },
   { key: "status", name: "状态", width: 100, fixed: "right" },
 ];
 
+const plugins = [createSummaryPlugin({
+  subTotalLabel: "合计",
+  subTotal: (rows) => ({ stock: rows.reduce((sum, row) => sum + row.stock, 0) }),
+})];
+
 export default function Demo() {
-  return <Table rowKey="id" columns={columns} dataSource={data} />;
+  return <Table rowKey="id" columns={columns} dataSource={data} plugins={plugins} />;
 }`;
 
 const pluginCode = `import { useMemo } from "react";
@@ -780,7 +791,7 @@ export function TablePage() {
     <DocsTabs activeKey={tab} onChange={setTab} />
     {tab === "examples" ? <div className="demo-stack">
       <DemoCard title="基础表格" description="核心负责数据、列、分组表头、固定列、滚动和渲染，并默认支持行悬停高亮和拖拽调整列宽。" code={basicCode}>
-        <Table className="table-demo" rowKey="id" columns={basicColumns} dataSource={basicData} height={350} />
+        <Table className="table-demo" rowKey="id" columns={basicColumns} dataSource={basicData} plugins={basicPlugins} height={350} />
       </DemoCard>
       <DemoCard title="插件组合" description="选择、序号、排序、分页、编辑、列设置、汇总和工具栏均可按需加载；拖拽列宽已默认启用。" code={pluginCode}>
         <Table className="table-demo" rowKey="id" columns={advancedColumns} dataSource={products} plugins={advancedPlugins} height={470} />

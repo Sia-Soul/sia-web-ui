@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, FloatingScrollbarProvider, Icon, ThemeSwitch, applySiaTheme } from "@sia.soul/sia-react-ui";
+import { Button, FloatingScrollbarProvider, Icon, Input, ThemeSwitch, applySiaTheme } from "@sia.soul/sia-react-ui";
 import { Navigate, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { SiaMark } from "./Icons";
 import { OverlayScrollArea } from "./OverlayScrollArea";
@@ -92,7 +92,7 @@ export default function App() {
         <NavLink className="brand" to="/introduction"><SiaMark /><strong>Sia Web UI</strong></NavLink>
         <button className="icon-button desktop-only" aria-label={collapsed ? "展开侧边栏" : "收起侧边栏"} onClick={() => setCollapsed((value) => !value)}><Icon name="menu" /></button>
         <button className="icon-button mobile-only" aria-label="打开侧边栏" onClick={() => setMobileOpen(true)}><Icon name="menu" /></button>
-        <label className="search"><Icon name="search" /><input placeholder="搜索组件、文档、设计令牌..." aria-label="搜索文档" /><kbd>⌘ K</kbd></label>
+        <Input className="search" size="large" placeholderMode="default" prefix={<Icon name="search" />} suffix={<kbd>⌘ K</kbd>} placeholder="搜索组件、文档、设计令牌..." aria-label="搜索文档" />
         <nav className="topnav" aria-label="顶部导航">
           <NavLink to="/introduction"><Icon name="book" />文档</NavLink>
           <NavLink to="/components/button"><Icon name="component" />组件</NavLink>

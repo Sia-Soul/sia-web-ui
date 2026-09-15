@@ -1,5 +1,5 @@
 import { forwardRef, useId, useRef, useState } from "react";
-import type { ChangeEvent, InputHTMLAttributes, ReactNode } from "react";
+import type { ChangeEvent, InputHTMLAttributes, MouseEvent, ReactNode } from "react";
 import { usePlaceholderMode } from "./shared";
 import { Icon } from "./Icon";
 import type { ControlSize, ControlStatus, InputPlaceholderMode } from "./shared";
@@ -77,6 +77,18 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     onClear?.();
   }
 
+  function handleControlMouseDown(event: MouseEvent<HTMLSpanElement>) {
+    if (disabled || event.defaultPrevented || event.button !== 0) return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    // Preserve native focus and text selection for actual interactive children.
+    const interactive = target.closest("input, textarea, select, button, a[href], [tabindex], [contenteditable]:not([contenteditable='false']), [role='button'], [role='link']");
+    if (interactive && event.currentTarget.contains(interactive) && !interactive.classList.contains("sia-input-control__clear")) return;
+    // Prevent blur on mousedown, before click handlers or label activation run.
+    event.preventDefault();
+    localRef.current?.focus({ preventScroll: true });
+  }
+
   const input = (
     <input
       {...props}
@@ -95,7 +107,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   );
 
   const control = (
-    <span className={`sia-input-control sia-input-control--${size} sia-input-control--${status}${floatingPlaceholder ? " sia-input-control--floating" : ""}${floatingPlaceholder && hasValue ? " is-filled" : ""}${disabled ? " is-disabled" : ""}`}>
+    <span onMouseDown={handleControlMouseDown} className={`sia-input-control sia-input-control--${size} sia-input-control--${status}${floatingPlaceholder ? " sia-input-control--floating" : ""}${floatingPlaceholder && hasValue ? " is-filled" : ""}${disabled ? " is-disabled" : ""}`}>
       {prefix ? <span className="sia-input-control__affix">{prefix}</span> : null}
       {floatingPlaceholder ? <span className="sia-input-control__input-wrap">
         {input}
