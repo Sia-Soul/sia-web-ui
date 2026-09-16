@@ -54,8 +54,8 @@ export interface CascaderProps extends Omit<HTMLAttributes<HTMLDivElement>, "def
    */
   showSearch?: boolean;
   /**
-   是否允许清空当前选择或输入值。
-   * @defaultValue false
+   * 是否允许清空当前选择或输入值；默认启用，显式传入 false 可关闭。
+   * @defaultValue true
    */
   allowClear?: boolean;
   /**
@@ -120,7 +120,7 @@ function leafPaths(options: readonly CascaderOption[], fields: Required<Cascader
 
 /** 级联选择组件。 */
 export function Cascader({
-  options, value, defaultValue, size: sizeProp, multiple = false, showSearch = false, allowClear = false, changeOnSelect = false,
+  options, value, defaultValue, size: sizeProp, multiple = false, showSearch = false, allowClear = true, changeOnSelect = false,
   expandTrigger = "click", placeholder = "请选择", placeholderMode, disabled = false, fieldNames, displayRender, loadData, onChange, className = "", ...props
 }: CascaderProps) {
   const size = useControlSize(sizeProp);

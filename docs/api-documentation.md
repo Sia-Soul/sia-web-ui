@@ -61,3 +61,7 @@ pnpm test:api-docs
 
 - 原生 `title` 转换为框架提示后，鼠标停留 600ms 才显示；移出、点击或滚动会取消等待或隐藏提示。
 - 表格单元格选区在点击表格空白处或外部时清除；勾选框对应的行选择保持不变。拖拽经过表格外部不会提前清除选区。
+
+## 清空能力的默认值
+
+框架中已提供 `allowClear` 的组件统一默认启用（`true`），显式传入 `allowClear={false}` 可关闭对应清空入口或再次点击取消选择的能力。包括 Input、InputSelect、Select、Cascader、TreeSelect、ColorPicker、DatePicker、TimePicker 和 Rate；日期／时间区间继承对应配置。新增带有该属性的组件也应遵守此约定。各组件保留原有清空值及回调语义，禁用状态下仍遵循原有交互限制。

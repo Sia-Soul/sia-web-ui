@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "./Icon";
+import { FloatingScrollbarProvider } from "./FloatingScrollbarProvider";
 
 /** 日期选择附带的时间选择配置。 */
 export type DatePickerShowTime = boolean | {
@@ -180,6 +181,11 @@ export function TimePanel({
 }) {
   const [hour = "00", minute = "00", second = "00"] = value.split(":");
   const columnsRef = useRef<HTMLDivElement>(null);
+  // 每一列独立接管滚动，不增加包裹层，保留选中时间的定位和键盘导航。
+  const hourRef = useRef<HTMLDivElement>(null);
+  const minuteRef = useRef<HTMLDivElement>(null);
+  const secondRef = useRef<HTMLDivElement>(null);
+  const columnRefs = [hourRef, minuteRef, secondRef];
   useLayoutEffect(() => {
     for (const column of columnsRef.current?.children ?? []) {
       const selected = column.querySelector<HTMLElement>('[aria-selected="true"]');
@@ -206,7 +212,7 @@ export function TimePanel({
   return <aside className="sia-date-panel__time" aria-label={ariaLabel}>
     <strong>{use12Hours ? pad(Number(hour) % 12 || 12) : hour}:{minute}{showSecond ? `:${second}` : ""}{use12Hours ? (Number(hour) < 12 ? " AM" : " PM") : ""}</strong>
     <div ref={columnsRef} className="sia-date-panel__time-columns">
-      {columns.map((column) => <div role="listbox" aria-label={`${ariaLabel}${column.label}`} key={column.label}>
+      {columns.map((column) => <div ref={columnRefs[column.index]} role="listbox" aria-label={`${ariaLabel}${column.label}`} key={column.label}>
         {Array.from({ length: column.count }, (_, index) => {
           const next = pad(index);
           const candidate = [hour, minute, second];
@@ -222,6 +228,7 @@ export function TimePanel({
         })}
       </div>)}
     </div>
+    {columns.map(column => <FloatingScrollbarProvider key={column.index} targetRef={columnRefs[column.index]} />)}
   </aside>;
 }
 

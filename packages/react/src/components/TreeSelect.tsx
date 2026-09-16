@@ -58,8 +58,8 @@ export interface TreeSelectProps extends Omit<HTMLAttributes<HTMLDivElement>, "d
    */
   showSearch?: boolean;
   /**
-   是否允许清空当前选择或输入值。
-   * @defaultValue false
+   * 是否允许清空当前选择或输入值；默认启用，显式传入 false 可关闭。
+   * @defaultValue true
    */
   allowClear?: boolean;
   /**
@@ -194,7 +194,7 @@ export function TreeSelect({
   multiple = false,
   treeCheckable = false,
   showSearch = false,
-  allowClear = false,
+  allowClear = true,
   treeDefaultExpandAll = false,
   placeholder = "请选择",
   placeholderMode,

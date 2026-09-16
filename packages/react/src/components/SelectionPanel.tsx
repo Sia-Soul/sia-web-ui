@@ -4,6 +4,7 @@ import { Checkbox } from "./Checkbox";
 import { Button } from "./Button";
 import { Tooltip } from "./FloatingDisplay";
 import { Input } from "./Input";
+import { FloatingScrollbarProvider } from "./FloatingScrollbarProvider";
 
 /** Selection的值类型。 */
 export type SelectionValue = string | number;
@@ -155,6 +156,8 @@ export function SelectionPanel({ options, value, onChange, multiple = false, all
     onChange([...retained, ...add]);
   }
   return <div className="sia-selection-panel">
+    {/* 由列表自身接管浮动滚动条，独立弹框与 Select 弹框均不依赖业务页面的全局 Provider。 */}
+    <FloatingScrollbarProvider targetRef={listRef} />
     {showSearch && <Input aria-label="搜索选项" placeholder="搜索" autoFocus={autoFocusSearch} value={search} allowClear
       onChange={event => { setLocalSearch(event.target.value); onSearch?.(event.target.value); }} />}
     {multiple && showActions && <div className="sia-selection-panel__actions">

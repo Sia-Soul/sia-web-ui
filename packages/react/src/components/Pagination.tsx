@@ -142,6 +142,8 @@ export function Pagination({
             className="sia-pagination__size-select"
             size={controlSize}
             aria-label="每页条数"
+            // 每页条数必须保持有效值，覆盖 Select 默认允许清空的行为。
+            allowClear={false}
             value={size}
             options={sizes.map((value) => ({ label: `${value} 条`, value }))}
             disabled={disabled}

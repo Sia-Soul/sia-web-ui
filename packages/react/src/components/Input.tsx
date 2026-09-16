@@ -24,8 +24,8 @@ export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
   /** 输入框后缀 */
   suffix?: ReactNode;
   /**
-   是否允许清空当前选择或输入值。
-   * @defaultValue false
+   * 是否允许清空当前选择或输入值；默认启用，显式传入 false 可关闭。
+   * @defaultValue true
    */
   allowClear?: boolean;
   /** 清空当前值时调用。 */
@@ -48,7 +48,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     size: sizeProp,
     prefix,
     suffix,
-    allowClear = false,
+    allowClear = true,
     onClear,
     showCount = false,
     placeholderMode,

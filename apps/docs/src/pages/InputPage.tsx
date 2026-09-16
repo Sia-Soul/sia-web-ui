@@ -70,7 +70,7 @@ const apiRows = [
   { property: "status", description: "校验状态", type: "'default' | 'warning' | 'error'", defaultValue: "'default'" },
   { property: "prefix", description: "输入框前缀", type: "ReactNode", defaultValue: "-" },
   { property: "suffix", description: "输入框后缀", type: "ReactNode", defaultValue: "-" },
-  { property: "allowClear", description: "显示清空按钮", type: "boolean", defaultValue: "false" },
+  { property: "allowClear", description: "显示清空按钮", type: "boolean", defaultValue: "true" },
   { property: "maxLength", description: "允许输入的最大字符数", type: "number", defaultValue: "-" },
   { property: "showCount", description: "显示当前字符数", type: "boolean", defaultValue: "false" },
   { property: "placeholderMode", description: "占位文案的显示模式", type: "'default' | 'floating'", defaultValue: "'default'" },

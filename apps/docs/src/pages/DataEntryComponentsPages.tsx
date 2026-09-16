@@ -109,7 +109,7 @@ export function ColorPickerPage() {
     { property: "modes", description: "允许切换的颜色模式", type: "ColorPickerMode[]", defaultValue: "['solid', 'gradient']" },
     { property: "showText / showAlpha", description: "显示色值与透明度", type: "boolean | formatter", defaultValue: "false" },
     { property: "presets", description: "预设色组", type: "ColorPickerPreset[]", defaultValue: "-" },
-    { property: "allowClear", description: "允许选择无色", type: "boolean", defaultValue: "false" },
+    { property: "allowClear", description: "允许选择无色", type: "boolean", defaultValue: "true" },
   ]}>
     <DemoCard title="单色、渐变色、透明度与预设" description={`当前颜色：${color || "无色"}`} code={colorCode}>
       <ColorPicker value={color} onChange={setColor} showText showAlpha allowClear presets={[
@@ -428,7 +428,7 @@ export function TreeSelectPage() {
     { property: "multiple / treeCheckable", description: "多选和勾选模式", type: "boolean", defaultValue: "false" },
     { property: "showSearch", description: "显示节点搜索", type: "boolean", defaultValue: "false" },
     { property: "treeDefaultExpandAll", description: "默认展开全部节点", type: "boolean", defaultValue: "false" },
-    { property: "maxTagCount / allowClear", description: "标签数量和清除", type: "number / boolean", defaultValue: "3 / false" },
+    { property: "maxTagCount / allowClear", description: "标签数量和清除", type: "number / boolean", defaultValue: "3 / true" },
   ]}>
     <DemoCard title="搜索、多选与展开" description={`已选择 ${value.length} 个节点`} code={treeSelectCode}>
       <TreeSelect treeData={TREE_DATA} value={value} onChange={(next) => setValue(Array.isArray(next) ? [...next] : next === undefined ? [] : [next])} treeCheckable showSearch allowClear treeDefaultExpandAll placeholder="选择团队" />

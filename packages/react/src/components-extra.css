@@ -220,9 +220,9 @@
 .sia-time-picker > input { box-sizing: border-box; width: 100%; min-width: 0; height: 100%; padding: 0 52px 0 11px; color: inherit; font: inherit; font-variant-numeric: tabular-nums; background: transparent; border: 0; outline: 0; cursor: pointer; text-overflow: ellipsis; }
 .sia-time-picker > input::placeholder { color: var(--sia-color-text-secondary); }
 .sia-time-picker > input:disabled { cursor: not-allowed; }
-.sia-time-panel { z-index: 1100; width: max-content; overflow: hidden; color: var(--sia-color-text); font-size: var(--sia-font-size); background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: 10px; box-shadow: var(--sia-shadow-popup); }
+.sia-time-panel { z-index: 1100; width: max-content; overflow: hidden; color: var(--sia-color-text); font-size: calc(var(--sia-font-size) + 1px); background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: 10px; box-shadow: var(--sia-shadow-popup); }
 .sia-time-panel .sia-date-panel__time { grid-template-rows: 42px minmax(0, 1fr); border-inline-start: 0; }
-.sia-time-panel .sia-date-panel__time > strong { font-variant-numeric: tabular-nums; font-size: 15px; }
+.sia-time-panel .sia-date-panel__time > strong { font-variant-numeric: tabular-nums; font-size: 16px; }
 .sia-time-panel .sia-date-panel__time-columns { grid-auto-columns: 64px; height: 224px; }
 .sia-time-panel--12h .sia-date-panel__time-columns { grid-auto-columns: 76px; }
 .sia-time-panel__footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px; border-top: 1px solid var(--sia-color-border); }
@@ -264,7 +264,8 @@
   .sia-select-date-range { width: 100%; }
 }
 
-.sia-date-panel { width: 282px; max-width: calc(100vw - 16px); max-height: min(640px, calc(100vh - 16px)); overflow-x: hidden; overflow-y: var(--sia-scroll-overflow, auto); color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: 12px; box-shadow: var(--sia-shadow-popup); scrollbar-width: thin; animation: sia-date-panel-enter 150ms ease-out; }
+/* 日期时间弹层字号在原继承字号基础上增加 1px，输入框字号不变。 */
+.sia-date-panel { font-size: calc(1em + 1px); width: 282px; max-width: calc(100vw - 16px); max-height: min(640px, calc(100vh - 16px)); overflow-x: hidden; overflow-y: var(--sia-scroll-overflow, auto); color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: 12px; box-shadow: var(--sia-shadow-popup); scrollbar-width: thin; animation: sia-date-panel-enter 150ms ease-out; }
 .sia-date-panel--with-time { width: max-content; }
 .sia-date-panel--with-presets { width: max-content; }
 .sia-date-panel--with-presets.sia-date-panel--with-time { width: max-content; }
@@ -284,7 +285,7 @@
 .sia-date-panel__range-date-time-group + .sia-date-panel__range-date-time-group { border-inline-start: 1px solid var(--sia-color-border); }
 .sia-date-panel__header { display: grid; grid-template-columns: 56px 1fr 56px; align-items: center; min-height: 52px; padding: 0 8px; border-bottom: 1px solid var(--sia-color-border); }
 .sia-date-panel__header > strong { display: flex; align-items: center; justify-content: center; gap: 7px; min-width: 0; text-align: center; white-space: nowrap; }
-.sia-date-panel__header > strong small { padding: 2px 5px; color: var(--sia-color-primary-text); background: color-mix(in srgb, var(--sia-color-primary) 10%, transparent); border-radius: 4px; font-size: 11px; font-weight: 600; }
+.sia-date-panel__header > strong small { padding: 2px 5px; color: var(--sia-color-primary-text); background: color-mix(in srgb, var(--sia-color-primary) 10%, transparent); border-radius: 4px; font-size: 12px; font-weight: 600; }
 .sia-date-panel__nav { display: flex; align-items: center; }
 .sia-date-panel__nav:last-of-type { justify-content: flex-end; }
 .sia-date-panel__nav button { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 30px; padding: 0; color: var(--sia-color-text-secondary); cursor: pointer; background: transparent; border: 0; border-radius: 6px; }
@@ -311,7 +312,7 @@
 .sia-date-panel__time { display: grid; grid-template-rows: 52px minmax(0, 1fr); flex: 0 0 auto; min-width: 0; border-inline-start: 1px solid var(--sia-color-border); }
 .sia-date-panel__time > strong { display: grid; place-items: center; border-bottom: 1px solid var(--sia-color-border); }
 .sia-date-panel__time-columns { display: grid; grid-auto-flow: column; grid-auto-columns: 48px; height: 280px; overflow: hidden; }
-.sia-date-panel__time-columns > div { height: 100%; overflow: var(--sia-scroll-overflow, auto); padding: 4px; scrollbar-width: thin; }
+.sia-date-panel__time-columns > div { height: 100%; overflow: auto; padding: 4px; }
 .sia-date-panel__time-columns > div + div { border-inline-start: 1px solid var(--sia-color-border); }
 .sia-date-panel__time-columns button { display: block; width: 100%; height: 32px; padding: 0; color: inherit; cursor: pointer; background: transparent; border: 0; border-radius: 5px; }
 .sia-date-panel__time-columns button:hover { background: var(--sia-color-control-hover); }
@@ -1176,3 +1177,6 @@ button.sia-treemap__tile:focus-visible,
 .sia-selection-panel__text small { display: block; opacity: .65; font-size: 11px; }
 .sia-selection-panel__divider { align-self: center; border-top: 1px solid var(--sia-color-border, #ddd); }
 .sia-selection-panel__empty { padding: 16px; text-align: center; color: var(--sia-color-text-secondary, #777); }
+
+/* 原生按钮继承面板字号，保证时间选项和底部操作文字同步放大。 */
+.sia-date-panel button, .sia-time-panel button { font: inherit; }

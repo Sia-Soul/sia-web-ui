@@ -2,7 +2,7 @@ import { withTitleTooltip } from "./titleTooltip";
 import { useControlSize } from "./shared";
 import { useFloatingPlaceholder } from "./FloatingPlaceholder";
 import type { InputPlaceholderMode } from "./shared";
-import { forwardRef, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
+import { forwardRef, useDeferredValue, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ButtonHTMLAttributes, KeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode, UIEvent } from "react";
 import { Modal } from "./Modal";
 import type { ModalActionResult } from "./Modal";
@@ -165,7 +165,7 @@ function defaultFilterOption(query: string, option: SelectOption) {
   return [option.label, option.value].some(value => String(value).toLowerCase().includes(keyword));
 }
 
-/** 选择器组件。 */
+/** 选择器组件。下拉面板每次展开自动定位到列表顺序中的第一个已选项，支持普通和虚拟列表；未选中时从顶部显示。 */
 export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select(
   {
     options,
@@ -226,6 +226,8 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(-1);
   const [scrollTop, setScrollTop] = useState(0);
+  const [dropdownFontSize, setDropdownFontSize] = useState<string>();
+  const pendingSelectedScroll = useRef(false);
   const deferredQuery = useDeferredValue(query.trim());
   const initialValue = defaultValue === undefined ? (mode === "multiple" ? [] : null) : defaultValue;
   const [currentValue, setCurrentValue] = useControllableState<SelectChangeValue>({
@@ -293,11 +295,36 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
 
   useEffect(() => { if (disabled || loading) closeDropdown(); }, [disabled, loading]);
 
+  // 每次展开只定位一次；异步候选项到达后可补定位，之后不干扰用户滚动或搜索。
+  useEffect(() => {
+    if (!open || popupMode !== "dropdown" || !pendingSelectedScroll.current || query) return;
+    const index = filteredOptions.findIndex(option => selectedValueSet.has(option.value));
+    if (index < 0) return;
+    const frame = requestAnimationFrame(() => {
+      const list = listRef.current;
+      if (!list) return;
+      const item = virtualEnabled ? null : list.querySelectorAll<HTMLElement>('[role="option"]')[index];
+      const top = virtualEnabled ? index * optionHeight : item ? item.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop : 0;
+      list.scrollTop = Math.max(0, top - (list.clientHeight - (item?.offsetHeight ?? optionHeight)) / 2);
+      setScrollTop(list.scrollTop);
+      pendingSelectedScroll.current = false;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [open, popupMode, filteredOptions, selectedValueSet, virtualEnabled, optionHeight, query]);
+
+  // 弹层通过 Portal 挂载到 body，需要显式继承触发器的实际字号（含 size 和业务 CSS 覆盖）。
+  useLayoutEffect(() => {
+    if (!open || popupMode !== "dropdown") return;
+    const trigger = rootRef.current?.querySelector<HTMLElement>(".sia-select__trigger");
+    if (trigger) setDropdownFontSize(getComputedStyle(trigger).fontSize);
+  }, [open, popupMode, size]);
+
   function firstEnabledIndex() {
     return filteredOptions.findIndex((option) => !option.disabled);
   }
 
   function closeDropdown() {
+    pendingSelectedScroll.current = false;
     setOpen(false);
     setQuery("");
     setScrollTop(0);
@@ -327,6 +354,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
 
   function openDropdown() {
     if (disabled || loading) return;
+    pendingSelectedScroll.current = true;
     setOpenedMode(automaticMode);
     const selectedIndex = filteredOptions.findIndex((option) => selectedValueSet.has(option.value) && !option.disabled);
     setActiveIndex(selectedIndex >= 0 ? selectedIndex : firstEnabledIndex());
@@ -504,7 +532,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
         <Icon className="sia-select__arrow" name="chevron-down" size={15} />
       </button>
       {allowClear && hasValue && !disabled && !loading ? <button className="sia-select__clear" type="button" aria-label="清空选择" onClick={clearValue}><Icon name="circle-close" variant="filled" size={15} /></button> : null}
-      <PopupPortal ref={popupRef} anchorRef={rootRef} open={open && popupMode === "dropdown"} className={`sia-select__dropdown${filteredOptions.length === 0 && !canSubmitInput ? " sia-select__dropdown--empty" : ""}`}>
+      <PopupPortal ref={popupRef} anchorRef={rootRef} open={open && popupMode === "dropdown"} style={{ fontSize: dropdownFontSize }} className={`sia-select__dropdown${filteredOptions.length === 0 && !canSubmitInput ? " sia-select__dropdown--empty" : ""}`}>
         <FloatingScrollbarProvider targetRef={listRef} />
         {showSearch || allowInput ? <label className="sia-select__search"><Icon name="search" size={15} /><input ref={searchRef} value={query} maxLength={inputMaxLength} onChange={handleSearchChange} onKeyDown={(event) => handleInteractionKeyDown(event, true)} placeholder={searchPlaceholder} aria-label={searchPlaceholder} /></label> : null}
         {canSubmitInput ? <button type="button" className="sia-select__input-option" onMouseDown={(event) => event.preventDefault()} onClick={submitInputValue}><Icon name="plus" size={14} /><span>使用“{inputValue}”</span></button> : null}
