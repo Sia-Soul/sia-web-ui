@@ -1,5 +1,7 @@
 import "./styles.css";
 import "./components-extra.css";
+export { Toolbar } from "./components/Toolbar";
+export type { ToolbarItem, ToolbarProps } from "./components/Toolbar";
 
 export { Alert } from "./components/Alert";
 export type { AlertProps, AlertStatus } from "./components/Alert";

@@ -1,6 +1,6 @@
 {
   "name": "@sia.soul/sia-react-ui",
-  "version": "0.1.21",
+  "version": "0.1.25",
   "description": "Sia Design components and tokens for React",
   "publishConfig": {
     "access": "public",
@@ -53,7 +53,7 @@
   "scripts": {
     "build": "tsup src/index.ts src/core.ts src/select-date-range.ts src/rich-text-editor.ts src/markdown-editor.ts src/chart.ts --format esm,cjs --dts --clean",
     "typecheck": "tsc -p tsconfig.json",
-    "prepublishOnly": "pnpm typecheck && pnpm build"
+    "prepublishOnly": "node ../../scripts/check-api-docs.cjs && pnpm typecheck && pnpm build && node ../../scripts/test-api-docs.cjs"
   },
   "peerDependencies": {
     "react": ">=18",

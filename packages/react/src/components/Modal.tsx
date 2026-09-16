@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { forwardRef, useEffect, useId, useRef, useState } from "react";
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { createRoot } from "react-dom/client";
@@ -78,6 +79,8 @@ export interface ModalProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"
    * @defaultValue 520
    */
   width?: number | string;
+  /** 固定弹框高度，内容区独立滚动，标题和底部保持可见。 */
+  height?: number | string;
   /**
    组件或浮层的堆叠层级。
    * @defaultValue 1000
@@ -136,6 +139,7 @@ const ModalRoot = forwardRef<HTMLDivElement, ModalProps>(function Modal(
     keyboard = true,
     centered = false,
     width = 520,
+    height,
     zIndex = 1000,
     getContainer,
     onOk,
@@ -220,6 +224,7 @@ const ModalRoot = forwardRef<HTMLDivElement, ModalProps>(function Modal(
   if (!rendered) return null;
 
   const mergedStyle = {
+    ...(height !== undefined ? { display: "flex", flexDirection: "column", height, maxHeight: "calc(100dvh - 48px)" } : {}),
     ...style,
     "--sia-modal-width": typeof width === "number" ? `${width}px` : width,
   } as CSSProperties;
@@ -246,17 +251,17 @@ const ModalRoot = forwardRef<HTMLDivElement, ModalProps>(function Modal(
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
         tabIndex={-1}
-        {...props}
+        {...withTitleTooltip(props)}
       >
-        <div className="sia-modal__header">
+        <div className="sia-modal__header" style={height !== undefined ? { flexShrink: 0 } : undefined}>
           <div className="sia-modal__heading">
             {typeIcons[type] ? <span className="sia-modal__type-icon" aria-hidden="true">{typeIcons[type]}</span> : null}
             {title ? <strong id={titleId}>{title}</strong> : null}
           </div>
           {closable ? <button type="button" className="sia-modal__close" aria-label="关闭对话框" onClick={requestClose}><Icon name="close" size={17} /></button> : null}
         </div>
-        {children !== undefined ? <div className="sia-modal__body">{children}</div> : null}
-        {footer !== null ? <div className="sia-modal__footer">{footer === undefined && footerExtra != null ? <div style={{ marginRight: "auto" }}>{footerExtra}</div> : null}{footer ?? defaultFooter}</div> : null}
+        {children !== undefined ? <div className="sia-modal__body" style={height !== undefined ? { flex: 1, minHeight: 0, overflow: "auto" } : undefined}>{children}</div> : null}
+        {footer !== null ? <div className="sia-modal__footer" style={height !== undefined ? { flexShrink: 0 } : undefined}>{footer === undefined && footerExtra != null ? <div style={{ marginRight: "auto" }}>{footerExtra}</div> : null}{footer ?? defaultFooter}</div> : null}
       </div>
     </div>
   </OverlayPortal>;

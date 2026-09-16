@@ -17,7 +17,7 @@ import type { TagStatus } from "./Tag";
 export interface QueryFormField extends FormItemProps {
   /** 字段布局的稳定唯一标识；用于 React 渲染，不替代 Form.Item 的 name 字段路径。 */
   key: string;
-  /** 字段占用宽度，默认由 fieldWidth 控制；组合字段可指定更大的宽度。 */
+  /** 字段占用宽度，优先于自动布局。未指定时普通控件占一列，日期／时间区间及横向组合控件占两列（含列间距）。 */
   width?: number | string;
 }
 /** 预设或已保存的快捷查询，包含名称、条件、颜色和可选数量徽标。 */
@@ -60,7 +60,7 @@ export interface QueryFormProps<T extends FormValues = FormValues> extends Omit<
    */
   loading?: boolean;
   /**
-   * 查询字段的默认宽度，数值单位为像素，可传 CSS 尺寸字符串。
+   * 单列查询字段的默认宽度，数值单位为像素，可传 CSS 尺寸字符串。区间及横向组合控件默认为两倍此宽度加列间距；列间距可通过 --sia-query-field-gap 调整（默认 12px）。
    * @defaultValue 220
    */
   fieldWidth?: number | string;
@@ -245,7 +245,7 @@ export function QueryForm<T extends FormValues = FormValues>({
           disabled={shortcutBusy || query.disabled} onClick={() => applyShortcut(query, "quick")}>{query.label}</Button></Badge>)} </div> : null}
       <div ref={rowRef} className={`sia-query-form__fields${collapsed ? " is-collapsed" : ""}`} style={{ "--sia-query-field-width": typeof fieldWidth === "number" ? `${fieldWidth}px` : fieldWidth } as CSSProperties}>
         {entries.map((entry, index) => <div key={entry.key} className="sia-query-form__field" hidden={collapsed && index >= Math.min(limit, fittingCount)}
-          style={entry.width !== undefined ? { flexBasis: entry.width, width: entry.width } : undefined}>{entry.content}</div>)}
+          style={entry.width !== undefined ? { "--sia-query-item-width": typeof entry.width === "number" ? `${entry.width}px` : entry.width } as CSSProperties : undefined}>{entry.content}</div>)}
         <div ref={actionsRef} className="sia-query-form__actions">
           <Space.Compact>
             <Button type="submit" variant="primary" loading={loading || searching} disabled={disabled}>{searchText}</Button>

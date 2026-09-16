@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { createContext, forwardRef, useContext, useEffect, useId, useRef, useState } from "react";
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 import { Icon } from "./Icon";
@@ -42,7 +43,7 @@ const FloatButtonRoot = forwardRef<HTMLButtonElement, FloatButtonProps>(function
 }, ref) {
   const groupShape = useContext(GroupShape);
   const label = props["aria-label"] ?? (typeof tooltip === "string" ? tooltip : typeof description === "string" ? description : "悬浮操作");
-  const button = <button {...props} ref={ref} type={htmlType} aria-label={label}
+  const button = <button {...withTitleTooltip(props)} ref={ref} type={htmlType} aria-label={label}
     className={`sia-float-button sia-float-button--${groupShape ?? shape} sia-float-button--${type} ${className}`.trim()}>
     <Badge {...badge} className="sia-float-button__badge">
       <span className="sia-float-button__body">
@@ -105,7 +106,7 @@ function FloatButtonGroup({ shape = "circle", type = "default", icon, closeIcon,
     return () => document.removeEventListener("pointerdown", close);
   }, [trigger, visible, setVisible]);
   return <GroupShape.Provider value={shape}>
-    <div {...props} ref={rootRef} role="group" className={`sia-float-button-group sia-float-button-group--${shape} sia-float-button-group--${placement}${trigger ? " sia-float-button-group--menu" : ""} ${className}`.trim()}
+    <div {...withTitleTooltip(props)} ref={rootRef} role="group" className={`sia-float-button-group sia-float-button-group--${shape} sia-float-button-group--${placement}${trigger ? " sia-float-button-group--menu" : ""} ${className}`.trim()}
       onMouseEnter={(event) => { onMouseEnter?.(event); if (trigger === "hover") setVisible(true); }}
       onMouseLeave={(event) => { onMouseLeave?.(event); if (trigger === "hover" && !event.currentTarget.contains(document.activeElement)) setVisible(false); }}
       onBlur={(event) => { onBlur?.(event); if (trigger === "hover" && !event.currentTarget.contains(event.relatedTarget) && !event.currentTarget.matches(":hover")) setVisible(false); }}

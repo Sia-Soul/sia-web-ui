@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { useId, useRef } from "react";
 import type { ChangeEvent, DragEvent, HTMLAttributes, ReactNode } from "react";
 import { Button } from "./Button";
@@ -210,7 +211,7 @@ function UploadRoot({
       if (!event.defaultPrevented && !disabled) event.preventDefault();
     }}
     onDrop={handleDrop}
-    {...props}
+    {...withTitleTooltip(props)}
   >
     <input
       ref={inputRef}
@@ -220,7 +221,7 @@ function UploadRoot({
       accept={accept}
       multiple={multiple}
       disabled={disabled}
-      {...(directory ? { webkitdirectory: "", directory: "" } as Record<string, string> : {})}
+      {...withTitleTooltip((directory ? { webkitdirectory: "", directory: "" } as Record<string, string> : {}))}
       onChange={handleFiles}
     />
     <div className="sia-upload__trigger" onClick={() => !disabled && inputRef.current?.click()}>
@@ -229,7 +230,7 @@ function UploadRoot({
     {showUploadList && files.length ? <div className="sia-upload__list">
       {files.map((file) => <div className={`sia-upload__item sia-upload__item--${file.status ?? "ready"}`} key={file.uid}>
         <Icon name={file.status === "done" ? "circle-check" : "file"} size={16} />
-        <span className="sia-upload__name" title={file.name}>{file.name}</span>
+        <span className="sia-upload__name" {...withTitleTooltip({ title: file.name })}>{file.name}</span>
         {file.status === "uploading" ? <span className="sia-upload__progress"><span style={{ width: `${file.percent ?? 0}%` }} /></span> : null}
         <button type="button" aria-label={`移除 ${file.name}`} onClick={() => void remove(file)}><Icon name="close" size={14} /></button>
       </div>)}

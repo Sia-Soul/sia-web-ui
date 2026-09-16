@@ -1,0 +1,20 @@
+/* Shared by every package entry that forwards native title props. */
+body > .sia-title-tooltip[data-sia-popup-layer] {
+  position: fixed;
+  z-index: 1800;
+  display: block;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  padding: 7px 10px;
+  color: var(--sia-color-text, #1f2329);
+  background: var(--sia-color-surface, #fff);
+  border: 1px solid var(--sia-color-border, #d9d9d9);
+  border-radius: var(--sia-radius, 6px);
+  box-shadow: var(--sia-shadow-popup, 0 4px 16px rgb(0 0 0 / 12%));
+  font: 400 13px/1.5 system-ui, sans-serif;
+  pointer-events: none;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}

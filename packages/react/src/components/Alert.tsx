@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { useState } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
 import { Icon } from "./Icon";
@@ -58,7 +59,7 @@ export function Alert({
   const resolvedStatus = status ?? type ?? (banner ? "warning" : "info");
   if (!visible) return null;
   return (
-    <div className={`sia-alert sia-alert--${resolvedStatus}${banner ? " sia-alert--banner" : ""}${description ? " sia-alert--with-description" : ""} ${className}`.trim()} role="alert" {...props}>
+    <div className={`sia-alert sia-alert--${resolvedStatus}${banner ? " sia-alert--banner" : ""}${description ? " sia-alert--with-description" : ""} ${className}`.trim()} role="alert" {...withTitleTooltip(props)}>
       {showIcon || banner ? <span className="sia-alert__icon" aria-hidden="true">{alertIcons[resolvedStatus]}</span> : null}
       <div className="sia-alert__content">
         <strong>{message ?? title}</strong>

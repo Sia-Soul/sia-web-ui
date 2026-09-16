@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { forwardRef, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties, ForwardedRef, HTMLAttributes, RefObject } from "react";
 import { createPortal } from "react-dom";
@@ -146,7 +147,7 @@ export const PopupPortal = forwardRef<HTMLDivElement, PopupPortalProps>(function
         left: position?.left ?? 0,
         visibility: position ? "visible" : "hidden",
       } as CSSProperties}
-      {...props}
+      {...withTitleTooltip(props)}
     >
       {children}
     </div>,

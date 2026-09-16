@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { useControlSize } from "./shared";
 import { forwardRef, useRef } from "react";
 import type { ButtonHTMLAttributes, CSSProperties, MouseEvent, ReactNode } from "react";
@@ -92,7 +93,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       disabled={disabled || loading}
       onClick={handleClick}
       style={mergedStyle}
-      {...props}
+      {...withTitleTooltip(props)}
     >
       {loading ? <span className="sia-button__spinner" aria-hidden="true" /> : icon && iconPosition === "start" ? <span className="sia-button__icon">{icon}</span> : null}
       {children !== undefined && children !== null ? <span>{children}</span> : null}

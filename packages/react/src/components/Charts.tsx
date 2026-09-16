@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { forwardRef, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent, ReactNode } from "react";
 import { ChartPointMotion } from "./ChartPointMotion";
@@ -552,7 +553,7 @@ export const LineChart = forwardRef<SiaChartRef, LineChartProps>(function LineCh
   const PLOT = plot;
   const legend = useLegendSelection(series.map((item) => item.name), legendSelected, onLegendSelectionChange);
   const [zoomValue, setZoomValue] = useZoom(zoom, defaultZoom, onZoomChange);
-  const inlineZoom=dataZoom&&zoomControlBounds?<foreignObject className="sia-chart__inline-zoom sia-chart__inline-zoom--compact" {...zoomControlBounds}><ChartDataZoom handleLabels={[categories[Math.min(categories.length-1,Math.floor(Math.min(...zoomValue)/100*categories.length))]??'',categories[Math.max(0,Math.ceil(Math.max(...zoomValue)/100*categories.length)-1)]??'']} shadowBounds={zoomControlBounds} panEnabled={zoomPan} value={zoomValue} dataShadow={series[0]?.data.map(lineValue)} onChange={setZoomValue}/></foreignObject>:null;
+  const inlineZoom=dataZoom&&zoomControlBounds?<foreignObject className="sia-chart__inline-zoom sia-chart__inline-zoom--compact" {...withTitleTooltip(zoomControlBounds)}><ChartDataZoom handleLabels={[categories[Math.min(categories.length-1,Math.floor(Math.min(...zoomValue)/100*categories.length))]??'',categories[Math.max(0,Math.ceil(Math.max(...zoomValue)/100*categories.length)-1)]??'']} shadowBounds={zoomControlBounds} panEnabled={zoomPan} value={zoomValue} dataShadow={series[0]?.data.map(lineValue)} onChange={setZoomValue}/></foreignObject>:null;
   const [zoomBrushActive,setZoomBrushActive]=useState(false);
   const [zoomHistory,setZoomHistory]=useState<Array<readonly [number,number]>>(()=>dataZoom?[defaultZoom??zoom??[0,100]]:[]);
   const zoomBrush=dataZoom&&zoomBrushActive?{minSelectionSize:zoomMinSelectionSize,selectionStyle:zoomSelectionStyle,selectionShape:zoomSelectionShape,bounds:PLOT,onCancel:()=>setZoomBrushActive(false),onSelect:(range:readonly [number,number])=>{
@@ -3468,7 +3469,7 @@ export const MapChart = forwardRef<SiaChartRef, MapChartProps>(function MapChart
   ] as const;};
 
   return <SiaChart {...props} ref={ref} toolbox={chartToolbox} empty={!collection?.features.length&&!overlayProjection} ariaLabel={props.ariaLabel ?? "地图"}>
-    <g ref={roamControl.host} {...roamControl.handlers} data-map-viewport tabIndex={roam?0:undefined} role={roam?'group':undefined} aria-label={roam?'地图漫游：拖动平移、滚轮缩放、Home 还原':undefined} style={{touchAction:roam?'none':undefined}}>
+    <g ref={roamControl.host} {...withTitleTooltip(roamControl.handlers)} data-map-viewport tabIndex={roam?0:undefined} role={roam?'group':undefined} aria-label={roam?'地图漫游：拖动平移、滚轮缩放、Home 还原':undefined} style={{touchAction:roam?'none':undefined}}>
     {roam?<rect x={0} y={0} width={props.viewBoxSize?.[0]??720} height={props.viewBoxSize?.[1]??360} fill="transparent" className="sia-chart__map-roam-surface"/>:null}
     <g data-map-transform style={{display:showMap?undefined:'none'}} transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}>
     {collection?.features.map((feature, featureIndex) => {

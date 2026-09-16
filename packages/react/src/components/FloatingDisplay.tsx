@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { cloneElement, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, HTMLAttributes, ReactElement, ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -273,7 +274,7 @@ export interface TimelineProps extends HTMLAttributes<HTMLUListElement> {
 export function Timeline({ items = [], mode = "left", pending = false, pendingDot, reverse = false, className = "", ...props }: TimelineProps) {
   const values: TimelineItem[] = [...items, ...(pending ? [{ children: pending === true ? "加载中..." : pending, dot: pendingDot ?? <Icon name="loader" className="sia-spin-icon" /> }] : [])];
   if (reverse) values.reverse();
-  return <ul className={`sia-timeline sia-timeline--${mode} ${className}`.trim()} {...props}>
+  return <ul className={`sia-timeline sia-timeline--${mode} ${className}`.trim()} {...withTitleTooltip(props)}>
     {values.map((item, index) => {
       const position = item.position ?? (mode === "alternate" ? (index % 2 ? "right" : "left") : mode);
       return <li className={`sia-timeline__item sia-timeline__item--${position}`} key={index}>
@@ -607,7 +608,7 @@ export function Tree({
       const unloaded = hasChildren && node.loaded === false;
       const dropPosition = dragOver?.key === node.key ? dragOver.position : undefined;
       return <div className={`sia-tree__node${isSelected ? " is-selected" : ""}${isSelectedAncestor ? " is-selected-ancestor" : ""}${dropPosition ? ` is-drag-over-${dropPosition}` : ""}${node.disabled ? " is-disabled" : ""}${unloaded ? " is-unloaded" : ""}`} role="treeitem" aria-expanded={hasChildren ? open : undefined} aria-selected={isSelected} key={node.key}>
-        <div {...rowProps} className={`sia-tree__row${blockNode ? " sia-tree__row--block" : ""}${sticky ? " sia-tree__row--sticky" : ""} ${rowClassName}`.trim()} style={{
+        <div {...withTitleTooltip(rowProps)} className={`sia-tree__row${blockNode ? " sia-tree__row--block" : ""}${sticky ? " sia-tree__row--sticky" : ""} ${rowClassName}`.trim()} style={{
           ...rowStyle,
           paddingInlineStart: depth * Math.max(0, indentSize),
           top: sticky ? depth * Math.max(1, stickyRowHeight) : rowStyle?.top,
@@ -658,5 +659,5 @@ export function Tree({
       </div>;
     });
   }
-  return <div className={`sia-tree${showLine ? " sia-tree--line" : ""}${stickyAncestors ? " sia-tree--sticky-ancestors" : ""} ${className}`.trim()} role="tree" aria-multiselectable={multiple || undefined} {...props}>{render(treeData)}</div>;
+  return <div className={`sia-tree${showLine ? " sia-tree--line" : ""}${stickyAncestors ? " sia-tree--sticky-ancestors" : ""} ${className}`.trim()} role="tree" aria-multiselectable={multiple || undefined} {...withTitleTooltip(props)}>{render(treeData)}</div>;
 }

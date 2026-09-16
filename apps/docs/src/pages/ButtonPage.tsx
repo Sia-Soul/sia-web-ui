@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Icon, SIA_THEME, Space } from "@sia.soul/sia-react-ui";
+import { Button, Icon, Input, Tooltip, SIA_THEME, Space } from "@sia.soul/sia-react-ui";
 import type { ButtonSize } from "@sia.soul/sia-react-ui";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
@@ -83,6 +83,14 @@ export function ButtonPage() {
           </Space>
         </DemoCard>
 
+        <DemoCard title="统一 title 提示" description="原生 title 提示由主题提示框接管；支持悬停、键盘聚焦及禁用按钮，不增加布局包裹层。弹框、卡片等内容标题保持原有含义。" code={'<Button title="查看其他操作">更多操作</Button>\n<Input title="请输入项目名称" />'}>
+          <Space wrap>
+            <Button title="查看其他操作">更多操作提示示例</Button>
+            <Button disabled title="当前操作不可用">禁用提示示例</Button>
+            <Input aria-label="标题提示输入框" title="请输入项目名称" placeholder="项目名称" />
+            <Tooltip title="显式 Tooltip 优先"><Button title="不重复显示">显式提示示例</Button></Tooltip>
+          </Space>
+        </DemoCard>
         <DemoCard className="secondary-demo-card" title="图标、状态与危险操作" description="加载态会阻止重复触发，危险态使用统一错误色。" code={buttonStateCode}>
           <Space size={14} wrap className="component-demo">
             <Button variant="primary" icon={<Icon name="plus" size={16} />}>新建项目</Button>

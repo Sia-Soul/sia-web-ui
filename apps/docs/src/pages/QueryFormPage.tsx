@@ -23,8 +23,8 @@ export default function Demo() {
       { key: "code", name: "coId", children: <Input placeholder="品牌方编码" /> },
       { key: "name", name: "coName", children: <Input placeholder="品牌方名称" /> },
       { key: "status", name: "status", children: <Select placeholder="状态" mode="multiple" options={[{ label: "待审核", value: "pending" }]} /> },
-      { key: "dates", name: "dates", width: 320, children: <DatePicker.RangePicker placeholder={["创建开始日期", "创建结束日期"]} /> },
-      { key: "labels", width: 340, children: <Space.Compact block>
+      { key: "dates", name: "dates", children: <DatePicker.RangePicker placeholder={["创建开始日期", "创建结束日期"]} /> },
+      { key: "labels", children: <Space.Compact block>
         <Form.Item name={["labels", "searchType"]} noStyle><Select placeholder="标签匹配模式" options={[{ label: "包含标签", value: 1 }, { label: "排除标签", value: 2 }]} /></Form.Item>
         <Form.Item name={["labels", "value"]} noStyle><Select placeholder="品牌方标签" mode="multiple" popupMode="modal" options={[{ label: "重点品牌", value: "重点品牌" }]} /></Form.Item>
       </Space.Compact> },
@@ -65,14 +65,14 @@ export function QueryFormPage() {
       { property: "savedQueries", description: "底部已保存快捷查询标签，支持 status 配色；收起时隐藏", type: "QueryFormShortcut[]", defaultValue: "[]" },
       { property: "onSaveQuery / onRemoveQuery", description: "保存接收 {name, values}，删除接收快捷项；业务端负责持久化并更新 savedQueries，失败提示且保留弹窗", type: "callbacks (支持 Promise)", defaultValue: "不配置时隐藏对应操作" },
       { property: "collapsed / defaultCollapsed / onCollapsedChange", description: "受控或非受控展开收起，隐藏字段仍保持挂载和表单值", type: "boolean / boolean / callback", defaultValue: "false" },
-      { property: "collapsedCount / collapsible / fieldWidth", description: "收起时字段数上限、是否可收起和默认字段宽度；收起按宽度自动减少字段，预留按钮空间并保持单行", type: "number / boolean / number | string", defaultValue: "3 / true / 220" },
+      { property: "collapsedCount / collapsible / fieldWidth", description: "收起时字段数上限、是否可收起和默认单列宽度（区间和组合字段自动占双列，字段 width 可覆盖）；收起按宽度自动减少字段，预留按钮空间并保持单行", type: "number / boolean / number | string", defaultValue: "3 / true / 220" },
       { property: "loading / shortcutsLoading", description: "查询加载、快捷查询加载状态；阻止重复操作", type: "boolean", defaultValue: "false" },
       { property: "resetSearch", description: "重置为 initialValues 后立即查询", type: "boolean", defaultValue: "true" },
       { property: "searchText / resetText / saveText / actionsExtra", description: "按钮文案与额外操作区", type: "ReactNode", defaultValue: "查询 / 重置 / 另存为快捷查询" },
       { property: "onError", description: "异步查询、保存、删除失败回调，组件同时显示错误提示", type: "(error, operation) => void", defaultValue: "-" },
       { property: "其他 Form 属性", description: "支持 size、disabled、placeholderMode、onValuesChange、onFinishFailed 等", type: "FormProps", defaultValue: "placeholderMode: floating" },
     ]}>
-    <DemoCard title="品牌方查询与快捷查询" description="顶部“待审核”回填条件并查询；底部标签可回填、保存及删除。示例快捷查询保存在当前页面内存，刷新后恢复。" code={exampleCode}>
+    <DemoCard title="品牌方查询与快捷查询" description="普通字段占一列，日期区间和标签组合自动占两列（含间距）。顶部“待审核”回填条件并查询；底部标签可回填、保存及删除。示例快捷查询保存在当前页面内存，刷新后恢复。" code={exampleCode}>
       <QueryForm aria-label="品牌方查询" form={form} initialValues={initialValues} fieldWidth={200} quickQuerySize="medium"
         quickQueries={[{ key: "pending", label: "待审核", count: rows.filter(row => row.status === "pending").length, values: { status: ["pending"] } }, { key: "enabled", label: "已启用", count: rows.filter(row => row.status === "enabled").length, values: { status: ["enabled"] } }]}
         fields={[
@@ -80,8 +80,8 @@ export function QueryFormPage() {
           { key: "name", name: "coName", children: <Input aria-label="品牌方名称" placeholder="品牌方名称" /> },
           { key: "remark", name: "remark", children: <Input aria-label="备注" placeholder="备注" /> },
           { key: "status", name: "status", children: <Select aria-label="状态" placeholder="状态" mode="multiple" allowClear options={statuses} /> },
-          { key: "dates", name: "dates", width: 310, children: <DatePicker.RangePicker placeholder={["创建开始日期", "创建结束日期"]} /> },
-          { key: "labels", width: 340, children: <Space.Compact block>
+          { key: "dates", name: "dates", children: <DatePicker.RangePicker placeholder={["创建开始日期", "创建结束日期"]} /> },
+          { key: "labels", children: <Space.Compact block>
             <Form.Item name={["labels", "searchType"]} noStyle><Select aria-label="标签匹配模式" placeholder="标签匹配模式" options={[{ label: "包含标签", value: 1 }, { label: "排除标签", value: 2 }]} /></Form.Item>
             <Form.Item name={["labels", "value"]} noStyle><Select aria-label="品牌方标签" placeholder="品牌方标签" mode="multiple" allowClear popupMode="modal" options={[{ label: "重点品牌", value: "重点品牌" }, { label: "合作品牌", value: "合作品牌" }]} /></Form.Item>
           </Space.Compact> },

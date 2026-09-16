@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { Children } from "react";
 import type { CSSProperties, ElementType, HTMLAttributes, ReactNode } from "react";
 
@@ -83,7 +84,7 @@ export function Flex({
     flex,
     ...style,
   };
-  return <Component className={`sia-flex${isVertical ? " sia-flex--vertical" : ""} ${className}`.trim()} style={mergedStyle} {...props} />;
+  return <Component className={`sia-flex${isVertical ? " sia-flex--vertical" : ""} ${className}`.trim()} style={mergedStyle} {...withTitleTooltip(props)} />;
 }
 
 /** 间距布局的属性配置。 */
@@ -127,7 +128,7 @@ export interface SpaceCompactProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 function SpaceCompact({ direction = "horizontal", block = false, className = "", ...props }: SpaceCompactProps) {
-  return <div className={`sia-space-compact sia-space-compact--${direction}${block ? " sia-space-compact--block" : ""} ${className}`.trim()} {...props} />;
+  return <div className={`sia-space-compact sia-space-compact--${direction}${block ? " sia-space-compact--block" : ""} ${className}`.trim()} {...withTitleTooltip(props)} />;
 }
 
 function SpaceRoot({
@@ -150,7 +151,7 @@ function SpaceRoot({
     alignItems: resolveAlign(align),
     ...style,
   };
-  return <div className={`sia-space sia-space--${direction} ${className}`.trim()} style={mergedStyle} {...props}>
+  return <div className={`sia-space sia-space--${direction} ${className}`.trim()} style={mergedStyle} {...withTitleTooltip(props)}>
     {items.map((item, index) => <span className="sia-space__item" key={index}>
       {item}
       {split !== undefined && index < items.length - 1 ? <span className="sia-space__split">{split}</span> : null}
@@ -204,7 +205,7 @@ export function Divider({
       className={`sia-divider sia-divider--${orientation} sia-divider--${variant} sia-divider--text-${textAlign}${children ? " sia-divider--with-text" : ""}${plain ? " sia-divider--plain" : ""} ${className}`.trim()}
       role="separator"
       aria-orientation={orientation}
-      {...props}
+      {...withTitleTooltip(props)}
     >
       {children ? <span className="sia-divider__text">{children}</span> : null}
     </div>
@@ -252,7 +253,7 @@ export function Row({ gutter = 0, align, justify, wrap = true, className = "", s
     flexWrap: wrap ? "wrap" : "nowrap",
     ...style,
   } as CSSProperties;
-  return <div className={`sia-row ${className}`.trim()} style={mergedStyle} {...props} />;
+  return <div className={`sia-row ${className}`.trim()} style={mergedStyle} {...withTitleTooltip(props)} />;
 }
 
 /** 一个断点下的栅格列宽、偏移和排序配置。 */
@@ -329,5 +330,5 @@ export function Col({
   setColVariables(mergedStyle, "lg-", lg);
   setColVariables(mergedStyle, "xl-", xl);
   setColVariables(mergedStyle, "xxl-", xxl);
-  return <div className={`sia-col ${className}`.trim()} style={mergedStyle} {...props} />;
+  return <div className={`sia-col ${className}`.trim()} style={mergedStyle} {...withTitleTooltip(props)} />;
 }

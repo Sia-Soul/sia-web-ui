@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import {useEffect,useId,useRef,useState} from 'react';
 import {chartColorRamp} from './chartColorRamp';
 import type {PointerEvent} from 'react';
@@ -34,9 +35,9 @@ export function ChartHorizontalRange({min,max,x,y,length,thickness,colors,range,
   <text x={x-10} y={y+thickness/2} dominantBaseline="central" textAnchor="end">{endLabels?.[1]??max}</text><text x={x+length+10} y={y+thickness/2} dominantBaseline="central">{endLabels?.[0]??min}</text>
   <rect x={x} y={y} width={Math.max(0,position(high)-x)} height={thickness} fill="#ccc" pointerEvents="none"/>
   <rect x={position(low)} y={y} width={Math.max(0,x+length-position(low))} height={thickness} fill="#ccc" pointerEvents="none"/>
-  <rect data-range-selection="" x={position(high)} y={y} width={Math.max(0,position(low)-position(high))} height={thickness} fill="transparent" style={{cursor:'move'}} {...handlers(2)}/>
+  <rect data-range-selection="" x={position(high)} y={y} width={Math.max(0,position(low)-position(high))} height={thickness} fill="transparent" style={{cursor:'move'}} {...withTitleTooltip(handlers(2))}/>
   {([0,1] as const).map(index=>{const value=index===0?low:high,px=position(value),direction=index===0?1:-1;
-   return <g key={index} role="slider" aria-label={'值域'+(index===0?'下限':'上限')} aria-valuemin={index===0?min:low} aria-valuemax={index===0?high:max} aria-valuenow={value} aria-orientation="horizontal" tabIndex={0} style={{cursor:'ew-resize',pointerEvents:'all'}} {...handlers(index)} onKeyDown={event=>{
+   return <g key={index} role="slider" aria-label={'值域'+(index===0?'下限':'上限')} aria-valuemin={index===0?min:low} aria-valuemax={index===0?high:max} aria-valuenow={value} aria-orientation="horizontal" tabIndex={0} style={{cursor:'ew-resize',pointerEvents:'all'}} {...withTitleTooltip(handlers(index))} onKeyDown={event=>{
     const step=span/100,next=event.key==='Home'?min:event.key==='End'?max:['ArrowUp','ArrowLeft'].includes(event.key)?value+step:['ArrowDown','ArrowRight'].includes(event.key)?value-step:undefined;
     if(next!==undefined){event.preventDefault();onChange?.(index===0?[Math.max(min,Math.min(high,next)),high]:[low,Math.min(max,Math.max(low,next))]);}
    }}>

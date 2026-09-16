@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import {useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import type {ReactNode} from 'react';
 import {ChartMark} from './Chart';
@@ -169,7 +170,7 @@ export function SvgMapPlot({source,name,data,x,y,width,height,domain,range=domai
  const scale=Math.min(width/map.width,height/map.height),left=x+(width-map.width*scale)/2,top=y+(height-map.height*scale)/2;
  const project=(point:Point):Point=>[left+(point[0]-map.x)*scale,top+(point[1]-map.y)*scale];
  const markColor=(value:number)=>chartColorRamp(colors,(Math.max(domain[0],Math.min(domain[1],value))-domain[0])/Math.max(1,domain[1]-domain[0]));
- return <g ref={control.host} {...control.handlers} data-svg-map={name} tabIndex={roam?0:undefined} role="group" aria-label={`${name}漫游`} style={{touchAction:'none'}}>
+ return <g ref={control.host} {...withTitleTooltip(control.handlers)} data-svg-map={name} tabIndex={roam?0:undefined} role="group" aria-label={`${name}漫游`} style={{touchAction:'none'}}>
   {roam?<rect x={x} y={y} width={width} height={height} fill="transparent"/>:null}
   <g data-svg-map-transform="" transform={`translate(${control.view.x} ${control.view.y}) scale(${control.view.scale})`}>
    <g transform={`translate(${left} ${top}) scale(${scale}) translate(${-map.x} ${-map.y})`}>

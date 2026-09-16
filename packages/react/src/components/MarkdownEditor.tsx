@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { useFloatingPlaceholder } from "./FloatingPlaceholder";
 import type { InputPlaceholderMode } from "./shared";
 import type { CSSProperties, HTMLAttributes } from "react";
@@ -376,7 +377,7 @@ export function MarkdownEditor({
       className={["sia-markdown-editor", floating.className, disabled ? "is-disabled" : "", className].filter(Boolean).join(" ")}
       style={editorStyle}
       data-ready={ready ? "true" : "false"}
-      {...props}
+      {...withTitleTooltip(props)}
       onBlurCapture={(event) => {
         props.onBlurCapture?.(event);
         const current = editorRef.current?.getValue();

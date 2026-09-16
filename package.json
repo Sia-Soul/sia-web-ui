@@ -32,7 +32,7 @@
     "notepad:bundle": "pnpm --filter @sia-ui/notepad tauri:build",
     "notepad:web": "pnpm --filter @sia-ui/notepad dev",
     "typecheck": "pnpm -r typecheck",
-    "check": "pnpm typecheck && pnpm build",
+    "check": "pnpm check:api-docs && pnpm typecheck && pnpm build && pnpm test:api-docs",
     "create:sia": "node packages/create-sia-web/cli.mjs"
   },
   "devDependencies": {

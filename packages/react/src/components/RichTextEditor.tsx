@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { useFloatingPlaceholder } from "./FloatingPlaceholder";
 import type { InputPlaceholderMode } from "./shared";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -112,7 +113,7 @@ function sanitizeContent(value: string) {
 export function RichTextContent({ content, emptyText = "暂无内容", className = "", ...props }: RichTextContentProps) {
   const html = useMemo(() => sanitizeContent(content), [content]);
   if (!html.trim()) return <div className={`sia-rich-text-content sia-rich-text-content--empty ${className}`.trim()}>{emptyText}</div>;
-  return <article className={`sia-rich-text-content ${className}`.trim()} dangerouslySetInnerHTML={{ __html: html }} {...props} />;
+  return <article className={`sia-rich-text-content ${className}`.trim()} dangerouslySetInnerHTML={{ __html: html }} {...withTitleTooltip(props)} />;
 }
 
 /** 富文本编辑器组件。 */
@@ -301,7 +302,7 @@ export function RichTextEditor({
   };
 
   const floating = useFloatingPlaceholder({ mode: placeholderMode, placeholder, filled: editor ? !editor.isEmpty : Boolean(value ?? defaultValue) });
-  return <div {...props} id={id} style={mergedStyle} className={`sia-rich-text-editor${floating.className}${disabled ? " is-disabled" : ""} sia-rich-text-editor--${toolbar} ${className}`.trim()}>
+  return <div {...withTitleTooltip(props)} id={id} style={mergedStyle} className={`sia-rich-text-editor${floating.className}${disabled ? " is-disabled" : ""} sia-rich-text-editor--${toolbar} ${className}`.trim()}>
     {floating.label}
     <div className="sia-rich-text-editor__toolbar" aria-label="文本格式工具栏">
       <div className="sia-rich-text-editor__toolbar-main">

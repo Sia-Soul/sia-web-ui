@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { ControlSizeContext, useControlSize } from "./shared";
 import type { ControlSize } from "./shared";
 import { createContext, forwardRef, useContext, useEffect, useId, useMemo, useRef } from "react";
@@ -94,7 +95,7 @@ const CheckboxRoot = forwardRef<HTMLInputElement, CheckboxProps>(function Checkb
 
   return <label className={`sia-checkbox sia-checkbox--${size}${disabled || group?.disabled ? " is-disabled" : ""} ${className}`.trim()}>
     <input
-      {...props}
+      {...withTitleTooltip(props)}
       ref={setRef}
       id={props.id ?? fallbackId}
       className="sia-checkbox__input"

@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { createContext, forwardRef, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { createRoot } from "react-dom/client";
@@ -217,7 +218,7 @@ const DrawerRoot = forwardRef<HTMLDivElement, DrawerProps>(function Drawer(
           aria-modal="true"
           aria-labelledby={title ? titleId : undefined}
           tabIndex={-1}
-          {...props}
+          {...withTitleTooltip(props)}
         >
           <div className="sia-drawer__header">
             <div className="sia-drawer__heading">

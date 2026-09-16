@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { ControlSizeContext, useControlSize } from "./shared";
 import type { ControlSize } from "./shared";
 import { createContext, forwardRef, useContext, useId, useMemo } from "react";
@@ -87,7 +88,7 @@ const RadioRoot = forwardRef<HTMLInputElement, RadioRootProps>(function Radio(
   const currentChecked = grouped ? group.value === value : checked;
   return <label className={`sia-radio sia-radio--${size}${button ? " sia-radio--button" : ""}${button && group?.buttonStyle === "solid" ? " sia-radio--solid" : ""}${disabled || group?.disabled ? " is-disabled" : ""} ${className}`.trim()}>
     <input
-      {...props}
+      {...withTitleTooltip(props)}
       ref={ref}
       id={props.id ?? fallbackId}
       className="sia-radio__input"

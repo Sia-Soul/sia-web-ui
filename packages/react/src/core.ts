@@ -1,5 +1,7 @@
 import "./styles.css";
 import "./components-extra.css";
+export { Toolbar } from "./components/Toolbar";
+export type { ToolbarItem, ToolbarProps } from "./components/Toolbar";
 
 export { Button } from "./components/Button";
 export type { ButtonProps, ButtonSize, ButtonVariant } from "./components/Button";

@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { useFloatingPlaceholder } from "./FloatingPlaceholder";
 import type { InputPlaceholderMode } from "./shared";
 import { forwardRef, useId, useState } from "react";
@@ -65,7 +66,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function 
   const control = (
     <span className={`sia-textarea-control sia-textarea-control--${size} sia-textarea-control--${status}${floating.className}${disabled ? " is-disabled" : ""}`}>
       <textarea
-        {...props}
+        {...withTitleTooltip(props)}
         ref={ref}
         id={textAreaId}
         className="sia-textarea"

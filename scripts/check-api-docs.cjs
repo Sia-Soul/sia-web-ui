@@ -27,8 +27,13 @@ function check(node, label) {
     missing.push(`${path.relative(root,sf.fileName)}:${line} ${label}`);
   }
 }
-for (const entry of ['index.ts','core.ts','chart.ts','select-date-range.ts','rich-text-editor.ts','markdown-editor.ts']) {
+// 依据发布清单发现入口，新增子路径时自动纳入覆盖检查。
+const manifest = JSON.parse(fs.readFileSync(path.resolve(root, '../package.json'), 'utf8'));
+const entries = [...new Set(Object.values(manifest.exports).filter(value => typeof value === 'object' && value.types).map(value => path.basename(value.types).replace(/\.d\.(?:ts|cts|mts)$/, '.ts')))];
+if (!entries.length) throw new Error('发布清单中未找到类型入口');
+for (const entry of entries) {
   const sf = program.getSourceFile(path.join(root,entry));
+  if (!sf) throw new Error(`发布入口 ${entry} 缺少对应源码，必须更新注释检查配置`);
   for (let symbol of checker.getExportsOfModule(checker.getSymbolAtLocation(sf))) {
     if (symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol);
     symbol.declarations?.forEach(add);
@@ -64,4 +69,4 @@ for (let i=0;i<queue.length;i++) {
   }
 }
 if(missing.length){console.error(`Missing JSDoc (${missing.length}):\n${missing.join('\n')}`);process.exitCode=1;}
-else console.log(`PASS public API JSDoc: ${declarations.size} declarations, ${members} members across all 6 package entries.`);
+else console.log(`PASS public API JSDoc: ${declarations.size} declarations, ${members} members across all ${entries.length} package entries.`);

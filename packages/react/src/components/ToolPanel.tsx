@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import type {
   CSSProperties,
@@ -210,7 +211,7 @@ export function ToolPanel({
             aria-expanded={expanded}
             aria-controls={`${panelId}-content-${index}`}
             aria-label={`${expanded ? "收起" : "展开"}${label}面板`}
-            title={typeof item.title === "string" ? item.title : undefined}
+            {...withTitleTooltip({ title: typeof item.title === "string" ? item.title : undefined })}
             disabled={item.disabled}
             onClick={() => activatePanel(item)}
           >
@@ -258,7 +259,7 @@ export function ToolPanel({
       className={`sia-tool-panel sia-tool-panel--${placement}${isOpen ? " is-open" : ""} ${className}`.trim()}
       style={panelStyle}
       data-placement={placement}
-      {...props}
+      {...withTitleTooltip(props)}
     >
       {placement === "left" ? <>{rail}{content}{resizeHandle}</> : <>{resizeHandle}{content}{rail}</>}
     </div>

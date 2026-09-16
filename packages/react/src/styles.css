@@ -479,7 +479,8 @@
 
 .sia-message-root { position: fixed; z-index: 1100; inset: 18px 0 auto; display: flex; justify-content: center; pointer-events: none; }
 .sia-message-list { display: flex; align-items: center; flex-direction: column; gap: 10px; width: min(100%, 520px); padding-inline: 16px; }
-.sia-message { display: flex; align-items: center; gap: 9px; min-height: 42px; max-width: 100%; padding: 9px 14px; color: var(--sia-color-text); pointer-events: auto; background: var(--sia-color-surface); border: 1px solid rgb(0 0 0 / 6%); border-radius: calc(var(--sia-radius) + 2px); box-shadow: var(--sia-shadow-popup); animation: sia-message-pop-in 200ms cubic-bezier(.22, 1, .36, 1) both; will-change: transform, opacity; }
+/* 消息正文使用框架标准字号（默认 16px），避免继承业务页面的较小字号。 */
+.sia-message { font-size: var(--sia-font-size, 16px); display: flex; align-items: center; gap: 9px; min-height: 42px; max-width: 100%; padding: 9px 14px; color: var(--sia-color-text); pointer-events: auto; background: var(--sia-color-surface); border: 1px solid rgb(0 0 0 / 6%); border-radius: calc(var(--sia-radius) + 2px); box-shadow: var(--sia-shadow-popup); animation: sia-message-pop-in 200ms cubic-bezier(.22, 1, .36, 1) both; will-change: transform, opacity; }
 .sia-message__icon { display: inline-flex; flex: 0 0 auto; color: var(--sia-color-primary-text); }
 .sia-message--success .sia-message__icon { color: var(--sia-color-success); }
 .sia-message--warning .sia-message__icon { color: var(--sia-color-warning); }
@@ -882,6 +883,7 @@
 .sia-table--borderless-toolbar.sia-table--bordered:has(> .sia-table__footer) > .sia-table__viewport-wrap { border-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .sia-table--borderless-toolbar.sia-table--bordered > .sia-table__footer { border: 1px solid var(--sia-table-border-color, #EFF2F6); border-radius: 0 0 var(--sia-radius) var(--sia-radius); }
 
+.sia-select-modal__header-extra { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; min-width: 0; margin-bottom: 16px; }
 .sia-select-modal__heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
 .sia-select-modal__heading > .sia-input-control { width: 240px; max-width: 100%; }
 .sia-select-modal__heading [role="tablist"] { display: flex; gap: 16px; }
@@ -957,8 +959,11 @@
 @media (prefers-reduced-motion: reduce) { .sia-table-settings__list.is-sorting .sia-table-settings__item { transition: none; } }
 
 .sia-query-form { min-width: 0; width: 100%; }
-.sia-query-form__fields { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-top: 8px; }
-.sia-query-form__field { flex: 0 1 var(--sia-query-field-width, 220px); width: var(--sia-query-field-width, 220px); min-width: 0; max-width: 100%; }
+.sia-query-form__fields { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sia-query-field-gap, 12px); padding-top: 8px; }
+.sia-query-form__field { --sia-query-item-width: var(--sia-query-field-width, 220px); flex: 0 1 var(--sia-query-item-width); width: var(--sia-query-item-width); min-width: 0; max-width: 100%; }
+/* 区间和横向组合字段占两列，包含普通字段之间的间距；字段内联 width 优先。 */
+.sia-query-form__field:has(.sia-picker-range-control, .sia-time-range, .sia-select-date-range, .sia-space-compact:not(.sia-space-compact--vertical) > :nth-child(2)) { --sia-query-item-width: calc(var(--sia-query-field-width, 220px) + var(--sia-query-field-width, 220px) + var(--sia-query-field-gap, 12px)); }
+.sia-query-form__field :is(.sia-picker-range-control, .sia-time-range, .sia-select-date-range, .sia-space-compact:not(.sia-space-compact--vertical)) { width: 100%; }
 .sia-query-form__field[hidden] { display: none; }
 .sia-query-form__field > .sia-input-control, .sia-query-form__field > .sia-select, .sia-query-form__field > .sia-picker, .sia-query-form__field > .sia-input-number, .sia-query-form__field > .sia-cascader, .sia-query-form__field > .sia-tree-select, .sia-query-form__field > .sia-select-date-range { width: 100%; }
 .sia-query-form__field > .sia-space-compact { width: 100%; }
@@ -977,7 +982,7 @@
 .sia-query-form__fields.is-collapsed { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
 .sia-query-form__fields.is-collapsed > .sia-query-form__field { flex: 0 0 auto; }
 .sia-query-form__fields.is-collapsed > .sia-query-form__actions { flex: 0 0 auto; flex-wrap: nowrap; width: max-content; }
-@media (max-width: 600px) { .sia-query-form__fields.is-collapsed > .sia-query-form__field { flex-basis: auto !important; width: var(--sia-query-field-width, 220px) !important; } }
+@media (max-width: 600px) { .sia-query-form__fields.is-collapsed > .sia-query-form__field { flex-basis: auto !important; width: var(--sia-query-item-width) !important; } }
 
 .sia-query-form__quick > .sia-badge:has(.sia-badge__count) { margin: 5px 12px 2px 0; }
 
@@ -987,3 +992,10 @@
 @media (prefers-reduced-motion: reduce) { .sia-tag--close-on-hover > .sia-tag__close { transition: none; } }
 
 .sia-table-settings__loading { min-height: 160px; }
+
+/* 单行工具栏保留隐藏节点用于测量，容器变宽后可恢复按钮。 */
+.sia-toolbar { display: flex; align-items: center; position: relative; width: 100%; min-width: 0; gap: 4px; flex-wrap: nowrap; overflow: hidden; }
+.sia-toolbar__item { display: inline-flex; flex: 0 0 auto; width: max-content; white-space: nowrap; }
+.sia-toolbar__item--hidden { position: absolute; top: 0; left: 0; visibility: hidden; pointer-events: none; }
+.sia-table__toolbar > div:first-child { flex: 1; min-width: 0; }
+.sia-table__toolbar > div:last-child { flex-shrink: 0; flex-wrap: nowrap; }

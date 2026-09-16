@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { useFloatingPlaceholder } from "./FloatingPlaceholder";
 import type { ControlSize, InputPlaceholderMode } from "./shared";
 import { useControlSize } from "./shared";
@@ -218,7 +219,7 @@ export function Cascader({
   active.forEach((option) => { const children = optionChildren(option, fields); if (children?.length) columns.push(children); });
 
   const floating = useFloatingPlaceholder({ mode: placeholderMode, placeholder, filled: selectedPaths.length > 0, active: open });
-  return <div ref={rootRef} className={`sia-cascader sia-cascader--${size}${open ? " is-open" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()} {...props}>
+  return <div ref={rootRef} className={`sia-cascader sia-cascader--${size}${open ? " is-open" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()} {...withTitleTooltip(props)}>
     <button type="button" className={`sia-cascader__trigger${floating.className}`} disabled={disabled} aria-haspopup="listbox" aria-expanded={open} onClick={toggleOpen}>
       <span className="sia-cascader__value">{display
         ? multiple && Array.isArray(display) ? display.map((label, index) => <span className="sia-cascader__tag" key={pathKey(selectedPaths[index] ?? [])}>{label}</span>) : display

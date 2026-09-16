@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { Children, cloneElement, createContext, forwardRef, isValidElement, useContext, useEffect, useId, useMemo, useRef, useSyncExternalStore } from "react";
 import type { ChangeEventHandler, FormHTMLAttributes, InputHTMLAttributes, ReactElement, ReactNode } from "react";
 import { ControlSizeContext, PlaceholderModeContext, useControlSize, usePlaceholderMode } from "./shared";
@@ -53,7 +54,7 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(function Switch(
 
   return (
     <label className={`sia-switch-wrap sia-switch-wrap--${size} ${className}`.trim()}>
-      <input ref={ref} type="checkbox" role="switch" className="sia-switch-input" onChange={handleChange} {...props} />
+      <input ref={ref} type="checkbox" role="switch" className="sia-switch-input" onChange={handleChange} {...withTitleTooltip(props)} />
       <span
         className={`sia-switch sia-switch--${variant}${variant === "standard" && hasContent ? " sia-switch--with-content" : ""}`}
         aria-hidden="true"
@@ -409,7 +410,7 @@ function FormRoot({
   const context = useMemo(() => instance, [instance]);
   return <FormContext.Provider value={context}><PlaceholderModeContext.Provider value={resolvedPlaceholderMode}><ControlSizeContext.Provider value={size}>
     <form
-      {...props}
+      {...withTitleTooltip(props)}
       className={`sia-form sia-form--${layout} sia-form--${size}${disabled ? " is-disabled" : ""} ${className}`.trim()}
       data-required-mark={requiredMark}
       onSubmit={(event) => { event.preventDefault(); instance.submit(); }}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { Modal } from "./Modal";
 import type { ModalActionResult, ModalOpenConfig, OverlayApiHandle } from "./Modal";
 import { Button } from "./Button";
@@ -14,22 +15,31 @@ export interface SelectModalConfig extends Omit<ModalOpenConfig, "children" | "f
   options: readonly SelectOption[];
   /** 弹框打开时的初始选中值；通过返回句柄 update({ value }) 可替换当前草稿。 */
   value?: SelectChangeValue;
-  /** 展示或交互模式；可选值见类型定义。 */
+  /** 单选或多选模式；single 确认时返回单值，multiple 返回数组。
+   * @defaultValue "single" */
   mode?: SelectProps["mode"];
-  /** 在选项名称下方显示 value，下拉与弹框模式均支持；不影响按 value 搜索 */
+  /** 在选项名称下方另起一行显示 value；关闭此项仍可按 value 搜索。
+   * @defaultValue false */
   showValue?: boolean;
-  /** 弹框选项每行列数；长文本单行省略。 */
+  /** 弹框选项每行列数；长文本单行省略。
+   * @defaultValue 3 */
   columns?: number;
-  /** 允许的最大高度。 */
+  /** 选项列表的最大可视高度，单位为像素；超出时在列表内滚动，不包含标题、搜索区和底部按钮。
+   * @defaultValue 360 */
   maxHeight?: number;
-  /** 搜索框的占位提示文字。 */
+  /** 标题下方的独立首行扩展内容，位于选项范围和搜索框上方。 */
+  headerExtra?: ReactNode;
+  /** 顶部自定义控件的业务数据；框架不会自动绑定 headerExtra 内的控件，需由业务方在变更时调用句柄 update({ extraValues })。确认时将当前对象的浅拷贝作为第三个参数传出，未配置时为 {}；update 会替换整个 extraValues 对象。 */
+  extraValues?: Record<string, unknown>;
+  /** 搜索框的占位提示文字。
+   * @defaultValue "搜索选项" */
   searchPlaceholder?: string;
-  /** 自定义搜索匹配函数，返回 true 时保留该选项。 */
+  /** 自定义本地搜索：接收去除首尾空白的搜索词和选项，返回 true 时保留。默认同时匹配 label 和 value（忽略大小写）；空搜索词显示全部选项。 */
   filterOption?: SelectProps["filterOption"];
-  /** 搜索条件变化或提交搜索时调用，具体参数见签名。 */
+  /** 搜索输入变化时调用，参数为未裁剪的输入文本，清空时为空字符串。默认仍执行本地过滤；远程搜索结果需通过句柄 update({ options }) 回填。 */
   onSearch?: SelectProps["onSearch"];
-  /** 确认后接收选中的值和对应选项；单选为单值，多选为数组。支持异步处理；返回 false 或抛出异常时保留弹框，允许重试。 */
-  onConfirm?: (value: SelectChangeValue, option: SelectOption | SelectOption[] | null) => ModalActionResult;
+  /** 点击确定时接收 value、option 和 extraValues：单选未选择时前两项为 null，多选为空时为 []；第三项为扩展数据的浅拷贝。返回 Promise 时等待完成并禁用选择操作；返回 false 或抛出异常时保留弹框供重试，否则关闭。取消不调用此回调。 */
+  onConfirm?: (value: SelectChangeValue, option: SelectOption | SelectOption[] | null, extraValues: Record<string, unknown>) => ModalActionResult;
 }
 
 function SelectModalBody({ config, values, disabled, onChange }: {
@@ -53,6 +63,7 @@ function SelectModalBody({ config, values, disabled, onChange }: {
     onChange([...next]);
   };
   return <>
+    {config.headerExtra != null && config.headerExtra !== false ? <div className="sia-select-modal__header-extra">{config.headerExtra}</div> : null}
     <div className="sia-select-modal__heading">
       <div role="tablist" aria-label="选项范围">
         <Button role="tab" aria-selected={!selectedOnly} variant="link" onClick={() => setSelectedOnly(false)}>全部</Button>
@@ -74,7 +85,12 @@ function SelectModalBody({ config, values, disabled, onChange }: {
   </>;
 }
 
-/** 无需渲染 Select，直接打开选择弹框。取消不提交，确认支持异步处理及返回 false 阻止关闭。 */
+/**
+ * 无需渲染 Select，直接打开选择弹框；默认标题为“请选择”、宽度为 900px。
+ * 选择操作只更新弹框草稿，点击确定才调用 onConfirm，取消不提交。
+ * @param config 候选项、初始选择、弹框布局与确认回调。
+ * @returns 弹框句柄。update 合并配置并保留当前草稿，显式传 value 可替换草稿；destroy 销毁弹框。
+ */
 export function openSelectModal(config: SelectModalConfig): OverlayApiHandle<SelectModalConfig> {
   let current = config;
   const normalize = (value: SelectChangeValue | undefined) => value == null ? [] : Array.isArray(value) ? [...value] : [value];
@@ -88,7 +104,7 @@ export function openSelectModal(config: SelectModalConfig): OverlayApiHandle<Sel
     }} />;
   }
   function modalConfig(): ModalOpenConfig {
-    const { options, value, mode, showValue, columns, maxHeight, searchPlaceholder, filterOption, onSearch, onConfirm, ...modal } = current;
+    const { options, value, mode, showValue, columns, maxHeight, headerExtra, extraValues, searchPlaceholder, filterOption, onSearch, onConfirm, ...modal } = current;
     return { ...modal, title: current.title ?? "请选择", width: current.width ?? 900,
       className: `sia-select-modal ${current.className ?? ""}`, children: body(),
       onOk: async () => {
@@ -97,7 +113,7 @@ export function openSelectModal(config: SelectModalConfig): OverlayApiHandle<Sel
         handle.update({ children: body() });
         try {
           return await current.onConfirm?.(current.mode === "multiple" ? [...values] : values[0] ?? null,
-            current.mode === "multiple" ? selected : selected[0] ?? null);
+            current.mode === "multiple" ? selected : selected[0] ?? null, { ...current.extraValues });
         } finally {
           submitting = false;
           handle.update({ children: body() });

@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { Children, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, HTMLAttributes, ImgHTMLAttributes, ReactElement, ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -55,12 +56,12 @@ export function Rate({ value, size: sizeProp, defaultValue = 0, count = 5, allow
   const [hover, setHover] = useState(0);
   const shown = hover || current;
   function choose(next: number) { setCurrent(allowClear && next === current ? 0 : next); }
-  return <div className={`sia-rate sia-rate--${size}${disabled ? " is-disabled" : ""} ${className}`.trim()} role="radiogroup" aria-label="评分" onMouseLeave={() => { setHover(0); onHoverChange?.(0); }} {...props}>
+  return <div className={`sia-rate sia-rate--${size}${disabled ? " is-disabled" : ""} ${className}`.trim()} role="radiogroup" aria-label="评分" onMouseLeave={() => { setHover(0); onHoverChange?.(0); }} {...withTitleTooltip(props)}>
     {Array.from({ length: count }, (_, index) => {
       const whole = index + 1;
       const fill = Math.max(0, Math.min(1, shown - index));
       const content = typeof character === "function" ? character(index) : character ?? <Icon name="star" variant="filled" />;
-      return <span className="sia-rate__item" key={whole} title={tooltips?.[index]}>
+      return <span className="sia-rate__item" key={whole} {...withTitleTooltip({ title: tooltips?.[index] })}>
         <button type="button" disabled={disabled} role="radio" aria-checked={current === whole} aria-label={`${whole} 星`} onMouseMove={(event) => {
           const rect = event.currentTarget.getBoundingClientRect();
           const next = allowHalf && event.clientX - rect.left < rect.width / 2 ? whole - .5 : whole;
@@ -130,7 +131,7 @@ export interface BadgeRibbonProps extends HTMLAttributes<HTMLDivElement> {
   placement?: "start" | "end" }
 
 function BadgeRibbon({ text, color, placement = "end", className = "", children, ...props }: BadgeRibbonProps) {
-  return <div className={`sia-ribbon-wrap ${className}`.trim()} {...props}>{children}<span className={`sia-ribbon sia-ribbon--${placement}`} style={{ backgroundColor: color }}>{text}</span></div>;
+  return <div className={`sia-ribbon-wrap ${className}`.trim()} {...withTitleTooltip(props)}>{children}<span className={`sia-ribbon sia-ribbon--${placement}`} style={{ backgroundColor: color }}>{text}</span></div>;
 }
 
 /** 徽标组件。 */
@@ -139,8 +140,8 @@ export function Badge({ count, showZero = false, overflowCount = 99, dot = false
   const hidden = !dot && !status && (count === undefined || count === null || (count === 0 && !showZero));
   const display = numeric && count > overflowCount ? `${overflowCount}+` : count;
   const badge = !hidden ? <sup className={`sia-badge__count${dot || status ? " sia-badge__dot" : ""}${status ? ` sia-badge__dot--${status}` : ""} sia-badge__count--${size}`} style={{ backgroundColor: color, transform: `translate(calc(50% + ${offset[0]}px), calc(-50% + ${offset[1]}px))` }}>{dot || status ? null : display}</sup> : null;
-  if (status && !children) return <span className={`sia-badge sia-badge--status ${className}`.trim()} style={style} {...props}>{badge}{text ? <span className="sia-badge__text">{text}</span> : null}</span>;
-  return <span className={`sia-badge ${className}`.trim()} style={style} {...props}>{children}{badge}{text && !status ? <span className="sia-badge__text">{text}</span> : null}</span>;
+  if (status && !children) return <span className={`sia-badge sia-badge--status ${className}`.trim()} style={style} {...withTitleTooltip(props)}>{badge}{text ? <span className="sia-badge__text">{text}</span> : null}</span>;
+  return <span className={`sia-badge ${className}`.trim()} style={style} {...withTitleTooltip(props)}>{children}{badge}{text && !status ? <span className="sia-badge__text">{text}</span> : null}</span>;
 }
 Badge.Ribbon = BadgeRibbon;
 
@@ -215,7 +216,7 @@ export function Calendar({ value, defaultValue, mode = "month", fullscreen = tru
   function setPanelValue(next: Date) { setPanel(next); onPanelChange?.(formatDate(next), panelMode); }
   function setMode(next: "month" | "year") { setPanelMode(next); onPanelChange?.(formatDate(panel), next); }
   const headerConfig = { value: formatDate(panel), mode: panelMode, onChange: (next: string) => setPanelValue(parseDate(next)), onTypeChange: setMode };
-  return <div className={`sia-calendar${fullscreen ? " sia-calendar--fullscreen" : " sia-calendar--mini"} ${className}`.trim()} {...props}>
+  return <div className={`sia-calendar${fullscreen ? " sia-calendar--fullscreen" : " sia-calendar--mini"} ${className}`.trim()} {...withTitleTooltip(props)}>
     <div className="sia-calendar__header">{headerRender ? headerRender(headerConfig) : <>
       <button type="button" aria-label="上一页" onClick={() => setPanelValue(new Date(panel.getFullYear() - (panelMode === "year" ? 1 : 0), panel.getMonth() - (panelMode === "month" ? 1 : 0), 1))}><Icon name="chevron-left" /></button>
       <strong>{panel.getFullYear()} 年{panelMode === "month" ? ` ${panel.getMonth() + 1} 月` : ""}</strong>
@@ -316,7 +317,7 @@ export function Carousel({ autoplay = false, autoplaySpeed = 3000, arrows = fals
     const timer = window.setInterval(() => go(current + 1), autoplaySpeed);
     return () => window.clearInterval(timer);
   }, [autoplay, autoplaySpeed, current, paused, slides.length]);
-  return <div className={`sia-carousel sia-carousel--${effect} ${className}`.trim()} onMouseEnter={pauseOnHover ? () => setPaused(true) : undefined} onMouseLeave={pauseOnHover ? () => setPaused(false) : undefined} {...props}>
+  return <div className={`sia-carousel sia-carousel--${effect} ${className}`.trim()} onMouseEnter={pauseOnHover ? () => setPaused(true) : undefined} onMouseLeave={pauseOnHover ? () => setPaused(false) : undefined} {...withTitleTooltip(props)}>
     <div className="sia-carousel__viewport"><div className="sia-carousel__track" style={effect === "scroll" ? { transform: `translateX(-${current * 100}%)` } : undefined}>
       {slides.map((slide, index) => <div className={`sia-carousel__slide${index === current ? " is-active" : ""}`} aria-hidden={index !== current} key={index}>{slide}</div>)}
     </div></div>
@@ -431,7 +432,7 @@ export function Collapse({ items, activeKey, defaultActiveKey = [], accordion = 
     onChange?.(accordion ? next[0] ?? "" : next);
   }
   const borderClassName = !bordered || ghost ? "sia-collapse--borderless" : "sia-collapse--bordered";
-  return <div className={`sia-collapse ${borderClassName}${ghost ? " sia-collapse--ghost" : ""} sia-collapse--icon-${expandIconPosition} ${className}`.trim()} {...props}>
+  return <div className={`sia-collapse ${borderClassName}${ghost ? " sia-collapse--ghost" : ""} sia-collapse--icon-${expandIconPosition} ${className}`.trim()} {...withTitleTooltip(props)}>
     {items.map((item) => {
       const open = openKeys.includes(item.key);
       const arrow = item.showArrow === false ? null : <button type="button" className="sia-collapse__arrow" aria-label={open ? "收起" : "展开"} onClick={item.collapsible === "icon" ? () => toggle(item) : undefined}><Icon name="chevron-right" size={14} /></button>;
@@ -517,7 +518,7 @@ export function Image({ fallback, placeholder, preview = true, rootClassName = "
   function setOpen(next: boolean) { if (!controlled) setInternalOpen(next); config.onOpenChange?.(next); }
   return <span className={`sia-image ${rootClassName}`.trim()} style={rootStyle}>
     {!loaded && placeholder ? <span className="sia-image__placeholder">{placeholder}</span> : null}
-    <img {...props} src={displaySrc} alt={alt} className={className} onLoad={() => setLoaded(true)} onError={(event) => { if (!failed && fallback) setFailed(true); onError?.(event); }} />
+    <img {...withTitleTooltip(props)} src={displaySrc} alt={alt} className={className} onLoad={() => setLoaded(true)} onError={(event) => { if (!failed && fallback) setFailed(true); onError?.(event); }} />
     {preview ? <button type="button" className="sia-image__mask" aria-label="预览图片" onClick={() => setOpen(true)}>{config.mask ?? <><Icon name="eye" />预览</>}</button> : null}
     <ImagePreview open={open} src={config.src ?? displaySrc} alt={alt} onOpenChange={setOpen} />
   </span>;

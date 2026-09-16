@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { useState } from "react";
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { Icon } from "./Icon";
@@ -83,7 +84,7 @@ export function Card({
   );
 
   return (
-    <section className={`sia-card${isCollapsed ? " sia-card--collapsed" : ""} ${className}`.trim()} style={mergedStyle} {...props}>
+    <section className={`sia-card${isCollapsed ? " sia-card--collapsed" : ""} ${className}`.trim()} style={mergedStyle} {...withTitleTooltip(props)}>
       {hasHeader ? (
         <header className="sia-card__header">
           {collapsible ? (

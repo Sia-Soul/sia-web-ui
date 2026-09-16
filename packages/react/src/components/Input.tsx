@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { useControlSize } from "./shared";
 import { forwardRef, useId, useRef, useState } from "react";
 import type { ChangeEvent, InputHTMLAttributes, MouseEvent, ReactNode } from "react";
@@ -114,7 +115,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
 
   const input = (
     <input
-      {...props}
+      {...withTitleTooltip(props)}
       ref={setRef}
       id={inputId}
       className="sia-input"

@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { useControlSize } from "./shared";
 import { useFloatingPlaceholder } from "./FloatingPlaceholder";
 import type { InputPlaceholderMode } from "./shared";
@@ -144,7 +145,7 @@ export function TimePicker({
   }
   const floating = useFloatingPlaceholder({ mode: placeholderMode, placeholder, filled: Boolean(display), active: open });
   return <span ref={rootRef} style={style} className={`sia-picker sia-time-picker${floating.className} sia-picker--${size} sia-picker--${status}${disabled ? " is-disabled" : ""} ${className}`.trim()}>
-    <input {...props} ref={inputRef} id={props.id ?? id} type="text" readOnly value={display} disabled={disabled}
+    <input {...withTitleTooltip(props)} ref={inputRef} id={props.id ?? id} type="text" readOnly value={display} disabled={disabled}
       placeholder={placeholder} role="combobox" aria-expanded={open && !disabled && !readOnly} aria-haspopup="dialog" aria-controls={open ? id + "-panel" : undefined}
       aria-label={props["aria-label"] ?? "时间"} aria-invalid={status === "error" || undefined}
       onClick={(event) => { props.onClick?.(event); if (!event.defaultPrevented) changeOpen(true); }}

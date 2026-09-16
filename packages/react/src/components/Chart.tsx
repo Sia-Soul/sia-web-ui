@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import {ChartBrush,type ChartBrushProps} from './ChartBrush';
 import {axisTooltipPosition} from './chartTooltipPosition';
 import {chartZoomPan} from './chartZoomPan';
@@ -324,7 +325,7 @@ function toCssSize(value: number | string | undefined, fallback: string) {
 export const ChartComposite=forwardRef<ChartCompositeRef,ChartCompositeProps>(function ChartComposite({ layers, width = "100%", height = 320, ariaLabel = "组合图表", className = "", style, ...props },ref) {
   const host=useRef<HTMLDivElement>(null);
   useImperativeHandle(ref,()=>({toSvgString:()=>host.current?serializeChartComposite(host.current):null,saveAsImage:filename=>saveCompositeImage(host.current?serializeChartComposite(host.current):null,filename)}),[]);
-  return <div {...props} ref={host} className={`sia-chart-composite${className ? ` ${className}` : ""}`} style={{ ...style, width: toCssSize(width, "100%"), height: toCssSize(height, "320px") }} role="group" aria-label={ariaLabel}>
+  return <div {...withTitleTooltip(props)} ref={host} className={`sia-chart-composite${className ? ` ${className}` : ""}`} style={{ ...style, width: toCssSize(width, "100%"), height: toCssSize(height, "320px") }} role="group" aria-label={ariaLabel}>
     {layers.map((layer, index) => <div key={layer.key ?? index} className="sia-chart-composite__layer" style={{ left: layer.left ?? 0, top: layer.top ?? 0, width: layer.width ?? "100%", height: layer.height ?? "100%", zIndex: layer.zIndex ?? index, pointerEvents: layer.pointerEvents }}>{layer.content}</div>)}
   </div>;
 });
@@ -365,7 +366,7 @@ export function ChartTooltip({ open, left, top, children, enterable = false, inh
   },[open,placement,left,top,children]);
   if (!open) return null;
   return <div
-    {...props}
+    {...withTitleTooltip(props)}
     ref={elementRef}
     className={`sia-chart__tooltip${inheritTextStyle?' sia-chart__tooltip--inherit-text':''}${className ? ` ${className}` : ""}`}
     role="tooltip"
@@ -428,21 +429,21 @@ export function ChartToolbox({
     {features.map((feature) => <span key={feature} style={{display:"contents"}}><button
       type="button"
       className="sia-chart-toolbox__button"
-      title={TOOLBOX_LABELS[feature]}
+      {...withTitleTooltip({ title: TOOLBOX_LABELS[feature] })}
       aria-label={TOOLBOX_LABELS[feature]}
       aria-pressed={feature === "mark" ? markActive : feature==="dataZoom"?zoomActive:undefined}
       onClick={featureActions[feature]}
     ><ToolboxIcon>{TOOLBOX_ICONS[feature]}</ToolboxIcon></button>{feature === "mark" ? <>
-      <button type="button" className="sia-chart-toolbox__button" aria-label="撤销标线" title="撤销标线" disabled={!markCount} onClick={onMarkUndo}><ToolboxIcon><path d="M4 8h10a6 6 0 0 1 0 12M4 8l5-5M4 8l5 5" /></ToolboxIcon></button>
-      <button type="button" className="sia-chart-toolbox__button" aria-label="清空标线" title="清空标线" disabled={!markCount} onClick={onMarkClear}><ToolboxIcon><path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7" /></ToolboxIcon></button>
-    </> : feature==='dataZoom'&&onZoomBack?<button type="button" className="sia-chart-toolbox__button" aria-label="区域缩放后退" title="区域缩放后退" disabled={zoomBackDisabled} onClick={onZoomBack}><ToolboxIcon><path d="M4 8h10a6 6 0 0 1 0 12M4 8l5-5M4 8l5 5"/></ToolboxIcon></button>:null}</span>)}
+      <button type="button" className="sia-chart-toolbox__button" aria-label="撤销标线" {...withTitleTooltip({ title: "撤销标线" })} disabled={!markCount} onClick={onMarkUndo}><ToolboxIcon><path d="M4 8h10a6 6 0 0 1 0 12M4 8l5-5M4 8l5 5" /></ToolboxIcon></button>
+      <button type="button" className="sia-chart-toolbox__button" aria-label="清空标线" {...withTitleTooltip({ title: "清空标线" })} disabled={!markCount} onClick={onMarkClear}><ToolboxIcon><path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7" /></ToolboxIcon></button>
+    </> : feature==='dataZoom'&&onZoomBack?<button type="button" className="sia-chart-toolbox__button" aria-label="区域缩放后退" {...withTitleTooltip({ title: "区域缩放后退" })} disabled={zoomBackDisabled} onClick={onZoomBack}><ToolboxIcon><path d="M4 8h10a6 6 0 0 1 0 12M4 8l5-5M4 8l5 5"/></ToolboxIcon></button>:null}</span>)}
     {magicTypes.map((type) => <button
       key={type}
       type="button"
       className="sia-chart-toolbox__button sia-chart-toolbox__magic"
       aria-pressed={activeMagicTypes ? activeMagicTypes.includes(type) : activeMagicType === type}
       aria-label={`切换为${({line:"折线图",bar:"柱状图",stack:"堆积",tiled:"平铺"} as Record<string,string>)[type] ?? type}`}
-      title={`切换为${type}`}
+      {...withTitleTooltip({ title: `切换为${type}` })}
       onClick={() => onMagicTypeChange?.(type)}
     >{["line","bar","stack","tiled"].includes(type) ? <ToolboxIcon>{type === "line" ? <path d="M3 3v18h18M5 16l4-9 5 6 6-10" /> : type === "bar" ? <path d="M3 3v18h18M7 18V10h2v8M12 18V5h2v13M17 18V8h2v10" /> : type === "stack" ? <path d="M4 4h16v4H4zM4 10h16v4H4zM4 16h16v4H4z" /> : <path d="M4 4h4v16H4zM10 4h4v16h-4zM16 4h4v16h-4z" />}</ToolboxIcon> : type}</button>)}
   </div>;
@@ -604,14 +605,14 @@ export const SiaChart = forwardRef<SiaChartRef, SiaChartProps>(function SiaChart
   return (
     <ChartContext.Provider value={context}>
       <div
-        {...rest}
+        {...withTitleTooltip(rest)}
         ref={hostRef}
         className={`sia-chart${loading ? " sia-chart--loading" : ""}${animation ? " sia-chart--animated" : ""}${className ? ` ${className}` : ""}`}
         style={rootStyle}
         aria-busy={loading || undefined}
       >
         <svg
-          {...svgProps}
+          {...withTitleTooltip(svgProps)}
           ref={svgRef}
           className={`sia-chart__svg${svgProps?.className ? ` ${svgProps.className}` : ""}`}
           viewBox={`0 0 ${viewBoxSize[0]} ${viewBoxSize[1]}`}
@@ -711,7 +712,7 @@ export interface ChartMarkProps extends SVGAttributes<SVGGElement> {
 export function ChartMark({ tooltip, tooltipPoint, label, onPointerMove, onPointerLeave, onFocus, onBlur, ...props }: ChartMarkProps) {
   const context = useContext(ChartContext);
   return <g
-    {...props}
+    {...withTitleTooltip(props)}
     className={`sia-chart__mark${props.className ? ` ${props.className}` : ""}`}
     tabIndex={props.tabIndex??0}
     role="graphics-symbol"
@@ -1274,7 +1275,7 @@ export function ChartTimeline({ labels, value, onChange, autoPlay = false, playI
     }, Math.max(120, playInterval));
     return () => window.clearInterval(timer);
   }, [labels.length, loop, onChange, playInterval, playing, value]);
-  return <div {...props} className={`sia-chart-timeline${className ? ` ${className}` : ""}`}>
+  return <div {...withTitleTooltip(props)} className={`sia-chart-timeline${className ? ` ${className}` : ""}`}>
     <button type="button" aria-label={playing ? "暂停时间轴" : "播放时间轴"} onClick={() => setPlaying((current) => !current)}>{playing ? "Ⅱ" : "▶"}</button>
     <input aria-label="图表时间轴" type="range" min={0} max={Math.max(0, labels.length - 1)} value={Math.min(value, Math.max(0, labels.length - 1))} onChange={(event) => onChange(Number(event.target.value))} />
     <output>{labels[value] ?? ""}</output>

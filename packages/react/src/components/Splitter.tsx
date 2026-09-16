@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { Children, cloneElement, isValidElement, useMemo, useRef, useState } from "react";
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, MouseEvent, ReactElement, ReactNode } from "react";
 import { Icon } from "./Icon";
@@ -52,7 +53,7 @@ function SplitterPanel({
   className = "",
   ...props
 }: SplitterPanelProps) {
-  return <div className={`sia-splitter__panel ${className}`.trim()} {...props} />;
+  return <div className={`sia-splitter__panel ${className}`.trim()} {...withTitleTooltip(props)} />;
 }
 
 function normalizeExpandedSizes(panels: readonly ReactElement<SplitterPanelProps>[]) {
@@ -178,7 +179,7 @@ function SplitterRoot({
     onResizeEnd?.(next);
   }
 
-  return <div ref={rootRef} className={`sia-splitter sia-splitter--${orientation} ${className}`.trim()} {...props}>
+  return <div ref={rootRef} className={`sia-splitter sia-splitter--${orientation} ${className}`.trim()} {...withTitleTooltip(props)}>
     {panels.flatMap((panel, index) => {
       const panelCollapsed = Boolean(panel.props.collapsible)
         && (sizes[index] ?? 0) <= collapsedSize(panel) + 0.01;

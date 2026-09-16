@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { useState } from "react";
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { Tooltip } from "./FloatingDisplay";
@@ -121,7 +122,7 @@ export function Slider({
   return <div
     className={`sia-slider${range ? " sia-slider--range" : ""}${vertical ? " sia-slider--vertical" : ""}${reverse ? " sia-slider--reverse" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()}
     style={style}
-    {...props}
+    {...withTitleTooltip(props)}
   >
     <div className="sia-slider__rail"><span className="sia-slider__track" /></div>
     {values.map((item, index) => <div className="sia-slider__thumb-wrap" key={index}>

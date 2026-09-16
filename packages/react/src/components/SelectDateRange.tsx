@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { useControlSize } from "./shared";
 import type { InputPlaceholderMode } from "./shared";
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
@@ -90,7 +91,7 @@ export function SelectDateRange({
   const initialValue = defaultValue ?? { select: options[0]?.value ?? "", range: ["", ""] };
   const [currentValue, setCurrentValue] = useControllableState<SelectDateRangeValue>({ value: value === undefined ? undefined : value && typeof value === "object" ? value : { select: "", range: ["", ""] }, defaultValue: initialValue, onChange });
 
-  return <div className={`sia-select-date-range sia-select-date-range--${size} ${className}`.trim()} role="group" aria-label={`${selectAriaLabel}与${rangeAriaLabel}`} {...props} style={{ ...style, "--sia-select-date-range-select-width": typeof selectWidth === "number" ? `${selectWidth}px` : selectWidth } as CSSProperties}>
+  return <div className={`sia-select-date-range sia-select-date-range--${size} ${className}`.trim()} role="group" aria-label={`${selectAriaLabel}与${rangeAriaLabel}`} {...withTitleTooltip(props)} style={{ ...style, "--sia-select-date-range-select-width": typeof selectWidth === "number" ? `${selectWidth}px` : selectWidth } as CSSProperties}>
     <Select
       className="sia-select-date-range__select"
       aria-label={selectAriaLabel}

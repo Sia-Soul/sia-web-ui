@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import type {
   HTMLAttributes,
   MouseEvent as ReactMouseEvent,
@@ -134,7 +135,7 @@ export function WindowFrame({
     <div
       className={`sia-window-frame ${className}`.trim()}
       data-sia-window-mode="custom"
-      {...props}
+      {...withTitleTooltip(props)}
     >
       {titleBar}
       {children}
@@ -168,14 +169,14 @@ export function WindowControls({
       className={`sia-window-controls ${className}`.trim()}
       data-sia-window-no-drag=""
       aria-label="窗口控制"
-      {...props}
+      {...withTitleTooltip(props)}
     >
       {showMinimize ? (
         <button
           type="button"
           className="sia-window-control"
           aria-label={mergedLabels.minimize}
-          title={mergedLabels.minimize}
+          {...withTitleTooltip({ title: mergedLabels.minimize })}
           disabled={isDisabled("minimize")}
           onClick={() => runAction("minimize")}
         >
@@ -187,7 +188,7 @@ export function WindowControls({
           type="button"
           className="sia-window-control"
           aria-label={maximized ? mergedLabels.restore : mergedLabels.maximize}
-          title={maximized ? mergedLabels.restore : mergedLabels.maximize}
+          {...withTitleTooltip({ title: maximized ? mergedLabels.restore : mergedLabels.maximize })}
           disabled={isDisabled("toggle-maximize")}
           onClick={() => runAction("toggle-maximize")}
         >
@@ -199,7 +200,7 @@ export function WindowControls({
           type="button"
           className="sia-window-control sia-window-control--close"
           aria-label={mergedLabels.close}
-          title={mergedLabels.close}
+          {...withTitleTooltip({ title: mergedLabels.close })}
           disabled={isDisabled("close")}
           onClick={() => runAction("close")}
         >
@@ -261,7 +262,7 @@ export function WindowTitleBar({
       className={`sia-window-titlebar ${className}`.trim()}
       data-actions-align={actionsAlign}
       onMouseDown={handleMouseDown}
-      {...props}
+      {...withTitleTooltip(props)}
     >
       {leading ? <div className="sia-window-titlebar__leading">{leading}</div> : null}
       {actionsAlign === "left" ? renderedActions : null}

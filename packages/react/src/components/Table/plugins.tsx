@@ -300,12 +300,13 @@ function isInteractiveTableTarget(target: EventTarget | null) {
   );
 }
 
-/** 创建表格单元格区域选择插件。将返回值加入 Table 的 plugins 后生效。 */
+/** 创建表格单元格区域选择插件。Table 默认内置；点击表格空白处或表格外部时清除单元格选区，不改变行勾选状态。显式传入 plugins 可自定义选择和复制行为。 */
 export function createCellSelectionPlugin<T extends Record<string, unknown>>(
   options: TableCellSelectionPluginOptions<T> = {},
 ): TablePlugin<T, CellSelectionState, TableCellSelectionApi<T>> {
-  let dragMode: "cells" | "rows" | "headers" | null = null;
+  let dragMode: "text" | "cells" | "rows" | "headers" | null = null;
   let dragAnchor: TableCellAddress | null = null;
+  let textCell: HTMLTableCellElement | null = null;
   let headerDragAnchorKey: string | null = null;
   let snapshotCache: CellSelectionSnapshot<T> | null = null;
   let latestContext: TablePluginContext<T, CellSelectionState> | null = null;
@@ -740,15 +741,22 @@ export function createCellSelectionPlugin<T extends Record<string, unknown>>(
         return;
       }
       if (!isSelectable(row, column, context)) return;
-      event.preventDefault();
+      // Do not start the browser's HTML drag-and-drop on a previous text range.
       window.getSelection()?.removeAllRanges();
       focusTable(event.currentTarget);
       const address = { rowKey: row.key, columnKey: column.key };
+      const extendRange = event.shiftKey && context.state.range;
       dragAnchor =
-        event.shiftKey && context.state.range
-          ? context.state.range.anchor
+        extendRange
+          ? extendRange.anchor
           : address;
-      dragMode = "cells";
+      // Let the browser select text until the pointer enters another cell.
+      dragMode = extendRange ? "cells" : "text";
+      textCell = extendRange ? null : event.currentTarget;
+      if (extendRange) {
+        event.preventDefault();
+        window.getSelection()?.removeAllRanges();
+      }
       setSelection(context, { anchor: dragAnchor, focus: address });
     },
     onCellPointerMove(row, column, event, context) {
@@ -756,6 +764,7 @@ export function createCellSelectionPlugin<T extends Record<string, unknown>>(
       if ((event.buttons & 1) === 0) {
         dragMode = null;
         dragAnchor = null;
+        textCell = null;
         return;
       }
       if (dragMode === "rows") {
@@ -765,6 +774,12 @@ export function createCellSelectionPlugin<T extends Record<string, unknown>>(
         return;
       }
       if (!isSelectable(row, column, context)) return;
+      if (dragMode === "text") {
+        if (sameCellAddress(dragAnchor, { rowKey: row.key, columnKey: column.key })) return;
+        dragMode = "cells";
+        textCell = null;
+        focusTable(event.currentTarget);
+      }
       event.preventDefault();
       window.getSelection()?.removeAllRanges();
       setSelection(context, {
@@ -802,9 +817,22 @@ export function createCellSelectionPlugin<T extends Record<string, unknown>>(
     },
     onMount() {
       const stopDragging = () => {
+        constrainTextSelection();
         dragMode = null;
         dragAnchor = null;
+        textCell = null;
         headerDragAnchorKey = null;
+      };
+      const constrainTextSelection = () => {
+        if (!dragMode) return;
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed) return;
+        if (dragMode !== "text" || !textCell?.contains(selection.anchorNode) || !textCell.contains(selection.focusNode)) {
+          selection.removeAllRanges();
+        }
+      };
+      const handleSelectStart = (event: Event) => {
+        if (dragMode && dragMode !== "text") event.preventDefault();
       };
       const handleCopy = (event: ClipboardEvent) => {
         const context = latestContext;
@@ -816,18 +844,40 @@ export function createCellSelectionPlugin<T extends Record<string, unknown>>(
           isInteractiveTableTarget(document.activeElement)
         )
           return;
+        // Preserve native partial-text copying instead of replacing it with TSV.
+        const selection = window.getSelection();
+        if (selection && !selection.isCollapsed && selection.toString()) return;
         const text = copyText(context);
         if (!text) return;
         event.preventDefault();
         event.clipboardData?.setData("text/plain", text);
         options.onCopy?.(text, selectedCells(context));
       };
+      // 仅在新的主指针按下时清除，拖拽越出表格或右键菜单不应丢失当前选区。
+      const clearOnOutsidePointerDown = (event: PointerEvent) => {
+        const context = latestContext;
+        if (event.button !== 0 || !context?.state.range || !activeRoot) return;
+        const target = event.target instanceof Element ? event.target : null;
+        const cell = target?.closest("td[data-column-key], th[data-column-key]");
+        if (cell?.closest(".sia-table") === activeRoot) return;
+        stopDragging();
+        setSelection(context, null);
+      };
+      document.addEventListener("pointerdown", clearOnOutsidePointerDown, true);
       window.addEventListener("pointerup", stopDragging);
+      window.addEventListener("pointercancel", stopDragging);
       window.addEventListener("blur", stopDragging);
+      document.addEventListener("selectionchange", constrainTextSelection);
+      document.addEventListener("selectstart", handleSelectStart);
       document.addEventListener("copy", handleCopy);
       return () => {
+        stopDragging();
+        document.removeEventListener("pointerdown", clearOnOutsidePointerDown, true);
         window.removeEventListener("pointerup", stopDragging);
+        window.removeEventListener("pointercancel", stopDragging);
         window.removeEventListener("blur", stopDragging);
+        document.removeEventListener("selectionchange", constrainTextSelection);
+        document.removeEventListener("selectstart", handleSelectStart);
         document.removeEventListener("copy", handleCopy);
       };
     },
@@ -1980,7 +2030,7 @@ export interface TableIndexPluginOptions {
   /** 序号列的起始编号。 */
   startIndex?: number;
 }
-/** 创建表格序号列插件。将返回值加入 Table 的 plugins 后生效。 */
+/** 创建表格序号列插件。Table 默认内置；显式加入 plugins 可覆盖标题、宽度和起始编号，不重复加载。Table 的 showIndex=false 时禁用。 */
 export function createIndexPlugin<T extends Record<string, unknown>>(
   options: TableIndexPluginOptions = {},
 ): TablePlugin<T, undefined> {

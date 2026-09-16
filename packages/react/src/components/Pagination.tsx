@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { useState } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
 import { Button } from "./Button";
@@ -132,7 +133,7 @@ export function Pagination({
   }
 
   return (
-    <nav className={`sia-pagination sia-pagination--${controlSize} ${className}`.trim()} aria-label="分页" {...props}>
+    <nav className={`sia-pagination sia-pagination--${controlSize} ${className}`.trim()} aria-label="分页" {...withTitleTooltip(props)}>
       <span className="sia-pagination__current-count" aria-live="polite">当前页 {pageCount} 条</span>
       {showSizeChanger ? (
         <div className="sia-pagination__size">

@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { cloneElement, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, HTMLAttributes, ReactElement, ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -163,7 +164,7 @@ export function Progress({
     const radius = 46;
     const circumference = 2 * Math.PI * radius;
     const dash = circumference * (safe / 100);
-    return <div className={`sia-progress sia-progress--${type} sia-progress--${resolved} ${className}`.trim()} style={{ width, height: width, ...style }} {...props}>
+    return <div className={`sia-progress sia-progress--${type} sia-progress--${resolved} ${className}`.trim()} style={{ width, height: width, ...style }} {...withTitleTooltip(props)}>
       <svg viewBox="0 0 100 100" role="progressbar" aria-valuenow={safe}>
         <circle className="sia-progress__trail" cx="50" cy="50" r={radius} style={{ stroke: trailColor }} />
         <circle className="sia-progress__circle" cx="50" cy="50" r={radius} style={{ stroke: color, strokeDasharray: type === "dashboard" ? `${circumference * .75} ${circumference * .25}` : circumference, strokeDashoffset: (type === "dashboard" ? circumference * .75 : circumference) - dash * (type === "dashboard" ? .75 : 1), strokeWidth }} />
@@ -172,7 +173,7 @@ export function Progress({
     </div>;
   }
   const height = Array.isArray(size) ? size[1] : typeof size === "number" ? size : size === "small" ? 6 : strokeWidth;
-  return <div className={`sia-progress sia-progress--line sia-progress--${resolved} ${className}`.trim()} style={style} {...props}>
+  return <div className={`sia-progress sia-progress--line sia-progress--${resolved} ${className}`.trim()} style={style} {...withTitleTooltip(props)}>
     <div className="sia-progress__outer" style={{ height, backgroundColor: trailColor }}>
       {steps ? <div className="sia-progress__steps">{Array.from({ length: steps }, (_, index) => <span className={index < Math.round(steps * safe / 100) ? "is-active" : ""} style={{ background: index < Math.round(steps * safe / 100) ? background : trailColor }} key={index} />)}</div>
         : <><span className="sia-progress__bar" style={{ width: `${safe}%`, background }} />{success?.percent ? <span className="sia-progress__success" style={{ width: `${success.percent}%`, background: success.strokeColor }} /> : null}</>}
@@ -218,8 +219,8 @@ export function Spin({ spinning = true, size = "default", tip, indicator, delay 
   }, [delay, spinning]);
   const spinner = visible ? <div className={`sia-spin sia-spin--${size}`} role="status" aria-live="polite">{indicator ?? <span className="sia-spin__indicator"><i /><i /><i /><i /></span>}{tip ? <span className="sia-spin__tip">{tip}</span> : null}</div> : null;
   if (fullscreen) return visible && typeof document !== "undefined" ? createPortal(<div className="sia-spin-fullscreen">{spinner}</div>, document.body) : null;
-  if (!children) return <div className={`sia-spin-wrap ${className}`.trim()} {...props}>{spinner}</div>;
-  return <div className={`sia-spin-container${visible ? " is-spinning" : ""} ${className}`.trim()} {...props}>{children}{visible ? <div className="sia-spin-mask">{spinner}</div> : null}</div>;
+  if (!children) return <div className={`sia-spin-wrap ${className}`.trim()} {...withTitleTooltip(props)}>{spinner}</div>;
+  return <div className={`sia-spin-container${visible ? " is-spinning" : ""} ${className}`.trim()} {...withTitleTooltip(props)}>{children}{visible ? <div className="sia-spin-mask">{spinner}</div> : null}</div>;
 }
 
 /** 水印文字的字体、颜色和对齐配置。 */
@@ -291,7 +292,7 @@ export function Watermark({ content = "Sia Web UI", image, width = 120, height =
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${tileWidth}" height="${tileHeight}"><g transform="translate(${offset[0]} ${offset[1]}) rotate(${rotate} ${width / 2} ${height / 2})">${body}</g></svg>`;
     return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
   }, [content, font?.color, font?.fontFamily, font?.fontSize, font?.fontWeight, gap[0], gap[1], height, image, offset[0], offset[1], rotate, width]);
-  return <div className={`sia-watermark ${className}`.trim()} {...props}>{children}<div className="sia-watermark__layer" aria-hidden="true" style={{ zIndex, backgroundImage: background }} /></div>;
+  return <div className={`sia-watermark ${className}`.trim()} {...withTitleTooltip(props)}>{children}<div className="sia-watermark__layer" aria-hidden="true" style={{ zIndex, backgroundImage: background }} /></div>;
 }
 
 /** Notification的类型标识。 */

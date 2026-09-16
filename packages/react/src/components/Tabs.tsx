@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { HTMLAttributes, KeyboardEvent, ReactNode } from "react";
 import { Dropdown } from "./Dropdown";
@@ -180,7 +181,7 @@ export function Tabs({
   return (
     <div
       className={`sia-tabs sia-tabs--${type}${type === "underline" ? " sia-tabs--line" : ""} sia-tabs--${size} sia-tabs--${resolvedOrientation} sia-tabs--${resolvedPosition}${centered ? " sia-tabs--centered" : ""} ${className}`.trim()}
-      {...props}
+      {...withTitleTooltip(props)}
     >
       <div className="sia-tabs__header">
         {tabBarTitle ? <div className="sia-tabs__title">{tabBarTitle}{type === "tech-line" ? (

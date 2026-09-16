@@ -310,6 +310,15 @@ export interface TableProps<T extends Record<string, unknown> = Record<string, u
   stickyHeader?: boolean;
   /** 是否允许拖拽表头边界调整列宽；默认启用内置列宽调整插件。 */
   resizable?: boolean;
+  /** 是否启用单元格选择；点击表格空白处或表格外部清除单元格选区，不影响行勾选。false 时禁用（包括显式传入的插件）。启用时显式传入的单元格选择插件优先于内置默认插件。
+   * @defaultValue true */
+  cellSelection?: boolean;
+  /**
+   * 是否显示序号列，默认从 1 开始；搭配分页插件时按页码连续编号，存在勾选列时放在其后。
+   * 显式传入 createIndexPlugin 可自定义标题、宽度和起始编号，不会重复生成序号列；false 时禁用序号插件（包括显式传入的插件）。
+   * @defaultValue true
+   */
+  showIndex?: boolean;
   /** 点击行时调用。 */
   onRowClick?: (record: T, index: number) => void;
   /** 双击行时调用。 */

@@ -1,9 +1,11 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { useControlSize } from "./shared";
 import { useFloatingPlaceholder } from "./FloatingPlaceholder";
 import type { InputPlaceholderMode } from "./shared";
 import { forwardRef, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ButtonHTMLAttributes, KeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode, UIEvent } from "react";
 import { Modal } from "./Modal";
+import type { ModalActionResult } from "./Modal";
 import { Button } from "./Button";
 import { Input } from "./Input";
 import { Checkbox } from "./Checkbox";
@@ -50,7 +52,7 @@ export interface SelectProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
    * @defaultValue 15
    */
   modalThreshold?: number;
-  /** 弹框 title、width、columns、maxHeight 与左下角扩展 footerExtra */
+  /** 弹框标题、布局及顶部/底部扩展内容。 */
   modalConfig?: {
     /** 弹框标题，未设置时使用 Select 的 placeholder。 */
     title?: ReactNode;
@@ -60,6 +62,12 @@ export interface SelectProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
     columns?: number;
     /** 列表最大可视高度，默认 360px。 */
     maxHeight?: number;
+    /** 标题下方的独立首行扩展内容，位于选项范围和搜索框上方。 */
+    headerExtra?: ReactNode;
+    /** 顶部扩展控件的业务数据，由业务方更新此属性；框架不会自动绑定 headerExtra 内的控件。确认时将当前对象的浅拷贝作为 onConfirm 第三个参数传出，未配置时为 {}。 */
+    extraValues?: Record<string, unknown>;
+    /** 点击确定时传出选中值、对应选项及扩展数据浅拷贝；单选无值为 null，多选为数组。异步完成后才提交 onChange 并关闭；返回 false 或抛出异常保留草稿和弹框，不触发 onChange。取消不调用。 */
+    onConfirm?: (value: SelectChangeValue, option: SelectOption | SelectOption[] | null, extraValues: Record<string, unknown>) => ModalActionResult;
     /** 底部左侧扩展内容，例如维护按钮。 */
     footerExtra?: ReactNode;
   };
@@ -212,6 +220,8 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
   // 本次打开期间保持模式稳定，避免远程搜索更新 options 时切换面板并丢失草稿。
   const popupMode = open ? openedMode : automaticMode;
   const [modalValues, setModalValues] = useState<SelectValue[]>([]);
+  const [modalSubmitting, setModalSubmitting] = useState(false);
+  const modalSubmitLock = useRef(false);
   const [selectedOnly, setSelectedOnly] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -235,9 +245,11 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
   });
 
   const selectedValues = useMemo<SelectValue[]>(() => {
+    // Form 的空字段默认值为 ""；没有显式空字符串选项时视为未选择，保留合法的 0/"" 选项。
+    if (currentValue == null || currentValue === "" && !options.some(option => option.value === "")) return [];
     if (mode === "multiple") return Array.isArray(currentValue) ? currentValue : currentValue === null ? [] : [currentValue];
     return Array.isArray(currentValue) ? currentValue.slice(0, 1) : currentValue === null ? [] : [currentValue];
-  }, [currentValue, mode]);
+  }, [currentValue, mode, options]);
   const selectedValueSet = useMemo(() => new Set(selectedValues), [selectedValues]);
   const availableOptions = useMemo(() => {
     if (!allowInput) return options;
@@ -289,6 +301,28 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
     setOpen(false);
     setQuery("");
     setScrollTop(0);
+  }
+
+  async function confirmModalSelection() {
+    if (disabled || loading || modalSubmitLock.current) return;
+    modalSubmitLock.current = true;
+    const nextValue = multiple ? [...modalValues] : modalValues[0] ?? null;
+    const selected = modalValues.map(selectedValue => availableOptions.find(option => option.value === selectedValue)
+      ?? (allowInput ? { value: selectedValue, label: String(selectedValue) } : undefined))
+      .filter((option): option is SelectOption => option !== undefined);
+    const extraValues = { ...modalConfig?.extraValues };
+    setModalSubmitting(true);
+    try {
+      const result = await modalConfig?.onConfirm?.(nextValue, multiple ? selected : selected[0] ?? null, extraValues);
+      if (result === false) return;
+      setCurrentValue(nextValue);
+      closeDropdown();
+    } catch {
+      // The caller can display a validation/request error and let the user retry.
+    } finally {
+      modalSubmitLock.current = false;
+      setModalSubmitting(false);
+    }
   }
 
   function openDropdown() {
@@ -449,7 +483,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
   return (
     <div ref={rootRef} className={`sia-select sia-select--${size} sia-select--${status}${open ? " is-open" : ""}${disabled ? " is-disabled" : ""}${multiple ? " sia-select--multiple" : ""} ${className}`.trim()} style={style}>
       <button
-        {...props}
+        {...withTitleTooltip(props)}
         ref={forwardedRef}
         className={`sia-select__trigger${floating.className}`}
         id={selectId}
@@ -498,12 +532,14 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
         </div> : null}
       </PopupPortal>
       {popupMode === "modal" ? <Modal className="sia-select-modal" open={open} title={modalConfig?.title ?? placeholder} width={modalConfig?.width ?? 900}
+        confirmLoading={modalSubmitting}
         onOpenChange={(next) => { if (!next) closeDropdown(); }} onCancel={closeDropdown}
         footer={<div className="sia-select-modal__footer"><div>{modalConfig?.footerExtra}</div><div>
-          <Button onClick={closeDropdown}>取消</Button>
-          <Button variant="primary" disabled={disabled || loading} onClick={() => { setCurrentValue(multiple ? modalValues : modalValues[0] ?? null); closeDropdown(); }}>确定</Button>
+          <Button disabled={modalSubmitting} onClick={closeDropdown}>取消</Button>
+          <Button variant="primary" loading={modalSubmitting} disabled={disabled || loading} onClick={confirmModalSelection}>确定</Button>
         </div></div>}>
         {open ? <>
+          {modalConfig?.headerExtra != null && modalConfig.headerExtra !== false ? <div className="sia-select-modal__header-extra">{modalConfig.headerExtra}</div> : null}
           <div className="sia-select-modal__heading">
             <div role="tablist" aria-label="选项范围">
               <Button role="tab" aria-selected={!selectedOnly} variant="link" onClick={() => setSelectedOnly(false)}>全部</Button>

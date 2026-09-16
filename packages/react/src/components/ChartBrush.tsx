@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import {useRef,useState} from 'react';
 import type {PointerEvent,CSSProperties} from 'react';
 /** ChartBrush的属性配置。 */
@@ -40,7 +41,7 @@ export function ChartBrush({bounds,onSelect,onCancel,selectionShape='band',selec
  };
  const cancel=()=>{drag.current=null;setSelection(null);setVertical(null);};
  return <g>
-  <rect data-chart-brush="" tabIndex={0} role="group" aria-label="拖动框选缩放，Escape取消" {...bounds} fill="transparent" style={{cursor:'crosshair',touchAction:'none',pointerEvents:'all'}}
+  <rect data-chart-brush="" tabIndex={0} role="group" aria-label="拖动框选缩放，Escape取消" {...withTitleTooltip(bounds)} fill="transparent" style={{cursor:'crosshair',touchAction:'none',pointerEvents:'all'}}
    onKeyDown={event=>{if(event.key==='Escape'){cancel();onCancel?.();}}}
    onPointerDown={event=>{if(event.button!==0)return;const start=x(event);if(start===null)return;event.stopPropagation();event.currentTarget.focus();event.currentTarget.setPointerCapture(event.pointerId);drag.current={id:event.pointerId,start,clientX:event.clientX};startY.current=y(event);setVertical([startY.current,startY.current]);setSelection([start,start]);}}
    onPointerMove={event=>{if(drag.current?.id!==event.pointerId)return;const end=x(event);if(end!==null){setSelection([drag.current.start,end]);setVertical([startY.current,y(event)]);}}}

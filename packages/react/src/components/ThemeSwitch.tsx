@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { forwardRef } from "react";
 import type { ButtonHTMLAttributes, MouseEvent } from "react";
 
@@ -46,7 +47,7 @@ export const ThemeSwitch = forwardRef<HTMLButtonElement, ThemeSwitchProps>(funct
       aria-label={checked ? darkLabel : lightLabel}
       className={`sia-theme-switch${checked ? " sia-theme-switch--dark" : ""} ${className}`.trim()}
       onClick={handleClick}
-      {...props}
+      {...withTitleTooltip(props)}
     >
       <span className="sia-theme-switch__selection" aria-hidden="true" />
       <span className={`sia-theme-switch__icon${checked ? "" : " is-active"}`} aria-hidden="true">

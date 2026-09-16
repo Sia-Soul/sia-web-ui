@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { useControlSize } from "./shared";
 import { forwardRef, useEffect, useId, useRef, useState } from "react";
 import type { FocusEvent, InputHTMLAttributes, KeyboardEvent, ReactNode } from "react";
@@ -152,7 +153,7 @@ export const InputNumber = forwardRef<HTMLInputElement, InputNumberProps>(functi
 
   const input = (
     <input
-      {...props}
+      {...withTitleTooltip(props)}
       ref={setRef}
       id={inputId}
       type="text"

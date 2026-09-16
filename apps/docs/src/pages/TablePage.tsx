@@ -748,7 +748,9 @@ const apiRows = [
   { property: "TableColumn.showTitle", description: "默认不显示单元格提示；设为 true 时使用统一的 Sia Tooltip 展示完整文本，不使用浏览器原生 title", type: "boolean", defaultValue: "false" },
   { property: "TableColumn.exportable / exportRender", description: "控制导出列及自定义导出内容", type: "boolean / function", defaultValue: "true / 原始值" },
   { property: "TableColumn.filterable / createFilterPlugin", description: "为列头增加文本筛选面板，支持自定义匹配函数和受控筛选值", type: "boolean / TableFilterPluginOptions<T>", defaultValue: "false / -" },
-  { property: "createCellSelectionPlugin", description: "支持单元格拖拽框选、序号整行选择、父子列头整列选择及 Ctrl+C 复制", type: "TableCellSelectionPluginOptions<T>", defaultValue: "-" },
+  { property: "showIndex", description: "默认显示序号列，从 1 开始；分页连续编号。false 隐藏序号，显式 createIndexPlugin 可自定义且不会重复加载", type: "boolean", defaultValue: "true" },
+  { property: "cellSelection", description: "默认启用单元格选择、跨单元格框选和复制，同一单元格内支持文字选择，点击表格空白处或外部清除选区（保留行勾选）；false 时禁用，包括显式传入的插件", type: "boolean", defaultValue: "true" },
+  { property: "createCellSelectionPlugin", description: "Table 默认内置；显式传入可自定义回调和选择规则，不重复加载。支持框选、序号整行选择、列头整列选择及 Ctrl+C 复制", type: "TableCellSelectionPluginOptions<T>", defaultValue: "默认启用" },
   { property: "createColumnSettingPlugin.menuItems", description: "追加设置菜单操作，支持 key、label、icon、disabled、hidden、danger、onClick(context)", type: "readonly TableToolbarItem<T>[]", defaultValue: "[]" },
   { property: "createColumnSettingPlugin.showExport", description: "显示表格导出；优先使用已配置的导出插件，否则导出当前可见数据为 CSV", type: "boolean", defaultValue: "true" },
   { property: "createColumnSettingPlugin.buttonProps", description: "设置按钮完整属性，支持样式、图标、文字、disabled、loading、onClick 等；disabled/loading 同时禁用菜单触发", type: "ButtonProps", defaultValue: "small / text / 设置图标" },
@@ -872,7 +874,7 @@ export function TablePage() {
         </Space>
         <Table className="border-options-table-demo" rowKey="id" columns={basicColumns} dataSource={basicData} rowBordered={rowBordered} columnBordered={columnBordered} height={250} />
       </DemoCard>
-      <DemoCard title="插件组合" description="选择、序号、排序、分页、编辑、列设置、汇总和工具栏均可按需加载；拖拽列宽已默认启用。列设置中左固定移至左区末尾，右固定移至右区首位；拖拽实时预览排序，跨区域拖动时同步目标区域的固定状态，点击应用后生效。右上角“生成报表”通过 createColumnSettingPlugin 的 menuItems 添加，样例代码包含完整配置和点击回调。" code={pluginCode}>
+      <DemoCard title="插件组合" description="序号和拖拽列宽默认启用；选择、排序、分页、编辑、列设置、汇总和工具栏可按需加载。列设置中左固定移至左区末尾，右固定移至右区首位；拖拽实时预览排序，跨区域拖动时同步目标区域的固定状态，点击应用后生效。右上角“生成报表”通过 createColumnSettingPlugin 的 menuItems 添加，样例代码包含完整配置和点击回调。" code={pluginCode}>
         <Table className="table-demo" rowKey="id" columns={advancedColumns} dataSource={products} plugins={advancedPlugins} height={470} />
       </DemoCard>
       <DemoCard title="全功能表格" description="组合父子级列头、列头拖拽框选、工具栏、跨页保留选择、序号整行选择、单元格框选、列头说明、排序、分页、编辑、列宽调整、固定列、列设置、汇总、高亮和导出。" code={fullFeatureCode}>
@@ -882,7 +884,7 @@ export function TablePage() {
       <DemoCard title="树形数据" description="树形能力默认不解析 children；加载 Tree 插件并显式开启后才处理层级。" code={treeCode}>
         <Table className="table-demo" rowKey="id" columns={basicColumns} dataSource={treeData} plugins={treePlugins} height={330} />
       </DemoCard>
-      <DemoCard title="Excel 式单元格选择" description="单击或拖拽形成矩形选区；点击列头选择整列，Ctrl+C 可直接复制选区内容。" code={cellSelectionCode}>
+      <DemoCard title="Excel 式单元格选择" description="单击选中单元格，同一单元格内拖动可选择文字，跨单元格拖动切换为矩形框选。Ctrl+C 优先复制选中文字，否则复制单元格选区；点击列头可选择整列。" code={cellSelectionCode}>
         <p style={{ marginTop: 0 }}>当前已选 {selectedCellCount} 个单元格</p>
         <Table className="table-demo cell-selection-table-demo" rowKey="id" columns={basicColumns} dataSource={basicData} plugins={cellSelectionPlugins} height={350} />
       </DemoCard>

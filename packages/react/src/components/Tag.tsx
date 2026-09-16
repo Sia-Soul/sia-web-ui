@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import type { HTMLAttributes, MouseEvent, ReactNode } from "react";
 import { Icon } from "./Icon";
 
@@ -59,7 +60,7 @@ export function Tag({
     <span
       className={`sia-tag${closable && closeOnHover ? " sia-tag--close-on-hover" : ""} sia-tag--${status} sia-tag--${variant}${compact ? " sia-tag--compact" : ""}${disabled ? " sia-tag--disabled" : ""} ${className}`.trim()}
       aria-disabled={disabled || undefined}
-      {...props}
+      {...withTitleTooltip(props)}
     >
       {icon ? <span className="sia-tag__icon">{icon}</span> : null}
       <span>{children}</span>

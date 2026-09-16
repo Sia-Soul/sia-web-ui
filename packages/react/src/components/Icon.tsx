@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { forwardRef } from "react";
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { extendedIconPaths } from "./IconCatalog";
@@ -182,7 +183,7 @@ export const Icon = forwardRef<HTMLSpanElement, IconProps>(function Icon(
       aria-label={label}
       aria-hidden={label ? undefined : true}
       style={mergedStyle}
-      {...props}
+      {...withTitleTooltip(props)}
     >
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" focusable="false">
         {resolvedVariant === "filled" ? filledPath : iconPaths[name]}

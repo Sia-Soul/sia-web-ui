@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { AnchorHTMLAttributes, CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { Button } from "./Button";
@@ -110,7 +111,7 @@ function TypographyContent({ as: Tag = "span", type, disabled, strong, italic, u
   if (mark) formatted = <mark>{formatted}</mark>;
   if (code) formatted = <code>{formatted}</code>;
   if (keyboard) formatted = <kbd>{formatted}</kbd>;
-  return <Tag {...props} aria-disabled={disabled || undefined} className={`sia-typography sia-typography--${Tag}${type ? ` sia-typography--${type}` : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()}>
+  return <Tag {...withTitleTooltip(props)} aria-disabled={disabled || undefined} className={`sia-typography sia-typography--${Tag}${type ? ` sia-typography--${type}` : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()}>
     {editing ? <span className="sia-typography__editor">
       <TextArea autoFocus aria-label="编辑文本" value={draft} maxLength={editConfig?.maxLength} rows={3} onChange={(event) => setDraft(event.target.value)}
         onKeyDown={(event) => {
@@ -134,11 +135,11 @@ function Title({ level = 1, ...props }: TypographyTitleProps) {
 function Text(props: TypographyProps) { return <TypographyContent {...props} />; }
 function Paragraph(props: TypographyProps) { return <TypographyContent {...props} as="p" />; }
 function Link({ disabled, className = "", onClick, href, target, rel, ...props }: TypographyLinkProps) {
-  return <a {...props} href={disabled ? undefined : href} target={target} rel={rel ?? (target === "_blank" ? "noopener noreferrer" : undefined)} aria-disabled={disabled || undefined} tabIndex={disabled ? -1 : props.tabIndex}
+  return <a {...withTitleTooltip(props)} href={disabled ? undefined : href} target={target} rel={rel ?? (target === "_blank" ? "noopener noreferrer" : undefined)} aria-disabled={disabled || undefined} tabIndex={disabled ? -1 : props.tabIndex}
     className={`sia-typography sia-typography--link${disabled ? " is-disabled" : ""} ${className}`.trim()} onClick={(event) => { if (disabled) event.preventDefault(); else onClick?.(event); }} />;
 }
 function TypographyRoot({ className = "", ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div {...props} className={`sia-typography ${className}`.trim()} />;
+  return <div {...withTitleTooltip(props)} className={`sia-typography ${className}`.trim()} />;
 }
 /** 排版组件。 */
 export const Typography = Object.assign(TypographyRoot, {

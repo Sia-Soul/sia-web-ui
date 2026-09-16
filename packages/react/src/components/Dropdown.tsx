@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { cloneElement, isValidElement, useEffect, useRef, useState } from "react";
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, MouseEvent, ReactNode } from "react";
 import { Button } from "./Button";
@@ -305,7 +306,7 @@ function DropdownRoot({
     onMouseLeave={handleMouseLeave}
     onContextMenu={handleContextMenu}
     onKeyDown={handleKeyDown}
-    {...props}
+    {...withTitleTooltip(props)}
   >
     {triggerNode}
     <span

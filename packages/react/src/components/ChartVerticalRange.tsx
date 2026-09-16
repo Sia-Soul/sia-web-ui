@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import {useEffect,useId,useRef,useState} from 'react';
 import {chartColorRamp} from './chartColorRamp';
 import type {PointerEvent} from 'react';
@@ -49,9 +50,9 @@ export function ChartVerticalRange({min,max,x,y,length,thickness,colors,range,en
   <text x={x} y={y+length+16}>{endLabels?.[0]??min}</text><text x={x} y={y-5}>{endLabels?.[1]??max}</text>
   <rect x={x} y={y} width={thickness} height={Math.max(0,position(high)-y)} fill="#ccc" pointerEvents="none"/>
   <rect x={x} y={position(low)} width={thickness} height={Math.max(0,y+length-position(low))} fill="#ccc" pointerEvents="none"/>
-  <rect data-range-selection="" x={x} y={position(high)} width={thickness} height={Math.max(0,position(low)-position(high))} fill="transparent" style={{cursor:readOnly?'default':'move'}} {...handlers(2)}/>
+  <rect data-range-selection="" x={x} y={position(high)} width={thickness} height={Math.max(0,position(low)-position(high))} fill="transparent" style={{cursor:readOnly?'default':'move'}} {...withTitleTooltip(handlers(2))}/>
   {!readOnly&&([0,1] as const).map(index=>{const value=index===0?low:high,py=position(value),direction=index===0?1:-1;
-   return <g key={index} role="slider" aria-label={`值域${index===0?'下限':'上限'}`} aria-valuemin={index===0?min:low} aria-valuemax={index===0?high:max} aria-valuenow={value} aria-orientation="vertical" tabIndex={0} style={{cursor:'ns-resize',pointerEvents:'all'}} {...handlers(index)} onKeyDown={event=>{
+   return <g key={index} role="slider" aria-label={`值域${index===0?'下限':'上限'}`} aria-valuemin={index===0?min:low} aria-valuemax={index===0?high:max} aria-valuenow={value} aria-orientation="vertical" tabIndex={0} style={{cursor:'ns-resize',pointerEvents:'all'}} {...withTitleTooltip(handlers(index))} onKeyDown={event=>{
     const step=span/100;const next=event.key==='Home'?min:event.key==='End'?max:['ArrowUp','ArrowRight'].includes(event.key)?value+step:['ArrowDown','ArrowLeft'].includes(event.key)?value-step:undefined;
     if(next!==undefined){event.preventDefault();setValue(index,next);}
    }}>

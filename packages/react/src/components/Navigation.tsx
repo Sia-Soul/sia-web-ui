@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { useControlSize } from "./shared";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { HTMLAttributes, KeyboardEvent, ReactNode, RefObject } from "react";
@@ -212,7 +213,7 @@ function MenuEntry({
       type="button"
       className="sia-menu__item"
       style={{ paddingInlineStart: props.mode === "inline" && !props.inlineCollapsed ? 12 + level * props.inlineIndent : undefined }}
-      title={collapsed ? item.title ?? (typeof item.label === "string" ? item.label : undefined) : item.title}
+      {...withTitleTooltip({ title: collapsed ? item.title ?? (typeof item.label === "string" ? item.label : undefined) : item.title })}
       disabled={item.disabled}
       aria-current={isSelected ? "page" : undefined}
       aria-expanded={hasChildren ? isOpen : undefined}
@@ -320,7 +321,7 @@ export function Menu({
     else onSelect?.({ ...info, selectedKeys: [...next] });
     if (mode !== "inline") setOpen([]);
   }
-  return <ul ref={rootRef} className={`sia-menu sia-menu--${mode} sia-menu--${theme}${inlineCollapsed ? " sia-menu--collapsed" : ""} ${className}`.trim()} role="menu" {...rest} data-sia-menu-owner={menuId}>
+  return <ul ref={rootRef} className={`sia-menu sia-menu--${mode} sia-menu--${theme}${inlineCollapsed ? " sia-menu--collapsed" : ""} ${className}`.trim()} role="menu" {...withTitleTooltip(rest)} data-sia-menu-owner={menuId}>
     <MenuLevel items={items} level={0} parents={[]} props={{ menuId, mode, theme, multiple, selectable, inlineCollapsed, inlineIndent, triggerSubMenuAction, selected, open, select, toggle }} />
   </ul>;
 }
@@ -397,7 +398,7 @@ export interface StepsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChan
 
 /** 步骤条组件。 */
 export function Steps({ items, current = 0, initial = 0, direction = "horizontal", type = "default", size = "default", status = "process", progressDot = false, onChange, className = "", ...props }: StepsProps) {
-  return <div className={`sia-steps sia-steps--${direction} sia-steps--${type} sia-steps--${size} ${className}`.trim()} {...props}>
+  return <div className={`sia-steps sia-steps--${direction} sia-steps--${type} sia-steps--${size} ${className}`.trim()} {...withTitleTooltip(props)}>
     {items.map((item, rawIndex) => {
       const index = rawIndex + initial;
       const itemStatus: StepStatus = item.status ?? (index < current ? "finish" : index === current ? status : "wait");
@@ -469,8 +470,8 @@ export function Segmented({ options, value, defaultValue, size: sizeProp, block 
     const next = event.key === "ArrowRight" || event.key === "ArrowDown" ? enabled[(index + 1) % enabled.length] : enabled[(index - 1 + enabled.length) % enabled.length];
     if (next) setCurrent(next.value);
   }
-  return <div className={`sia-segmented sia-segmented--${size}${block ? " sia-segmented--block" : ""}${vertical ? " sia-segmented--vertical" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()} role="radiogroup" onKeyDown={keyboard} {...props}>
-    {normalized.map((option) => <button type="button" role="radio" aria-checked={option.value === current} title={option.title} className={option.value === current ? "is-selected" : ""} disabled={disabled || option.disabled} key={option.value} onClick={() => setCurrent(option.value)}>
+  return <div className={`sia-segmented sia-segmented--${size}${block ? " sia-segmented--block" : ""}${vertical ? " sia-segmented--vertical" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()} role="radiogroup" onKeyDown={keyboard} {...withTitleTooltip(props)}>
+    {normalized.map((option) => <button type="button" role="radio" aria-checked={option.value === current} {...withTitleTooltip({ title: option.title })} className={option.value === current ? "is-selected" : ""} disabled={disabled || option.disabled} key={option.value} onClick={() => setCurrent(option.value)}>
       {option.icon}<span>{option.label ?? option.value}</span>
     </button>)}
   </div>;

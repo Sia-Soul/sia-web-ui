@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { HTMLAttributes, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import DOMPurify from "dompurify";
@@ -97,7 +98,7 @@ export function Markdown({ content, emptyText = "暂无 Markdown 内容", resolv
   }
 
   return <>
-    <article {...props} ref={rootRef} className={`sia-markdown ${className}`.trim()} onClick={handleClick} onKeyDown={handleKeyDown} dangerouslySetInnerHTML={{ __html: html }} />
+    <article {...withTitleTooltip(props)} ref={rootRef} className={`sia-markdown ${className}`.trim()} onClick={handleClick} onKeyDown={handleKeyDown} dangerouslySetInnerHTML={{ __html: html }} />
     <ImagePreview open={Boolean(previewImage)} src={previewImage?.src} alt={previewImage?.alt} onOpenChange={(open) => { if (!open) setPreviewImage(null); }} />
   </>;
 }

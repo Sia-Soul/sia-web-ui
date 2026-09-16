@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { useControlSize } from "./shared";
 import { useFloatingPlaceholder } from "./FloatingPlaceholder";
 import type { InputPlaceholderMode } from "./shared";
@@ -353,7 +354,7 @@ export function TreeSelect({
   }
 
   const floating = useFloatingPlaceholder({ mode: placeholderMode, placeholder, filled: selectedNodes.length > 0, active: open });
-  return <div ref={rootRef} className={`sia-tree-select sia-tree-select--${size} sia-tree-select--${status}${open ? " is-open" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()} {...props}
+  return <div ref={rootRef} className={`sia-tree-select sia-tree-select--${size} sia-tree-select--${status}${open ? " is-open" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()} {...withTitleTooltip(props)}
     onKeyDown={event => { props.onKeyDown?.(event); if (event.key === "Escape") { event.stopPropagation(); changeOpen(false); } }}>
     {renderTrigger ? renderTrigger({ open, toggle: () => changeOpen(!open), clear }) : <>
     <button

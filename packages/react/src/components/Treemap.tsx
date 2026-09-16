@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, HTMLAttributes, MouseEvent, ReactNode } from "react";
 import { Icon } from "./Icon";
@@ -569,7 +570,7 @@ export function Treemap({
 
   return (
     <div
-      {...props}
+      {...withTitleTooltip(props)}
       ref={containerRef}
       className={`sia-treemap ${className}`.trim()}
       style={style}
@@ -601,7 +602,7 @@ export function Treemap({
               style={tileStyle}
               role="treeitem"
               aria-expanded="true"
-              title={title}
+              {...withTitleTooltip({ title: title })}
               data-treemap-key={node.key}
               key={node.key}
             >
@@ -619,7 +620,7 @@ export function Treemap({
                   type="button"
                   className="sia-treemap__focus"
                   aria-label={effectiveFocusedNode?.key === node.key ? `还原 ${node.label}` : `聚焦展开 ${node.label}`}
-                  title={effectiveFocusedNode?.key === node.key ? "还原原有视图" : "展开到整个区域"}
+                  {...withTitleTooltip({ title: effectiveFocusedNode?.key === node.key ? "还原原有视图" : "展开到整个区域" })}
                   onClick={() => updateFocusedKey(effectiveFocusedNode?.key === node.key ? null : node.key)}
                 >
                   <Icon name={effectiveFocusedNode?.key === node.key ? "fullscreen-exit" : "fullscreen"} size={14} />
@@ -636,7 +637,7 @@ export function Treemap({
             role="treeitem"
             aria-expanded={node.kind === "directory" && hasChildren ? "false" : undefined}
             disabled={node.disabled}
-            title={title}
+            {...withTitleTooltip({ title: title })}
             data-treemap-key={node.key}
             onClick={(event) => handleNodeClick(node, event)}
             key={node.key}

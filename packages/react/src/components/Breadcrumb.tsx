@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import type { HTMLAttributes, MouseEventHandler, ReactNode } from "react";
 import { Button } from "./Button";
 import { Dropdown } from "./Dropdown";
@@ -41,7 +42,7 @@ export interface BreadcrumbProps extends HTMLAttributes<HTMLElement> {
 
 /** 面包屑组件。 */
 export function Breadcrumb({ items, separator = "/", itemRender, className = "", ...props }: BreadcrumbProps) {
-  return <nav aria-label="面包屑导航" {...props} className={`sia-breadcrumb ${className}`.trim()}>
+  return <nav aria-label="面包屑导航" {...withTitleTooltip(props)} className={`sia-breadcrumb ${className}`.trim()}>
     <ol className="sia-breadcrumb__list">
       {items.map((item, index) => {
         const current = index === items.length - 1;

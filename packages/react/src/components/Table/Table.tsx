@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "../titleTooltip";
 import { useScrollbarProximity } from "../useScrollbarProximity";
 import { TableCellContent } from "./TableCellContent";
 import { Fragment, forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
@@ -16,7 +17,7 @@ import type {
   TableRow,
   TableSummaryRow,
 } from "./types";
-import { createHighlightPlugin, createResizePlugin } from "./plugins";
+import { createCellSelectionPlugin, createHighlightPlugin, createIndexPlugin, createResizePlugin } from "./plugins";
 import { createTableRows, flattenTableColumns, getTableValue, isTableAutoWidthColumn, mapTableLeafColumns, normalizeFixed, sortTableColumnsByFixed } from "./utils";
 
 const EMPTY_DATA: readonly Record<string, unknown>[] = [];
@@ -242,6 +243,8 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     overscan = 6,
     stickyHeader = true,
     resizable = true,
+    cellSelection = true,
+    showIndex = true,
     onRowClick,
     onRowDoubleClick,
     onCellContextMenu,
@@ -272,12 +275,16 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     : (record[String(rowKey)] as React.Key | undefined) ?? index, [rowKey]);
   const builtInResizePlugin = useMemo(() => createResizePlugin<T>(), []);
   const builtInHighlightPlugin = useMemo(() => createHighlightPlugin<T>(), []);
+  const builtInCellSelectionPlugin = useMemo(() => createCellSelectionPlugin<T>(), []);
+  const builtInIndexPlugin = useMemo(() => createIndexPlugin<T>(), []);
   const activePlugins = useMemo(() => {
-    const plugins = providedPlugins.filter((plugin) => resizable || plugin.id !== "resize");
+    const plugins = providedPlugins.filter((plugin) => (resizable || plugin.id !== "resize") && (cellSelection || plugin.id !== "cellSelection") && (showIndex || plugin.id !== "index"));
     if (!plugins.some((plugin) => plugin.id === "highlight")) plugins.push(builtInHighlightPlugin);
     if (resizable && !plugins.some((plugin) => plugin.id === "resize")) plugins.push(builtInResizePlugin);
+    if (cellSelection && !plugins.some((plugin) => plugin.id === "cellSelection")) plugins.push(builtInCellSelectionPlugin);
+    if (showIndex && !plugins.some((plugin) => plugin.id === "index")) plugins.push(builtInIndexPlugin);
     return plugins;
-  }, [builtInHighlightPlugin, builtInResizePlugin, providedPlugins, resizable]);
+  }, [builtInHighlightPlugin, builtInResizePlugin, builtInCellSelectionPlugin, builtInIndexPlugin, providedPlugins, resizable, cellSelection, showIndex]);
   const sortedPlugins = useMemo(() => [...activePlugins].sort((a, b) => (a.order ?? 100) - (b.order ?? 100)), [activePlugins]);
   const pluginsByIdRef = useRef<Map<string, AnyTablePlugin<T>>>(new Map());
   pluginsByIdRef.current = new Map(sortedPlugins.map((plugin) => [plugin.id, plugin]));
@@ -695,7 +702,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
       data-has-fixed-right={right > 0}
       data-scrolled-left="false"
       data-scrolled-right="true"
-      {...htmlProps}
+      {...withTitleTooltip(htmlProps)}
       onPointerDownCapture={(event) => {
         htmlProps.onPointerDownCapture?.(event);
         if (event.defaultPrevented || loading || internalLoading) return;

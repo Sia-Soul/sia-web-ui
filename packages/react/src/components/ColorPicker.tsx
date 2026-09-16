@@ -1,3 +1,4 @@
+import { withTitleTooltip } from "./titleTooltip";
 import { useControlSize } from "./shared";
 import type { ControlSize } from "./shared";
 import { useEffect, useRef, useState } from "react";
@@ -298,7 +299,7 @@ export function ColorPicker({
   const triggerText = color || "无色";
   const opaqueColor = rgbaToHex({ ...rgba, a: 100 }, false);
 
-  return <div ref={rootRef} className={`sia-color-picker sia-color-picker--${size}${disabled ? " is-disabled" : ""} ${className}`.trim()} {...props}>
+  return <div ref={rootRef} className={`sia-color-picker sia-color-picker--${size}${disabled ? " is-disabled" : ""} ${className}`.trim()} {...withTitleTooltip(props)}>
     <button
       type="button"
       className="sia-color-picker__trigger"
@@ -318,7 +319,7 @@ export function ColorPicker({
             {item === "solid" ? "单色" : "渐变色"}
           </button>)}
         </div> : <strong>{currentMode === "solid" ? "单色" : "渐变色"}</strong>}
-        {allowClear ? <button type="button" className={`sia-color-picker__none${color ? "" : " is-active"}`} aria-label="选择无色" title="无色" onClick={selectNoColor}><span /></button> : null}
+        {allowClear ? <button type="button" className={`sia-color-picker__none${color ? "" : " is-active"}`} aria-label="选择无色" {...withTitleTooltip({ title: "无色" })} onClick={selectNoColor}><span /></button> : null}
       </div>
 
       {currentMode === "gradient" ? <div className="sia-color-picker__gradient-editor">
