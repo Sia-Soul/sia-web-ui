@@ -94,20 +94,33 @@ import type { ChartDataClickInfo, SiaChartProps, SiaChartRef } from "./Chart";
 const PLOT = { x: 62, y: 48, width: 628, height: 250 } as const;
 const PLOT_BOTTOM = PLOT.y + PLOT.height;
 
+/** Chart的数据系列。 */
 export interface ChartSeries {
+  /** 名称或字段标识。 */
   name: string;
+  /** 用于渲染的数据集合。 */
   data: readonly number[];
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
 }
 
+/** CartesianChart的属性配置。 */
 export interface CartesianChartProps extends Omit<SiaChartProps, "children" | "empty"> {
+  /** 类目或数据分组集合。 */
   categories: readonly string[];
+  /** 图表数据系列。 */
   series: readonly ChartSeries[];
+  /** 是否显示图例。 */
   showLegend?: boolean;
+  /** 是否允许通过图例切换系列显示。 */
   legendInteractive?: boolean;
+  /** 图例项目的选中状态。 */
   legendSelected?: Readonly<Record<string, boolean>>;
+  /** 图例选中状态变化时调用。 */
   onLegendSelectionChange?: (selected: Record<string, boolean>) => void;
+  /** 将数值格式化为显示文本的函数。 */
   valueFormatter?: (value: number) => ReactNode;
+  /** 点击图表数据项时调用。 */
   onDataClick?: (info: ChartDataClickInfo<number>) => void;
 }
 
@@ -176,78 +189,263 @@ function chartLayerOrder<T>(layers: T[], reverse: boolean) {
   return reverse ? layers.reverse() : layers;
 }
 
+/** 折线图上的一个数据点。 */
 export type LinePoint = readonly [number | string | Date, number];
 
+/** Line的数据系列。 */
 export interface LineSeries extends Omit<ChartSeries, "data"> {
+  /** 标签文字样式。 */
   labelStyle?: CSSProperties;
+  /** 高亮状态的标签样式。 */
   emphasisLabelStyle?: CSSProperties;
+  /** 高亮时是否显示标签集合。 */
   showEmphasisLabels?: boolean;
+  /** 标签文本格式化函数。 */
   labelFormatter?: (value: number, category: string, index: number) => ReactNode;
+  /** 高亮标签格式化函数。 */
   emphasisLabelFormatter?: (value: number, category: string, index: number) => ReactNode;
-  pointStyles?:readonly {color?:string;emphasisColor?:string;symbolSize?:number;symbol?:LineSeries['symbol'];symbolImage?:string;symbolRotate?:number;labelPosition?:'inside'|'top';emphasisLabelPosition?:'inside'|'top';showLabel?:boolean;showEmphasisLabel?:boolean;labelStyle?:CSSProperties;emphasisLabelStyle?:CSSProperties}[];
+  /** 按数据点设置的样式集合。 */
+  pointStyles?:readonly {
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color?:string;
+  /** 高亮状态的颜色。 */
   emphasisColor?:string;
+  /** 数据符号尺寸。 */
+  symbolSize?:number;
+  /** 数据点或节点使用的图形符号。 */
+  symbol?:LineSeries['symbol'];
+  /** 数据符号使用的图片。 */
+  symbolImage?:string;
+  /** 数据符号旋转角度。 */
+  symbolRotate?:number;
+  /** 标签显示位置。 */
+  labelPosition?:'inside'|'top';
+  /** 高亮状态的标签位置。 */
+  emphasisLabelPosition?:'inside'|'top';
+  /** 是否显示标签文本。 */
+  showLabel?:boolean;
+  /** 高亮时是否显示标签。 */
+  showEmphasisLabel?:boolean;
+  /** 标签文字样式。 */
+  labelStyle?:CSSProperties;
+  /** 高亮状态的标签样式。 */
+  emphasisLabelStyle?:CSSProperties}[];
+  /** 高亮状态的颜色。 */
+  emphasisColor?:string;
+  /** 图形填充渐变配置。 */
   fillGradient?:BarLinearGradient;
+  /** 面积区域的填充渐变。 */
   areaGradient?:BarLinearGradient;
-  lineShadow?: {color:string;blur:number;offsetX?:number;offsetY?:number};
+  /** 线条阴影配置。 */
+  lineShadow?: {
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color:string;
+  /** 模糊半径。 */
+  blur:number;
+  /** 水平方向的偏移量。 */
+  offsetX?:number;
+  /** 垂直方向的偏移量。 */
+  offsetY?:number};
+  /** 统计标线配置。 */
   statisticLines?:readonly ('average'|'min'|'max')[];
+  /** 用于渲染的数据集合。 */
   data: readonly (number | LinePoint)[];
+  /** 堆叠分组标识；同标识的数据系列参与同组堆叠。 */
   stack?: string;
+  /** 连接数据点的曲线类型。 */
   curve?: "straight" | "smooth" | "step";
+  /** 面积区域填充配置。 */
   area?: boolean;
+  /** 是否显示数据点。 */
   showPoints?: boolean;
+  /** 是否显示平均值标记。 */
   markAverage?: boolean;
+  /** 是否显示最小值标记。 */
   markMin?: boolean;
+  /** 是否显示最大值标记。 */
   markMax?: boolean;
+  /** 是否显示数据标签。 */
   showLabels?: boolean;
+  /** 线条样式。 */
   lineStyle?: "solid" | "dashed" | "dotted";
+  /** 线条粗细。 */
   lineWidth?: number;
+  /** 数据点或节点使用的图形符号。 */
   symbol?: "circle" | "square" | "diamond" | "none" | "star" | "star6" | "heart" | "emptyHeart" | "droplet" | "pin" | "emptyPin" | "arrow" | "emptyCircle" | "image";
+  /** 数据符号使用的图片。 */
   symbolImage?: string;
+  /** 数据符号旋转角度。 */
   symbolRotate?: number;
+  /** 数据符号尺寸。 */
   symbolSize?: number;
+  /** 数据点是否使用空心符号。 */
   hollowSymbol?: boolean;
-  markPoints?: readonly { name: string; index: number; value: number; label?: string }[];
+  /** 标记点配置集合。 */
+  markPoints?: readonly {
+  /** 名称或字段标识。 */
+  name: string;
+  /** 项目在当前集合中的索引，从 0 开始。 */
+  index: number;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
+  value: number;
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
+  label?: string }[];
 }
 
+/** 折线图的属性配置。 */
 export interface LineChartProps extends Omit<CartesianChartProps, "series"> {
+  /**
+   * 数据拖拽计算的处理模式。
+   * @defaultValue 'resize'
+   */
   calculableMode?:'resize'|'transfer';
+  /** 图表间数据转移失败时调用。 */
   onTransferError?:(message:string)=>void;
-  grid?: {left?:number;top?:number;right?:number;bottom?:number};
+  /** 绘图区的边距和布局配置。 */
+  grid?: {
+  /** 距左侧的位置或间距。 */
+  left?:number;
+  /** 距顶部的位置或间距。 */
+  top?:number;
+  /** 距右侧的位置或间距。 */
+  right?:number;
+  /** 距底部的位置或间距。 */
+  bottom?:number};
   /** Shared value-transfer controller for composed chart mode switches. */
   valueTransfer?: ReturnType<typeof useBarValueTransfer>;
+  /**
+   * 类目标签显示间隔。
+   * @defaultValue 0
+   */
   categoryLabelInterval?:number|'auto';
+  /**
+   * 轴端是否保留间隔，或两端间隔的配置。
+   * @defaultValue false
+   */
   boundaryGap?: boolean;
+  /**
+   * 是否显示类目轴分隔线。
+   * @defaultValue true
+   */
   showCategorySplitLine?: boolean;
+  /** 类目轴名称。 */
   categoryAxisName?: string;
+  /** 数值轴名称。 */
   valueAxisName?: string;
-  legendLayout?: { x?: number; y?: number; align?: "start" | "center" | "end" };
+  /** 图例布局配置。 */
+  legendLayout?: {
+  /** 横向位置或 X 轴数据值。 */
+  x?: number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y?: number;
+  /** 交叉轴对齐 */
+  align?: "start" | "center" | "end" };
+  /**
+   * 对数轴使用的底数。
+   * @defaultValue 10
+   */
   logBase?: number;
+  /**
+   * 对数刻度的指数步长。
+   * @defaultValue 1
+   */
   logExponentStep?: number;
+  /**
+   * 图形外观配置。
+   * @defaultValue "sia"
+   */
   appearance?: "sia" | "macarons";
+  /** 动画当前进度，通常为 0 到 1。 */
   animationProgress?: number;
+  /**
+   * 数据更新动画的持续时间。
+   * @defaultValue 500
+   */
   animationDurationUpdate?: number;
+  /** 数值轴的数据范围。 */
   valueDomain?: readonly [number, number, number];
+  /** 坐标轴标签格式化函数。 */
   axisLabelFormatter?: (value: number) => string;
+  /** 图表数据系列。 */
   series: readonly LineSeries[];
+  /**
+   * 是否堆叠展示数据系列。
+   * @defaultValue false
+   */
   stacked?: boolean;
+  /**
+   组件的水平或垂直排列方向。
+   * @defaultValue "vertical"
+   */
   orientation?: "vertical" | "horizontal";
+  /**
+   * X 轴类型。
+   * @defaultValue "category"
+   */
   xAxisType?: "category" | "value" | "time";
+  /**
+   * 数值轴类型。
+   * @defaultValue "value"
+   */
   valueAxisType?: "value" | "log";
+  /**
+   * 是否反转数值轴。
+   * @defaultValue false
+   */
   valueAxisInverse?: boolean;
+  /**
+   * 提示框按数据项还是坐标轴触发。
+   * @defaultValue "item"
+   */
   tooltipTrigger?: "item" | "axis";
+  /**
+   * 数据区域缩放配置。
+   * @defaultValue false
+   */
   dataZoom?: boolean;
   /** Percentage windows can address array slices rather than point-to-point distances. */
   zoomIndexMode?: 'points'|'slice';
+  /**
+   * 缩放控件的位置。
+   * @defaultValue 'bottom'
+   */
   zoomPosition?: 'top'|'bottom';
-  zoomControlBounds?:{x:number;y:number;width:number;height:number};
+  /** 缩放控件的布局边界。 */
+  zoomControlBounds?:{
+  /** 横向位置或 X 轴数据值。 */
+  x:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y:number;
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  width:number;
+  /** 高度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  height:number};
+  /**
+   * 是否允许拖动缩放范围进行平移。
+   * @defaultValue false
+   */
   zoomPan?: boolean;
+  /**
+   * 缩放框选区域的形状。
+   * @defaultValue 'band'
+   */
   zoomSelectionShape?: 'band'|'rectangle';
+  /** 缩放框选区域的样式。 */
   zoomSelectionStyle?:CSSProperties;
+  /** 可接受的最小框选尺寸。 */
   zoomMinSelectionSize?:readonly [number,number];
+  /**
+   * 是否允许通过拖拽图形修改数据。
+   * @defaultValue false
+   */
   calculable?: boolean;
+  /** 缩放级别或缩放范围。 */
   zoom?: readonly [number, number];
+  /** 初始缩放范围或缩放级别。 */
   defaultZoom?: readonly [number, number];
+  /** 缩放范围变化时调用。 */
   onZoomChange?: (value: [number, number]) => void;
+  /** 数据被交互修改后调用。 */
   onDataChange?: (series: readonly LineSeries[]) => void;
 }
 
@@ -326,6 +524,7 @@ function useToolboxMagicType(toolbox: SiaChartProps["toolbox"], fallback: string
   return [active, resolved] as const;
 }
 
+/** 折线图组件。 */
 export const LineChart = forwardRef<SiaChartRef, LineChartProps>(function LineChart(
   { calculableMode = 'resize', onTransferError, grid, valueTransfer: externalValueTransfer, categories, series: sourceSeries, appearance = "sia", categoryLabelInterval=0, boundaryGap = false, showCategorySplitLine = true, categoryAxisName, valueAxisName, legendLayout, logBase = 10, logExponentStep = 1, animationProgress, animationDurationUpdate = 500, valueDomain, axisLabelFormatter, stacked = false, orientation = "vertical", xAxisType = "category", valueAxisType = "value", valueAxisInverse = false, tooltipTrigger = "item", showLegend = true, legendInteractive = true, legendSelected, onLegendSelectionChange, valueFormatter, onDataClick, dataZoom = false, zoomIndexMode='points', zoomPosition='bottom', zoomControlBounds, zoomPan=false, zoomSelectionShape='band', zoomSelectionStyle, zoomMinSelectionSize, calculable = false, zoom, defaultZoom, onZoomChange, onDataChange, palette, toolbox, ...props },
   ref,
@@ -671,95 +870,247 @@ function ChartPin({ point, color, label }: { point: readonly [number, number]; c
   </g>;
 }
 
+/** 柱形线性渐变的方向及颜色停靠点配置。 */
 export interface BarLinearGradient {
+  /** 范围起点。 */
   start:readonly [number,number];
+  /** 范围终点。 */
   end:readonly [number,number];
-  stops:readonly {offset:number;color:string}[];
+  /** 渐变颜色停靠点集合。 */
+  stops:readonly {
+  /** 相对于默认位置的偏移。 */
+  offset:number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color:string}[];
 }
 
+/** Bar的单条数据。 */
 export interface BarDatum {
   /** Radius used by the corresponding point after switching to a line chart. */
   symbolSize?:number;
+  /** 是否显示标签文本。 */
   showLabel?:boolean;
+  /** 高亮时是否显示标签。 */
   showEmphasisLabel?:boolean;
+  /** 标签文字样式。 */
   labelStyle?:CSSProperties;
+  /** 高亮状态的标签样式。 */
   emphasisLabelStyle?:CSSProperties;
+  /** 高亮状态的标签位置。 */
   emphasisLabelPosition?:BarDatum['labelPosition'];
+  /** 图形填充渐变配置。 */
   fillGradient?:BarLinearGradient;
+  /** 高亮状态的填充渐变。 */
   emphasisFillGradient?:BarLinearGradient;
+  /** 高亮状态的颜色。 */
   emphasisColor?:string;
+  /** 高亮状态的边框颜色。 */
   emphasisBorderColor?:string;
+  /** 高亮状态的边框宽度。 */
   emphasisBorderWidth?:number;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value: number;
+  /** 范围起点。 */
   start?: number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
+  /** 透明度，0 为完全透明，1 为完全不透明。 */
   opacity?: number;
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
   label?: ReactNode;
+  /** 是否隐藏此项。 */
   hidden?: boolean;
+  /** 边框颜色。 */
   borderColor?: string;
+  /** 边框线宽。 */
   borderWidth?: number;
+  /** 标签显示位置。 */
   labelPosition?: "top" | "bottom" | "left" | "right" | "inside" | "insideTop" | "insideRight" | "insideLeft";
 }
 
+/** Bar的数据系列。 */
 export interface BarSeries extends Omit<ChartSeries, "data"> {
+  /** 统计标线配置。 */
   statisticLines?:readonly ('average'|'min'|'max')[];
+  /** 高亮时是否显示标签集合。 */
   showEmphasisLabels?:boolean;
+  /** 标签文字样式。 */
   labelStyle?:CSSProperties;
+  /** 高亮状态的标签样式。 */
   emphasisLabelStyle?:CSSProperties;
+  /** 高亮状态的标签位置。 */
   emphasisLabelPosition?:BarDatum['labelPosition'];
+  /** 高亮标签格式化函数。 */
   emphasisLabelFormatter?:(value:number,category:string,index:number)=>ReactNode;
+  /** 图形填充渐变配置。 */
   fillGradient?:BarLinearGradient;
+  /** 高亮状态的填充渐变。 */
   emphasisFillGradient?:BarLinearGradient;
+  /** 高亮状态的颜色。 */
   emphasisColor?:string;
+  /** 高亮状态的边框颜色。 */
   emphasisBorderColor?:string;
+  /** 高亮状态的边框宽度。 */
   emphasisBorderWidth?:number;
   /** Share a category slot without stacking values (overlapping comparison bars). */
   overlayGroup?: string;
+  /** 用于渲染的数据集合。 */
   data: readonly (number | BarDatum)[];
+  /** 图形半径或圆角配置。 */
   radius?: number;
+  /** 堆叠分组标识；同标识的数据系列参与同组堆叠。 */
   stack?: string;
+  /** 是否显示数据标签。 */
   showLabels?: boolean;
+  /** 透明度，0 为完全透明，1 为完全不透明。 */
   opacity?: number;
+  /** 柱形宽度。 */
   barWidth?: number;
+  /** 是否显示平均值标记。 */
   markAverage?: boolean;
+  /** 是否显示最小值标记。 */
   markMin?: boolean;
+  /** 是否显示最大值标记。 */
   markMax?: boolean;
+  /** 是否将该系列显示在图例中。 */
   showInLegend?: boolean;
+  /** 边框颜色。 */
   borderColor?: string;
+  /** 边框线宽。 */
   borderWidth?: number;
+  /** 标签文字颜色。 */
   labelColor?: string;
+  /** 标签文本格式化函数。 */
   labelFormatter?: (value: number, category: string, index: number) => ReactNode;
+  /** 标签显示位置。 */
   labelPosition?: BarDatum["labelPosition"];
+  /** 需要标记的数据范围。 */
   markRange?: boolean;
-  markPoints?: readonly { index: number; value: number; label?: string }[];
+  /** 标记点配置集合。 */
+  markPoints?: readonly {
+  /** 项目在当前集合中的索引，从 0 开始。 */
+  index: number;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
+  value: number;
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
+  label?: string }[];
 }
 
+/** 柱状图的属性配置。 */
 export interface BarChartProps extends Omit<CartesianChartProps, "series"> {
   /** Shared data/island owner when composed as another Cartesian chart's mode. */
   valueTransfer?:ReturnType<typeof useBarValueTransfer>;
+  /**
+   * 数据拖拽计算的处理模式。
+   * @defaultValue 'resize'
+   */
   calculableMode?:'resize'|'transfer';
+  /** 图表间数据转移失败时调用。 */
   onTransferError?:(message:string)=>void;
+  /** 图例的排列顺序。 */
   legendOrder?: readonly string[];
-  legendLayout?: { x?: number; y?: number; itemGap?: number; rows?: number };
+  /** 图例布局配置。 */
+  legendLayout?: {
+  /** 横向位置或 X 轴数据值。 */
+  x?: number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y?: number;
+  /** 相邻项目的间距。 */
+  itemGap?: number;
+  /** 默认可见行数 */
+  rows?: number };
+  /**
+   * 不同类目柱组之间的间距。
+   * @defaultValue .2
+   */
   barCategoryGap?: number;
+  /**
+   * 数值轴两端增加的留白。
+   * @defaultValue 0
+   */
   valuePadding?: number;
-  grid?: { left?: number; top?: number; right?: number; bottom?: number };
+  /** 绘图区的边距和布局配置。 */
+  grid?: {
+  /** 距左侧的位置或间距。 */
+  left?: number;
+  /** 距顶部的位置或间距。 */
+  top?: number;
+  /** 距右侧的位置或间距。 */
+  right?: number;
+  /** 距底部的位置或间距。 */
+  bottom?: number };
+  /**
+   * 数值轴所在位置。
+   * @defaultValue "bottom"
+   */
   valueAxisPosition?: "top" | "bottom";
+  /**
+   * 图形外观配置。
+   * @defaultValue "sia"
+   */
   appearance?: "sia" | "macarons";
+  /** 动画当前进度，通常为 0 到 1。 */
   animationProgress?: number;
+  /**
+   * 数据更新动画的持续时间。
+   * @defaultValue 500
+   */
   animationDurationUpdate?: number;
+  /** 数值轴的数据范围。 */
   valueDomain?: readonly [number, number, number];
+  /** 坐标轴标签格式化函数。 */
   axisLabelFormatter?: (value: number) => string;
+  /**
+   * 是否显示数值轴。
+   * @defaultValue true
+   */
   showValueAxis?: boolean;
+  /**
+   * 是否显示类目轴。
+   * @defaultValue true
+   */
   showCategoryAxis?: boolean;
+  /**
+   * 是否显示类目轴分隔线。
+   * @defaultValue false
+   */
   showCategorySplitLine?: boolean;
+  /**
+   * 提示框按数据项还是坐标轴触发。
+   * @defaultValue "item"
+   */
   tooltipTrigger?: "item" | "axis";
-  tooltipFormatter?: (name: string, values: readonly { name: string; value: number; color: string }[]) => ReactNode;
+  /** 提示框内容的格式化函数。 */
+  tooltipFormatter?: (name: string, values: readonly {
+  /** 名称或字段标识。 */
+  name: string;
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
+  value: number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color: string }[]) => ReactNode;
+  /** 图表数据系列。 */
   series: readonly BarSeries[];
+  /**
+   * 是否堆叠展示数据系列。
+   * @defaultValue false
+   */
   stacked?: boolean;
+  /**
+   组件的水平或垂直排列方向。
+   * @defaultValue "vertical"
+   */
   orientation?: "vertical" | "horizontal";
+  /**
+   * 柱形允许的最小尺寸。
+   * @defaultValue 1
+   */
   minBarSize?: number;
+  /**
+   * 是否允许通过拖拽图形修改数据。
+   * @defaultValue false
+   */
   calculable?: boolean;
+  /** 数据被交互修改后调用。 */
   onDataChange?: (series: readonly BarSeries[]) => void;
 }
 
@@ -767,6 +1118,7 @@ function barDatum(datum: number | BarDatum): BarDatum {
   return typeof datum === "number" ? { value: datum } : datum;
 }
 
+/** 柱状图组件。 */
 export const BarChart = forwardRef<SiaChartRef, BarChartProps>(function BarChart(
   { valueTransfer:externalValueTransfer, calculableMode='resize',onTransferError,categories, series: sourceSeries, appearance = "sia", animationProgress, animationDurationUpdate = 500, valueDomain, axisLabelFormatter, grid, valueAxisPosition = "bottom", showValueAxis = true, showCategoryAxis = true, showCategorySplitLine = false, tooltipTrigger = "item", tooltipFormatter, stacked = false, orientation = "vertical", minBarSize = 1, calculable = false, onDataChange, showLegend = true, legendOrder, legendLayout, barCategoryGap = .2, valuePadding = 0, legendInteractive = true, legendSelected, onLegendSelectionChange, valueFormatter, onDataClick, palette, toolbox, ...props },
   ref,
@@ -979,93 +1331,289 @@ export const BarChart = forwardRef<SiaChartRef, BarChartProps>(function BarChart
   </SiaChart>;
 });
 
+/** Scatter的单条数据。 */
 export interface ScatterDatum {
+  /** 高亮状态的颜色。 */
   emphasisColor?:string;
+  /** 高亮状态的边框宽度。 */
   emphasisBorderWidth?:number;
+  /** 符号填充颜色。 */
   symbolFill?:string;
+  /** 是否显示标签文本。 */
   showLabel?:boolean;
+  /** 高亮时是否显示标签。 */
   showEmphasisLabel?:boolean;
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
   label?:ReactNode;
+  /** 标签文本格式化函数。 */
   labelFormatter?:(item:ScatterDatum)=>ReactNode;
+  /** 标签文字样式。 */
   labelStyle?:CSSProperties;
+  /** 数据符号使用的图片。 */
   symbolImage?:string;
+  /** 数据符号旋转角度。 */
   symbolRotate?:number;
+  /** 边框线宽。 */
   borderWidth?:number;
   /** Optional third data dimension, independent of the rendered symbol radius. */
   value?: number;
+  /** 名称或字段标识。 */
   name?: string;
+  /** 横向位置或 X 轴数据值。 */
   x: number;
+  /** 纵向位置或 Y 轴数据值。 */
   y: number;
+  /** 组件尺寸；用于调整控件高度、字号和间距。 */
   size?: number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
+  /** 所属类目或分组。 */
   category?: string;
+  /** 数据点或节点使用的图形符号。 */
   symbol?: "circle" | "square" | "diamond" | "emptyCircle" | "emptyTriangle" | "image";
 }
 
+/** 散点数值到颜色和尺寸的视觉映射配置。 */
 export interface ScatterVisualMap {
+  /** 是否允许通过拖拽图形修改数据。 */
   calculable?:boolean;
+  /** 组件的水平或垂直排列方向。 */
   orientation?:'horizontal'|'vertical';
+  /** 是否允许选中项目。 */
   selectable?:boolean;
+  /** 参与统计或映射的数据维度。 */
   dimension: "x" | "y" | "size" | "value";
-  pieces?: readonly {min:number;max:number;color:string;label?:string}[];
+  /** 分段视觉映射的区间配置。 */
+  pieces?: readonly {
+  /** 允许的最小值。 */
+  min:number;
+  /** 允许的最大值。 */
+  max:number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color:string;
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
+  label?:string}[];
+  /** 横向位置或 X 轴数据值。 */
   x?:number;
+  /** 纵向位置或 Y 轴数据值。 */
   y?:number;
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
   width?:number;
+  /** 允许的最小值。 */
   min?: number;
+  /** 允许的最大值。 */
   max?: number;
+  /** 可选颜色或颜色序列。 */
   colors?: readonly [string, string];
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
   label?: string;
 }
 
+/** 散点图的属性配置。 */
 export interface ScatterChartProps extends Omit<SiaChartProps, "children" | "empty"> {
+  /**
+   * 数据符号动画配置。
+   * @defaultValue false
+   */
   symbolAnimation?: boolean;
+  /** 动画当前进度，通常为 0 到 1。 */
   animationProgress?: number;
+  /**
+   * 数据更新动画的持续时间。
+   * @defaultValue 500
+   */
   animationDurationUpdate?: number;
-  statisticPoints?:readonly {name:string;dimension:'x'|'y';kind:'min'|'max';category?:string;symbol?:'pin'|'arrow';color?:string;borderColor?:string;size?:number}[];
-  statisticLines?:readonly {name:string;dimension:'x'|'y';category?:string;color?:string}[];
+  /**
+   * 统计点标记配置。
+   * @defaultValue []
+   */
+  statisticPoints?:readonly {
+  /** 名称或字段标识。 */
+  name:string;
+  /** 参与统计或映射的数据维度。 */
+  dimension:'x'|'y';
+  /** 补全项或节点的类别。 */
+  kind:'min'|'max';
+  /** 所属类目或分组。 */
+  category?:string;
+  /** 数据点或节点使用的图形符号。 */
+  symbol?:'pin'|'arrow';
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color?:string;
+  /** 边框颜色。 */
+  borderColor?:string;
+  /** 组件尺寸；用于调整控件高度、字号和间距。 */
+  size?:number}[];
+  /**
+   * 统计标线配置。
+   * @defaultValue []
+   */
+  statisticLines?:readonly {
+  /** 名称或字段标识。 */
+  name:string;
+  /** 参与统计或映射的数据维度。 */
+  dimension:'x'|'y';
+  /** 所属类目或分组。 */
+  category?:string;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color?:string}[];
   /** Fixed coordinate annotations, separate from editable scatter values. */
-  annotations?:readonly {name:string;x:number;y:number;value:number;category?:string;radius?:number;color?:string}[];
+  annotations?:readonly {
+  /** 名称或字段标识。 */
+  name:string;
+  /** 横向位置或 X 轴数据值。 */
+  x:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y:number;
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
+  value:number;
+  /** 所属类目或分组。 */
+  category?:string;
+  /** 图形半径或圆角配置。 */
+  radius?:number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color?:string}[];
+  /**
+   * 是否显示 X 轴。
+   * @defaultValue true
+   */
   showXAxis?:boolean;
+  /**
+   * 是否显示 X 轴分隔线。
+   * @defaultValue true
+   */
   showXSplitLine?:boolean;
+  /**
+   * 是否显示 Y 轴分隔线。
+   * @defaultValue true
+   */
   showYSplitLine?:boolean;
+  /** 提示框内容的格式化函数。 */
   tooltipFormatter?:(item:ScatterDatum)=>ReactNode;
+  /** 标记颜色。 */
   markColor?: string;
+  /** X 轴的数据范围。 */
   xDomain?: readonly [number,number,number];
+  /** Y 轴的数据范围。 */
   yDomain?: readonly [number,number,number];
+  /**
+   * 是否显示数据点标签。
+   * @defaultValue false
+   */
   showPointLabels?: boolean;
+  /**
+   * Y 轴所在位置。
+   * @defaultValue 'left'
+   */
   yAxisPosition?:'left'|'right';
+  /** X 轴类目集合。 */
   xCategories?: readonly number[];
+  /** X 轴数值的格式化函数。 */
   xFormatter?: (value:number)=>string;
+  /**
+   * 十字辅助线配置。
+   * @defaultValue false
+   */
   crosshair?: boolean;
   /** Pin extrema and value-only mean labels used by legacy reference charts. */
   markAppearance?: 'label' | 'pin';
+  /**
+   * X 轴分段数量。
+   * @defaultValue 5
+   */
   xSplitNumber?: number;
+  /**
+   * Y 轴分段数量。
+   * @defaultValue 5
+   */
   ySplitNumber?: number;
+  /** 按数据点计算显示尺寸的函数。 */
   symbolSize?: (item: ScatterDatum) => number;
+  /**
+   * 是否按类目绘制统计标记。
+   * @defaultValue false
+   */
   markByCategory?: boolean;
+  /**
+   * X 轴数值单位。
+   * @defaultValue ''
+   */
   xUnit?: string;
+  /**
+   * Y 轴数值单位。
+   * @defaultValue ''
+   */
   yUnit?: string;
+  /**
+   * 符号最小半径。
+   * @defaultValue 5
+   */
   minSymbolRadius?: number;
-  plotBounds?: {x:number;y:number;width:number;height:number};
+  /** 绘图区边界。 */
+  plotBounds?: {
+  /** 横向位置或 X 轴数据值。 */
+  x:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y:number;
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  width:number;
+  /** 高度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  height:number};
+  /** 用于渲染的数据集合。 */
   data: readonly ScatterDatum[];
+  /** X 轴标题。 */
   xLabel?: string;
+  /** Y 轴标题。 */
   yLabel?: string;
+  /**
+   * X 轴类型。
+   * @defaultValue "value"
+   */
   xAxisType?: "value" | "time";
+  /**
+   * 是否显示图例。
+   * @defaultValue true
+   */
   showLegend?: boolean;
+  /**
+   * 是否允许通过图例切换系列显示。
+   * @defaultValue true
+   */
   legendInteractive?: boolean;
+  /** 图例项目的选中状态。 */
   legendSelected?: Readonly<Record<string, boolean>>;
+  /** 图例选中状态变化时调用。 */
   onLegendSelectionChange?: (selected: Record<string, boolean>) => void;
+  /**
+   * 数据区域缩放配置。
+   * @defaultValue false
+   */
   dataZoom?: boolean;
+  /** 缩放级别或缩放范围。 */
   zoom?: readonly [number, number];
+  /** 初始缩放范围或缩放级别。 */
   defaultZoom?: readonly [number, number];
+  /** 缩放范围变化时调用。 */
   onZoomChange?: (value: [number, number]) => void;
+  /** 数据到颜色、大小等视觉通道的映射配置。 */
   visualMap?: ScatterVisualMap;
+  /** 是否显示平均值标记。 */
   markAverage?: "x" | "y" | "both";
+  /**
+   * 是否标记极值数据。
+   * @defaultValue false
+   */
   markExtremes?: boolean;
+  /**
+   * 启用大数据量渲染优化的阈值。
+   * @defaultValue 1200
+   */
   largeThreshold?: number;
+  /** 点击图表数据项时调用。 */
   onDataClick?: (info: ChartDataClickInfo<ScatterDatum>) => void;
 }
 
+/** 散点图组件。 */
 export const ScatterChart = forwardRef<SiaChartRef, ScatterChartProps>(function ScatterChart(
   { symbolAnimation=false, animationProgress, animationDurationUpdate=500, statisticPoints=[], statisticLines=[], annotations=[], data:initialData,toolbox,showXAxis=true,showXSplitLine=true,showYSplitLine=true,tooltipFormatter,plotBounds,xDomain:fixedXDomain,yDomain:fixedYDomain,showPointLabels=false,yAxisPosition='left',xCategories,xFormatter,crosshair=false,markColor,xSplitNumber=5,ySplitNumber=5,symbolSize,markAppearance='label',markByCategory=false,xUnit='',yUnit='',minSymbolRadius=5,xLabel, yLabel, xAxisType = "value", showLegend = true, legendInteractive = true, legendSelected, onLegendSelectionChange, dataZoom = false, zoom, defaultZoom, onZoomChange, visualMap, markAverage, markExtremes = false, largeThreshold = 1200, onDataClick, palette, ...props }, ref,
 ) {
@@ -1188,53 +1736,141 @@ export const ScatterChart = forwardRef<SiaChartRef, ScatterChartProps>(function 
   return dataZoom ? <div className="sia-chart-with-zoom">{content}<ChartDataZoom value={zoomValue} onChange={setZoomValue} /></div> : content;
 });
 
+/** Candlestick的单条数据。 */
 export interface CandlestickDatum {
+  /** 名称或字段标识。 */
   name: string;
+  /** 是否打开；传入后由外部控制显示状态。 */
   open: number;
+  /** 关闭当前界面或实例。 */
   close: number;
+  /** 最低值。 */
   low: number;
+  /** 最高值。 */
   high: number;
+  /** 成交量。 */
   volume?: number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
+  /** 边框颜色。 */
   borderColor?: string;
+  /** 边框线宽。 */
   borderWidth?: number;
+  /** 高亮状态的颜色。 */
   emphasisColor?: string;
 }
 
+/** 蜡烛图的属性配置。 */
 export interface CandlestickChartProps extends Omit<SiaChartProps, "children" | "empty"> {
   /** Hide axes when sharing a plot with another chart layer. */
   showAxes?: boolean;
+  /** 数值轴的数据范围。 */
   valueDomain?: readonly [number,number,number];
+  /** 坐标轴标签格式化函数。 */
   axisLabelFormatter?: (value:number)=>string;
   /** Index into the full input data; null explicitly clears a controlled highlight. */
   activeIndex?: number | null;
+  /** 当前激活数据索引变化时调用。 */
   onActiveIndexChange?: (index:number|null)=>void;
+  /** 各数据系列的可见状态。 */
   seriesVisible?: boolean;
+  /** 系列可见性变化时调用。 */
   onSeriesVisibilityChange?: (visible:boolean)=>void;
+  /**
+   * 是否显示图例。
+   * @defaultValue true
+   */
   showLegend?: boolean;
+  /**
+   * 是否显示类目标签。
+   * @defaultValue true
+   */
   showCategoryLabels?: boolean;
-  plotBounds?: {x:number;y:number;width:number;height:number};
-  markPoints?: readonly {name:string;date:string;value:number;y:number;color?:string}[];
+  /** 绘图区边界。 */
+  plotBounds?: {
+  /** 横向位置或 X 轴数据值。 */
+  x:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y:number;
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  width:number;
+  /** 高度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  height:number};
+  /** 标记点配置集合。 */
+  markPoints?: readonly {
+  /** 名称或字段标识。 */
+  name:string;
+  /** 关联的日期或时间。 */
+  date:string;
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
+  value:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y:number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color?:string}[];
+  /** 数据系列名称。 */
   seriesName?: string;
+  /** 上涨蜡烛图的边框颜色。 */
   risingBorderColor?: string;
+  /** 下跌蜡烛图的边框颜色。 */
   fallingBorderColor?: string;
+  /**
+   * 边框线宽。
+   * @defaultValue 2
+   */
   borderWidth?: number;
+  /** 上涨数据高亮时的颜色。 */
   risingEmphasisColor?: string;
+  /** 下跌数据高亮时的颜色。 */
   fallingEmphasisColor?: string;
+  /**
+   * 柱形允许的最大宽度。
+   * @defaultValue 34
+   */
   maxBarWidth?: number;
+  /**
+   * 图形外观配置。
+   * @defaultValue 'sia'
+   */
   appearance?: 'sia'|'macarons';
+  /** 用于渲染的数据集合。 */
   data: readonly CandlestickDatum[];
+  /**
+   * 上涨数据的颜色。
+   * @defaultValue "#f5222d"
+   */
   risingColor?: string;
+  /**
+   * 下跌数据的颜色。
+   * @defaultValue "#52c41a"
+   */
   fallingColor?: string;
+  /**
+   * 上涨蜡烛图是否使用空心样式。
+   * @defaultValue false
+   */
   hollowRising?: boolean;
+  /**
+   * 数据区域缩放配置。
+   * @defaultValue false
+   */
   dataZoom?: boolean;
+  /** 缩放级别或缩放范围。 */
   zoom?: readonly [number, number];
+  /** 初始缩放范围或缩放级别。 */
   defaultZoom?: readonly [number, number];
+  /** 缩放范围变化时调用。 */
   onZoomChange?: (value: [number, number]) => void;
+  /**
+   * 是否标记极值数据。
+   * @defaultValue false
+   */
   markExtremes?: boolean;
+  /** 点击图表数据项时调用。 */
   onDataClick?: (info: ChartDataClickInfo<CandlestickDatum>) => void;
 }
 
+/** 蜡烛图组件。 */
 export const CandlestickChart = forwardRef<SiaChartRef, CandlestickChartProps>(function CandlestickChart(
   { showAxes=true,data:initialData,valueDomain,axisLabelFormatter,activeIndex,onActiveIndexChange,seriesVisible:controlledVisible,onSeriesVisibilityChange,showLegend=true,showCategoryLabels=true,plotBounds,markPoints,seriesName,risingBorderColor,fallingBorderColor,borderWidth=2,risingEmphasisColor,fallingEmphasisColor,maxBarWidth=34,appearance='sia',risingColor = "#f5222d", fallingColor = "#52c41a", hollowRising = false, dataZoom = false, zoom, defaultZoom, onZoomChange, markExtremes = false, onDataClick,toolbox, ...props }, ref,
 ) {
@@ -1287,98 +1923,274 @@ export const CandlestickChart = forwardRef<SiaChartRef, CandlestickChartProps>(f
   return dataZoom&&!legacy ? <div className="sia-chart-with-zoom">{content}{zoomControl}</div> : content;
 });
 
+/** 饼图径向渐变配置。 */
 export interface PieRadialGradient {
+  /** 中心位置。 */
   center:readonly [number,number];
+  /** 环形图形的内半径。 */
   innerRadius?:number;
+  /** 环形图形的外半径。 */
   outerRadius:number;
-  stops:readonly {offset:number;color:string}[];
+  /** 渐变颜色停靠点集合。 */
+  stops:readonly {
+  /** 相对于默认位置的偏移。 */
+  offset:number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color:string}[];
 }
 
+/** PieLabel的配置选项。 */
 export interface PieLabelOptions {
+  /** 标签文本格式化函数。 */
   labelFormatter?:(item:PieDatum,percent:number)=>string;
+  /** 高亮标签格式化函数。 */
   emphasisLabelFormatter?:(item:PieDatum,percent:number)=>string;
+  /** 标签文字样式。 */
   labelStyle?:CSSProperties;
+  /** 高亮状态的标签样式。 */
   emphasisLabelStyle?:CSSProperties;
+  /** 高亮时是否显示标签。 */
   showEmphasisLabel?:boolean;
-  labelLine?:{show?:boolean;length?:number;style?:CSSProperties};
-  emphasisLabelLine?:{show?:boolean;length?:number;style?:CSSProperties};
+  /** 标签引导线配置。 */
+  labelLine?:{
+  /** 是否显示该功能。 */
+  show?:boolean;
+  /** 长度。 */
+  length?:number;
+  /** 组件根节点的内联样式。 */
+  style?:CSSProperties};
+  /** 高亮状态的标签引导线配置。 */
+  emphasisLabelLine?:{
+  /** 是否显示该功能。 */
+  show?:boolean;
+  /** 长度。 */
+  length?:number;
+  /** 组件根节点的内联样式。 */
+  style?:CSSProperties};
 }
+/** Pie的单条数据。 */
 export interface PieDatum extends PieLabelOptions {
   /** Missing source slot after a calculable transfer; not a zero-valued slice. */
   missing?:boolean;
+  /** 是否显示标签文本。 */
   showLabel?:boolean;
+  /** 渐变填充配置。 */
   gradient?:PieRadialGradient;
+  /** 高亮状态的渐变填充。 */
   emphasisGradient?:PieRadialGradient;
+  /** 高亮状态的颜色。 */
   emphasisColor?:string;
+  /** 名称或字段标识。 */
   name: string;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value: number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
+  /** 是否处于选中状态。 */
   selected?: boolean;
+  /** 是否将该系列显示在图例中。 */
   showInLegend?: boolean;
+  /** 是否启用交互。 */
   interactive?: boolean;
 }
 
+/** Pie的数据系列。 */
 export interface PieSeries extends PieLabelOptions {
+  /** 高亮状态的渐变填充。 */
   emphasisGradient?:PieRadialGradient;
   /** SVG degrees; overrides the chart angle for this ring only. */
   startAngle?: number;
+  /** 中心区域显示的标签。 */
   centerLabel?: ReactNode;
+  /** 名称或字段标识。 */
   name?: string;
+  /** 用于渲染的数据集合。 */
   data: readonly PieDatum[];
+  /** 环形图形的内半径。 */
   innerRadius?: number;
+  /** 环形图形的外半径。 */
   outerRadius?: number;
+  /** 是否启用南丁格尔玫瑰图模式。 */
   rose?: boolean | "radius" | "area";
+  /** 是否显示数据标签。 */
   showLabels?: boolean;
+  /** 中心位置。 */
   center?: readonly [number,number];
+  /** 标签显示位置。 */
   labelPosition?: "outside" | "inside";
+  /** 高亮状态的标签配置。 */
   emphasisLabel?: "center" | "outside";
+  /** 图形的选中模式。 */
   selectedMode?: false | "single" | "multiple";
+  /** 是否按顺时针方向绘制。 */
   clockwise?: boolean;
 }
 
+/** 饼图的属性配置。 */
 export interface PieChartProps extends Omit<SiaChartProps, "children" | "empty"> {
+  /** 数据点脉冲环效果配置。 */
   pulseRing?:ChartPulseRingProps;
+  /**
+   * 是否允许通过拖拽图形修改数据。
+   * @defaultValue false
+   */
   calculable?:boolean;
   /** Fixed-position star annotations; percentage coordinates use the SVG viewport. */
-  markPoints?:readonly {name:string;value:number;x:number|`${number}%`;y:number|`${number}%`;radius?:number;color?:string}[];
+  markPoints?:readonly {
+  /** 名称或字段标识。 */
+  name:string;
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
+  value:number;
+  /** 横向位置或 X 轴数据值。 */
+  x:number|`${number}%`;
+  /** 纵向位置或 Y 轴数据值。 */
+  y:number|`${number}%`;
+  /** 图形半径或圆角配置。 */
+  radius?:number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color?:string}[];
+  /** 将数据值拖出当前绘图区时调用。 */
   onValueDragOut?: (seriesIndex:number,dataIndex:number,point:readonly [number,number])=>void;
-  outsideLabelLayout?:{top:number;bottom:number;gap?:number;left?:number;right?:number};
+  /** 外侧标签的布局规则。 */
+  outsideLabelLayout?:{
+  /** 距顶部的位置或间距。 */
+  top:number;
+  /** 距底部的位置或间距。 */
+  bottom:number;
+  /** 预设或自定义间距 */
+  gap?:number;
+  /** 距左侧的位置或间距。 */
+  left?:number;
+  /** 距右侧的位置或间距。 */
+  right?:number};
   /** Controlled data transfer between charts in the same ChartComposite. */
   transferId?:string;
+  /** 图表间转移数据值时调用。 */
   onValueTransfer?:ChartValueTransferHandler;
+  /** 图表间数据转移失败时调用。 */
   onTransferError?:(message:string)=>void;
+  /**
+   * 是否显示辅助参考环。
+   * @defaultValue false
+   */
   showGuideRings?: boolean;
+  /**
+   * 图形外观配置。
+   * @defaultValue "sia"
+   */
   appearance?: "sia" | "macarons";
+  /** 动画当前进度，通常为 0 到 1。 */
   animationProgress?: number;
+  /**
+   * 数据更新动画的持续时间。
+   * @defaultValue 500
+   */
   animationDurationUpdate?: number;
-  legendLayout?: {x?:number;y?:number;orientation?:"horizontal"|"vertical";align?:"start"|"center"|"end";itemGap?:number};
+  /** 图例布局配置。 */
+  legendLayout?: {
+  /** 横向位置或 X 轴数据值。 */
+  x?:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y?:number;
+  /** 组件的水平或垂直排列方向。 */
+  orientation?:"horizontal"|"vertical";
+  /** 交叉轴对齐 */
+  align?:"start"|"center"|"end";
+  /** 相邻项目的间距。 */
+  itemGap?:number};
+  /** 数据被交互修改后调用。 */
   onDataChange?: (series:readonly PieSeries[])=>void;
+  /**
+   用于渲染的数据集合。
+   * @defaultValue EMPTY_PIE_DATA
+   */
   data?: readonly PieDatum[];
+  /** 图表数据系列。 */
   series?: readonly PieSeries[];
+  /**
+   * 环形图形的内半径。
+   * @defaultValue 62
+   */
   innerRadius?: number;
+  /**
+   * 环形图形的外半径。
+   * @defaultValue 124
+   */
   outerRadius?: number;
+  /**
+   * 是否启用南丁格尔玫瑰图模式。
+   * @defaultValue false
+   */
   rose?: boolean | "radius" | "area";
+  /**
+   * 中心位置。
+   * @defaultValue [360,173]
+   */
   center?: readonly [number, number];
+  /**
+   * 绘制起始角度。
+   * @defaultValue -90
+   */
   startAngle?: number;
+  /**
+   * 是否按顺时针方向绘制。
+   * @defaultValue true
+   */
   clockwise?: boolean;
+  /**
+   * 相邻扇区之间的间隔角度。
+   * @defaultValue 0
+   */
   padAngle?: number;
+  /**
+   * 是否显示图例。
+   * @defaultValue true
+   */
   showLegend?: boolean;
+  /**
+   * 是否允许通过图例切换系列显示。
+   * @defaultValue true
+   */
   legendInteractive?: boolean;
+  /** 图例项目的选中状态。 */
   legendSelected?: Readonly<Record<string, boolean>>;
+  /** 图例选中状态变化时调用。 */
   onLegendSelectionChange?: (selected: Record<string, boolean>) => void;
+  /**
+   * 是否显示数据标签。
+   * @defaultValue true
+   */
   showLabels?: boolean;
+  /**
+   * 是否显示标签引导线。
+   * @defaultValue true
+   */
   showLabelLines?: boolean;
+  /** 中心区域显示的标签。 */
   centerLabel?: ReactNode;
+  /**
+   * 图形的选中模式。
+   * @defaultValue false
+   */
   selectedMode?: false | "single" | "multiple";
+  /** 是否处于选中状态。 */
   selected?: readonly string[];
+  /** 初始化时选中的图形或状态。 */
   defaultSelected?: readonly string[];
+  /**
+   * 选中扇区向外偏移的距离。
+   * @defaultValue 9
+   */
   selectedOffset?: number;
+  /** 编辑器选区变化时调用。 */
   onSelectionChange?: (names: string[]) => void;
+  /** 点击图表数据项时调用。 */
   onDataClick?: (info: ChartDataClickInfo<PieDatum>) => void;
 }
 
 const EMPTY_PIE_DATA: readonly PieDatum[] = [];
 
+/** 饼图组件。 */
 export const PieChart = forwardRef<SiaChartRef, PieChartProps>(function PieChart(
   { pulseRing, calculable=false, markPoints=[], data = EMPTY_PIE_DATA, series, innerRadius = 62, outerRadius = 124, rose = false, center = [360,173], startAngle = -90, clockwise = true, padAngle = 0, showLegend = true, legendInteractive = true, legendSelected, onLegendSelectionChange, showLabels = true, showLabelLines = true, centerLabel, selectedMode = false, selected, defaultSelected, selectedOffset = 9, onSelectionChange, onDataClick, palette, toolbox, appearance = "sia", animationProgress, animationDurationUpdate = 500, legendLayout, showGuideRings = false, onDataChange, transferId,onValueTransfer,onTransferError,onValueDragOut,outsideLabelLayout, ...props }, ref,
 ) {
@@ -1489,72 +2301,184 @@ const marks=visible.map((item,index)=>{
   </SiaChart>;
 });
 
+/** 雷达图的一项指标，定义名称、范围及标签显示。 */
 export interface RadarIndicator {
+  /** 名称或字段标识。 */
   name: string;
+  /** 允许的最大值。 */
   max?: number;
+  /** 允许的最小值。 */
   min?: number;
 }
 
+/** Radar的数据系列。 */
 export interface RadarSeries extends ChartSeries {
-  areaGradient?:{center:readonly [number,number];radius:number;focus?:readonly [number,number];stops:readonly {offset:number;color:string}[]};
+  /** 面积区域的填充渐变。 */
+  areaGradient?:{
+  /** 中心位置。 */
+  center:readonly [number,number];
+  /** 图形半径或圆角配置。 */
+  radius:number;
+  /** 将焦点移入控件。 */
+  focus?:readonly [number,number];
+  /** 渐变颜色停靠点集合。 */
+  stops:readonly {
+  /** 相对于默认位置的偏移。 */
+  offset:number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color:string}[]};
+  /** 数据点图形符号。 */
   pointSymbol?:'circle'|'star';
+  /** 数据点半径。 */
   pointRadius?:number;
+  /** 按数据点及索引计算颜色的函数。 */
   pointColor?:(value:number,index:number)=>string|undefined;
+  /** 是否显示数值标签。 */
   showValueLabels?:boolean;
+  /** 数值标签格式化函数。 */
   valueLabelFormatter?:(value:number,index:number)=>string;
+  /** 高亮线条宽度。 */
   emphasisLineWidth?:number;
+  /** 高亮面积区域颜色。 */
   emphasisAreaColor?:string;
+  /** 用于渲染的数据集合。 */
   data: readonly number[];
+  /** 面积填充透明度。 */
   areaOpacity?: number;
+  /** 线条样式。 */
   lineStyle?: "solid" | "dashed" | "dotted";
+  /** 线条粗细。 */
   lineWidth?: number;
+  /** 是否显示数据点。 */
   showPoints?: boolean;
 }
 
+/** 雷达图的坐标系面板配置。 */
 export interface RadarPanel {
+  /** 是否根据数据自动计算缩放范围。 */
   autoScale?:boolean;
+  /** 缩放比例或比例尺配置。 */
   scale?:boolean;
+  /** 轴端是否保留间隔，或两端间隔的配置。 */
   boundaryGap?:readonly [number,number];
+  /** 坐标轴线颜色。 */
   axisColor?:string;
+  /** 轴线粗细。 */
   axisWidth?:number;
+  /** 分隔线颜色。 */
   splitLineColor?:string;
+  /** 分隔线粗细。 */
   splitLineWidth?:number;
+  /** 坐标轴分隔区域的填充颜色。 */
   splitAreaColors?:readonly string[];
+  /** 指标文字或指示器颜色。 */
   indicatorColor?:string;
+  /** 指标文字格式化函数。 */
   indicatorFormatter?:(name:string)=>string;
+  /** 是否显示轴标签。 */
   showAxisLabels?:boolean;
+  /** 坐标轴标签颜色。 */
   axisLabelColor?:string;
+  /** 雷达图各指标的定义。 */
   indicators: readonly RadarIndicator[];
+  /** 图表数据系列。 */
   series: readonly RadarSeries[];
+  /** 中心位置。 */
   center?: readonly [number, number];
+  /** 图形半径或圆角配置。 */
   radius?: number;
+  /** 分层布局或雷达网格的层级配置。 */
   levels?: number;
+  /** 外观形状。 */
   shape?: "polygon" | "circle";
+  /** 绘制起始角度。 */
   startAngle?: number;
 }
 
+/** 雷达图的属性配置。 */
 export interface RadarChartProps extends Omit<SiaChartProps, "children" | "empty"> {
+  /**
+   * 是否允许通过拖拽图形修改数据。
+   * @defaultValue false
+   */
   calculable?:boolean;
+  /** 图表间数据转移失败时调用。 */
   onTransferError?:(message:string)=>void;
-  markers?:readonly {name:string;value:number;x:number;y:number;size?:number;color?:string;hollow?:boolean}[];
+  /** 在指定文本范围显示错误、警告或信息波浪线 */
+  markers?:readonly {
+  /** 名称或字段标识。 */
+  name:string;
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
+  value:number;
+  /** 横向位置或 X 轴数据值。 */
+  x:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y:number;
+  /** 组件尺寸；用于调整控件高度、字号和间距。 */
+  size?:number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color?:string;
+  /** 是否使用空心样式。 */
+  hollow?:boolean}[];
+  /**
+   * 图形外观配置。
+   * @defaultValue "sia"
+   */
   appearance?: "sia" | "macarons";
+  /** 动画当前进度，通常为 0 到 1。 */
   animationProgress?: number;
+  /** 图例的排列顺序。 */
   legendOrder?: readonly string[];
-  legendLayout?: {x?:number;y?:number;orientation?:"horizontal"|"vertical";align?:"start"|"center"|"end"};
+  /** 图例布局配置。 */
+  legendLayout?: {
+  /** 横向位置或 X 轴数据值。 */
+  x?:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y?:number;
+  /** 组件的水平或垂直排列方向。 */
+  orientation?:"horizontal"|"vertical";
+  /** 交叉轴对齐 */
+  align?:"start"|"center"|"end"};
+  /** 数据被交互修改后调用。 */
   onDataChange?: (panels: readonly RadarPanel[]) => void;
+  /**
+   * 雷达图各指标的定义。
+   * @defaultValue EMPTY_RADAR_INDICATORS
+   */
   indicators?: readonly RadarIndicator[];
+  /**
+   * 图表数据系列。
+   * @defaultValue EMPTY_RADAR_SERIES
+   */
   series?: readonly RadarSeries[];
+  /** 雷达坐标系集合。 */
   radars?: readonly RadarPanel[];
+  /**
+   * 分层布局或雷达网格的层级配置。
+   * @defaultValue 5
+   */
   levels?: number;
+  /**
+   * 是否显示图例。
+   * @defaultValue true
+   */
   showLegend?: boolean;
+  /**
+   * 是否允许通过图例切换系列显示。
+   * @defaultValue true
+   */
   legendInteractive?: boolean;
+  /** 图例项目的选中状态。 */
   legendSelected?: Readonly<Record<string, boolean>>;
+  /** 图例选中状态变化时调用。 */
   onLegendSelectionChange?: (selected: Record<string, boolean>) => void;
+  /** 点击图表数据项时调用。 */
   onDataClick?: (info: ChartDataClickInfo<RadarSeries>) => void;
 }
 
 const EMPTY_RADAR_INDICATORS: readonly RadarIndicator[]=[];
 const EMPTY_RADAR_SERIES: readonly RadarSeries[]=[];
+/** 雷达图组件。 */
 export const RadarChart = forwardRef<SiaChartRef, RadarChartProps>(function RadarChart(
   { indicators = EMPTY_RADAR_INDICATORS, series = EMPTY_RADAR_SERIES, radars, calculable=false, onTransferError, markers, levels = 5, showLegend = true, legendInteractive = true, legendSelected, onLegendSelectionChange, onDataClick, palette, toolbox, appearance="sia", animationProgress, legendOrder, legendLayout, onDataChange, ...props }, ref,
 ) {
@@ -1658,44 +2582,128 @@ export const RadarChart = forwardRef<SiaChartRef, RadarChartProps>(function Rada
   </SiaChart>;
 });
 
+/** 弦图中的节点定义。 */
 export interface ChordNode {
+  /** 节点图形符号。 */
   nodeSymbol?:'circle'|'star';
+  /** 唯一标识，用于关联实例或插件。 */
   id: string;
+  /** 名称或字段标识。 */
   name: string;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value?: number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
 }
 
+/** 弦图节点间的关系和权重。 */
 export interface ChordLink {
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
   label?:string;
+  /** 触发来源，用于区分不同入口的操作。 */
   source: string;
+  /** 关联的目标元素或获取目标元素的函数。 */
   target: string;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value: number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
 }
 
+/** 弦图的属性配置。 */
 export interface ChordChartProps extends Omit<SiaChartProps, "children" | "empty"> {
+  /** 矩阵弦图的外观配置。 */
   matrixAppearance?:MatrixChordAppearance;
-  nodeGeometry?:{center:readonly [number,number];orbitRadius:number;minRadius:number;maxRadius:number;startAngle?:number};
-  matrixSeries?:readonly {name:string;color:string;matrix:readonly (readonly number[])[]}[];
+  /** 节点几何形状配置。 */
+  nodeGeometry?:{
+  /** 中心位置。 */
+  center:readonly [number,number];
+  /** 节点环绕轨道的半径。 */
+  orbitRadius:number;
+  /** 允许的最小半径。 */
+  minRadius:number;
+  /** 允许的最大半径。 */
+  maxRadius:number;
+  /** 绘制起始角度。 */
+  startAngle?:number};
+  /** 矩阵图的数据系列。 */
+  matrixSeries?:readonly {
+  /** 名称或字段标识。 */
+  name:string;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color:string;
+  /** 关系权重矩阵。 */
+  matrix:readonly (readonly number[])[]}[];
+  /**
+   * 是否显示节点名称。
+   * @defaultValue false
+   */
   showNodeLabels?:boolean;
+  /**
+   * 是否沿节点方向旋转标签。
+   * @defaultValue false
+   */
   rotateNodeLabels?:boolean;
+  /** 矩阵连线的标签配置。 */
   matrixLinkLabel?:(source:number,target:number)=>string;
-  matrixGeometry?:{center:readonly [number,number];innerRadius:number;outerRadius:number;startAngle?:number};
+  /** 矩阵图几何布局配置。 */
+  matrixGeometry?:{
+  /** 中心位置。 */
+  center:readonly [number,number];
+  /** 环形图形的内半径。 */
+  innerRadius:number;
+  /** 环形图形的外半径。 */
+  outerRadius:number;
+  /** 绘制起始角度。 */
+  startAngle?:number};
+  /**
+   * 是否启用兼容模式的子分组排序。
+   * @defaultValue false
+   */
   legacySubSort?:boolean;
+  /**
+   * 是否显示刻度。
+   * @defaultValue false
+   */
   showScale?:boolean;
+  /** 关系权重矩阵。 */
   matrix?:readonly (readonly number[])[];
+  /**
+   * 子分组排序方式。
+   * @defaultValue 'none'
+   */
   sortSub?:'none'|'ascending'|'descending';
+  /** 图中节点的数据集合。 */
   nodes: readonly ChordNode[];
+  /** 节点之间的连线集合。 */
   links: readonly ChordLink[];
+  /**
+   * 相邻扇区之间的间隔角度。
+   * @defaultValue 0.035
+   */
   padAngle?: number;
+  /**
+   * 弦带的外观与绘制配置。
+   * @defaultValue true
+   */
   ribbon?: boolean;
+  /**
+   * 是否按顺时针方向绘制。
+   * @defaultValue true
+   */
   clockwise?: boolean;
+  /**
+   * 数据或图形排序规则。
+   * @defaultValue "none"
+   */
   sort?: "ascending" | "descending" | "none";
+  /** 节点点击回调 */
   onNodeClick?: (info: ChartDataClickInfo<ChordNode>) => void;
+  /** 点击节点连线时调用。 */
   onLinkClick?: (info: ChartDataClickInfo<ChordLink>) => void;
 }
 
+/** 弦图组件。 */
 export const ChordChart = forwardRef<SiaChartRef, ChordChartProps>(function ChordChart(
   { nodes, links, nodeGeometry,matrixAppearance,matrix,matrixSeries,showNodeLabels=false,rotateNodeLabels=false,matrixLinkLabel,matrixGeometry,legacySubSort=false,showScale=false,sortSub='none',padAngle = 0.035, ribbon = true, clockwise = true, sort = "none", onNodeClick, onLinkClick, palette, toolbox, ...props }, ref,
 ) {
@@ -1764,60 +2772,126 @@ export const ChordChart = forwardRef<SiaChartRef, ChordChartProps>(function Chor
   </SiaChart>;
 });
 
+/** 关系图中的节点数据及外观设置。 */
 export interface GraphNode {
+  /** 节点图片来源。 */
   imageSource?:string;
+  /** 图片显示尺寸。 */
   imageSize?:readonly [number,number];
+  /** 标签显示位置。 */
   labelPosition?:'inside'|'left'|'right'|'top'|'bottom';
+  /** 是否允许拖拽。 */
   draggable?:boolean;
+  /** 是否固定节点的 X 轴位置。 */
   fixX?:boolean;
+  /** 是否固定节点的 Y 轴位置。 */
   fixY?:boolean;
+  /** 标签文字颜色。 */
   labelColor?:string;
+  /** 边框颜色。 */
   borderColor?:string;
+  /** 边框线宽。 */
   borderWidth?:number;
+  /** 图形半径或圆角配置。 */
   radius?:number;
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
   label?:string;
+  /** 唯一标识，用于关联实例或插件。 */
   id: string;
+  /** 名称或字段标识。 */
   name: string;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value?: number;
+  /** 所属类目或分组。 */
   category?: string;
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
+  /** 横向位置或 X 轴数据值。 */
   x?: number;
+  /** 纵向位置或 Y 轴数据值。 */
   y?: number;
+  /** 列固定位置，left 固定左侧，right 固定右侧。 */
   fixed?: boolean;
+  /** 数据点或节点使用的图形符号。 */
   symbol?: "circle" | "square" | "diamond" | "star";
 }
 
+/** 关系图中的连线数据及外观设置。 */
 export interface GraphLink {
+  /** 显示箭头及是否指向触发器中心 */
   arrow?:boolean;
+  /** 连线箭头尺寸。 */
   arrowSize?:readonly [number,number];
+  /** 相对于默认位置的偏移。 */
   offset?:number;
+  /** 曲线弯曲程度。 */
   curvature?:number;
+  /** 触发来源，用于区分不同入口的操作。 */
   source: string;
+  /** 关联的目标元素或获取目标元素的函数。 */
   target: string;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value?: number;
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
   label?: string;
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
   width?: number;
+  /** 是否使用虚线。 */
   dashed?: boolean;
 }
 
+/** 关系图的属性配置。 */
 export interface GraphChartProps extends Omit<SiaChartProps, "children" | "empty"> {
+  /**
+   * 是否逐帧计算力导向布局。
+   * @defaultValue false
+   */
   progressiveForce?:boolean;
+  /** 弦图布局参数。 */
   chordOptions?:Pick<ChordChartProps,'ribbon'|'nodeGeometry'|'rotateNodeLabels'>;
+  /**
+   * 地图或图表的平移、缩放配置。
+   * @defaultValue false
+   */
   roam?:boolean|'move';
+  /** 力导向布局参数。 */
   forceOptions?:ForceLayoutOptions;
+  /** 图中节点的数据集合。 */
   nodes: readonly GraphNode[];
+  /** 节点之间的连线集合。 */
   links: readonly GraphLink[];
+  /**
+   * 布局方式。
+   * @defaultValue "circular"
+   */
   layout?: "force" | "circular";
+  /**
+   * 是否显示数据标签。
+   * @defaultValue true
+   */
   showLabels?: boolean;
+  /**
+   * 是否允许拖拽。
+   * @defaultValue true
+   */
   draggable?: boolean;
+  /**
+   * 是否允许通过图例切换系列显示。
+   * @defaultValue true
+   */
   legendInteractive?: boolean;
+  /** 图例项目的选中状态。 */
   legendSelected?: Readonly<Record<string, boolean>>;
+  /** 图例选中状态变化时调用。 */
   onLegendSelectionChange?: (selected: Record<string, boolean>) => void;
+  /** 节点点击回调 */
   onNodeClick?: (info: ChartDataClickInfo<GraphNode>) => void;
 }
 
 
+/** 关系图组件。 */
 export const GraphChart = forwardRef<SiaChartRef, GraphChartProps>(function GraphChart(
   { nodes, links, roam=false, chordOptions, forceOptions, progressiveForce=false, layout = "circular", showLabels = true, draggable = true, legendInteractive = true, legendSelected, onLegendSelectionChange, onNodeClick, palette, toolbox, ...props }, ref,
 ) {
@@ -1946,153 +3020,379 @@ export const GraphChart = forwardRef<SiaChartRef, GraphChartProps>(function Grap
   </SiaChart>;
 });
 
+/** 力导向关系图组件。 */
 export const ForceGraphChart = forwardRef<SiaChartRef, Omit<GraphChartProps, "layout">>(function ForceGraphChart(props, ref) {
   return <GraphChart {...props} layout="force" ref={ref} />;
 });
 
+/** 力导向图组件。 */
 export const ForceChart = ForceGraphChart;
 
+/** GeoJSON 单多边形几何数据。 */
 export interface GeoJsonPolygonGeometry {
+  /** 类型标识，用于选择对应的表现形式。 */
   type: "Polygon";
+  /** 坐标序列。 */
   coordinates: readonly (readonly (readonly [number, number])[])[];
 }
 
+/** GeoJSON 多多边形几何数据。 */
 export interface GeoJsonMultiPolygonGeometry {
+  /** 类型标识，用于选择对应的表现形式。 */
   type: "MultiPolygon";
+  /** 坐标序列。 */
   coordinates: readonly (readonly (readonly (readonly [number, number])[])[])[];
 }
 
+/** 带业务属性的 GeoJSON 地理要素。 */
 export interface GeoJsonFeature {
+  /** 类型标识，用于选择对应的表现形式。 */
   type: "Feature";
-  properties: Readonly<Record<string, unknown>> & { name?: string };
+  /** 附加属性，例如 GeoJSON 要素的业务字段。 */
+  properties: Readonly<Record<string, unknown>> & {
+  /** 名称或字段标识。 */
+  name?: string };
+  /** 图形几何形状及布局参数。 */
   geometry: GeoJsonPolygonGeometry | GeoJsonMultiPolygonGeometry;
 }
 
+/** GeoJSON 地理要素集合。 */
 export interface GeoJsonFeatureCollection {
+  /** 类型标识，用于选择对应的表现形式。 */
   type: "FeatureCollection";
+  /** 工具箱中启用的功能项。 */
   features: readonly GeoJsonFeature[];
 }
 
+/** Map的单条数据。 */
 export interface MapDatum extends MapRegionAppearance {
-  legendSymbols?: readonly {name:string;color:string}[];
+  /** 图例使用的符号集合。 */
+  legendSymbols?: readonly {
+  /** 名称或字段标识。 */
+  name:string;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color:string}[];
+  /** 名称或字段标识。 */
   name: string;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value: number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
+  /** 是否处于选中状态。 */
   selected?: boolean;
 }
 
+/** 地图上标记点的坐标、内容和外观配置。 */
 export interface MapMarkPoint {
+  /** 入场动画配置。 */
   entrance?:boolean;
+  /** 定位标记的形状。 */
   pinShape?:'curved'|'arc';
   /** SVG coordinates bypass geographic projection (and still follow the map group transform). */
   coordinateSpace?:'geographic'|'svg';
+  /** 图片资源地址。 */
   imageSrc?:string;
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
   label?:ReactNode;
+  /** 标签文字样式。 */
   labelStyle?:CSSProperties;
+  /** 高亮时是否显示标签。 */
   showEmphasisLabel?:boolean;
-  scaleEffect?:{duration:number;scaleSize?:number};
+  /** 缩放动画效果。 */
+  scaleEffect?:{
+  /** 显示或动画持续时间，单位以所在组件约定为准。 */
+  duration:number;
+  /** 缩放后的尺寸比例。 */
+  scaleSize?:number};
+  /** 数据到颜色、大小等视觉通道的映射配置。 */
   visualMap?:boolean;
+  /** 数据点或节点使用的图形符号。 */
   symbol?:'circle'|'emptyCircle'|'pin';
+  /** 数据系列名称。 */
   seriesName?:string;
+  /** 组件根节点的内联样式。 */
   style?:CSSProperties;
+  /** 高亮状态样式。 */
   emphasisStyle?:CSSProperties;
+  /** 名称或字段标识。 */
   name: string;
+  /** 图表坐标位置或坐标转换配置。 */
   coordinate: readonly [number, number];
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value?: number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
+  /** 组件尺寸；用于调整控件高度、字号和间距。 */
   size?: number;
+  /** 滚动或淡入效果 */
   effect?: boolean;
 }
 
+/** 地图上标记连线的端点、样式和动态效果配置。 */
 export interface MapMarkLine {
-  reveal?:{initialDuration?:number;updateDuration?:number};
+  /** 图形逐步显示的动画配置。 */
+  reveal?:{
+  /** 首次显示动画的持续时间。 */
+  initialDuration?:number;
+  /** 更新动画的持续时间。 */
+  updateDuration?:number};
+  /** 线条样式。 */
   lineStyle?:CSSProperties;
+  /** 阴影模糊半径。 */
   shadowBlur?:number;
+  /** 连线端点样式。 */
   endpointStyle?:CSSProperties;
+  /** 连线起点和终点使用的图形符号。 */
   endpointSymbols?:readonly ['none'|'circle','circle'|'arrow'];
+  /** 数据到颜色、大小等视觉通道的映射配置。 */
   visualMap?:boolean;
+  /** 曲线的绘制模式。 */
   curveMode?:'directional';
-  movingEffect?:{period?:number;color?:string;radius?:number;shadowBlur?:number;shadowColor?:string;trailAlpha?:number};
+  /** 沿路径移动的动态效果配置。 */
+  movingEffect?:{
+  /** 周期动画的周期时长。 */
+  period?:number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color?:string;
+  /** 图形半径或圆角配置。 */
+  radius?:number;
+  /** 阴影模糊半径。 */
+  shadowBlur?:number;
+  /** 阴影颜色。 */
+  shadowColor?:string;
+  /** 轨迹残影的透明度。 */
+  trailAlpha?:number};
+  /** 数据系列名称。 */
   seriesName?:string;
+  /** 是否使用虚线。 */
   dashed?:boolean;
+  /** 连线两端的符号尺寸。 */
   endpointSizes?:readonly [number,number];
+  /** 提示内容或提示框配置。 */
   tooltip?:ReactNode;
+  /** 名称或字段标识。 */
   name?: string;
+  /** 触发来源，用于区分不同入口的操作。 */
   source: readonly [number, number];
+  /** 关联的目标元素或获取目标元素的函数。 */
   target: readonly [number, number];
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value?: number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
   width?: number;
+  /** 连线曲率。 */
   curveness?: number;
+  /** 滚动或淡入效果 */
   effect?: boolean;
 }
 
+/** 地图的属性配置。 */
 export interface MapChartProps extends Omit<SiaChartProps, "children" | "empty"> {
   /** Host map projection into overlay pixels. Re-render when the host viewport changes. */
-  overlayProjection?:{project:(coordinate:readonly [number,number])=>readonly [number,number];offset?:readonly [number,number]};
+  overlayProjection?:{
+  /** 将数据或地理坐标投影为绘图坐标。 */
+  project:(coordinate:readonly [number,number])=>readonly [number,number];
+  /** 相对于默认位置的偏移。 */
+  offset?:readonly [number,number]};
+  /** 捆绑连线配置。 */
   bundledLines?:BundledMapLines;
+  /**
+   * 标记线动态效果使用的渲染器。
+   * @defaultValue 'svg'
+   */
   markLineEffectRenderer?:'svg'|'canvas';
   /** Batched point groups; points are geographic longitude/latitude pairs. */
   largeMarkPoints?:readonly LargeMapPointCanvasGroup[];
+  /** 地图嵌入区域的样式。 */
   insetStyle?:CSSProperties;
+  /** 地图嵌入区域的标签样式。 */
   insetLabelStyle?:CSSProperties;
+  /**
+   * 地图区域是否响应悬停。
+   * @defaultValue true
+   */
   regionHoverable?:boolean;
+  /** 标记点提示框格式化函数。 */
   markPointTooltipFormatter?:(point:MapMarkPoint)=>ReactNode;
+  /**
+   * 是否将视觉映射值限制在配置范围内。
+   * @defaultValue false
+   */
   clampVisualValues?:boolean;
+  /** 滚轮缩放的倍率配置。 */
   wheelZoomFactors?:readonly [number,number];
   /** Hide the map series while retaining title and value-range controls. */
   showMap?:boolean;
+  /** 超出视觉映射范围时的颜色。 */
   outOfRangeColor?: string;
+  /**
+   * 地图漫游控制器配置。
+   * @defaultValue false
+   */
   roamController?: boolean;
-  visualMapLayout?: {realtime?:boolean;svgHandles?:boolean;x?:number;y?:number;width?:number;height?:number;orientation?:'horizontal'|'vertical';label?:string;endLabels?:readonly [string,string]};
+  /** 视觉映射控件的布局配置。 */
+  visualMapLayout?: {
+  /** 拖动过程中是否实时通知值变化。 */
+  realtime?:boolean;
+  /** 是否使用 SVG 绘制交互手柄。 */
+  svgHandles?:boolean;
+  /** 横向位置或 X 轴数据值。 */
+  x?:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y?:number;
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  width?:number;
+  /** 高度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  height?:number;
+  /** 组件的水平或垂直排列方向。 */
+  orientation?:'horizontal'|'vertical';
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
+  label?:string;
+  /** 范围两端显示的标签。 */
+  endLabels?:readonly [string,string]};
+  /** 标签文字样式。 */
   labelStyle?: CSSProperties;
+  /** 高亮状态的标签样式。 */
   emphasisLabelStyle?: CSSProperties;
+  /** 地图区域样式。 */
   regionStyle?: CSSProperties;
+  /** 地图区域高亮样式。 */
   emphasisRegionStyle?: CSSProperties;
   /** Omit for .65–5; null removes limits; an object sets optional bounds. */
-  scaleLimit?: {min?:number;max?:number}|null;
+  scaleLimit?: {
+  /** 允许的最小值。 */
+  min?:number;
+  /** 允许的最大值。 */
+  max?:number}|null;
+  /** 提示框内容的格式化函数。 */
   tooltipFormatter?:(name:string,datum:MapDatum|undefined)=>ReactNode;
+  /**
+   * 高亮时是否显示标签集合。
+   * @defaultValue false
+   */
   showEmphasisLabels?:boolean;
+  /** 经度方向投影的比例系数。 */
   longitudeRatio?:number;
-  geographicInsets?:readonly {name:string;coordinate:readonly [number,number];polygons:readonly (readonly (readonly [number,number])[])[];label:readonly [number,number];unitsPerLongitude:number}[];
-  plotBounds?:{x:number;y:number;width:number;height:number};
+  /**
+   * 地理区域嵌入配置。
+   * @defaultValue []
+   */
+  geographicInsets?:readonly {
+  /** 名称或字段标识。 */
+  name:string;
+  /** 图表坐标位置或坐标转换配置。 */
+  coordinate:readonly [number,number];
+  /** 多边形集合。 */
+  polygons:readonly (readonly (readonly [number,number])[])[];
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
+  label:readonly [number,number];
+  /** 每单位经度对应的绘图单位数。 */
+  unitsPerLongitude:number}[];
+  /** 绘图区边界。 */
+  plotBounds?:{
+  /** 横向位置或 X 轴数据值。 */
+  x:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y:number;
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  width:number;
+  /** 高度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  height:number};
+  /** 数值轴的数据范围。 */
   valueDomain?:readonly [number,number];
+  /**
+   * 是否显示视觉映射控件。
+   * @defaultValue true
+   */
   showVisualMap?:boolean;
+  /** 数据系列名称。 */
   seriesName?:string;
+  /** 地图标识或地图数据。 */
   map?: string;
+  /** 用于绘制地图的 GeoJSON 数据。 */
   geoJson?: GeoJsonFeatureCollection;
+  /** 用于渲染的数据集合。 */
   data: readonly MapDatum[];
+  /**
+   * 可选颜色或颜色序列。
+   * @defaultValue ["#e6f4ff", "#1677ff"]
+   */
   colors?: readonly string[];
+  /**
+   * 从地理要素属性中读取名称的字段名。
+   * @defaultValue "name"
+   */
   nameProperty?: string;
+  /** 原始名称到显示名称的映射。 */
   nameMap?:Readonly<Record<string,string>>;
+  /** 地图标签的自定义坐标。 */
   labelCoordinates?:Readonly<Record<string,readonly [number,number]>>;
+  /** 标签相对于默认位置的偏移集合。 */
   labelOffsets?:Readonly<Record<string,readonly [number,number]>>;
+  /** 需要单独放置的特殊地理区域。 */
   specialAreas?:Readonly<Record<string,MapSpecialArea>>;
   /** Normalize coordinates before calculating bounds and projecting; source GeoJSON is unchanged. */
   coordinateTransform?:(point:readonly [number,number])=>readonly [number,number];
+  /** 参与高亮的数据值范围。 */
   emphasisValueRange?:readonly [number,number];
+  /** 鼠标悬停地图区域时调用。 */
   onRegionHover?:(datum:MapDatum|undefined)=>void;
+  /**
+   * 是否显示数据标签。
+   * @defaultValue true
+   */
   showLabels?: boolean;
+  /**
+   * 地图或图表的平移、缩放配置。
+   * @defaultValue false
+   */
   roam?: boolean | "move" | "scale";
+  /**
+   * 图形的选中模式。
+   * @defaultValue false
+   */
   selectedMode?: false | "single" | "multiple";
+  /** 是否处于选中状态。 */
   selected?: readonly string[];
+  /** 初始化时选中的图形或状态。 */
   defaultSelected?: readonly string[];
+  /** 编辑器选区变化时调用。 */
   onSelectionChange?: (names: string[]) => void;
+  /**
+   * 是否允许拖动视觉映射范围。
+   * @defaultValue false
+   */
   calculableVisualMap?: boolean;
+  /** 受控的视觉映射数值范围。 */
   visualRange?: readonly [number, number];
+  /** 初始视觉映射范围。 */
   defaultVisualRange?: readonly [number, number];
+  /** 视觉映射范围变化时调用。 */
   onVisualRangeChange?: (range: [number, number]) => void;
+  /**
+   * 标记点配置集合。
+   * @defaultValue []
+   */
   markPoints?: readonly MapMarkPoint[];
+  /**
+   * 标记线配置集合。
+   * @defaultValue []
+   */
   markLines?: readonly MapMarkLine[];
+  /** 点击地图区域时调用。 */
   onRegionClick?: (info: ChartDataClickInfo<MapDatum | GeoJsonFeature>) => void;
 }
 
 const chartMaps = new Map<string, GeoJsonFeatureCollection>();
 
+/** 注册可供 MapChart 按名称使用的 GeoJSON 地图数据。 */
 export function registerChartMap(name: string, geoJson: GeoJsonFeatureCollection) {
   chartMaps.set(name, geoJson);
 }
 
+/** 按名称读取已注册的地图数据。 */
 export function getChartMap(name: string) {
   return chartMaps.get(name);
 }
@@ -2117,6 +3417,7 @@ function colorBetween(start: string, end: string, ratio: number) {
   return `rgb(${from.map((value, index) => Math.round(value + ((to[index] ?? value) - value) * Math.max(0, Math.min(1, ratio)))).join(" ")})`;
 }
 
+/** 地图组件。 */
 export const MapChart = forwardRef<SiaChartRef, MapChartProps>(function MapChart(
   { overlayProjection,bundledLines,largeMarkPoints,markLineEffectRenderer='svg',insetStyle,insetLabelStyle,regionHoverable=true,markPointTooltipFormatter,emphasisValueRange,onRegionHover,coordinateTransform,specialAreas,labelCoordinates,labelOffsets,nameMap,wheelZoomFactors,clampVisualValues=false,showMap=true,visualMapLayout,labelStyle,emphasisLabelStyle,regionStyle,emphasisRegionStyle,outOfRangeColor,scaleLimit,roamController=false,map, geoJson, data, colors = ["#e6f4ff", "#1677ff"], nameProperty = "name", showLabels = true, showEmphasisLabels=false,tooltipFormatter, roam = false, selectedMode = false, selected, defaultSelected, onSelectionChange, calculableVisualMap = false, visualRange, defaultVisualRange, onVisualRangeChange, markPoints = [], markLines = [], onRegionClick, toolbox, plotBounds:sourcePlotBounds,longitudeRatio,geographicInsets=[],valueDomain,showVisualMap=true,seriesName, ...props }, ref,
 ) {
@@ -2269,53 +3570,172 @@ export const MapChart = forwardRef<SiaChartRef, MapChartProps>(function MapChart
   </SiaChart>;
 });
 
+/** Gauge的单条数据。 */
 export interface GaugeDatum {
+  /** 组件或浮层的堆叠层级。 */
   zIndex?: number;
-  labelFontWeight?: string | number; nameFontWeight?: string | number; detailFontWeight?: string | number;
+  /** 标签文字粗细。 */
+  labelFontWeight?: string | number;
+  /** 名称文字粗细。 */
+  nameFontWeight?: string | number;
+  /** 详细数值文字粗细。 */
+  detailFontWeight?: string | number;
+  /** 名称文字样式。 */
   nameFontStyle?: string;
-  detailBox?: {width:number;height:number;background?:string;borderColor?:string;borderWidth?:number};
+  /** 详细数值的容器样式。 */
+  detailBox?: {
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  width:number;
+  /** 高度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  height:number;
+  /** 背景颜色或填充配置。 */
+  background?:string;
+  /** 边框颜色。 */
+  borderColor?:string;
+  /** 边框线宽。 */
+  borderWidth?:number};
+  /** 轴线粗细。 */
   axisWidth?: number;
+  /** 坐标轴或仪表盘的分段数量。 */
   splitNumber?: number;
-  tickCount?: number; tickLength?: number; tickColor?: string; showTicks?: boolean;
-  splitLength?: number; splitColor?: string; splitWidth?: number;
-  labelColor?: string; labelFontSize?: number; labelFormatter?: (value:number)=>ReactNode;
-  nameOffset?: readonly [number,number]; detailPosition?: readonly [number,number];
-  showName?: boolean; showDetail?: boolean;
-  nameFontSize?: number; detailFontSize?: number; nameColor?: string; detailColor?: string;
-  pointerColor?: string; glow?: boolean;
+  /** 刻度数量。 */
+  tickCount?: number;
+  /** 刻度线长度。 */
+  tickLength?: number;
+  /** 刻度线颜色。 */
+  tickColor?: string;
+  /** 是否显示刻度线。 */
+  showTicks?: boolean;
+  /** 分隔线长度。 */
+  splitLength?: number;
+  /** 分隔线颜色。 */
+  splitColor?: string;
+  /** 分隔线宽度。 */
+  splitWidth?: number;
+  /** 标签文字颜色。 */
+  labelColor?: string;
+  /** 标签字体大小。 */
+  labelFontSize?: number;
+  /** 标签文本格式化函数。 */
+  labelFormatter?: (value:number)=>ReactNode;
+  /** 名称相对于默认位置的偏移。 */
+  nameOffset?: readonly [number,number];
+  /** 详细数值的显示位置。 */
+  detailPosition?: readonly [number,number];
+  /** 是否显示名称。 */
+  showName?: boolean;
+  /** 是否显示详细数值。 */
+  showDetail?: boolean;
+  /** 名称文字大小。 */
+  nameFontSize?: number;
+  /** 详细数值文字大小。 */
+  detailFontSize?: number;
+  /** 名称文字颜色。 */
+  nameColor?: string;
+  /** 详细数值文字颜色。 */
+  detailColor?: string;
+  /** 指针颜色。 */
+  pointerColor?: string;
+  /** 发光效果配置。 */
+  glow?: boolean;
+  /** 名称或字段标识。 */
   name: string;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value: number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
+  /** 允许的最小值。 */
   min?: number;
+  /** 允许的最大值。 */
   max?: number;
+  /** 绘制起始角度。 */
   startAngle?: number;
+  /** 绘制结束角度。 */
   endAngle?: number;
+  /** 中心位置。 */
   center?: readonly [number, number];
+  /** 图形半径或圆角配置。 */
   radius?: number;
-  segments?: readonly { until: number; color: string }[];
+  /** 分段配置。 */
+  segments?: readonly {
+  /** 该段有效范围的结束值。 */
+  until: number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color: string }[];
+  /** 指针宽度。 */
   pointerWidth?: number;
+  /** 指针长度。 */
   pointerLength?: number;
+  /** 数值显示单位。 */
   unit?: string;
 }
 
+/** 仪表盘的属性配置。 */
 export interface GaugeChartProps extends Omit<SiaChartProps, "children" | "empty"> {
+  /** 提示框内容的格式化函数。 */
   tooltipFormatter?: (item:GaugeDatum)=>ReactNode;
+  /**
+   * 图形外观配置。
+   * @defaultValue "sia"
+   */
   appearance?: "sia" | "macarons";
+  /** 动画当前进度，通常为 0 到 1。 */
   animationProgress?: number;
+  /** 用于渲染的数据集合。 */
   data: readonly GaugeDatum[];
+  /**
+   * 允许的最小值。
+   * @defaultValue 0
+   */
   min?: number;
+  /**
+   * 允许的最大值。
+   * @defaultValue 100
+   */
   max?: number;
+  /**
+   * 绘制起始角度。
+   * @defaultValue 210
+   */
   startAngle?: number;
+  /**
+   * 绘制结束角度。
+   * @defaultValue -30
+   */
   endAngle?: number;
-  segments?: readonly { until: number; color: string }[];
+  /** 分段配置。 */
+  segments?: readonly {
+  /** 该段有效范围的结束值。 */
+  until: number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color: string }[];
+  /**
+   * 坐标轴或仪表盘的分段数量。
+   * @defaultValue 10
+   */
   splitNumber?: number;
+  /**
+   * 是否显示轴标签。
+   * @defaultValue true
+   */
   showAxisLabels?: boolean;
+  /**
+   * 是否显示进度部分。
+   * @defaultValue true
+   */
   showProgress?: boolean;
+  /**
+   * 详细数值相对于默认位置的偏移。
+   * @defaultValue 84
+   */
   detailOffset?: number;
+  /** 将数值格式化为显示文本的函数。 */
   valueFormatter?: (value: number) => ReactNode;
+  /** 点击图表数据项时调用。 */
   onDataClick?: (info: ChartDataClickInfo<GaugeDatum>) => void;
 }
 
+/** 仪表盘组件。 */
 export const GaugeChart = forwardRef<SiaChartRef, GaugeChartProps>(function GaugeChart(
   { tooltipFormatter,data, min = 0, max = 100, startAngle = 210, endAngle = -30, segments, splitNumber = 10, showAxisLabels = true, showProgress = true, detailOffset = 84, valueFormatter, onDataClick, palette, appearance="sia", animationProgress, ...props }, ref,
 ) {
@@ -2381,49 +3801,129 @@ export const GaugeChart = forwardRef<SiaChartRef, GaugeChartProps>(function Gaug
   </SiaChart>;
 });
 
+/** Funnel的单条数据。 */
 export interface FunnelDatum extends PieDatum {}
 
+/** Funnel的数据系列。 */
 export interface FunnelSeries {
+  /** 提示框内容的格式化函数。 */
   tooltipFormatter?: (item:FunnelDatum)=>ReactNode;
+  /** 高亮状态的标签位置。 */
   emphasisLabelPosition?: "inside" | "left" | "right";
+  /** 高亮标签格式化函数。 */
   emphasisLabelFormatter?: (item:FunnelDatum)=>ReactNode;
-  min?: number; max?: number; minSize?: number; maxSize?: number;
+  /** 允许的最小值。 */
+  min?: number;
+  /** 允许的最大值。 */
+  max?: number;
+  /** 允许的最小尺寸。 */
+  minSize?: number;
+  /** 允许的最大尺寸。 */
+  maxSize?: number;
+  /** 标签显示位置。 */
   labelPosition?: "inside" | "left" | "right";
+  /** 标签文本格式化函数。 */
   labelFormatter?: (item: FunnelDatum) => ReactNode;
+  /** 是否显示标签引导线。 */
   showLabelLines?: boolean;
-  borderColor?: string; borderWidth?: number;
+  /** 边框颜色。 */
+  borderColor?: string;
+  /** 边框线宽。 */
+  borderWidth?: number;
+  /** 饼图中心位置。 */
   pieCenter?: [number,number];
+  /** 名称或字段标识。 */
   name?: string;
+  /** 用于渲染的数据集合。 */
   data: readonly FunnelDatum[];
+  /** 距左侧的位置或间距。 */
   left?: number;
+  /** 距顶部的位置或间距。 */
   top?: number;
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
   width?: number;
+  /** 高度；数值按像素处理，字符串可使用 CSS 尺寸。 */
   height?: number;
+  /** 数据或图形排序规则。 */
   sort?: "descending" | "ascending" | "none";
+  /** 预设或自定义间距 */
   gap?: number;
+  /** 交叉轴对齐 */
   align?: "center" | "left" | "right";
+  /** 组件的水平或垂直排列方向。 */
   orientation?: "vertical" | "horizontal";
 }
 
+/** 漏斗图的属性配置。 */
 export interface FunnelChartProps extends Omit<SiaChartProps, "children" | "empty"> {
+  /**
+   * 图形外观配置。
+   * @defaultValue "sia"
+   */
   appearance?: "sia" | "macarons";
+  /** 动画当前进度，通常为 0 到 1。 */
   animationProgress?: number;
+  /** 图例的排列顺序。 */
   legendOrder?: readonly string[];
-  legendLayout?: {x?:number;y?:number;orientation?:"horizontal"|"vertical"};
+  /** 图例布局配置。 */
+  legendLayout?: {
+  /** 横向位置或 X 轴数据值。 */
+  x?:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y?:number;
+  /**
+   组件的水平或垂直排列方向。
+   * @defaultValue "vertical"
+   */
+  orientation?:"horizontal"|"vertical"};
+  /** 数据被交互修改后调用。 */
   onDataChange?: (series: readonly FunnelSeries[]) => void;
+  /**
+   用于渲染的数据集合。
+   * @defaultValue EMPTY_PIE_DATA
+   */
   data?: readonly FunnelDatum[];
+  /** 图表数据系列。 */
   series?: readonly FunnelSeries[];
+  /**
+   * 数据或图形排序规则。
+   * @defaultValue "descending"
+   */
   sort?: "descending" | "ascending" | "none";
+  /**
+   * 预设或自定义间距
+   * @defaultValue 4
+   */
   gap?: number;
+  /**
+   * 交叉轴对齐
+   * @defaultValue "center"
+   */
   align?: "center" | "left" | "right";
+  /**
+   组件的水平或垂直排列方向。
+   * @defaultValue "vertical"
+   */
   orientation?: "vertical" | "horizontal";
+  /**
+   * 是否显示图例。
+   * @defaultValue true
+   */
   showLegend?: boolean;
+  /**
+   * 是否允许通过图例切换系列显示。
+   * @defaultValue true
+   */
   legendInteractive?: boolean;
+  /** 图例项目的选中状态。 */
   legendSelected?: Readonly<Record<string, boolean>>;
+  /** 图例选中状态变化时调用。 */
   onLegendSelectionChange?: (selected: Record<string, boolean>) => void;
+  /** 点击图表数据项时调用。 */
   onDataClick?: (info: ChartDataClickInfo<FunnelDatum>) => void;
 }
 
+/** 漏斗图组件。 */
 export const FunnelChart = forwardRef<SiaChartRef, FunnelChartProps>(function FunnelChart(
   { data = EMPTY_PIE_DATA, series, sort = "descending", gap = 4, align = "center", orientation = "vertical", showLegend = true, legendInteractive = true, legendSelected, onLegendSelectionChange, onDataClick, palette, toolbox, appearance="sia", animationProgress, legendOrder, legendLayout, onDataChange, ...props }, ref,
 ) {
@@ -2515,30 +4015,85 @@ export const FunnelChart = forwardRef<SiaChartRef, FunnelChartProps>(function Fu
   </SiaChart>;
 });
 
+/** 热力图数据点，包含坐标及热度值。 */
 export interface HeatmapPoint {
+  /** 横向位置或 X 轴数据值。 */
   x: number;
+  /** 纵向位置或 Y 轴数据值。 */
   y: number;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value: number;
+  /** 名称或字段标识。 */
   name?: string;
 }
 
+/** 热力图的属性配置。 */
 export interface HeatmapChartProps extends Omit<SiaChartProps, "children" | "empty"> {
   /** Native pixel-coordinate density mode (no automatic coordinate normalization). */
-  raster?: HeatRasterOptions & {width:number;height:number;backgroundImage?:string};
+  raster?: HeatRasterOptions & {
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  width:number;
+  /** 高度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  height:number;
+  /** 背景图片配置。 */
+  backgroundImage?:string};
+  /**
+   * X 轴标签集合。
+   * @defaultValue []
+   */
   xLabels?: readonly string[];
+  /**
+   * Y 轴标签集合。
+   * @defaultValue []
+   */
   yLabels?: readonly string[];
+  /**
+   用于渲染的数据集合。
+   * @defaultValue []
+   */
   data?: readonly (readonly number[])[];
+  /**
+   * 数据点集合。
+   * @defaultValue []
+   */
   points?: readonly HeatmapPoint[];
+  /**
+   * 可选颜色或颜色序列。
+   * @defaultValue ["#e6f4ff", "#1677ff"]
+   */
   colors?: readonly [string, string];
+  /**
+   * 是否显示数据值。
+   * @defaultValue false
+   */
   showValues?: boolean;
+  /**
+   * 数据点半径。
+   * @defaultValue 30
+   */
   pointRadius?: number;
+  /**
+   * 模糊半径。
+   * @defaultValue 16
+   */
   blur?: number;
+  /**
+   * 最小透明度。
+   * @defaultValue .12
+   */
   minAlpha?: number;
+  /**
+   * 最大透明度。
+   * @defaultValue .82
+   */
   maxAlpha?: number;
+  /** 将数值格式化为显示文本的函数。 */
   valueFormatter?: (value: number) => ReactNode;
+  /** 点击图表数据项时调用。 */
   onDataClick?: (info: ChartDataClickInfo<number | HeatmapPoint>) => void;
 }
 
+/** 热力图组件。 */
 export const HeatmapChart = forwardRef<SiaChartRef, HeatmapChartProps>(function HeatmapChart(
   { raster,xLabels = [], yLabels = [], data = [], points = [], colors = ["#e6f4ff", "#1677ff"], showValues = false, pointRadius = 30, blur = 16, minAlpha = .12, maxAlpha = .82, valueFormatter, onDataClick, ...props }, ref,
 ) {
@@ -2583,17 +4138,29 @@ export const HeatmapChart = forwardRef<SiaChartRef, HeatmapChartProps>(function 
   </SiaChart>;
 });
 
+/** ThemeRiver的数据系列。 */
 export interface ThemeRiverSeries extends ChartSeries {}
 
+/** 主题河流图的属性配置。 */
 export interface ThemeRiverChartProps extends Omit<SiaChartProps, "children" | "empty"> {
+  /** 类目或数据分组集合。 */
   categories: readonly string[];
+  /** 图表数据系列。 */
   series: readonly ThemeRiverSeries[];
+  /**
+   * 是否允许通过图例切换系列显示。
+   * @defaultValue true
+   */
   legendInteractive?: boolean;
+  /** 图例项目的选中状态。 */
   legendSelected?: Readonly<Record<string, boolean>>;
+  /** 图例选中状态变化时调用。 */
   onLegendSelectionChange?: (selected: Record<string, boolean>) => void;
+  /** 点击图表数据项时调用。 */
   onDataClick?: (info: ChartDataClickInfo<number>) => void;
 }
 
+/** 主题河流图组件。 */
 export const ThemeRiverChart = forwardRef<SiaChartRef, ThemeRiverChartProps>(function ThemeRiverChart(
   { categories, series, legendInteractive = true, legendSelected, onLegendSelectionChange, onDataClick, palette, ...props }, ref,
 ) {
@@ -2632,38 +4199,86 @@ export const ThemeRiverChart = forwardRef<SiaChartRef, ThemeRiverChartProps>(fun
   </SiaChart>;
 });
 
+/** 事件随时间变化的一个阶段。 */
 export interface EventRiverEvolution {
+  /** 关联的时间值。 */
   time: string | number | Date;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value: number;
+  /** 简短的补充说明。 */
   detail?: ReactNode;
 }
 
+/** 事件河流图中的事件及其演变序列。 */
 export interface EventRiverEvent {
+  /** 名称或字段标识。 */
   name: string;
+  /** 唯一标识，用于关联实例或插件。 */
   id?: string;
+  /** 布局或数据计算使用的权重。 */
   weight?: number;
+  /** 事件随时间演变的数据序列。 */
   evolution: readonly EventRiverEvolution[];
 }
 
+/** EventRiver的数据系列。 */
 export interface EventRiverSeries {
+  /** 名称或字段标识。 */
   name: string;
+  /** 布局或数据计算使用的权重。 */
   weight?:number;
+  /** 用于渲染的数据集合。 */
   data: readonly EventRiverEvent[];
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
 }
 
+/** 事件河流图的属性配置。 */
 export interface EventRiverChartProps extends Omit<SiaChartProps, "children" | "empty"> {
+  /** 图表数据系列。 */
   series: readonly EventRiverSeries[];
+  /**
+   * 是否显示数据标签。
+   * @defaultValue true
+   */
   showLabels?: boolean;
+  /**
+   * 是否允许拖拽。
+   * @defaultValue true
+   */
   draggable?: boolean;
+  /**
+   * 图形外观配置。
+   * @defaultValue 'sia'
+   */
   appearance?: 'sia'|'macarons';
-  plot?: {x:number;y:number;width:number;height:number};
+  /**
+   * 绘图区或图形绘制配置。
+   * @defaultValue PLOT
+   */
+  plot?: {
+  /** 横向位置或 X 轴数据值。 */
+  x:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y:number;
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  width:number;
+  /** 高度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  height:number};
+  /** 动画当前进度，通常为 0 到 1。 */
   animationProgress?: number;
   /** Time-axis fractional padding before and after the observed data. */
   boundaryGap?: readonly [number,number];
+  /**
+   * 是否允许通过图例切换系列显示。
+   * @defaultValue true
+   */
   legendInteractive?: boolean;
+  /** 图例项目的选中状态。 */
   legendSelected?: Readonly<Record<string, boolean>>;
+  /** 图例选中状态变化时调用。 */
   onLegendSelectionChange?: (selected: Record<string, boolean>) => void;
+  /** 点击图表数据项时调用。 */
   onDataClick?: (info: ChartDataClickInfo<EventRiverEvent>) => void;
 }
 
@@ -2674,6 +4289,7 @@ function eventTime(value: string | number | Date) {
   return Date.parse(/^\d{4}-\d{2}-\d{2}$/.test(value)?value.replace(/-/g,'/'):value);
 }
 
+/** 事件河流图组件。 */
 export const EventRiverChart = forwardRef<SiaChartRef, EventRiverChartProps>(function EventRiverChart(
   { series, showLabels=true, draggable=true, appearance='sia', plot=PLOT, animationProgress, boundaryGap = [.05,.1], legendInteractive = true, legendSelected, onLegendSelectionChange, onDataClick, palette, ...props }, ref,
 ) {
@@ -2715,25 +4331,44 @@ export const EventRiverChart = forwardRef<SiaChartRef, EventRiverChartProps>(fun
   </SiaChart>;
 });
 
+/** 韦恩图中的集合定义。 */
 export interface VennSet {
+  /** 名称或字段标识。 */
   name: string;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value: number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
 }
 
+/** 韦恩图集合交集的值及展示配置。 */
 export interface VennIntersection {
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value: number;
+  /** 名称或字段标识。 */
   name?: string;
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
 }
 
+/** 韦恩图的属性配置。 */
 export interface VennChartProps extends Omit<SiaChartProps, "children" | "empty"> {
+  /**
+   * 图形外观配置。
+   * @defaultValue "sia"
+   */
   appearance?: "sia" | "macarons";
+  /** 高亮状态的颜色。 */
   emphasisColor?: string;
+  /** 高亮状态的边框颜色。 */
   emphasisBorderColor?: string;
+  /** 高亮状态的边框宽度。 */
   emphasisBorderWidth?: number;
+  /** 集合定义。 */
   sets: readonly [VennSet, VennSet];
+  /** 集合交集数据。 */
   intersection: VennIntersection;
+  /** 点击图表数据项时调用。 */
   onDataClick?: (info: ChartDataClickInfo<VennSet | VennIntersection>) => void;
 }
 
@@ -2759,6 +4394,7 @@ function vennDistance(radiusA: number, radiusB: number, overlap: number) {
   return (low + high) / 2;
 }
 
+/** 韦恩图组件。 */
 export const VennChart = forwardRef<SiaChartRef, VennChartProps>(function VennChart(
   { sets:initialSets, intersection:initialIntersection, appearance="sia",emphasisColor,emphasisBorderColor,emphasisBorderWidth,onDataClick, palette,toolbox, ...props }, ref,
 ) {
@@ -2797,36 +4433,105 @@ export const VennChart = forwardRef<SiaChartRef, VennChartProps>(function VennCh
   </SiaChart>;
 });
 
+/** 矩形树图数据项的填充、边框和标签样式。 */
 export interface TreemapItemStyle {
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
+  /** 边框颜色。 */
   borderColor?: string;
+  /** 边框线宽。 */
   borderWidth?: number;
-  label?: {show?:boolean;formatter?:string;x?:number;y?:number;color?:string;fontSize?:number;fontFamily?:string;fontStyle?:"normal"|"italic";fontWeight?:string|number};
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
+  label?: {
+  /** 是否显示该功能。 */
+  show?:boolean;
+  /** 将原始值转换为展示文本的函数。 */
+  formatter?:string;
+  /** 横向位置或 X 轴数据值。 */
+  x?:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y?:number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color?:string;
+  /** 文字大小，单位为像素。 */
+  fontSize?:number;
+  /** 字体族名称。 */
+  fontFamily?:string;
+  /** 字体样式，例如 normal 或 italic。 */
+  fontStyle?:"normal"|"italic";
+  /** 文字粗细，可使用数字或 CSS 字重名称。 */
+  fontWeight?:string|number};
 }
 
+/** 矩形树图的单条数据。 */
 export interface TreemapDatum {
+  /** 名称或字段标识。 */
   name: string;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value?: number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
   children?: readonly TreemapDatum[];
+  /** 组件根节点的内联样式。 */
   style?: TreemapItemStyle;
+  /** 高亮状态配置。 */
   emphasis?: TreemapItemStyle;
 }
 
+/** 矩形树图的属性配置。 */
 export interface TreemapChartProps extends Omit<SiaChartProps, "children" | "empty"> {
+  /** 用于渲染的数据集合。 */
   data: readonly TreemapDatum[];
+  /**
+   * 预设或自定义间距
+   * @defaultValue 4
+   */
   gap?: number;
+  /**
+   * 允许展示的最大层级深度。
+   * @defaultValue 2
+   */
   maxDepth?: number;
+  /**
+   * 是否支持点击节点下钻。
+   * @defaultValue false
+   */
   drilldown?: boolean;
+  /**
+   * 是否显示下钻路径面包屑。
+   * @defaultValue true
+   */
   showBreadcrumb?: boolean;
+  /** 布局边界。 */
   bounds?: TreemapLayoutBox;
+  /** 数据项样式。 */
   itemStyle?: TreemapItemStyle;
+  /** 高亮状态配置。 */
   emphasis?: TreemapItemStyle;
+  /**
+   * 图形圆角半径。
+   * @defaultValue 5
+   */
   cornerRadius?: number;
+  /**
+   * 是否显示子节点边界。
+   * @defaultValue false
+   */
   showChildBoundaries?: boolean;
+  /**
+   * 面包屑显示位置。
+   * @defaultValue "top"
+   */
   breadcrumbPosition?: "top" | "bottom";
+  /**
+   * 面包屑根节点名称。
+   * @defaultValue "全部"
+   */
   breadcrumbRootName?: string;
+  /** 将数值格式化为显示文本的函数。 */
   valueFormatter?: (value: number) => ReactNode;
+  /** 点击图表数据项时调用。 */
   onDataClick?: (info: ChartDataClickInfo<TreemapDatum>) => void;
 }
 
@@ -2850,6 +4555,7 @@ function layoutTreemap(nodes: readonly TreemapDatum[], x: number, y: number, wid
   return result;
 }
 
+/** 矩形树图组件。 */
 export const TreemapChart = forwardRef<SiaChartRef, TreemapChartProps>(function TreemapChart(
   { data, gap = 4, maxDepth = 2, drilldown = false, showBreadcrumb = true, bounds, itemStyle, emphasis, cornerRadius=5, showChildBoundaries=false, breadcrumbPosition="top", breadcrumbRootName="全部", valueFormatter, onDataClick, palette, toolbox, ...props }, ref,
 ) {
@@ -2884,41 +4590,110 @@ export const TreemapChart = forwardRef<SiaChartRef, TreemapChartProps>(function 
   </SiaChart>;
 });
 
+/** 树的单条数据。 */
 export interface TreeDatum {
+  /** 名称或字段标识。 */
   name: string;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value?: number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
   children?: readonly TreeDatum[];
+  /** 是否收起；传入后由外部控制。 */
   collapsed?: boolean;
+  /** 数据点或节点使用的图形符号。 */
   symbol?: "circle" | "square" | "diamond" | `image://${string}`;
+  /** 数据项样式。 */
   itemStyle?: TreeItemStyle;
+  /** 高亮状态配置。 */
   emphasis?: TreeItemStyle;
+  /** 数据符号尺寸。 */
   symbolSize?: number | readonly [number,number];
 }
 
+/** 树图的属性配置。 */
 export interface TreeChartProps extends Omit<SiaChartProps, "children" | "empty"> {
+  /** 数据项样式。 */
   itemStyle?: TreeItemStyle;
+  /** 高亮状态配置。 */
   emphasis?: TreeItemStyle;
+  /** 用于渲染的数据集合。 */
   data: TreeDatum;
+  /**
+   组件的水平或垂直排列方向。
+   * @defaultValue "horizontal"
+   */
   orientation?: "horizontal" | "vertical";
+  /**
+   * 是否使用径向布局。
+   * @defaultValue false
+   */
   radial?: boolean;
+  /**
+   * 节点尺寸。
+   * @defaultValue 8
+   */
   nodeSize?: number;
+  /** 根节点的布局位置。 */
   rootPosition?: readonly [number,number];
+  /** 相邻节点的间距。 */
   nodePadding?: number;
+  /** 相邻层级的间距。 */
   layerPadding?: number;
+  /**
+   * 是否显示数据标签。
+   * @defaultValue true
+   */
   showLabels?: boolean;
+  /**
+   * 高亮时是否显示节点标签。
+   * @defaultValue true
+   */
   emphasisShowLabels?: boolean;
+  /** 节点颜色。 */
   nodeColor?: string;
+  /** 边的颜色。 */
   edgeColor?: string;
+  /** 边的线宽。 */
   edgeWidth?: number;
-  edgeShadow?: {color:string;blur:number;offsetX:number;offsetY:number};
+  /** 边的阴影配置。 */
+  edgeShadow?: {
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color:string;
+  /** 模糊半径。 */
+  blur:number;
+  /** 水平方向的偏移量。 */
+  offsetX:number;
+  /** 垂直方向的偏移量。 */
+  offsetY:number};
+  /**
+   * 地图或图表的平移、缩放配置。
+   * @defaultValue false
+   */
   roam?: boolean;
+  /**
+   * 是否启用鼠标悬停反馈。
+   * @defaultValue true
+   */
   hoverable?: boolean;
+  /** 标签字体大小。 */
   labelFontSize?: number;
+  /** 标签文字颜色。 */
   labelColor?: string;
+  /**
+   * 节点连线样式。
+   * @defaultValue "curve"
+   */
   linkStyle?: "curve" | "broken" | "straight";
+  /**
+   * 允许收起内容区域
+   * @defaultValue false
+   */
   collapsible?: boolean;
+  /** 节点或交互状态切换时调用。 */
   onToggle?: (node: TreeDatum, collapsed: boolean) => void;
+  /** 点击图表数据项时调用。 */
   onDataClick?: (info: ChartDataClickInfo<TreeDatum>) => void;
 }
 
@@ -2939,6 +4714,7 @@ function flattenTree(root: TreeDatum, collapsed: ReadonlySet<string>) {
   return { nodes, leafCount: Math.max(1, leafOrder), maxDepth: Math.max(0, ...nodes.map((item) => item.depth)) };
 }
 
+/** 树图组件。 */
 export const TreeChart = forwardRef<SiaChartRef, TreeChartProps>(function TreeChart(
   { data, itemStyle,emphasis,orientation = "horizontal", radial = false, nodeSize = 8, rootPosition,nodePadding,layerPadding,showLabels=true,emphasisShowLabels=true,nodeColor,edgeColor,edgeWidth,edgeShadow,roam=false,hoverable=true,labelFontSize,labelColor,linkStyle = "curve", collapsible = false, onToggle, onDataClick, palette, toolbox, ...props }, ref,
 ) {
@@ -3014,34 +4790,89 @@ export const TreeChart = forwardRef<SiaChartRef, TreeChartProps>(function TreeCh
   </SiaChart>;
 });
 
+/** WordCloud的单条数据。 */
 export interface WordCloudDatum {
+  /** 名称或字段标识。 */
   name: string;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value: number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
+  /** 旋转角度。 */
   rotation?: number;
+  /** 文字大小，单位为像素。 */
   fontSize?: number;
+  /** 字体族名称。 */
   fontFamily?: string;
+  /** 文字粗细，可使用数字或 CSS 字重名称。 */
   fontWeight?: number | string;
 }
 
+/** 词云的属性配置。 */
 export interface WordCloudChartProps extends Omit<SiaChartProps, "children" | "empty"> {
+  /**
+   * 图形面积的计算方式。
+   * @defaultValue false
+   */
   areaSizing?: boolean;
+  /** 布局边界。 */
   bounds?: CloudBounds;
+  /**
+   * 是否自动适配可用绘图空间。
+   * @defaultValue false
+   */
   autoFit?: boolean;
-  onLayout?: (result:{placed:number;unplaced:readonly string[]})=>void;
+  /** 布局计算完成时调用。 */
+  onLayout?: (result:{
+  /** 成功放置的词条集合。 */
+  placed:number;
+  /** 未能放入布局的词条集合。 */
+  unplaced:readonly string[]})=>void;
+  /** 用于渲染的数据集合。 */
   data: readonly WordCloudDatum[];
+  /**
+   * 允许的最小文字大小。
+   * @defaultValue 14
+   */
   minFontSize?: number;
+  /**
+   * 允许的最大文字大小。
+   * @defaultValue 52
+   */
   maxFontSize?: number;
+  /**
+   * 允许的文字旋转角度集合。
+   * @defaultValue [0, 0, -28, 28, 0]
+   */
   rotations?: readonly number[];
+  /**
+   * 词云布局螺旋搜索的步长。
+   * @defaultValue 9
+   */
   spiralStep?: number;
+  /**
+   * 外观形状。
+   * @defaultValue "ellipse"
+   */
   shape?: "ellipse" | "circle" | "square" | "diamond";
+  /**
+   * 内容内边距。
+   * @defaultValue 4
+   */
   padding?: number;
+  /** 字体族名称。 */
   fontFamily?: string;
+  /**
+   * 文字粗细，可使用数字或 CSS 字重名称。
+   * @defaultValue 650
+   */
   fontWeight?: number | string;
+  /** 点击图表数据项时调用。 */
   onDataClick?: (info: ChartDataClickInfo<WordCloudDatum>) => void;
 }
 
 
+/** 词云组件。 */
 export const WordCloudChart = forwardRef<SiaChartRef, WordCloudChartProps>(function WordCloudChart(
   { data, bounds,areaSizing=false,autoFit=false,onLayout,minFontSize = 14, maxFontSize = 52, rotations = [0, 0, -28, 28, 0], spiralStep = 9, shape = "ellipse", padding = 4, fontFamily, fontWeight = 650, onDataClick, palette, ...props }, ref,
 ) {
@@ -3060,70 +4891,198 @@ export const WordCloudChart = forwardRef<SiaChartRef, WordCloudChartProps>(funct
   </SiaChart>;
 });
 
+/** Mixed的数据系列。 */
 export interface MixedSeries extends Omit<ChartSeries,'data'> {
   /** Distinct co-located category axes own separate bar groups and stacking totals. */
   categoryAxisIndex?: number;
   /** Diameter in chart coordinates; defaults to the existing 9px marker. */
   symbolSize?: number;
+  /** 数据点是否使用空心符号。 */
   hollowSymbol?: boolean;
+  /** 面积填充透明度。 */
   areaOpacity?:number;
+  /** 数据采样方式，用于减少绘制点数。 */
   sampling?:'pixel';
+  /** 标记使用的图形符号。 */
   markSymbol?: 'arrow' | 'none';
+  /** 是否显示标记标签。 */
   showMarkLabel?: boolean;
+  /** 提示框按数据项还是坐标轴触发。 */
   tooltipTrigger?: 'item'|'axis';
+  /** 用于渲染的数据集合。 */
   data:readonly (number|null)[];
+  /** 堆叠分组标识；同标识的数据系列参与同组堆叠。 */
   stack?: string;
+  /** 柱形宽度。 */
   barWidth?: number;
+  /** 柱形圆角。 */
   barRadius?: number;
+  /** 各数据点的颜色。 */
   pointColors?: readonly (string | undefined)[];
+  /** 是否显示数据点。 */
   showPoints?: boolean;
+  /** 线条样式。 */
   lineStyle?: 'solid' | 'dashed' | 'dotted';
+  /** 线条粗细。 */
   lineWidth?: number;
+  /** 是否显示平均值标记。 */
   markAverage?: boolean;
+  /** 标记颜色。 */
   markColor?: string;
+  /** 标记文本格式化函数。 */
   markFormatter?: (value:number)=>ReactNode;
   /** Index into valueAxes; distinct units must never share an inferred range. */
   valueAxisIndex?: number;
+  /** 类型标识，用于选择对应的表现形式。 */
   type: "line" | "bar";
+  /** 连接数据点的曲线类型。 */
   curve?: LineSeries["curve"];
+  /** 面积区域填充配置。 */
   area?: boolean;
 }
 
+/** 混合图的属性配置。 */
 export interface MixedChartProps extends Omit<CartesianChartProps, "series"> {
-  axisPointer?: boolean | {color?:string;width?:number;lineStyle?:'solid'|'dashed'|'dotted';pixelAlign?:boolean;linkedEmphasis?:boolean};
+  /** 坐标轴指示线配置。 */
+  axisPointer?: boolean | {
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color?:string;
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  width?:number;
+  /** 线条样式。 */
+  lineStyle?:'solid'|'dashed'|'dotted';
+  /** 是否对齐到像素网格。 */
+  pixelAlign?:boolean;
+  /** 是否联动高亮关联数据。 */
+  linkedEmphasis?:boolean};
   /** Labels for co-located category axes, used by axis-specific tooltips and accessible marks. */
   categoryAxisLabels?: readonly (readonly string[])[];
+  /** 柱形之间的间距配置。 */
   barSpacing?: MixedBarSpacing;
   /** With overlay enabled, renderAxes is called for base content and then foreground strokes. */
   axisLayering?: 'inline'|'overlay';
-  renderAxes?: (context:{layer:'all'|'base'|'line';plot:{x:number;y:number;width:number;height:number};categoryPositions:readonly number[];valueDomains:readonly (readonly [number,number,number])[]})=>ReactNode;
+  /** 是否绘制坐标轴或自定义轴渲染函数。 */
+  renderAxes?: (context:{
+  /** 当前图层标识或图层配置。 */
+  layer:'all'|'base'|'line';
+  /** 绘图区或图形绘制配置。 */
+  plot:{
+  /** 横向位置或 X 轴数据值。 */
+  x:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y:number;
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  width:number;
+  /** 高度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  height:number};
+  /** 各类目在绘图区中的位置。 */
+  categoryPositions:readonly number[];
+  /** 各数值轴的数据范围。 */
+  valueDomains:readonly (readonly [number,number,number])[]})=>ReactNode;
+  /**
+   * 坐标位置变化时的动画配置。
+   * @defaultValue false
+   */
   coordinateAnimation?:boolean;
+  /** 动画当前进度，通常为 0 到 1。 */
   animationProgress?:number;
+  /**
+   * 数据更新动画的持续时间。
+   * @defaultValue 500
+   */
   animationDurationUpdate?:number;
   /** Leave half a category slot at either end; bars always require category slots. */
   boundaryGap?:boolean;
   /** Clip series geometry and hit targets to the plot (fixed domains). */
   clipPlot?: boolean;
+  /** 当前激活的数据索引。 */
   activeIndex?: number | null;
+  /** 当前激活数据索引变化时调用。 */
   onActiveIndexChange?: (index:number|null)=>void;
+  /**
+   * 是否显示类目标签。
+   * @defaultValue true
+   */
   showCategoryLabels?: boolean;
+  /**
+   * 类目标签显示间隔。
+   * @defaultValue 0
+   */
   categoryLabelInterval?: number | "auto";
+  /** 数据转移的关联标识。 */
   transferId?:string;
+  /** 图表间转移数据值时调用。 */
   onValueTransfer?:ChartValueTransferHandler;
+  /**
+   * 是否允许通过拖拽图形修改数据。
+   * @defaultValue false
+   */
   calculable?: boolean;
+  /** 图表间数据转移失败时调用。 */
   onTransferError?: (message:string)=>void;
+  /**
+   * 提示框按数据项还是坐标轴触发。
+   * @defaultValue 'item'
+   */
   tooltipTrigger?: 'item'|'axis';
+  /** 图例名称集合。 */
   legendNames?: readonly string[];
+  /** 坐标轴提示内容格式化函数。 */
   axisTooltipFormatter?: (index:number,series:readonly MixedSeries[],categoryAxisIndex?:number)=>ReactNode;
-  legendLayout?: {x?:number;y?:number;maxWidth?:number;symbol?:'rect'|'line'|'sector'|'auto'};
-  plotBounds?: {x:number;y:number;width:number;height:number};
+  /** 图例布局配置。 */
+  legendLayout?: {
+  /** 横向位置或 X 轴数据值。 */
+  x?:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y?:number;
+  /** 允许的最大宽度。 */
+  maxWidth?:number;
+  /** 数据点或节点使用的图形符号。 */
+  symbol?:'rect'|'line'|'sector'|'auto'};
+  /** 绘图区边界。 */
+  plotBounds?: {
+  /** 横向位置或 X 轴数据值。 */
+  x:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y:number;
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  width:number;
+  /** 高度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  height:number};
+  /** 数据被交互修改后调用。 */
   onDataChange?: (series:readonly MixedSeries[])=>void;
+  /**
+   * 是否堆叠展示数据系列。
+   * @defaultValue false
+   */
   stacked?: boolean;
-  valueAxes?: readonly {autoDomain?:MixedValueDomainOptions;name?: string; domain?: readonly [number,number,number]; position?: 'left'|'right'; formatter?:(value:number)=>string;axisColor?:string;gridColor?:string;showTicks?:boolean;nameStyle?:CSSProperties}[];
+  /** 多数值轴配置集合。 */
+  valueAxes?: readonly {
+  /** 是否根据数据自动计算轴范围。 */
+  autoDomain?:MixedValueDomainOptions;
+  /** 名称或字段标识。 */
+  name?: string;
+  /** 坐标轴的数据取值范围。 */
+  domain?: readonly [number,number,number];
+  /** 显示位置或定位配置。 */
+  position?: 'left'|'right';
+  /** 将原始值转换为展示文本的函数。 */
+  formatter?:(value:number)=>string;
+  /** 坐标轴线颜色。 */
+  axisColor?:string;
+  /** 网格线颜色。 */
+  gridColor?:string;
+  /** 是否显示刻度线。 */
+  showTicks?:boolean;
+  /** 名称的文字样式。 */
+  nameStyle?:CSSProperties}[];
+  /** 图表数据系列。 */
   series: readonly MixedSeries[];
+  /** 点击图表数据项时调用。 */
   onDataClick?: (info: ChartDataClickInfo<number>) => void;
 }
 
+/** 混合图组件。 */
 export const MixedChart = forwardRef<SiaChartRef, MixedChartProps>(function MixedChart(
   { axisPointer,categoryAxisLabels,axisLayering="inline",barSpacing,renderAxes,coordinateAnimation=false, animationProgress, animationDurationUpdate=500, boundaryGap=true, categories, activeIndex,onActiveIndexChange,showCategoryLabels=true,categoryLabelInterval=0,clipPlot=false, series:sourceSeries, valueAxes, stacked:sourceStacked=false, plotBounds,tooltipTrigger='item',calculable=false,onTransferError,onDataChange,transferId,onValueTransfer,toolbox,legendNames,axisTooltipFormatter,legendLayout,showLegend = true, legendInteractive = true, legendSelected, onLegendSelectionChange, valueFormatter, onDataClick, palette, ...props }, ref,
 ) {

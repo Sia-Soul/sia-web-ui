@@ -10,58 +10,155 @@ import { PopupPortal } from "./PopupPortal";
 import type { ControlSize, ControlStatus } from "./shared";
 import { useControllableState } from "./shared";
 
+/** 树选择的值类型。 */
 export type TreeSelectValue = string | number;
 
+/** 树选择器的节点，包含值、标签、子节点和禁用状态。 */
 export interface TreeSelectNode {
+  /** 标题内容，可传入文本或 React 节点。 */
   title: ReactNode;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value: TreeSelectValue;
+  /** 唯一标识；同一集合内应保持唯一且稳定，用于定位、渲染和状态关联。 */
   key?: string | number;
+  /** 是否禁用交互。 */
   disabled?: boolean;
+  /** 是否允许选中项目。 */
   selectable?: boolean;
+  /** 是否仅禁用该节点的勾选框。 */
   disableCheckbox?: boolean;
+  /** 是否显示勾选框或允许勾选。 */
   checkable?: boolean;
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
   children?: readonly TreeSelectNode[];
 }
 
+/** 树选择的属性配置。 */
 export interface TreeSelectProps extends Omit<HTMLAttributes<HTMLDivElement>, "defaultValue" | "onChange" | "onSelect"> {
+  /** 树形节点数据 */
   treeData: readonly TreeSelectNode[];
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
   value?: TreeSelectValue | readonly TreeSelectValue[] | null;
+  /** 非受控模式的初始值，仅在初始化时使用。 */
   defaultValue?: TreeSelectValue | readonly TreeSelectValue[];
+  /**
+   是否允许同时选择多个项目。
+   * @defaultValue false
+   */
   multiple?: boolean;
+  /**
+   * 是否显示树节点复选框。
+   * @defaultValue false
+   */
   treeCheckable?: boolean;
+  /**
+   是否显示搜索输入框。
+   * @defaultValue false
+   */
   showSearch?: boolean;
+  /**
+   是否允许清空当前选择或输入值。
+   * @defaultValue false
+   */
   allowClear?: boolean;
+  /**
+   * 默认展开全部节点
+   * @defaultValue false
+   */
   treeDefaultExpandAll?: boolean;
+  /**
+   * 未填写或未选择时的提示内容。
+   * @defaultValue "请选择"
+   */
   placeholder?: ReactNode;
+  /** 占位提示的显示模式；floating 为浮动标签。 */
   placeholderMode?: InputPlaceholderMode;
+  /**
+   * 搜索框的占位提示文字。
+   * @defaultValue "搜索节点"
+   */
   searchPlaceholder?: string;
   /** 最多显示的标签数；空间不足时会继续折叠，并为 +N 预留宽度。 */
   maxTagCount?: number;
+  /**
+   * 是否禁用交互。
+   * @defaultValue false
+   */
   disabled?: boolean;
+  /** 组件尺寸；用于调整控件高度、字号和间距。 */
   size?: ControlSize;
+  /**
+   * 当前状态，用于选择对应的状态样式。
+   * @defaultValue "default"
+   */
   status?: ControlStatus;
+  /** 是否打开；传入后由外部控制显示状态。 */
   open?: boolean;
+  /**
+   * 非受控模式下的初始打开状态。
+   * @defaultValue false
+   */
   defaultOpen?: boolean;
+  /** 受控的搜索文本。 */
   searchValue?: string;
+  /** 受控的树节点展开标识集合。 */
   treeExpandedKeys?: readonly TreeSelectValue[];
+  /**
+   * 初始展开的树节点标识集合。
+   * @defaultValue []
+   */
   treeDefaultExpandedKeys?: readonly TreeSelectValue[];
+  /** 树节点展开状态改变时调用。 */
   onTreeExpand?: (keys: TreeSelectValue[]) => void;
+  /** 自定义树节点的搜索匹配规则。 */
   filterTreeNode?: false | ((search: string, node: TreeSelectNode) => boolean);
   /** 默认独立勾选；关闭后父子节点联动，禁用节点作为边界。 */
   treeCheckStrictly?: boolean;
+  /**
+   * 勾选结果的展示策略，控制父子节点如何显示。
+   * @defaultValue "all"
+   */
   showCheckedStrategy?: "all" | "parent" | "child";
+  /**
+   * 是否处于加载状态。
+   * @defaultValue false
+   */
   loading?: boolean;
+  /**
+   * 选项列表的最大可视高度，单位为像素。
+   * @defaultValue 300
+   */
   listHeight?: number;
+  /**
+   * 弹出面板的附加 CSS 类名。
+   * @defaultValue ""
+   */
   popupClassName?: string;
+  /** 弹出面板的内联样式。 */
   popupStyle?: React.CSSProperties;
+  /** 下拉面板底部扩展内容。 */
   dropdownFooter?: ReactNode;
+  /** 自定义已选结果的显示内容。 */
   displayRender?: (nodes: readonly TreeSelectNode[]) => ReactNode;
-  renderTrigger?: (state: { open: boolean; toggle: () => void; clear: () => void }) => ReactNode;
+  /** 自定义触发控件的渲染函数。 */
+  renderTrigger?: (state: {
+  /** 是否打开；传入后由外部控制显示状态。 */
+  open: boolean;
+  /** 切换当前打开或选中状态。 */
+  toggle: () => void;
+  /** 清空当前值或内容。 */
+  clear: () => void }) => ReactNode;
+  /** 清空当前值时调用。 */
   onClear?: () => void;
+  /** 选中项目时调用，参数包含选中项目及关联状态。 */
   onSelect?: (value: TreeSelectValue, node: TreeSelectNode) => void;
+  /** 取消选中项目时调用。 */
   onDeselect?: (value: TreeSelectValue, node: TreeSelectNode) => void;
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (value: TreeSelectValue | readonly TreeSelectValue[] | undefined, nodes: readonly TreeSelectNode[]) => void;
+  /** 搜索条件变化或提交搜索时调用，具体参数见签名。 */
   onSearch?: (value: string) => void;
+  /** 下拉面板显示状态变化时调用。 */
   onDropdownVisibleChange?: (open: boolean) => void;
 }
 
@@ -88,6 +185,7 @@ function findNodes(nodes: readonly TreeSelectNode[], values: readonly TreeSelect
   return result;
 }
 
+/** 树选择组件。 */
 export function TreeSelect({
   treeData,
   value,

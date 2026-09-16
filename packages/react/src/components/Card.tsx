@@ -2,23 +2,47 @@ import { useState } from "react";
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { Icon } from "./Icon";
 
+/** 卡片强调装饰的显示方式。 */
 export type CardAccent = "primary" | "success" | "warning" | "error";
 
+/** 卡片的属性配置。 */
 export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
+  /** 标题内容，可传入文本或 React 节点。 */
   title?: ReactNode;
+  /** 补充说明内容。 */
   description?: ReactNode;
+  /** 主体之外的补充内容或操作区。 */
   extra?: ReactNode;
+  /** 强调装饰样式。 */
   accent?: CardAccent;
+  /** 强调装饰的颜色。 */
   accentColor?: string;
+  /**
+   * 允许收起内容区域
+   * @defaultValue false
+   */
   collapsible?: boolean;
+  /** 是否收起；传入后由外部控制。 */
   collapsed?: boolean;
+  /**
+   * 非受控模式的初始收起状态。
+   * @defaultValue false
+   */
   defaultCollapsed?: boolean;
+  /** 收起状态变化回调 */
   onCollapsedChange?: (collapsed: boolean) => void;
+  /** 固定内容区高度并开启内部滚动 */
   bodyHeight?: number | string;
+  /**
+   * 内容区域的 CSS 类名。
+   * @defaultValue ""
+   */
   bodyClassName?: string;
+  /** 内容区域的内联样式。 */
   bodyStyle?: CSSProperties;
 }
 
+/** 卡片组件。 */
 export function Card({
   title,
   description,

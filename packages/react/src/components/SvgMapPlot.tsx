@@ -11,17 +11,147 @@ import {ChartMapPointPulse} from './ChartMapPointPulse';
 import {ChartPointMotion} from './ChartPointMotion';
 import {ChartMapPointEntrance} from './ChartMapPointEntrance';
 import {mapLineEndLabel} from './mapLineLabel';
+/** SVG 地图使用的二维坐标点。 */
 type Point=readonly [number,number];
+/** SVG地图的属性配置。 */
 export interface SvgMapPlotProps {
- source:string;name:string;data:readonly {name:string;value?:number;hoverable?:boolean;showLabel?:boolean}[];
- x:number;y:number;width:number;height:number;
- domain:readonly [number,number];range?:readonly [number,number];colors:readonly string[];
+ /** 触发来源，用于区分不同入口的操作。 */
+ source:string;
+  /** 名称或字段标识。 */
+  name:string;
+  /** 用于渲染的数据集合。 */
+  data:readonly {
+  /** 名称或字段标识。 */
+  name:string;
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
+  value?:number;
+  /** 是否启用鼠标悬停反馈。 */
+  hoverable?:boolean;
+  /** 是否显示标签文本。 */
+  showLabel?:boolean}[];
+ /** 横向位置或 X 轴数据值。 */
+ x:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y:number;
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  width:number;
+  /** 高度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  height:number;
+ /** 坐标轴的数据取值范围。 */
+ domain:readonly [number,number];
+  /**
+   * 是否启用范围选择，或指定选择范围。
+   * @defaultValue domain
+   */
+  range?:readonly [number,number];
+  /** 可选颜色或颜色序列。 */
+  colors:readonly string[];
+ /** 标签相对于默认位置的偏移集合。 */
  labelOffsets?:Readonly<Record<string,readonly number[]>>;
- hoverRange?:readonly [number,number];onHoverValue?:(value:number|undefined)=>void;
- roam?:boolean;resetKey?:number;children?:ReactNode;
- lineAnimation?:boolean;tooltipNameOnly?:boolean;showLabels?:boolean;pointAnimation?:boolean;pointEntrance?:boolean;pointAnimationEasing?:'linear'|'exponential-out';
- markPoints?:readonly {id?:string;name:string;value?:number|string;coordinate:Point;label?:string;labelColor?:string;fontSize?:number;borderWidth?:number;size?:number;effectColor?:string;effect?:boolean;color?:string;symbol?:'pin'|'circle'|'emptyCircle'}[];
- markLines?:readonly {id?:string;name:string;value?:number;source:Point;target:Point;period?:number;effectColor?:string;shadowBlur?:number;color?:string;effectRadius?:number;endpointSymbols?:readonly string[]}[];
+ /** 当前悬停所关联的数据范围。 */
+ hoverRange?:readonly [number,number];
+  /** 悬停的数据值变化时调用。 */
+  onHoverValue?:(value:number|undefined)=>void;
+ /**
+  * 地图或图表的平移、缩放配置。
+  * @defaultValue true
+  */
+ roam?:boolean;
+  /**
+   * 该值变化时重置内部交互状态。
+   * @defaultValue 0
+   */
+  resetKey?:number;
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
+  children?:ReactNode;
+ /**
+  * 线条动画配置。
+  * @defaultValue false
+  */
+ lineAnimation?:boolean;
+  /**
+   * 提示框是否仅显示名称。
+   * @defaultValue false
+   */
+  tooltipNameOnly?:boolean;
+  /**
+   * 是否显示数据标签。
+   * @defaultValue true
+   */
+  showLabels?:boolean;
+  /**
+   * 数据点动画配置。
+   * @defaultValue false
+   */
+  pointAnimation?:boolean;
+  /**
+   * 数据点首次出现时的入场效果。
+   * @defaultValue false
+   */
+  pointEntrance?:boolean;
+  /**
+   * 数据点动画的缓动方式。
+   * @defaultValue 'linear'
+   */
+  pointAnimationEasing?:'linear'|'exponential-out';
+ /**
+  * 标记点配置集合。
+  * @defaultValue []
+  */
+ markPoints?:readonly {
+  /** 唯一标识，用于关联实例或插件。 */
+  id?:string;
+  /** 名称或字段标识。 */
+  name:string;
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
+  value?:number|string;
+  /** 图表坐标位置或坐标转换配置。 */
+  coordinate:Point;
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
+  label?:string;
+  /** 标签文字颜色。 */
+  labelColor?:string;
+  /** 文字大小，单位为像素。 */
+  fontSize?:number;
+  /** 边框线宽。 */
+  borderWidth?:number;
+  /** 组件尺寸；用于调整控件高度、字号和间距。 */
+  size?:number;
+  /** 动态效果的颜色。 */
+  effectColor?:string;
+  /** 滚动或淡入效果 */
+  effect?:boolean;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color?:string;
+  /** 数据点或节点使用的图形符号。 */
+  symbol?:'pin'|'circle'|'emptyCircle'}[];
+ /**
+  * 标记线配置集合。
+  * @defaultValue []
+  */
+ markLines?:readonly {
+  /** 唯一标识，用于关联实例或插件。 */
+  id?:string;
+  /** 名称或字段标识。 */
+  name:string;
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
+  value?:number;
+  /** 触发来源，用于区分不同入口的操作。 */
+  source:Point;
+  /** 关联的目标元素或获取目标元素的函数。 */
+  target:Point;
+  /** 周期动画的周期时长。 */
+  period?:number;
+  /** 动态效果的颜色。 */
+  effectColor?:string;
+  /** 阴影模糊半径。 */
+  shadowBlur?:number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color?:string;
+  /** 特效覆盖的半径。 */
+  effectRadius?:number;
+  /** 连线起点和终点使用的图形符号。 */
+  endpointSymbols?:readonly string[]}[];
 }
 function SvgMapRegion({d,name,value,series,color,scale,offset,emphasized,onHover,stroke,strokeWidth,opacity,hoverable=true,showLabel=true,tooltipNameOnly=false}:{d:string;name:string;value?:number;series:string;color:string;scale:number;offset?:readonly number[];emphasized:boolean;onHover:(active:boolean)=>void;stroke?:string;strokeWidth?:number;opacity?:number;hoverable?:boolean;showLabel?:boolean;tooltipNameOnly?:boolean}){
  const path=useRef<SVGPathElement>(null),[center,setCenter]=useState<readonly [number,number]>([0,0]);

@@ -1,7 +1,41 @@
 export interface ForceNode {id:string;x?:number;y?:number;fixed?:boolean;fixX?:boolean;fixY?:boolean;value?:number;radius?:number}
 export interface ForceLink {source:string;target:string;value?:number}
 /** Parameters of the native solver, not a promise of ECharts physics equivalence. */
-export interface ForceLayoutOptions {stepsPerFrame?:number;model?:'native'|'legacy';width?:number;height?:number;coolDown?:number;minRadius?:number;maxRadius?:number;seed?:number;center?:{x:number;y:number};gravity?:number;scaling?:number;linkDistance?:number;iterations?:number;weightedLinks?:boolean;maxNodes?:number}
+export interface ForceLayoutOptions {
+  /** 每帧执行的布局迭代次数。 */
+  stepsPerFrame?:number;
+  /** 布局模型或数据模型。 */
+  model?:'native'|'legacy';
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  width?:number;
+  /** 高度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  height?:number;
+  /** 力导向布局的冷却系数。 */
+  coolDown?:number;
+  /** 允许的最小半径。 */
+  minRadius?:number;
+  /** 允许的最大半径。 */
+  maxRadius?:number;
+  /** 随机布局的种子，用于复现相同布局。 */
+  seed?:number;
+  /** 中心位置。 */
+  center?:{
+  /** 横向位置或 X 轴数据值。 */
+  x:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y:number};
+  /** 布局引力强度。 */
+  gravity?:number;
+  /** 布局缩放系数。 */
+  scaling?:number;
+  /** 布局中的目标连线距离。 */
+  linkDistance?:number;
+  /** 布局迭代次数。 */
+  iterations?:number;
+  /** 是否根据连线权重调整布局。 */
+  weightedLinks?:boolean;
+  /** 参与布局或渲染的最大节点数。 */
+  maxNodes?:number}
 export interface ForcePoint { x: number; y: number; vx: number; vy: number; iteration?:number; temperature?:number }
 
 /** Reheat in place conceptually, while preserving immutable frame snapshots and velocities. */

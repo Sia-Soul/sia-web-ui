@@ -2,9 +2,27 @@ import {useEffect,useRef,useState} from 'react';
 import {ChartMark} from './Chart';
 import {findCompositeValueTarget} from './compositeValueTransfer';
 import type {ChartValueAddress} from './compositeValueTransfer';
+/** 图表数据值暂存区的属性配置。 */
 export interface ChartValueIslandProps{
- name:string;value:number;x:number;y:number;color?:string;
+ /** 名称或字段标识。 */
+ name:string;
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
+  value:number;
+  /** 横向位置或 X 轴数据值。 */
+  x:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y:number;
+  /**
+   * 显示颜色，可使用 CSS 颜色值。
+   * @defaultValue '#2ec7c9'
+   */
+  color?:string;
+ /** 拖放完成时调用，提供拖拽源和目标位置。 */
  onDrop:(target:ChartValueAddress|null,point:readonly [number,number])=>void;
+ /**
+  * 根据当前上下文解析目标图表或数据位置。
+  * @defaultValue findCompositeValueTarget
+  */
  resolveTarget?:(element:SVGGElement,x:number,y:number)=>ChartValueAddress|null;
 }
 /** SVG island representing a value already removed from its source series. */

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { cloneElement, isValidElement, useEffect, useRef, useState } from "react";
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, MouseEvent, ReactNode } from "react";
 import { Button } from "./Button";
 import type { ButtonProps } from "./Button";
@@ -8,35 +8,91 @@ import type { MenuClickInfo, MenuItem, MenuProps, MenuTheme } from "./Navigation
 import { PopupPortal } from "./PopupPortal";
 import type { PopupPortalPlacement } from "./PopupPortal";
 
+/** 打开下拉菜单的触发方式。 */
 export type DropdownTrigger = "click" | "hover" | "contextMenu";
+/** 下拉菜单的位置类型。 */
 export type DropdownPlacement = "bottomLeft" | "bottomRight" | "topLeft" | "topRight";
+/** 引起下拉菜单打开状态变化的来源。 */
 export type DropdownOpenSource = "trigger" | "menu";
 
+/** DropdownMenu的属性配置。 */
 export interface DropdownMenuProps extends Pick<
   MenuProps,
   "multiple" | "selectable" | "selectedKeys" | "defaultSelectedKeys" | "onSelect" | "onDeselect"
 > {
+  /** 按展示顺序排列的项目配置。 */
   items: readonly MenuItem[];
+  /** 组件的配色主题。 */
   theme?: MenuTheme;
+  /** 点击时触发，参数为当前点击事件或项目上下文。 */
   onClick?: (info: MenuClickInfo) => void;
 }
 
+/** 下拉菜单的属性配置。 */
 export interface DropdownProps extends Omit<HTMLAttributes<HTMLSpanElement>, "children" | "onOpenChange"> {
+  /** 菜单项、选中状态与点击回调 */
   menu: DropdownMenuProps;
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
   children: ReactNode;
+  /**
+   * 触发显示的交互方式。
+   * @defaultValue ["hover"]
+   */
   trigger?: readonly DropdownTrigger[];
+  /**
+   * 相对于触发元素的弹出方向和对齐位置。
+   * @defaultValue "bottomLeft"
+   */
   placement?: DropdownPlacement;
+  /** 是否打开；传入后由外部控制显示状态。 */
   open?: boolean;
+  /**
+   * 非受控模式下的初始打开状态。
+   * @defaultValue false
+   */
   defaultOpen?: boolean;
+  /**
+   * 是否禁用交互。
+   * @defaultValue false
+   */
   disabled?: boolean;
-  arrow?: boolean | { pointAtCenter?: boolean };
+  /** Automatically append a disclosure icon to a Button with text. */
+  showTriggerIcon?: boolean;
+  /**
+   * 显示箭头及是否指向触发器中心
+   * @defaultValue false
+   */
+  arrow?: boolean | {
+  /** 是否让弹层箭头指向触发元素中心。 */
+  pointAtCenter?: boolean };
+  /**
+   * 显示后是否自动聚焦。
+   * @defaultValue false
+   */
   autoFocus?: boolean;
+  /**
+   * 触发后延迟打开的时间。
+   * @defaultValue 80
+   */
   openDelay?: number;
+  /**
+   * 移出后延迟关闭的时间。
+   * @defaultValue 120
+   */
   closeDelay?: number;
+  /**
+   * 弹出面板的附加 CSS 类名。
+   * @defaultValue ""
+   */
   popupClassName?: string;
+  /** 弹出面板的内联样式。 */
   popupStyle?: CSSProperties;
+  /** 自定义菜单浮层内容 */
   popupRender?: (menu: ReactNode) => ReactNode;
-  onOpenChange?: (open: boolean, info: { source: DropdownOpenSource }) => void;
+  /** 打开状态改变时触发，参数为新的打开状态。 */
+  onOpenChange?: (open: boolean, info: {
+  /** 触发来源，用于区分不同入口的操作。 */
+  source: DropdownOpenSource }) => void;
 }
 
 const placementMap: Record<DropdownPlacement, PopupPortalPlacement> = {
@@ -54,6 +110,7 @@ function DropdownRoot({
   open,
   defaultOpen = false,
   disabled = false,
+  showTriggerIcon = true,
   arrow = false,
   autoFocus = false,
   openDelay = 80,
@@ -229,6 +286,14 @@ function DropdownRoot({
     className="sia-dropdown__menu"
   />;
 
+  const triggerNode = showTriggerIcon && isValidElement<ButtonProps>(children) && children.type === Button
+    && children.props.children !== undefined && children.props.children !== null
+    ? cloneElement(children, {}, <span className="sia-dropdown__trigger-content">
+      {children.props.children}
+      <Icon name="chevron-down" size={14} className="sia-dropdown__trigger-icon" />
+    </span>)
+    : children;
+
   return <span
     ref={rootRef}
     className={`sia-dropdown${visible ? " is-open" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()}
@@ -242,7 +307,7 @@ function DropdownRoot({
     onKeyDown={handleKeyDown}
     {...props}
   >
-    {children}
+    {triggerNode}
     <span
       ref={contextAnchorRef}
       className="sia-dropdown__context-anchor"
@@ -272,10 +337,18 @@ function DropdownRoot({
   </span>;
 }
 
+/** DropdownButton的属性配置。 */
 export interface DropdownButtonProps extends Omit<DropdownProps, "children" | "className"> {
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
   children?: ReactNode;
+  /**
+   * 附加到组件根节点的 CSS 类名。
+   * @defaultValue ""
+   */
   className?: string;
+  /** 透传给触发按钮的 Button 属性，可配置样式、尺寸和事件。 */
   buttonProps?: Omit<ButtonProps, "children" | "onClick" | "disabled">;
+  /** 点击时触发，参数为当前点击事件或项目上下文。 */
   onClick?: ButtonProps["onClick"];
 }
 
@@ -290,7 +363,7 @@ function DropdownButton({
 }: DropdownButtonProps) {
   return <span className={`sia-dropdown-button ${className}`.trim()}>
     <Button {...buttonProps} disabled={disabled} onClick={onClick}>{children}</Button>
-    <DropdownRoot {...dropdownProps} disabled={disabled} trigger={trigger}>
+    <DropdownRoot {...dropdownProps} disabled={disabled} trigger={trigger} showTriggerIcon={false}>
       <Button
         {...buttonProps}
         className={`sia-dropdown-button__arrow ${buttonProps?.className ?? ""}`.trim()}
@@ -302,4 +375,7 @@ function DropdownButton({
   </span>;
 }
 
-export const Dropdown = Object.assign(DropdownRoot, { Button: DropdownButton });
+/** 下拉菜单组件。 */
+export const Dropdown = Object.assign(DropdownRoot, {
+  /** 组合主操作按钮与下拉菜单的按钮组件。 */
+  Button: DropdownButton });

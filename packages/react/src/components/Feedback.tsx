@@ -8,26 +8,66 @@ import type { FloatingPlacement } from "./FloatingDisplay";
 import { Popover } from "./FloatingDisplay";
 import { useControllableState } from "./shared";
 
+/** 气泡确认的属性配置。 */
 export interface PopconfirmProps {
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
   children: ReactElement;
+  /** 标题内容，可传入文本或 React 节点。 */
   title: ReactNode;
+  /** 补充说明内容。 */
   description?: ReactNode;
+  /**
+   * 确定按钮文案。
+   * @defaultValue "确定"
+   */
   okText?: ReactNode;
+  /**
+   * 取消按钮文案。
+   * @defaultValue "取消"
+   */
   cancelText?: ReactNode;
+  /** 确定按钮的 Button 属性。 */
   okButtonProps?: React.ComponentProps<typeof Button>;
+  /** 取消按钮的 Button 属性。 */
   cancelButtonProps?: React.ComponentProps<typeof Button>;
+  /**
+   * 相对于触发元素的弹出方向和对齐位置。
+   * @defaultValue "top"
+   */
   placement?: FloatingPlacement;
+  /**
+   * 触发显示的交互方式。
+   * @defaultValue "click"
+   */
   trigger?: "click" | "hover" | "focus";
+  /** 是否打开；传入后由外部控制显示状态。 */
   open?: boolean;
+  /**
+   * 非受控模式下的初始打开状态。
+   * @defaultValue false
+   */
   defaultOpen?: boolean;
+  /**
+   * 是否禁用交互。
+   * @defaultValue false
+   */
   disabled?: boolean;
+  /**
+   * 是否显示取消按钮。
+   * @defaultValue true
+   */
   showCancel?: boolean;
+  /** 显示在内容旁的图标节点，建议使用 Icon 组件。 */
   icon?: ReactNode;
+  /** 用户确认时调用；支持异步返回值，具体签名见类型。 */
   onConfirm?: (event?: React.MouseEvent) => void | boolean | Promise<void | boolean>;
+  /** 用户取消或通过关闭入口退出时调用。 */
   onCancel?: (event?: React.MouseEvent) => void;
+  /** 打开状态改变时触发，参数为新的打开状态。 */
   onOpenChange?: (open: boolean) => void;
 }
 
+/** 气泡确认组件。 */
 export function Popconfirm({
   children, title, description, okText = "确定", cancelText = "取消", okButtonProps, cancelButtonProps, placement = "top",
   trigger = "click", open, defaultOpen = false, disabled = false, showCancel = true, icon = <Icon name="question" variant="filled" />,
@@ -50,22 +90,66 @@ export function Popconfirm({
   return <Popover content={content} placement={placement} trigger={disabled ? [] : trigger} open={visible} onOpenChange={setVisible}>{children}</Popover>;
 }
 
+/** 进度的状态类型。 */
 export type ProgressStatus = "normal" | "active" | "success" | "exception";
+/** 进度的属性配置。 */
 export interface ProgressProps extends HTMLAttributes<HTMLDivElement> {
+  /**
+   * 进度百分比。
+   * @defaultValue 0
+   */
   percent?: number;
+  /**
+   * 类型标识，用于选择对应的表现形式。
+   * @defaultValue "line"
+   */
   type?: "line" | "circle" | "dashboard";
+  /** 当前状态，用于选择对应的状态样式。 */
   status?: ProgressStatus;
+  /**
+   * 是否显示进度文本。
+   * @defaultValue true
+   */
   showInfo?: boolean;
+  /** 显示格式或格式化函数。 */
   format?: (percent?: number, successPercent?: number) => ReactNode;
-  strokeColor?: string | { from: string; to: string };
+  /** 描边或进度条颜色。 */
+  strokeColor?: string | {
+  /** 范围、渐变或转换的起始值。 */
+  from: string;
+  /** 范围、渐变或转换的结束值。 */
+  to: string };
+  /** 未完成部分的轨道颜色。 */
   trailColor?: string;
+  /**
+   * 描边或进度轨道粗细。
+   * @defaultValue 8
+   */
   strokeWidth?: number;
+  /**
+   * 宽度；数值按像素处理，字符串可使用 CSS 尺寸。
+   * @defaultValue 120
+   */
   width?: number;
+  /** 步骤集合或进度分段配置。 */
   steps?: number;
-  success?: { percent?: number; strokeColor?: string };
+  /** 成功进度部分的配置。 */
+  success?: {
+  /**
+   * 进度百分比。
+   * @defaultValue 0
+   */
+  percent?: number;
+  /** 描边或进度条颜色。 */
+  strokeColor?: string };
+  /**
+   * 组件尺寸；用于调整控件高度、字号和间距。
+   * @defaultValue "default"
+   */
   size?: "small" | "default" | number | readonly [number, number];
 }
 
+/** 进度组件。 */
 export function Progress({
   percent = 0, type = "line", status, showInfo = true, format, strokeColor, trailColor, strokeWidth = 8, width = 120, steps,
   success, size = "default", className = "", style, ...props
@@ -97,14 +181,34 @@ export function Progress({
   </div>;
 }
 
+/** 加载指示器的属性配置。 */
 export interface SpinProps extends HTMLAttributes<HTMLDivElement> {
+  /**
+   * 是否显示加载指示器。
+   * @defaultValue true
+   */
   spinning?: boolean;
+  /**
+   * 组件尺寸；用于调整控件高度、字号和间距。
+   * @defaultValue "default"
+   */
   size?: "small" | "default" | "large";
+  /** 加载说明文本 */
   tip?: ReactNode;
+  /** 自定义加载指示器。 */
   indicator?: ReactNode;
+  /**
+   * 显示加载状态前的延迟时间。
+   * @defaultValue 0
+   */
   delay?: number;
+  /**
+   是否以全屏形式展示。
+   * @defaultValue false
+   */
   fullscreen?: boolean;
 }
+/** 加载指示器组件。 */
 export function Spin({ spinning = true, size = "default", tip, indicator, delay = 0, fullscreen = false, className = "", children, ...props }: SpinProps) {
   const [visible, setVisible] = useState(delay === 0 && spinning);
   useEffect(() => {
@@ -118,19 +222,64 @@ export function Spin({ spinning = true, size = "default", tip, indicator, delay 
   return <div className={`sia-spin-container${visible ? " is-spinning" : ""} ${className}`.trim()} {...props}>{children}{visible ? <div className="sia-spin-mask">{spinner}</div> : null}</div>;
 }
 
-export interface WatermarkFont { color?: string; fontSize?: number; fontWeight?: number | string; fontFamily?: string; fontStyle?: string; textAlign?: CanvasTextAlign }
+/** 水印文字的字体、颜色和对齐配置。 */
+export interface WatermarkFont {
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color?: string;
+  /** 文字大小，单位为像素。 */
+  fontSize?: number;
+  /** 文字粗细，可使用数字或 CSS 字重名称。 */
+  fontWeight?: number | string;
+  /** 字体族名称。 */
+  fontFamily?: string;
+  /** 字体样式，例如 normal 或 italic。 */
+  fontStyle?: string;
+  /** 文本的水平对齐方式。 */
+  textAlign?: CanvasTextAlign }
+/** 水印的属性配置。 */
 export interface WatermarkProps extends Omit<HTMLAttributes<HTMLDivElement>, "content"> {
+  /**
+   需要显示的内容，支持文本或 React 节点。
+   * @defaultValue "Sia Web UI"
+   */
   content?: string | readonly string[];
+  /** 图片资源配置。 */
   image?: string;
+  /**
+   * 宽度；数值按像素处理，字符串可使用 CSS 尺寸。
+   * @defaultValue 120
+   */
   width?: number;
+  /**
+   * 高度；数值按像素处理，字符串可使用 CSS 尺寸。
+   * @defaultValue 64
+   */
   height?: number;
+  /**
+   * 旋转角度。
+   * @defaultValue -22
+   */
   rotate?: number;
+  /**
+   组件或浮层的堆叠层级。
+   * @defaultValue 9
+   */
   zIndex?: number;
+  /**
+   * 预设或自定义间距
+   * @defaultValue [100, 100]
+   */
   gap?: readonly [number, number];
+  /**
+   * 相对于默认位置的偏移。
+   * @defaultValue [0, 0]
+   */
   offset?: readonly [number, number];
+  /** 颜色、字号、字重与字体 */
   font?: WatermarkFont;
 }
 function escapeXml(value: string) { return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[char]!)); }
+/** 水印组件。 */
 export function Watermark({ content = "Sia Web UI", image, width = 120, height = 64, rotate = -22, zIndex = 9, gap = [100, 100], offset = [0, 0], font, className = "", children, ...props }: WatermarkProps) {
   const background = useMemo(() => {
     const tileWidth = width + gap[0], tileHeight = height + gap[1];
@@ -145,20 +294,35 @@ export function Watermark({ content = "Sia Web UI", image, width = 120, height =
   return <div className={`sia-watermark ${className}`.trim()} {...props}>{children}<div className="sia-watermark__layer" aria-hidden="true" style={{ zIndex, backgroundImage: background }} /></div>;
 }
 
+/** Notification的类型标识。 */
 export type NotificationType = "info" | "success" | "warning" | "error";
+/** Notification的位置类型。 */
 export type NotificationPlacement = "topLeft" | "topRight" | "bottomLeft" | "bottomRight";
+/** Notification的配置。 */
 export interface NotificationConfig {
+  /** 唯一标识；同一集合内应保持唯一且稳定，用于定位、渲染和状态关联。 */
   key?: string | number;
+  /** 类型标识，用于选择对应的表现形式。 */
   type?: NotificationType;
+  /** 提示或错误消息文本。 */
   message: ReactNode;
+  /** 补充说明内容。 */
   description?: ReactNode;
+  /** 自动关闭延迟，单位为秒；0 表示不自动关闭。 */
   duration?: number;
+  /** 相对于触发元素的弹出方向和对齐位置。 */
   placement?: NotificationPlacement;
+  /** 显示在内容旁的图标节点，建议使用 Icon 组件。 */
   icon?: ReactNode;
+  /** 消息或通知的自定义操作按钮。 */
   btn?: ReactNode;
+  /** 自定义关闭图标。 */
   closeIcon?: ReactNode;
+  /** 元素的无障碍语义角色。 */
   role?: string;
+  /** 点击时触发，参数为当前点击事件或项目上下文。 */
   onClick?: () => void;
+  /** 请求关闭时触发的回调。 */
   onClose?: () => void;
 }
 type NotificationEntry = NotificationConfig & { key: string | number };
@@ -190,7 +354,12 @@ function ensureNotificationHost() {
   notificationHost = document.createElement("div"); notificationHost.dataset.siaNotificationHost = "";
   document.body.appendChild(notificationHost); createRoot(notificationHost).render(<NotificationHost />);
 }
-function openNotification(config: NotificationConfig) {
+function openNotification(config: NotificationConfig): {
+  /** 通知唯一标识，可传给 notification.destroy 关闭指定通知。 */
+  key: string | number;
+  /** 关闭本条通知。 */
+  close: () => void;
+} {
   if (typeof window === "undefined" || typeof document === "undefined") return { key: config.key ?? "ssr", close: () => undefined };
   ensureNotificationHost();
   const key = config.key ?? `sia-notification-${++notificationSeed}`;
@@ -202,39 +371,85 @@ function openNotification(config: NotificationConfig) {
   if ((config.duration ?? 4.5) > 0) notificationTimers.set(key, window.setTimeout(() => closeNotification(key), (config.duration ?? 4.5) * 1000));
   return { key, close: () => closeNotification(key) };
 }
+/** 全局通知 API，支持标题、说明、自定义操作和关闭管理。 */
 export const notification = {
+  /** 直接打开实例，返回可用于更新或关闭的操作句柄。 */
   open: openNotification,
+  /** 显示普通信息提示。 */
   info: (config: Omit<NotificationConfig, "type">) => openNotification({ ...config, type: "info" }),
+  /** 显示成功提示。 */
   success: (config: Omit<NotificationConfig, "type">) => openNotification({ ...config, type: "success" }),
+  /** 显示警告提示。 */
   warning: (config: Omit<NotificationConfig, "type">) => openNotification({ ...config, type: "warning" }),
+  /** 显示错误提示。 */
   error: (config: Omit<NotificationConfig, "type">) => openNotification({ ...config, type: "error" }),
+  /** 关闭指定实例；未指定标识时关闭所有实例。 */
   destroy: (key?: string | number) => {
     if (key !== undefined) closeNotification(key);
     else { [...notificationEntries].forEach((item) => closeNotification(item.key)); }
   },
 };
 
+/** 操作引导的一步，定义目标元素、说明及操作按钮。 */
 export interface TourStep {
+  /** 标题内容，可传入文本或 React 节点。 */
   title?: ReactNode;
+  /** 补充说明内容。 */
   description?: ReactNode;
+  /** 顶部封面内容。 */
   cover?: ReactNode;
+  /** 关联的目标元素或获取目标元素的函数。 */
   target?: HTMLElement | null | (() => HTMLElement | null);
+  /** 相对于触发元素的弹出方向和对齐位置。 */
   placement?: FloatingPlacement | "center";
-  nextButtonProps?: React.ComponentProps<typeof Button> & { children?: ReactNode };
-  prevButtonProps?: React.ComponentProps<typeof Button> & { children?: ReactNode };
+  /** 下一步按钮的属性。 */
+  nextButtonProps?: React.ComponentProps<typeof Button> & {
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
+  children?: ReactNode };
+  /** 上一步按钮的属性。 */
+  prevButtonProps?: React.ComponentProps<typeof Button> & {
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
+  children?: ReactNode };
 }
+/** 操作引导的属性配置。 */
 export interface TourProps {
+  /**
+   * 是否打开；传入后由外部控制显示状态。
+   * @defaultValue false
+   */
   open?: boolean;
+  /** 步骤集合或进度分段配置。 */
   steps: readonly TourStep[];
+  /** 当前引导步骤索引，从 0 开始。 */
   current?: number;
+  /**
+   * 非受控模式的初始页码或步骤位置。
+   * @defaultValue 0
+   */
   defaultCurrent?: number;
+  /**
+   * 遮罩是否显示或自定义遮罩内容。
+   * @defaultValue true
+   */
   mask?: boolean;
+  /**
+   * 是否显示关闭入口。
+   * @defaultValue true
+   */
   closable?: boolean;
+  /**
+   * 加载期间是否阻止与内容交互。
+   * @defaultValue false
+   */
   disabledInteraction?: boolean;
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (current: number) => void;
+  /** 请求关闭时触发的回调。 */
   onClose?: (current: number) => void;
+  /** 流程完成或表单校验通过并提交时调用。 */
   onFinish?: () => void;
 }
+/** 操作引导组件。 */
 export function Tour({ open = false, steps, current, defaultCurrent = 0, mask = true, closable = true, disabledInteraction = false, onChange, onClose, onFinish }: TourProps) {
   const [index, setIndex] = useControllableState({ value: current, defaultValue: defaultCurrent, onChange });
   const [, force] = useState(0);

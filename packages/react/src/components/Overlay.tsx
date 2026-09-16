@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import type { ReactNode, RefObject } from "react";
 import { createPortal } from "react-dom";
 
+/** 弹层挂载节点或返回挂载节点的函数。 */
 export type OverlayContainer = HTMLElement | (() => HTMLElement);
 
 let bodyLockCount = 0;

@@ -13,50 +13,128 @@ import { Space } from "./Layout";
 import { Tag } from "./Tag";
 import type { TagStatus } from "./Tag";
 
+/** 查询区中的一个字段，复用 Form.Item 绑定能力并增加布局宽度配置。 */
 export interface QueryFormField extends FormItemProps {
+  /** 字段布局的稳定唯一标识；用于 React 渲染，不替代 Form.Item 的 name 字段路径。 */
   key: string;
   /** 字段占用宽度，默认由 fieldWidth 控制；组合字段可指定更大的宽度。 */
   width?: number | string;
 }
+/** 预设或已保存的快捷查询，包含名称、条件、颜色和可选数量徽标。 */
 export interface QueryFormShortcut<T extends FormValues = FormValues> {
+  /** 快捷查询的稳定唯一标识，用于选中态和 onSearch 的 info.shortcutKey；建议使用后端主键，不使用可变排序索引。 */
   key: string;
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
   label: ReactNode;
+  /** 该快捷查询保存的条件。点击时先恢复表单初始值，再用这些字段覆盖；支持与 Form 字段一致的嵌套数据结构。 */
   values: Partial<T>;
+  /** 是否禁用交互。 */
   disabled?: boolean;
+  /** 底部已保存快捷标签的颜色状态；未指定时使用组件分配的配色。 */
   status?: TagStatus;
   /** 顶部快捷查询按钮尺寸，优先于 quickQuerySize。 */
   size?: ButtonSize;
   /** 该快捷查询对应的数据总量，由业务接口提供。 */
   count?: number;
+  /** 顶部数量徽标的附加属性，例如 overflowCount、showZero 和颜色；徽标数量由同一快捷项的 count 提供。 */
   badgeProps?: Omit<BadgeProps, "children" | "count">;
 }
+/** 本次查询的触发来源及关联快捷查询标识。 */
 export interface QueryFormSearchInfo {
+  /** 查询来源：submit 为查询按钮或表单提交，reset 为重置后查询，quick 为顶部预设，saved 为底部已保存条件。 */
   source: "submit" | "reset" | "quick" | "saved";
+  /** 触发查询的快捷项标识；普通查询或重置时可能未提供。 */
   shortcutKey?: string;
 }
+/** 查询表单的属性配置。 */
 export interface QueryFormProps<T extends FormValues = FormValues> extends Omit<FormProps, "onFinish" | "children" | "onError"> {
+  /** 查询字段配置，每项包含稳定 key、可选宽度以及 Form.Item 属性；提供后优先于 children。 */
   fields?: readonly QueryFormField[];
   /** 也可直接放入 Form.Item 或 Space.Compact，每个直接子项视为一个查询字段。 */
   children?: ReactNode;
+  /** 表单校验通过后执行查询。values 是完整条件；info.source 区分 submit（查询）、reset（重置）、quick（顶部预设）和 saved（已保存条件）。返回 Promise 时自动显示加载状态并阻止重复提交。 */
   onSearch: (values: T, info: QueryFormSearchInfo) => void | Promise<void>;
+  /**
+   * 是否处于加载状态。
+   * @defaultValue false
+   */
   loading?: boolean;
+  /**
+   * 查询字段的默认宽度，数值单位为像素，可传 CSS 尺寸字符串。
+   * @defaultValue 220
+   */
   fieldWidth?: number | string;
+  /**
+   是否显示展开和收起入口；false 时始终展示全部字段。
+   * @defaultValue true
+   */
   collapsible?: boolean;
+  /** 受控收起状态，需在 onCollapsedChange 中更新。收起时保留字段挂载和值，只隐藏放不下的字段和底部快捷标签。 */
   collapsed?: boolean;
+  /**
+   * 非受控模式的初始收起状态。
+   * @defaultValue false
+   */
   defaultCollapsed?: boolean;
+  /**
+   * 收起时最多保留的字段数；实际数量会根据可用宽度减少，以保持单行。
+   * @defaultValue 3
+   */
   collapsedCount?: number;
+  /** 收起状态变化回调 */
   onCollapsedChange?: (collapsed: boolean) => void;
+  /**
+   * 顶部预设快捷查询按钮。点击后先恢复 initialValues，再覆盖该项 values，校验并自动触发 onSearch。
+   * @defaultValue []
+   */
   quickQueries?: readonly QueryFormShortcut<T>[];
+  /**
+   * 顶部快捷查询按钮的默认尺寸，单项 size 优先。
+   * @defaultValue "small"
+   */
   quickQuerySize?: ButtonSize;
+  /**
+   * 底部已保存快捷查询标签。点击回填该项条件并查询；收起时隐藏。业务方负责加载数据，并在保存或删除成功后更新此数组。
+   * @defaultValue []
+   */
   savedQueries?: readonly QueryFormShortcut<T>[];
+  /**
+   * 快捷查询正在加载或更新时设为 true，期间禁用快捷操作。
+   * @defaultValue false
+   */
   shortcutsLoading?: boolean;
-  onSaveQuery?: (query: { name: string; values: T }) => void | Promise<void>;
+  /** 点击“另存为快捷查询”并确认名称后调用。query.name 为去除首尾空格的名称，query.values 为打开保存弹框时的条件快照。业务方负责持久化并更新 savedQueries；返回 Promise 时显示等待状态，失败保留弹框供重试。 */
+  onSaveQuery?: (query: {
+    /** 用户输入的快捷查询名称，已经去除首尾空格。 */
+    name: string;
+    /** 打开保存弹框时的完整查询条件快照。 */
+    values: T;
+  }) => void | Promise<void>;
+  /** 删除已保存快捷项时调用，query 为被删除的完整快捷项。业务方负责持久化并更新 savedQueries；失败保留该项，删除操作不会触发查询。 */
   onRemoveQuery?: (query: QueryFormShortcut<T>) => void | Promise<void>;
+  /** 查询、保存或删除失败时调用。error 为原始异常，operation 为 search、save 或 remove；组件同时显示错误提示。 */
   onError?: (error: unknown, operation: "search" | "save" | "remove") => void;
+  /**
+   * 查询按钮文案。
+   * @defaultValue "查询"
+   */
   searchText?: ReactNode;
+  /**
+   * 重置按钮文案。
+   * @defaultValue "重置"
+   */
   resetText?: ReactNode;
+  /**
+   * 保存快捷查询按钮文案。
+   * @defaultValue "另存为快捷查询"
+   */
   saveText?: ReactNode;
+  /**
+   * 点击重置后是否自动提交查询；false 时只恢复 initialValues，不调用 onSearch。
+   * @defaultValue true
+   */
   resetSearch?: boolean;
+  /** 查询按钮组旁的自定义操作内容。 */
   actionsExtra?: ReactNode;
 }
 

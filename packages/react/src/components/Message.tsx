@@ -3,20 +3,32 @@ import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
 import { Icon } from "./Icon";
 
+/** 全局消息的类型标识。 */
 export type MessageType = "info" | "success" | "warning" | "error" | "loading";
+/** 全局消息的唯一标识，用于更新或关闭已有消息。 */
 export type MessageKey = string | number;
 
+/** 全局消息的配置。 */
 export interface MessageConfig {
+  /** 唯一标识；同一集合内应保持唯一且稳定，用于定位、渲染和状态关联。 */
   key?: MessageKey;
+  /** 类型标识，用于选择对应的表现形式。 */
   type?: MessageType;
+  /** 消息正文，支持文本或 React 节点。 */
   content: ReactNode;
+  /** 自动关闭延迟，单位为秒；0 表示不自动关闭。 */
   duration?: number;
+  /** 是否显示关闭入口。 */
   closable?: boolean;
+  /** 请求关闭时触发的回调。 */
   onClose?: () => void;
 }
 
+/** 全局消息的操作句柄。 */
 export interface MessageHandle {
+  /** 关闭当前界面或实例。 */
   close: () => void;
+  /** 局部更新当前实例配置，未传入的字段保持原值。 */
   update: (next: Partial<MessageConfig>) => void;
 }
 
@@ -112,13 +124,21 @@ function shortcut(type: MessageType) {
   return (content: ReactNode, duration?: number) => openMessage({ content, duration, type });
 }
 
+/** 全局消息 API，可直接显示成功、错误、警告等短提示，并通过句柄关闭。 */
 export const message = {
+  /** 直接打开实例，返回可用于更新或关闭的操作句柄。 */
   open: openMessage,
+  /** 显示普通信息提示。 */
   info: shortcut("info"),
+  /** 显示成功提示。 */
   success: shortcut("success"),
+  /** 显示警告提示。 */
   warning: shortcut("warning"),
+  /** 显示错误提示。 */
   error: shortcut("error"),
+  /** 显示持续加载提示。 */
   loading: shortcut("loading"),
+  /** 关闭指定实例；未指定标识时关闭所有实例。 */
   destroy(key?: MessageKey) {
     if (key !== undefined) {
       closeMessage(key);
@@ -126,7 +146,13 @@ export const message = {
     }
     [...messageItems].forEach((item) => closeMessage(item.key));
   },
-  config(config: { duration?: number; maxCount?: number }) {
+  /** 配置消息默认持续时间和最大同时显示数量。 */
+  config(config: {
+    /** 默认自动关闭时间，单位为秒；0 表示不自动关闭。 */
+    duration?: number;
+    /** 同时显示的最大消息数量。 */
+    maxCount?: number;
+  }) {
     if (config.duration !== undefined) defaultDuration = config.duration;
     if (config.maxCount !== undefined) maxCount = Math.max(1, config.maxCount);
   },

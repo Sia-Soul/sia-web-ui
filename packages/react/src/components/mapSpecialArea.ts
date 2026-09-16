@@ -1,4 +1,13 @@
-export type MapSpecialArea = {left:number;top:number;width:number;height:number};
+/** 特殊地理区域的独立位置和缩放配置。 */
+export type MapSpecialArea = {
+  /** 距左侧的位置或间距。 */
+  left:number;
+  /** 距顶部的位置或间距。 */
+  top:number;
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  width:number;
+  /** 高度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  height:number};
 type Point=readonly [number,number];
 /** A detached region retains its own aspect ratio and is anchored at the target's top left. */
 export function createSpecialAreaProjection(points:readonly Point[],area:MapSpecialArea,project:(point:Point)=>Point,longitudeRatio=.75){

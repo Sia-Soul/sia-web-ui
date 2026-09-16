@@ -3,13 +3,22 @@ import type {CSSProperties,ReactNode} from 'react';
 import {observeMapOverlayHost} from './mapOverlayHost';
 import type {MapOverlayHost,MapOverlaySnapshot} from './mapOverlayHost';
 
+/** 地图叠加图层的属性配置。 */
 export interface ChartMapOverlayProps {
  /** Keep this factory stable. It must return an adapter for a newly owned host instance. */
  createHost:(element:HTMLDivElement)=>MapOverlayHost;
+ /** 叠加图层渲染函数，接收地图宿主和视图上下文。 */
  children:(snapshot:MapOverlaySnapshot)=>ReactNode;
+ /** 附加到组件根节点的 CSS 类名。 */
  className?:string;
+ /** 组件根节点的内联样式。 */
  style?:CSSProperties;
+ /**
+  控件的无障碍名称，供屏幕阅读器识别。
+  * @defaultValue '地图叠加图表'
+  */
  ariaLabel?:string;
+ /** 操作发生错误时调用，可用于显示业务错误提示。 */
  onError?:(error:unknown)=>void;
 }
 

@@ -1,5 +1,11 @@
+/** 路径捆绑算法使用的二维坐标点。 */
 export type BundlePoint=readonly [number,number];
-export interface BundleEdge {source:BundlePoint;target:BundlePoint}
+/** 参与路径捆绑的连线定义。 */
+export interface BundleEdge {
+  /** 触发来源，用于区分不同入口的操作。 */
+  source:BundlePoint;
+  /** 关联的目标元素或获取目标元素的函数。 */
+  target:BundlePoint}
 export interface BundledEdge {index:number;points:BundlePoint[]}
 interface Segment {start:BundlePoint;end:BundlePoint;index?:number;child?:Group}
 interface Group {start:BundlePoint;end:BundlePoint;members:Segment[];ink:number}

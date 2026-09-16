@@ -6,19 +6,45 @@ import { Icon } from "./Icon";
 import type { ControlSize, ControlStatus, InputPlaceholderMode } from "./shared";
 import { useControllableState } from "./shared";
 
+/** 数字输入的属性配置。 */
 export interface InputNumberProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "defaultValue" | "onChange" | "prefix" | "size" | "type" | "value"> {
+  /** 当前数值（受控） */
   value?: number | null;
+  /**
+   * 初始数值
+   * @defaultValue null
+   */
   defaultValue?: number | null;
+  /** 数值变化回调 */
   onChange?: (value: number | null) => void;
+  /** 允许的最小值。 */
   min?: number;
+  /** 允许的最大值。 */
   max?: number;
+  /**
+   * 每次改变的步长
+   * @defaultValue 1
+   */
   step?: number;
+  /** 固定小数位数 */
   precision?: number;
+  /** small / medium / large 高度为 22 / 30 / 38px；默认继承 Form，组件自身 size 优先 */
   size?: ControlSize;
+  /**
+   * 当前状态，用于选择对应的状态样式。
+   * @defaultValue "default"
+   */
   status?: ControlStatus;
+  /** 输入框前缀 */
   prefix?: ReactNode;
+  /** 输入框后缀 */
   suffix?: ReactNode;
+  /**
+   是否显示操作控件。
+   * @defaultValue true
+   */
   controls?: boolean;
+  /** 占位文案的显示模式 */
   placeholderMode?: InputPlaceholderMode;
 }
 
@@ -27,6 +53,7 @@ function formatValue(value: number | null, precision?: number) {
   return precision === undefined ? String(value) : value.toFixed(precision);
 }
 
+/** 数字输入组件。 */
 export const InputNumber = forwardRef<HTMLInputElement, InputNumberProps>(function InputNumber(
   {
     value,

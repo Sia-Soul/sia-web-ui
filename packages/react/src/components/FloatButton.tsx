@@ -7,14 +7,32 @@ import { Tooltip } from "./FloatingDisplay";
 import { useControllableState } from "./shared";
 import "../float-button.css";
 
+/** 浮动按钮的外形。 */
 export type FloatButtonShape = "circle" | "square";
+/** 浮动按钮的属性配置。 */
 export interface FloatButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "type" | "content"> {
+  /** 显示在内容旁的图标节点，建议使用 Icon 组件。 */
   icon?: ReactNode;
+  /** 补充说明内容。 */
   description?: ReactNode;
+  /** 浮动按钮的提示内容。 */
   tooltip?: ReactNode;
+  /**
+   * 类型标识，用于选择对应的表现形式。
+   * @defaultValue "default"
+   */
   type?: "default" | "primary";
+  /**
+   * 外观形状。
+   * @defaultValue "circle"
+   */
   shape?: FloatButtonShape;
+  /** 数字、红点和溢出计数配置 */
   badge?: Pick<BadgeProps, "count" | "dot" | "overflowCount" | "showZero" | "color">;
+  /**
+   * 原生按钮类型，例如 button、submit 或 reset。
+   * @defaultValue "button"
+   */
   htmlType?: "button" | "submit" | "reset";
 }
 const GroupShape = createContext<FloatButtonShape | undefined>(undefined);
@@ -36,16 +54,39 @@ const FloatButtonRoot = forwardRef<HTMLButtonElement, FloatButtonProps>(function
   return <span className="sia-float-button-root" style={style}>{tooltip ? <Tooltip title={tooltip} placement="left">{button}</Tooltip> : button}</span>;
 });
 
+/** FloatButtonGroup的属性配置。 */
 export interface FloatButtonGroupProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
+  /**
+   * 外观形状。
+   * @defaultValue "circle"
+   */
   shape?: FloatButtonShape;
+  /**
+   * 类型标识，用于选择对应的表现形式。
+   * @defaultValue "default"
+   */
   type?: "default" | "primary";
+  /** 显示在内容旁的图标节点，建议使用 Icon 组件。 */
   icon?: ReactNode;
+  /** 自定义关闭图标。 */
   closeIcon?: ReactNode;
+  /** 提示内容或提示框配置。 */
   tooltip?: ReactNode;
+  /** 触发显示的交互方式。 */
   trigger?: "click" | "hover";
+  /**
+   * 相对于触发元素的弹出方向和对齐位置。
+   * @defaultValue "top"
+   */
   placement?: "top" | "bottom" | "left" | "right";
+  /** 是否打开；传入后由外部控制显示状态。 */
   open?: boolean;
+  /**
+   * 非受控模式下的初始打开状态。
+   * @defaultValue false
+   */
   defaultOpen?: boolean;
+  /** 打开状态改变时触发，参数为新的打开状态。 */
   onOpenChange?: (open: boolean) => void;
 }
 function FloatButtonGroup({ shape = "circle", type = "default", icon, closeIcon, tooltip, trigger, placement = "top",
@@ -80,9 +121,19 @@ function FloatButtonGroup({ shape = "circle", type = "default", icon, closeIcon,
   </GroupShape.Provider>;
 }
 
+/** FloatButtonBackTop的属性配置。 */
 export interface FloatButtonBackTopProps extends FloatButtonProps {
+  /** 关联的目标元素或获取目标元素的函数。 */
   target?: () => HTMLElement | Window | null;
+  /**
+   * 滚动距离超过此值时显示返回顶部按钮。
+   * @defaultValue 400
+   */
   visibilityHeight?: number;
+  /**
+   * 滚动行为，smooth 表示平滑滚动。
+   * @defaultValue "smooth"
+   */
   behavior?: ScrollBehavior;
 }
 function FloatButtonBackTop({ target, visibilityHeight = 400, behavior = "smooth", onClick, icon, tooltip = "返回顶部", ...props }: FloatButtonBackTopProps) {
@@ -103,4 +154,9 @@ function FloatButtonBackTop({ target, visibilityHeight = 400, behavior = "smooth
     element?.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : behavior });
   }} />;
 }
-export const FloatButton = Object.assign(FloatButtonRoot, { Group: FloatButtonGroup, BackTop: FloatButtonBackTop });
+/** 浮动按钮组件。 */
+export const FloatButton = Object.assign(FloatButtonRoot, {
+  /** 组合多个子项并统一管理布局或选择状态。 */
+  Group: FloatButtonGroup,
+  /** 滚动超过指定距离后显示的返回顶部按钮。 */
+  BackTop: FloatButtonBackTop });

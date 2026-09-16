@@ -5,42 +5,91 @@ import { Icon } from "./Icon";
 import type { MenuClickInfo, MenuItem } from "./Navigation";
 import type { ControlSize } from "./shared";
 
+/** Tab的项目定义。 */
 export interface TabItem {
+  /** 唯一标识；同一集合内应保持唯一且稳定，用于定位、渲染和状态关联。 */
   key: string;
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
   label: ReactNode;
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
   children?: ReactNode;
+  /** 是否禁用交互。 */
   disabled?: boolean;
+  /** 显示在内容旁的图标节点，建议使用 Icon 组件。 */
   icon?: ReactNode;
+  /** 是否显示关闭入口。 */
   closable?: boolean;
 }
 
+/** 选项卡的类型标识。 */
 export type TabsType = "line" | "card" | "pill" | "capsule" | "underline" | "tech" | "tech-line";
+/** 选项卡沿水平方向或垂直方向排列。 */
 export type TabsOrientation = "horizontal" | "vertical";
+/** 选项卡导航相对于内容区的位置。 */
 export type TabsPosition = "top" | "right" | "bottom" | "left";
+/** TabsContextMenu的点击事件上下文。 */
 export type TabsContextMenuClickInfo = MenuClickInfo & {
+  /** 关联选项卡的唯一标识。 */
   tabKey: string;
+  /** 当前选项卡配置。 */
   tab: TabItem;
 };
 
+/** 选项卡的属性配置。 */
 export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
+  /** 标签项，包含 key、label、children、icon、disabled 和 closable */
   items: readonly TabItem[];
+  /** 当前激活项目的标识；传入后由外部控制。 */
   activeKey?: string;
+  /** 非受控模式下初始激活的项目标识。 */
   defaultActiveKey?: string;
+  /** 激活项变化回调 */
   onChange?: (key: string) => void;
+  /**
+   * 线型、卡片型、胶囊型、圆角胶囊、紧凑下划线或科技样式
+   * @defaultValue "line"
+   */
   type?: TabsType;
+  /**
+   * 组件尺寸；用于调整控件高度、字号和间距。
+   * @defaultValue "medium"
+   */
   size?: ControlSize;
+  /** 标签栏位于内容的上、右、下或左侧 */
   tabPosition?: TabsPosition;
+  /**
+   组件的水平或垂直排列方向。
+   * @defaultValue "horizontal"
+   */
   orientation?: TabsOrientation;
+  /**
+   * 弹框是否垂直居中。
+   * @defaultValue false
+   */
   centered?: boolean;
+  /** 标签栏左侧标题，科技大屏型会附带装饰线 */
   tabBarTitle?: ReactNode;
+  /** 标签栏右侧额外操作 */
   tabBarExtraContent?: ReactNode;
+  /**
+   * 是否卸载非激活面板
+   * @defaultValue true
+   */
   destroyInactiveTabPane?: boolean;
+  /**
+   * 是否显示关闭入口。
+   * @defaultValue false
+   */
   closable?: boolean;
+  /** 新增、删除或修改项目时调用。 */
   onEdit?: (key: string, action: "remove") => void;
+  /** 选项卡右键菜单配置。 */
   tabContextMenu?: readonly MenuItem[] | ((tab: TabItem) => readonly MenuItem[]);
+  /** 点击选项卡右键菜单时调用。 */
   onTabContextMenuClick?: (info: TabsContextMenuClickInfo) => void;
 }
 
+/** 选项卡组件。 */
 export function Tabs({
   items,
   activeKey,

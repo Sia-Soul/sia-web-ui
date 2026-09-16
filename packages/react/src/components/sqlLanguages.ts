@@ -1,5 +1,6 @@
 import type * as Monaco from "monaco-editor";
 
+/** 代码编辑器支持的 SQL 方言名称。 */
 export type SqlDialectLanguage = "sql-postgresql" | "sql-mysql" | "sql-sqlserver" | "sql-sqlite";
 
 const COMMON_KEYWORDS = [

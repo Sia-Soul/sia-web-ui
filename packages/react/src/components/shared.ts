@@ -1,7 +1,10 @@
 import { createContext, useCallback, useContext, useState } from "react";
 
+/** 表单控件统一使用的尺寸等级。 */
 export type ControlSize = "small" | "medium" | "large";
+/** Control的状态类型。 */
 export type ControlStatus = "default" | "warning" | "error";
+/** InputPlaceholder的模式类型。 */
 export type InputPlaceholderMode = "default" | "floating";
 
 export const ControlSizeContext = createContext<ControlSize>("medium");

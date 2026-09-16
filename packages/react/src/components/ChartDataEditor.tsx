@@ -2,10 +2,25 @@ import { useState } from "react";
 import { Button } from "./Button";
 import { TextArea } from "./TextArea";
 
+/** 图表数据编辑器的属性配置。 */
 export interface ChartDataEditorProps<T extends number|null=number> {
-  series: readonly { name: string; data: readonly T[] }[];
+  /** 图表数据系列。 */
+  series: readonly {
+  /** 名称或字段标识。 */
+  name: string;
+  /** 用于渲染的数据集合。 */
+  data: readonly T[] }[];
+  /** 用户应用修改时调用。 */
   onApply: (values: T[][]) => void;
+  /**
+   * 是否允许空值。
+   * @defaultValue false
+   */
   allowNull?: boolean;
+  /**
+   * 是否只读，禁止编辑数据。
+   * @defaultValue false
+   */
   readOnly?: boolean;
 }
 

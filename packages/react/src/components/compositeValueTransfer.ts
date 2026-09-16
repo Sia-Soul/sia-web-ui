@@ -1,8 +1,27 @@
 import {transferCartesianValue} from './cartesianTransfer';
 
-export interface ChartValueAddress {chart:string;series:number;index:number}
+/** 图表中可转移数据值的定位信息。 */
+export interface ChartValueAddress {
+  /** 关联的图表实例或配置。 */
+  chart:string;
+  /** 图表数据系列。 */
+  series:number;
+  /** 项目在当前集合中的索引，从 0 开始。 */
+  index:number}
+/** 图表之间转移数据值的处理函数。 */
 export type ChartValueTransferHandler=(source:ChartValueAddress,target:ChartValueAddress)=>boolean;
-export interface ChartValueChannel {id:string;series:readonly {name:string;data:readonly (number|null)[]}[];nonNegative?:boolean}
+/** 组合图表参与数据转移的通信通道。 */
+export interface ChartValueChannel {
+  /** 唯一标识，用于关联实例或插件。 */
+  id:string;
+  /** 图表数据系列。 */
+  series:readonly {
+  /** 名称或字段标识。 */
+  name:string;
+  /** 用于渲染的数据集合。 */
+  data:readonly (number|null)[]}[];
+  /** 是否将数据值限制为非负数。 */
+  nonNegative?:boolean}
 
 /** Validate and calculate both sides before publishing either chart's new state. */
 export function transferCompositeValue(channels:readonly ChartValueChannel[],source:ChartValueAddress,target:ChartValueAddress){

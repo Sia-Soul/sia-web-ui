@@ -4,13 +4,25 @@ import DOMPurify from "dompurify";
 import { marked } from "marked";
 import { ImagePreview } from "./DataDisplay";
 
+/** Markdown内容的属性配置。 */
 export interface MarkdownProps extends Omit<HTMLAttributes<HTMLElement>, "children"> {
+  /** 需要渲染的 Markdown 源文本。 */
   content: string;
+  /**
+   * 内容为空时显示的占位内容
+   * @defaultValue "暂无 Markdown 内容"
+   */
   emptyText?: ReactNode;
+  /** 图片加载失败时异步解析真实地址 */
   resolveImageSrc?: (src: string) => string | Promise<string>;
+  /**
+   * 允许点击或键盘打开图片预览
+   * @defaultValue true
+   */
   imagePreview?: boolean;
 }
 
+/** Markdown内容组件。 */
 export function Markdown({ content, emptyText = "暂无 Markdown 内容", resolveImageSrc, imagePreview = true, className = "", onClick, onKeyDown, ...props }: MarkdownProps) {
   const rootRef = useRef<HTMLElement>(null);
   const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null);

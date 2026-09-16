@@ -6,32 +6,69 @@ import { OverlayPortal, useOverlayLifecycle } from "./Overlay";
 import type { OverlayApiHandle } from "./Modal";
 import type { OverlayContainer } from "./Overlay";
 
+/** 抽屉的位置类型。 */
 export type DrawerPlacement = "left" | "right" | "top" | "bottom";
 
+/** DrawerPush的配置。 */
 export interface DrawerPushConfig {
+  /** 抽屉推开父级时的位移距离。 */
   distance?: number | string;
 }
 
+/** 子抽屉打开时是否推开父抽屉，以及推开距离的配置。 */
 export type DrawerPush = boolean | DrawerPushConfig;
 
+/** 抽屉的属性配置。 */
 export interface DrawerProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
+  /** 是否显示抽屉 */
   open: boolean;
+  /** 标题内容，可传入文本或 React 节点。 */
   title?: ReactNode;
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
   children?: ReactNode;
+  /** 主体之外的补充内容或操作区。 */
   extra?: ReactNode;
+  /** 自定义底部操作区，传 null 隐藏 */
   footer?: ReactNode;
+  /**
+   * 出现方向
+   * @defaultValue "right"
+   */
   placement?: DrawerPlacement;
+  /**
+   * 抽屉宽度或高度
+   * @defaultValue placement === "top" || placement === "bottom" ? 320 : 760
+   */
   size?: number | string;
+  /**
+   * 是否显示关闭入口。
+   * @defaultValue true
+   */
   closable?: boolean;
+  /**
+   * 点击遮罩时是否允许关闭。
+   * @defaultValue true
+   */
   maskClosable?: boolean;
+  /**
+   * 是否允许通过 Esc 等键盘操作关闭。
+   * @defaultValue true
+   */
   keyboard?: boolean;
+  /**
+   组件或浮层的堆叠层级。
+   * @defaultValue 1000
+   */
   zIndex?: number;
   /** 子抽屉打开时是否推移当前抽屉，默认开启。 */
   push?: DrawerPush;
   /** 适用于同级 Portal 渲染的多层抽屉，按层数累计推移。 */
   pushDepth?: number;
+  /** 弹层挂载目标；可提供元素或返回元素的函数，默认挂载到页面容器。 */
   getContainer?: OverlayContainer;
+  /** 请求关闭时触发的回调。 */
   onClose?: () => void;
+  /** 打开状态改变时触发，参数为新的打开状态。 */
   onOpenChange?: (open: boolean) => void;
   /** 展开动画完成且面板已稳定后触发。 */
   afterOpen?: () => void;
@@ -39,6 +76,7 @@ export interface DrawerProps extends Omit<HTMLAttributes<HTMLDivElement>, "title
   afterClose?: () => void;
 }
 
+/** DrawerOpen的配置。 */
 export interface DrawerOpenConfig extends Omit<DrawerProps, "open"> {}
 
 const drawerHandles = new Set<OverlayApiHandle<DrawerOpenConfig>>();
@@ -252,8 +290,11 @@ function openDrawer(config: DrawerOpenConfig): OverlayApiHandle<DrawerOpenConfig
   return handle;
 }
 
+/** 抽屉组件。 */
 export const Drawer = Object.assign(DrawerRoot, {
+  /** 直接打开实例，返回可用于更新或关闭的操作句柄。 */
   open: openDrawer,
+  /** 关闭由此 API 打开的所有弹层。 */
   destroyAll() {
     [...drawerHandles].forEach((handle) => handle.destroy());
   },

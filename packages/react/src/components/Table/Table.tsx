@@ -207,7 +207,7 @@ const TableBodyRow = memo(function TableBodyRow<T>({
           >
             <TableCellContent
               ellipsis={column.ellipsis !== false}
-              title={column.showTitle !== false && column.ellipsis !== false && typeof value === "string" ? value : undefined}
+              title={column.showTitle === true && column.ellipsis !== false && typeof value === "string" ? value : undefined}
             >
               {pluginCellProps.content !== undefined
                 ? pluginCellProps.content
@@ -682,7 +682,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
         ? " sia-table__cell--fixed-left-edge"
         : fixed === "right" && column.key === rightFixedEdgeKey ? " sia-table__cell--fixed-right-edge" : "";
       const autoWidthClass = column.autoWidth ? " sia-table__cell--auto-width" : "";
-      return <td key={column.key} data-column-key={column.key} className={`sia-table__cell sia-table__cell--${column.align ?? "left"} sia-table__summary-cell${isLabel ? " sia-table__summary-cell--label" : ""}${fixed ? ` sia-table__cell--fixed sia-table__cell--fixed-${fixed}` : ""}${fixedEdgeClass}${autoWidthClass}`} style={getFixedStyle(column)}>{isLabel ? <span className="sia-table__summary-label" title={typeof content === "string" ? content : undefined}>{content}</span> : content}</td>;
+      return <td key={column.key} data-column-key={column.key} className={`sia-table__cell sia-table__cell--${column.align ?? "left"} sia-table__summary-cell${isLabel ? " sia-table__summary-cell--label" : ""}${fixed ? ` sia-table__cell--fixed sia-table__cell--fixed-${fixed}` : ""}${fixedEdgeClass}${autoWidthClass}`} style={getFixedStyle(column)}>{isLabel ? <span className="sia-table__summary-label">{content}</span> : content}</td>;
     })}</tr>;
   }
 
@@ -844,6 +844,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
   );
 }
 
+/** 表格组件。 */
 export const Table = forwardRef(TableInner) as <T extends Record<string, unknown> = Record<string, unknown>>(
   props: TableProps<T> & { ref?: Ref<TableRef<T>> },
 ) => ReactElement | null;

@@ -3,26 +3,69 @@ import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { Tooltip } from "./FloatingDisplay";
 import { useControllableState } from "./shared";
 
+/** 滑块的值类型。 */
 export type SliderValue = number | readonly [number, number];
 
+/** 滑块上的刻度标签定义。 */
 export interface SliderMark {
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
   label: ReactNode;
+  /** 组件根节点的内联样式。 */
   style?: CSSProperties;
 }
 
+/** 滑块的属性配置。 */
 export interface SliderProps extends Omit<HTMLAttributes<HTMLDivElement>, "defaultValue" | "onChange"> {
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
   value?: SliderValue;
+  /** 非受控模式的初始值，仅在初始化时使用。 */
   defaultValue?: SliderValue;
+  /**
+   * 允许的最小值。
+   * @defaultValue 0
+   */
   min?: number;
+  /**
+   * 允许的最大值。
+   * @defaultValue 100
+   */
   max?: number;
+  /**
+   * 每次改变的步长
+   * @defaultValue 1
+   */
   step?: number;
+  /**
+   * 是否启用范围选择，或指定选择范围。
+   * @defaultValue false
+   */
   range?: boolean;
+  /**
+   * 是否禁用交互。
+   * @defaultValue false
+   */
   disabled?: boolean;
+  /**
+   * 反转节点顺序
+   * @defaultValue false
+   */
   reverse?: boolean;
+  /**
+   * 是否使用垂直布局。
+   * @defaultValue false
+   */
   vertical?: boolean;
+  /** 刻度标记 */
   marks?: Readonly<Record<number, ReactNode | SliderMark>>;
-  tooltip?: { open?: boolean; formatter?: (value: number) => ReactNode };
+  /** 提示内容或提示框配置。 */
+  tooltip?: {
+  /** 是否打开；传入后由外部控制显示状态。 */
+  open?: boolean;
+  /** 将原始值转换为展示文本的函数。 */
+  formatter?: (value: number) => ReactNode };
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (value: SliderValue) => void;
+  /** 拖动完成回调 */
   onChangeComplete?: (value: SliderValue) => void;
 }
 
@@ -30,6 +73,7 @@ function percent(value: number, min: number, max: number) {
   return (value - min) / (max - min) * 100;
 }
 
+/** 滑块组件。 */
 export function Slider({
   value,
   defaultValue,

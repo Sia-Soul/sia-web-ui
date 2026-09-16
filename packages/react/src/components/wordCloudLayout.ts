@@ -1,5 +1,14 @@
 export interface CloudWord {name:string;value:number;fontSize?:number;rotation?:number}
-export interface CloudBounds {x:number;y:number;width:number;height:number}
+/** 词云布局使用的可放置区域边界。 */
+export interface CloudBounds {
+  /** 横向位置或 X 轴数据值。 */
+  x:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y:number;
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  width:number;
+  /** 高度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  height:number}
 export function rotatedWordBounds(width:number,height:number,degrees:number){
  const angle=degrees*Math.PI/180,c=Math.abs(Math.cos(angle)),s=Math.abs(Math.sin(angle));
  return {width:width*c+height*s,height:width*s+height*c};

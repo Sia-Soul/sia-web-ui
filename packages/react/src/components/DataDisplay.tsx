@@ -7,20 +7,48 @@ import { useControllableState } from "./shared";
 import { useControlSize } from "./shared";
 import type { ControlSize } from "./shared";
 
+/** 评分的属性配置。 */
 export interface RateProps extends Omit<HTMLAttributes<HTMLDivElement>, "defaultValue" | "onChange"> {
+  /** 组件尺寸；用于调整控件高度、字号和间距。 */
   size?: ControlSize;
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
   value?: number;
+  /**
+   * 非受控模式的初始值，仅在初始化时使用。
+   * @defaultValue 0
+   */
   defaultValue?: number;
+  /**
+   * 徽标展示的数量。
+   * @defaultValue 5
+   */
   count?: number;
+  /**
+   * 是否允许选择半星。
+   * @defaultValue false
+   */
   allowHalf?: boolean;
+  /**
+   是否允许清空当前选择或输入值。
+   * @defaultValue true
+   */
   allowClear?: boolean;
+  /**
+   * 是否禁用交互。
+   * @defaultValue false
+   */
   disabled?: boolean;
+  /** 自定义评分符号。 */
   character?: ReactNode | ((index: number) => ReactNode);
+  /** 各评分值对应的提示内容。 */
   tooltips?: readonly string[];
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (value: number) => void;
+  /** 悬停目标或悬停值变化时调用。 */
   onHoverChange?: (value: number) => void;
 }
 
+/** 评分组件。 */
 export function Rate({ value, size: sizeProp, defaultValue = 0, count = 5, allowHalf = false, allowClear = true, disabled = false, character, tooltips, onChange, onHoverChange, className = "", ...props }: RateProps) {
   const size = useControlSize(sizeProp);
   const [current, setCurrent] = useControllableState({ value, defaultValue, onChange });
@@ -51,24 +79,61 @@ export function Rate({ value, size: sizeProp, defaultValue = 0, count = 5, allow
   </div>;
 }
 
+/** 徽标的状态类型。 */
 export type BadgeStatus = "success" | "processing" | "default" | "error" | "warning";
+/** 徽标的属性配置。 */
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
+  /** 徽标展示的数量。 */
   count?: ReactNode;
+  /**
+   * 数量为 0 时是否仍显示徽标。
+   * @defaultValue false
+   */
   showZero?: boolean;
+  /**
+   * 徽标显示的最大数字，超出后显示加号。
+   * @defaultValue 99
+   */
   overflowCount?: number;
+  /**
+   * 是否以圆点形式显示状态或徽标。
+   * @defaultValue false
+   */
   dot?: boolean;
+  /** 当前状态，用于选择对应的状态样式。 */
   status?: BadgeStatus;
+  /** 显示文本。 */
   text?: ReactNode;
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
+  /**
+   * 相对于默认位置的偏移。
+   * @defaultValue [0, 0]
+   */
   offset?: readonly [number, number];
+  /**
+   * 组件尺寸；用于调整控件高度、字号和间距。
+   * @defaultValue "default"
+   */
   size?: "default" | "small";
 }
-export interface BadgeRibbonProps extends HTMLAttributes<HTMLDivElement> { text?: ReactNode; color?: string; placement?: "start" | "end" }
+/** BadgeRibbon的属性配置。 */
+export interface BadgeRibbonProps extends HTMLAttributes<HTMLDivElement> {
+  /** 显示文本。 */
+  text?: ReactNode;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color?: string;
+  /**
+   * 相对于触发元素的弹出方向和对齐位置。
+   * @defaultValue "end"
+   */
+  placement?: "start" | "end" }
 
 function BadgeRibbon({ text, color, placement = "end", className = "", children, ...props }: BadgeRibbonProps) {
   return <div className={`sia-ribbon-wrap ${className}`.trim()} {...props}>{children}<span className={`sia-ribbon sia-ribbon--${placement}`} style={{ backgroundColor: color }}>{text}</span></div>;
 }
 
+/** 徽标组件。 */
 export function Badge({ count, showZero = false, overflowCount = 99, dot = false, status, text, color, offset = [0, 0], size = "default", className = "", children, style, ...props }: BadgeProps) {
   const numeric = typeof count === "number";
   const hidden = !dot && !status && (count === undefined || count === null || (count === 0 && !showZero));
@@ -85,23 +150,58 @@ function parseDate(value?: string) {
   const date = value ? new Date(`${value}T00:00:00`) : new Date();
   return Number.isNaN(date.getTime()) ? new Date() : date;
 }
+/** 日历的属性配置。 */
 export interface CalendarProps extends Omit<HTMLAttributes<HTMLDivElement>, "defaultValue" | "onChange" | "onSelect"> {
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
   value?: string;
+  /** 非受控模式的初始值，仅在初始化时使用。 */
   defaultValue?: string;
+  /**
+   * 展示或交互模式；可选值见类型定义。
+   * @defaultValue "month"
+   */
   mode?: "month" | "year";
+  /**
+   是否以全屏形式展示。
+   * @defaultValue true
+   */
   fullscreen?: boolean;
+  /** 允许选择的日期范围。 */
   validRange?: readonly [string, string];
+  /** 判断某个日期是否不可选的函数。 */
   disabledDate?: (date: string) => boolean;
+  /** 自定义日期单元格的附加内容。 */
   dateCellRender?: (date: string) => ReactNode;
-  fullCellRender?: (date: string, info: { originNode: ReactNode; type: "date" }) => ReactNode;
-  headerRender?: (config: { value: string; mode: "month" | "year"; onChange: (value: string) => void; onTypeChange: (mode: "month" | "year") => void }) => ReactNode;
+  /** 完整替换日期单元格的渲染函数。 */
+  fullCellRender?: (date: string, info: {
+  /** 组件默认生成的原始节点，可用于包装或复用。 */
+  originNode: ReactNode;
+  /** 类型标识，用于选择对应的表现形式。 */
+  type: "date" }) => ReactNode;
+  /** 自定义头部渲染。 */
+  headerRender?: (config: {
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
+  value: string;
+  /**
+   * 展示或交互模式；可选值见类型定义。
+   * @defaultValue "month"
+   */
+  mode: "month" | "year";
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
+  onChange: (value: string) => void;
+  /** 显示类型变化时调用。 */
+  onTypeChange: (mode: "month" | "year") => void }) => ReactNode;
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (date: string) => void;
+  /** 选中项目时调用，参数包含选中项目及关联状态。 */
   onSelect?: (date: string) => void;
+  /** 面板显示的日期或模式变化时调用。 */
   onPanelChange?: (date: string, mode: "month" | "year") => void;
 }
 const WEEK = ["一", "二", "三", "四", "五", "六", "日"];
 const MONTHS = ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"];
 
+/** 日历组件。 */
 export function Calendar({ value, defaultValue, mode = "month", fullscreen = true, validRange, disabledDate, dateCellRender, fullCellRender, headerRender, onChange, onSelect, onPanelChange, className = "", ...props }: CalendarProps) {
   const [selected, setSelected] = useControllableState({ value, defaultValue: defaultValue ?? formatDate(new Date()), onChange });
   const [panelMode, setPanelMode] = useState(mode);
@@ -137,20 +237,70 @@ export function Calendar({ value, defaultValue, mode = "month", fullscreen = tru
   </div>;
 }
 
-export interface CarouselRef { goTo: (slide: number) => void; next: () => void; prev: () => void }
+/** 轮播的实例引用接口。 */
+export interface CarouselRef {
+  /** 跳转到指定索引的轮播项。 */
+  goTo: (slide: number) => void;
+  /** 切换到下一项。 */
+  next: () => void;
+  /** 切换到上一项。 */
+  prev: () => void }
+/** 轮播的属性配置。 */
 export interface CarouselProps extends HTMLAttributes<HTMLDivElement> {
-  autoplay?: boolean | { dotDuration?: boolean };
+  /**
+   * 是否自动轮播。
+   * @defaultValue false
+   */
+  autoplay?: boolean | {
+  /** 轮播指示点的动画持续时间。 */
+  dotDuration?: boolean };
+  /**
+   * 自动轮播的切换间隔。
+   * @defaultValue 3000
+   */
   autoplaySpeed?: number;
+  /**
+   * 是否显示前后切换箭头。
+   * @defaultValue false
+   */
   arrows?: boolean;
-  dots?: boolean | { className?: string };
+  /**
+   * 是否显示轮播指示点。
+   * @defaultValue true
+   */
+  dots?: boolean | {
+  /**
+   * 附加到组件根节点的 CSS 类名。
+   * @defaultValue ""
+   */
+  className?: string };
+  /**
+   * 滚动或淡入效果
+   * @defaultValue "scroll"
+   */
   effect?: "scroll" | "fade";
+  /**
+   * 是否允许首尾循环切换。
+   * @defaultValue true
+   */
   infinite?: boolean;
+  /**
+   * 轮播初始化时显示的项索引。
+   * @defaultValue 0
+   */
   initialSlide?: number;
+  /**
+   * 鼠标悬停时是否暂停自动轮播。
+   * @defaultValue true
+   */
   pauseOnHover?: boolean;
+  /** 轮播切换前调用，接收当前项和目标项索引。 */
   beforeChange?: (current: number, next: number) => void;
+  /** 轮播切换后调用，接收当前项索引。 */
   afterChange?: (current: number) => void;
 }
 
+/** 轮播组件。 */
 export function Carousel({ autoplay = false, autoplaySpeed = 3000, arrows = false, dots = true, effect = "scroll", infinite = true, initialSlide = 0, pauseOnHover = true, beforeChange, afterChange, className = "", children, ...props }: CarouselProps) {
   const slides = Children.toArray(children);
   const [current, setCurrent] = useState(Math.min(initialSlide, Math.max(0, slides.length - 1)));
@@ -175,17 +325,65 @@ export function Carousel({ autoplay = false, autoplaySpeed = 3000, arrows = fals
   </div>;
 }
 
+/** 折叠面板的唯一标识类型。 */
 export type CollapseKey = string | number;
-export type CollapseItem = { key: CollapseKey; label: ReactNode; children?: ReactNode; extra?: ReactNode; disabled?: boolean; collapsible?: "header" | "icon" | "disabled"; showArrow?: boolean; forceRender?: boolean; className?: string };
+/** 折叠面板的项目定义。 */
+export type CollapseItem = {
+  /** 唯一标识；同一集合内应保持唯一且稳定，用于定位、渲染和状态关联。 */
+  key: CollapseKey;
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
+  label: ReactNode;
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
+  children?: ReactNode;
+  /** 主体之外的补充内容或操作区。 */
+  extra?: ReactNode;
+  /** 是否禁用交互。 */
+  disabled?: boolean;
+  /** 允许收起内容区域 */
+  collapsible?: "header" | "icon" | "disabled";
+  /** 是否显示展开箭头。 */
+  showArrow?: boolean;
+  /** 未展开时是否也渲染内容。 */
+  forceRender?: boolean;
+  /** 附加到组件根节点的 CSS 类名。 */
+  className?: string };
+/** 折叠面板的属性配置。 */
 export interface CollapseProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
+  /** 按展示顺序排列的项目配置。 */
   items: readonly CollapseItem[];
+  /** 当前激活项目的标识；传入后由外部控制。 */
   activeKey?: CollapseKey | readonly CollapseKey[];
+  /**
+   * 非受控模式下初始激活的项目标识。
+   * @defaultValue []
+   */
   defaultActiveKey?: CollapseKey | readonly CollapseKey[];
+  /**
+   * 是否启用手风琴模式，同时只展开一个面板。
+   * @defaultValue false
+   */
   accordion?: boolean;
+  /**
+   * 是否显示边框。
+   * @defaultValue true
+   */
   bordered?: boolean;
+  /**
+   * 是否使用透明背景的幽灵样式。
+   * @defaultValue false
+   */
   ghost?: boolean;
+  /**
+   * 收起后销毁内容
+   * @defaultValue false
+   */
   destroyInactivePanel?: boolean;
+  /**
+   * 展开图标的位置。
+   * @defaultValue "start"
+   */
   expandIconPosition?: "start" | "end";
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (key: CollapseKey | CollapseKey[]) => void;
 }
 
@@ -219,6 +417,7 @@ function CollapsePanel({
   </div>;
 }
 
+/** 折叠面板组件。 */
 export function Collapse({ items, activeKey, defaultActiveKey = [], accordion = false, bordered = true, ghost = false, destroyInactivePanel = false, expandIconPosition = "start", onChange, className = "", ...props }: CollapseProps) {
   const normalize = (key: CollapseKey | readonly CollapseKey[]) => Array.isArray(key) ? [...key] : key === undefined ? [] : [key as CollapseKey];
   const controlled = activeKey !== undefined;
@@ -246,13 +445,22 @@ export function Collapse({ items, activeKey, defaultActiveKey = [], accordion = 
   </div>;
 }
 
+/** 图片预览的属性配置。 */
 export interface ImagePreviewProps {
+  /** 是否打开；传入后由外部控制显示状态。 */
   open: boolean;
+  /** 图片或资源地址。 */
   src?: string;
+  /**
+   * 图片无法显示时的替代文本。
+   * @defaultValue ""
+   */
   alt?: string;
+  /** 打开状态改变时触发，参数为新的打开状态。 */
   onOpenChange: (open: boolean) => void;
 }
 
+/** 图片预览组件。 */
 export function ImagePreview({ open, src, alt = "", onOpenChange }: ImagePreviewProps) {
   const previewRef = useRef<HTMLDivElement>(null);
   useOverlayLifecycle(open, previewRef, () => onOpenChange(false));
@@ -264,14 +472,35 @@ export function ImagePreview({ open, src, alt = "", onOpenChange }: ImagePreview
   </div>, document.body);
 }
 
-export interface ImagePreviewConfig { src?: string; open?: boolean; onOpenChange?: (open: boolean) => void; mask?: ReactNode }
+/** 图片预览的配置。 */
+export interface ImagePreviewConfig {
+  /** 图片或资源地址。 */
+  src?: string;
+  /** 是否打开；传入后由外部控制显示状态。 */
+  open?: boolean;
+  /** 打开状态改变时触发，参数为新的打开状态。 */
+  onOpenChange?: (open: boolean) => void;
+  /** 遮罩是否显示或自定义遮罩内容。 */
+  mask?: ReactNode }
+/** 图片的属性配置。 */
 export interface ImageProps extends ImgHTMLAttributes<HTMLImageElement> {
+  /** 资源加载失败时使用的替代内容或地址。 */
   fallback?: string;
+  /** 未填写或未选择时的提示内容。 */
   placeholder?: ReactNode;
+  /**
+   * 预览开关或配置
+   * @defaultValue true
+   */
   preview?: boolean | ImagePreviewConfig;
+  /**
+   * 最外层容器的附加 CSS 类名。
+   * @defaultValue ""
+   */
   rootClassName?: string;
 }
 
+/** 图片组件。 */
 export function Image({ fallback, placeholder, preview = true, rootClassName = "", className = "", src, alt = "", onError, style, ...props }: ImageProps) {
   const config = typeof preview === "object" ? preview : {};
   const controlled = typeof preview === "object" && preview.open !== undefined;

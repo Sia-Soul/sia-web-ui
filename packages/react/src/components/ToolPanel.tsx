@@ -7,31 +7,69 @@ import type {
   ReactNode,
 } from "react";
 
+/** 工具面板的位置类型。 */
 export type ToolPanelPlacement = "left" | "right";
 
+/** 工具面板的项目定义。 */
 export interface ToolPanelItem {
+  /** 唯一标识；同一集合内应保持唯一且稳定，用于定位、渲染和状态关联。 */
   key: string;
+  /** 标题内容，可传入文本或 React 节点。 */
   title: ReactNode;
+  /** 显示在内容旁的图标节点，建议使用 Icon 组件。 */
   icon?: ReactNode;
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
   children: ReactNode;
+  /** 是否禁用交互。 */
   disabled?: boolean;
 }
 
+/** 工具面板的属性配置。 */
 export interface ToolPanelProps extends Omit<HTMLAttributes<HTMLDivElement>, "title" | "onResize"> {
+  /** 标题内容，可传入文本或 React 节点。 */
   title?: ReactNode;
+  /** 显示在内容旁的图标节点，建议使用 Icon 组件。 */
   icon?: ReactNode;
+  /** 多面板配置；提供后优先于 title、icon 和 children。切换保留内容状态，共享面板宽度 */
   items?: readonly ToolPanelItem[];
+  /** 当前激活项目的标识；传入后由外部控制。 */
   activeKey?: string;
+  /** 非受控模式下初始激活的项目标识。 */
   defaultActiveKey?: string;
+  /** 切换面板时触发；再次点击当前入口仅切换展开状态 */
   onActiveKeyChange?: (key: string) => void;
+  /**
+   * 工具面板位于工作区左侧或右侧
+   * @defaultValue "left"
+   */
   placement?: ToolPanelPlacement;
+  /** 是否打开；传入后由外部控制显示状态。 */
   open?: boolean;
+  /**
+   * 非受控模式下的初始打开状态。
+   * @defaultValue true
+   */
   defaultOpen?: boolean;
+  /**
+   非受控模式下的初始尺寸。
+   * @defaultValue 320
+   */
   defaultSize?: number;
+  /**
+   * 允许的最小尺寸。
+   * @defaultValue 220
+   */
   minSize?: number;
+  /**
+   * 允许的最大尺寸。
+   * @defaultValue 640
+   */
   maxSize?: number;
+  /** 活动栏切换展开状态时触发 */
   onOpenChange?: (open: boolean) => void;
+  /** 拖拽调整过程中持续触发 */
   onResize?: (size: number) => void;
+  /** 鼠标或键盘调整结束时触发 */
   onResizeEnd?: (size: number) => void;
 }
 
@@ -39,6 +77,7 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+/** 工具面板组件。 */
 export function ToolPanel({
   title,
   icon,

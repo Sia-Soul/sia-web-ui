@@ -19,27 +19,70 @@ import { Dropdown } from "./Dropdown";
 import { Icon } from "./Icon";
 import { Input } from "./Input";
 
+/** 处理富文本粘贴图片的函数，返回可插入编辑器的图片地址。 */
 export type RichTextImagePasteHandler = (file: File) => string | Promise<string>;
+/** 富文本内容采用的存储格式。 */
 export type RichTextContentFormat = "html" | "markdown";
+/** 富文本编辑工具栏的按钮配置。 */
 export type RichTextToolbar = "basic" | "full";
 
+/** 富文本编辑器的属性配置。 */
 export interface RichTextEditorProps extends Omit<HTMLAttributes<HTMLDivElement>, "children" | "contentEditable" | "onChange"> {
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
   value?: string;
+  /**
+   * 非受控模式的初始值，仅在初始化时使用。
+   * @defaultValue ""
+   */
   defaultValue?: string;
+  /**
+   * 输入和输出的内容格式
+   * @defaultValue "html"
+   */
   contentFormat?: RichTextContentFormat;
+  /**
+   工具栏配置。
+   * @defaultValue "basic"
+   */
   toolbar?: RichTextToolbar;
+  /**
+   * 空内容提示
+   * @defaultValue "请输入内容"
+   */
   placeholder?: string;
+  /** 占位提示的显示模式；floating 为浮动标签。 */
   placeholderMode?: InputPlaceholderMode;
+  /**
+   * 禁用编辑和工具栏
+   * @defaultValue false
+   */
   disabled?: boolean;
+  /**
+   * 编辑区域最小高度
+   * @defaultValue 150
+   */
   minHeight?: number | string;
+  /**
+   * 图片粘贴能力的工具栏提示
+   * @defaultValue "可直接粘贴图片"
+   */
   pasteImageHint?: ReactNode;
+  /** 内容变化回调，格式由 contentFormat 决定 */
   onChange?: (content: string) => void;
+  /** 处理剪贴板图片并返回可访问地址 */
   onPasteImage?: RichTextImagePasteHandler;
+  /** 按 Ctrl / Command + S 时执行 */
   saveShortcut?: () => void;
 }
 
+/** 富文本内容的属性配置。 */
 export interface RichTextContentProps extends Omit<HTMLAttributes<HTMLElement>, "children"> {
+  /** 需要显示的内容，支持文本或 React 节点。 */
   content: string;
+  /**
+   * 内容为空时显示的占位内容
+   * @defaultValue "暂无内容"
+   */
   emptyText?: ReactNode;
 }
 
@@ -65,12 +108,14 @@ function sanitizeContent(value: string) {
   }).replace(/<img\b/giu, '<img loading="lazy" decoding="async"');
 }
 
+/** 富文本内容组件。 */
 export function RichTextContent({ content, emptyText = "暂无内容", className = "", ...props }: RichTextContentProps) {
   const html = useMemo(() => sanitizeContent(content), [content]);
   if (!html.trim()) return <div className={`sia-rich-text-content sia-rich-text-content--empty ${className}`.trim()}>{emptyText}</div>;
   return <article className={`sia-rich-text-content ${className}`.trim()} dangerouslySetInnerHTML={{ __html: html }} {...props} />;
 }
 
+/** 富文本编辑器组件。 */
 export function RichTextEditor({
   value,
   defaultValue = "",

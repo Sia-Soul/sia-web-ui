@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Select, Button, message } from "@sia.soul/sia-react-ui";
+import { Select, Button, message, openSelectModal } from "@sia.soul/sia-react-ui";
 import type { SelectChangeValue, SelectOption, SelectValue } from "@sia.soul/sia-react-ui";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
@@ -38,6 +38,7 @@ const options = Array.from({ length: 1000 }, (_, index) => ({
 export default function Demo() {
   const [value, setValue] = useState(["member-2", "member-8"]);
   return <Select
+    popupMode="dropdown"
     mode="multiple"
     options={options}
     value={value}
@@ -123,7 +124,8 @@ function asMultipleValue(nextValue: SelectChangeValue) {
 
 const apiRows = [
     { property: "size", description: "small / medium / large 高度为 22 / 30 / 38px；默认继承 Form，组件自身 size 优先", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
-  { property: "popupMode", description: "普通下拉或模态框选择；弹框点击确定才提交", type: "'dropdown' | 'modal'", defaultValue: "'dropdown'" },
+  { property: "popupMode", description: "显式指定下拉或弹框，优先于自动判断；未指定时根据选项总数与 modalThreshold 判断。弹框点击确定才提交", type: "'dropdown' | 'modal'", defaultValue: "自动判断" },
+  { property: "modalThreshold", description: "未设置 popupMode 时，options 总数超过此值使用弹框；等于阈值仍使用下拉。本次打开期间保持模式稳定，下次打开重新判断", type: "number", defaultValue: "15" },
   { property: "modalConfig", description: "弹框 title、width、columns、maxHeight 与左下角扩展 footerExtra", type: "object", defaultValue: "width: 900, columns: 3" },
   { property: "options.group", description: "弹框内的选项分组标题", type: "string", defaultValue: "-" },
   { property: "options", description: "下拉选项", type: "SelectOption[]", defaultValue: "[]" },
@@ -131,7 +133,7 @@ const apiRows = [
   { property: "mode", description: "单选或多选模式", type: "'single' | 'multiple'", defaultValue: "'single'" },
   { property: "defaultValue", description: "初始选中值", type: "string | number | null", defaultValue: "null" },
   { property: "placeholder", description: "未选择时的提示", type: "ReactNode", defaultValue: "'请选择'" },
-  { property: "allowClear", description: "允许清空当前选择", type: "boolean", defaultValue: "false" },
+  { property: "allowClear", description: "允许清空当前选择，传入 false 可关闭", type: "boolean", defaultValue: "true" },
   { property: "showSearch", description: "显示选项搜索框", type: "boolean", defaultValue: "false" },
   { property: "allowInput", description: "允许将搜索内容作为自定义选项提交", type: "boolean", defaultValue: "false" },
   { property: "inputMaxLength", description: "手动输入内容的最大长度", type: "number", defaultValue: "-" },
@@ -150,12 +152,44 @@ export function SelectPage() {
   const [value, setValue] = useState<SelectValue | null>("react");
   const [members, setMembers] = useState<SelectValue[]>(["member-2", "member-8"]);
   const [customValues, setCustomValues] = useState<SelectValue[]>(["React"]);
+  const [dialogValues, setDialogValues] = useState<SelectValue[]>(["react"]);
 
   return (
     <>
       <PageHeader eyebrow="组件 / 数据录入 / Select" title="Select 选择器" description="从候选项中选择一个值，支持鼠标与完整键盘操作。" />
       <DocsTabs activeKey={tab} onChange={setTab} />
       {tab === "examples" ? <div className="demo-stack">
+        <DemoCard title="根据选项数量自动切换" description="未指定 popupMode 时，默认超过 15 项自动弹框；可通过 modalThreshold 调整阈值。指定 popupMode 后始终使用指定模式。" code={'<Select options={options} />\n<Select options={options} modalThreshold={30} />\n<Select options={options} popupMode="dropdown" />'}>
+          <Select aria-label="15项自动下拉" options={Array.from({ length: 15 }, (_,i) => ({ value: i, label: `选项 ${i + 1}` }))} placeholder="15 项：下拉" />
+          <Select aria-label="16项自动弹框" options={Array.from({ length: 16 }, (_,i) => ({ value: i, label: `选项 ${i + 1}` }))} placeholder="16 项：弹框" />
+          <Select aria-label="自定义弹框阈值" options={frameworkOptions} modalThreshold={2} placeholder="超过 2 项：弹框" />
+        </DemoCard>
+        <DemoCard title="API 打开选择弹框" description="无需渲染 Select；按钮直接调用 openSelectModal。确认后提交选择，取消保留原值，支持分组、value 搜索、维护操作和异步确认。" code={`import { Button, openSelectModal } from "@sia.soul/sia-react-ui";
+
+<Button onClick={() => openSelectModal({
+  title: "请选择合作方店铺标签",
+  mode: "multiple",
+  options,
+  value: selectedValues,
+  showValue: true,
+  columns: 3,
+  footerExtra: <Button onClick={onMaintain}>维护</Button>,
+  onConfirm: async (values, selectedOptions) => {
+    await saveSelection(values);
+    setSelectedValues(values);
+    // 返回 false 或抛出异常时保留弹框，允许重试。
+  },
+})}>选择标签</Button>
+
+// 返回句柄：handle.update({ options: newOptions }) 更新选项；
+// handle.update({ value: newValues }) 替换当前选择；handle.destroy() 关闭。`}>
+          <Button onClick={() => openSelectModal({ title: "API 选择框架", mode: "multiple", options: frameworkOptions,
+            value: dialogValues, showValue: true,
+            footerExtra: <Button onClick={() => message.info("这里接入维护功能")}>维护</Button>,
+            onConfirm: next => { setDialogValues(Array.isArray(next) ? next : []); },
+          })}>API 打开选择弹框</Button>
+          <p>已确认的值：{dialogValues.join("、") || "未选择"}</p>
+        </DemoCard>
         <DemoCard title="基础用法" description="点击展开，或使用方向键、Enter、Space 与 Esc 操作。" code={basicCode}>
           <div className="component-demo">
             <Select aria-label="选择前端框架" options={frameworkOptions} value={value} onChange={(nextValue) => setValue(asSingleValue(nextValue))} allowClear showSearch placeholder="请选择前端框架" />
@@ -200,6 +234,7 @@ export function SelectPage() {
             <Select
               className="large-select-demo"
               aria-label="选择项目成员"
+              popupMode="dropdown"
               mode="multiple"
               options={memberOptions}
               value={members}
@@ -230,7 +265,15 @@ export function SelectPage() {
             <Select aria-label="空数据选择器" options={[]} notFoundContent="没有可选框架" />
           </div>
         </DemoCard>
-      </div> : <ApiTable name="Select" rows={apiRows} />}
+      </div> : <><ApiTable name="Select" rows={apiRows} />
+        <ApiTable name="openSelectModal(config)" rows={[
+          { property: "options / value / mode", description: "选项、初始选中值与单选/多选模式，与 Select 相同", type: "SelectOption[] / SelectChangeValue / 'single' | 'multiple'", defaultValue: "必填 / 空 / single" },
+          { property: "title / width / columns / maxHeight", description: "弹框标题、宽度、选项列数及列表最大高度", type: "ReactNode / number | string / number / number", defaultValue: "请选择 / 900 / 3 / 360" },
+          { property: "showValue / searchPlaceholder / filterOption / onSearch", description: "显示值、搜索提示、自定义筛选与搜索回调；默认同时匹配 label 和 value", type: "同 Select", defaultValue: "false / 搜索选项 / 默认筛选 / -" },
+          { property: "onConfirm", description: "确认回调；单选返回单值及选项，多选返回数组；支持 Promise，返回 false 或异常时不关闭", type: "(value, option) => void | boolean | Promise<void | boolean>", defaultValue: "-" },
+          { property: "onCancel / footerExtra", description: "取消回调、底部左侧扩展区域；也支持 Modal 的按钮文案、遮罩及键盘关闭等配置", type: "() => void / ReactNode", defaultValue: "-" },
+          { property: "返回值 update / destroy", description: "更新配置（不传 value 保留当前草稿），或关闭并释放弹框。独立挂载，不继承调用处的 React Context。", type: "OverlayApiHandle<SelectModalConfig>", defaultValue: "-" },
+        ]} /></>}
     </>
   );
 }

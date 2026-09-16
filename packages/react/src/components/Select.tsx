@@ -15,50 +15,140 @@ import { FloatingScrollbarProvider } from "./FloatingScrollbarProvider";
 import type { ControlSize, ControlStatus } from "./shared";
 import { useControllableState } from "./shared";
 
+/** 选择器的值类型。 */
 export type SelectValue = string | number;
+/** 选择器的模式类型。 */
 export type SelectMode = "single" | "multiple";
+/** 选择变更后的值：单选为字符串、数字或 null，多选为值数组。 */
 export type SelectChangeValue = SelectValue | SelectValue[] | null;
 
+/** 选择器的候选项定义。 */
 export type SelectOption = {
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
   label: ReactNode;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value: SelectValue;
+  /** 是否禁用交互。 */
   disabled?: boolean;
   /** 弹框模式中的分组标题。 */
   group?: string;
 };
 
+/** 选择器的属性配置。 */
 export interface SelectProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "defaultValue" | "onChange" | "value"> {
+  /** 下拉选项 */
   options: readonly SelectOption[];
+  /**
+   * 单选或多选模式
+   * @defaultValue "single"
+   */
   mode?: SelectMode;
+  /** 显式指定下拉或弹框。未设置时根据 options 总数判断：超过 modalThreshold 使用弹框。显式配置优先于阈值；弹框点击确定才提交。 */
   popupMode?: "dropdown" | "modal";
-  modalConfig?: { title?: ReactNode; width?: number | string; columns?: number; maxHeight?: number; footerExtra?: ReactNode };
+  /**
+   * 未指定 popupMode 时，选项总数超过此值自动使用弹框，等于阈值时仍使用下拉。
+   * @defaultValue 15
+   */
+  modalThreshold?: number;
+  /** 弹框 title、width、columns、maxHeight 与左下角扩展 footerExtra */
+  modalConfig?: {
+    /** 弹框标题，未设置时使用 Select 的 placeholder。 */
+    title?: ReactNode;
+    /** 弹框宽度，默认 900px。 */
+    width?: number | string;
+    /** 每行选项列数，默认 3 列。 */
+    columns?: number;
+    /** 列表最大可视高度，默认 360px。 */
+    maxHeight?: number;
+    /** 底部左侧扩展内容，例如维护按钮。 */
+    footerExtra?: ReactNode;
+  };
+  /** 当前值（受控） */
   value?: SelectChangeValue;
+  /** 初始选中值 */
   defaultValue?: SelectChangeValue;
+  /** 确认选择或清空时调用。单选返回单值及对应选项，清空返回 null；多选返回值数组及选项数组。弹框中的草稿变化不会直接触发。 */
   onChange?: (value: SelectChangeValue, option: SelectOption | SelectOption[] | null) => void;
+  /**
+   * 未选择时的提示
+   * @defaultValue "请选择"
+   */
   placeholder?: ReactNode;
+  /** 占位提示的显示模式；floating 为浮动标签。 */
   placeholderMode?: InputPlaceholderMode;
+  /** small / medium / large 高度为 22 / 30 / 38px；默认继承 Form，组件自身 size 优先 */
   size?: ControlSize;
+  /**
+   * 当前状态，用于选择对应的状态样式。
+   * @defaultValue "default"
+   */
   status?: ControlStatus;
+  /**
+   * 是否允许清空当前选择；单选弹框中同时允许再次点击已选项取消选择。显式设为 false 可禁用。
+   * @defaultValue true
+   */
   allowClear?: boolean;
+  /**
+   * 显示加载状态并禁用展开
+   * @defaultValue false
+   */
   loading?: boolean;
+  /**
+   是否显示搜索输入框。
+   * @defaultValue false
+   */
   showSearch?: boolean;
   /** 在选项名称下方显示对应的 value。 */
   showValue?: boolean;
   /** 允许将搜索框内容作为自定义选项提交。 */
   allowInput?: boolean;
+  /** 手动输入内容的最大长度 */
   inputMaxLength?: number;
+  /**
+   * 搜索框的占位提示文字。
+   * @defaultValue "搜索选项"
+   */
   searchPlaceholder?: string;
+  /** 搜索条件变化或提交搜索时调用，具体参数见签名。 */
   onSearch?: (query: string) => void;
+  /**
+   * 自定义搜索匹配函数，返回 true 时保留该选项。
+   * @defaultValue defaultFilterOption
+   */
   filterOption?: (query: string, option: SelectOption) => boolean;
+  /**
+   * 多选时显示全选、反选；下拉操作栏固定在列表底部
+   * @defaultValue true
+   */
   showSelectAll?: boolean;
   /** 是否显示下拉面板底部的条数统计与操作行；默认单选隐藏、多选显示，不影响弹框模式。 */
   showActions?: boolean;
   /** 最多显示的标签数；空间不足时会继续折叠，并为 +N 预留宽度。 */
   maxTagCount?: number;
+  /**
+   * 长列表启用窗口化渲染
+   * @defaultValue true
+   */
   virtual?: boolean;
+  /**
+   * 启用虚拟滚动的选项数量
+   * @defaultValue 100
+   */
   virtualThreshold?: number;
+  /**
+   * 选项列表的最大可视高度，单位为像素。
+   * @defaultValue 256
+   */
   listHeight?: number;
+  /**
+   * 单个选项的高度，虚拟列表据此计算可见区域。
+   * @defaultValue showValue ? 54 : 34
+   */
   optionHeight?: number;
+  /**
+   * 没有匹配选项时的提示内容。
+   * @defaultValue "暂无数据"
+   */
   notFoundContent?: ReactNode;
 }
 
@@ -67,11 +157,13 @@ function defaultFilterOption(query: string, option: SelectOption) {
   return [option.label, option.value].some(value => String(value).toLowerCase().includes(keyword));
 }
 
+/** 选择器组件。 */
 export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select(
   {
     options,
     mode = "single",
-    popupMode = "dropdown",
+    popupMode: popupModeProp,
+    modalThreshold = 15,
     modalConfig,
     value,
     defaultValue,
@@ -80,7 +172,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
     placeholderMode,
     size: sizeProp,
     status = "default",
-    allowClear = false,
+    allowClear = true,
     loading = false,
     showSearch = false,
     showValue = false,
@@ -115,6 +207,10 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
   const searchRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
+  const automaticMode = popupModeProp ?? (options.length > modalThreshold ? "modal" : "dropdown");
+  const [openedMode, setOpenedMode] = useState<"dropdown" | "modal">(automaticMode);
+  // 本次打开期间保持模式稳定，避免远程搜索更新 options 时切换面板并丢失草稿。
+  const popupMode = open ? openedMode : automaticMode;
   const [modalValues, setModalValues] = useState<SelectValue[]>([]);
   const [selectedOnly, setSelectedOnly] = useState(false);
   const [query, setQuery] = useState("");
@@ -197,9 +293,10 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
 
   function openDropdown() {
     if (disabled || loading) return;
+    setOpenedMode(automaticMode);
     const selectedIndex = filteredOptions.findIndex((option) => selectedValueSet.has(option.value) && !option.disabled);
     setActiveIndex(selectedIndex >= 0 ? selectedIndex : firstEnabledIndex());
-    if (popupMode === "modal") { setModalValues([...selectedValues]); setSelectedOnly(false); }
+    if (automaticMode === "modal") { setModalValues([...selectedValues]); setSelectedOnly(false); }
     setOpen(true);
   }
 
@@ -423,7 +520,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
             <Button variant="link" size="small" danger disabled={!modalValues.length} onClick={() => setModalValues([])}>清空</Button>
           </div> : null}
           {allowInput && canSubmitInput ? <Button variant="link" onClick={() => { setModalValues(multiple ? [...new Set([...modalValues, inputValue])] : [inputValue]); setQuery(""); }}>使用“{inputValue}”</Button> : null}
-          <SelectionPanel options={modalFiltered} value={modalValues} onChange={setModalValues} multiple={multiple} selectedOnly={selectedOnly}
+          <SelectionPanel options={modalFiltered} value={modalValues} onChange={setModalValues} multiple={multiple} allowDeselect={allowClear} selectedOnly={selectedOnly}
             showValue={showValue} showSearch={false} showActions={false} includeUnknownValues={false} columns={modalConfig?.columns ?? 3} maxHeight={modalConfig?.maxHeight ?? 360} />
         </> : null}
       </Modal> : null}

@@ -79,7 +79,8 @@ export function DropdownPage() {
     { property: "trigger", description: "触发方式，可以组合使用", type: "(click | hover | contextMenu)[]", defaultValue: "[hover]" },
     { property: "placement", description: "相对触发器的展开方向", type: "bottomLeft | bottomRight | topLeft | topRight", defaultValue: "bottomLeft" },
     { property: "open / defaultOpen", description: "受控或非受控打开状态", type: "boolean", defaultValue: "false" },
-    { property: "arrow", description: "显示箭头及是否指向触发器中心", type: "boolean | { pointAtCenter }", defaultValue: "false" },
+    { property: "showTriggerIcon", description: "在直接作为触发器的 Button 文案右侧自动显示展开图标；纯图标按钮和自定义触发区域不受影响", type: "boolean", defaultValue: "true" },
+    { property: "arrow", description: "显示浮层尖角及是否指向触发器中心，与按钮展开图标无关", type: "boolean | { pointAtCenter }", defaultValue: "false" },
     { property: "popupRender", description: "自定义菜单浮层内容", type: "(menu) => ReactNode", defaultValue: "-" },
     { property: "onOpenChange", description: "打开状态变化，区分触发器与菜单来源", type: "(open, { source }) => void", defaultValue: "-" },
   ]}>
@@ -92,7 +93,7 @@ export function DropdownPage() {
         <Button icon={<Icon name="settings" />}>项目操作</Button>
       </Dropdown>
     </DemoCard>
-    <DemoCard title="悬停与多级菜单" description="鼠标在触发器与浮层之间移动时保持打开，子菜单自动向可用空间展开。" code={`<Dropdown menu={{ items }} trigger={["hover"]} placement="bottomLeft"><Button>悬停展开</Button></Dropdown>`}>
+    <DemoCard title="悬停与多级菜单" description="Button 文案右侧默认显示展开图标，无需手动添加。鼠标在触发器与浮层之间移动时保持打开，子菜单自动向可用空间展开。" code={`<Dropdown menu={{ items }} trigger={["hover"]}><Button>悬停展开</Button></Dropdown>\n<Dropdown menu={{ items }} trigger={["click"]} placement="topRight"><Button>向上展开</Button></Dropdown>`}>
       <Space>
         <Dropdown menu={{ items: dropdownItems }} trigger={["hover"]}>
           <Button>悬停展开</Button>
@@ -137,6 +138,7 @@ export function PaginationPage() {
   return <ComponentDocPage eyebrow="组件 / 导航 / Pagination" title="Pagination 分页" description="从 Table 提取的统一分页组件，支持每页条数、总记录数、首尾页切换与总数刷新。" name="Pagination" apiRows={[
     { property: "size", description: "small / medium / large 高度为 22 / 30 / 38px；默认继承 Form，组件自身 size 优先", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
     { property: "total", description: "数据总数", type: "number", defaultValue: "0" },
+    { property: "currentPageCount", description: "最前方显示当前页实际条数；默认按总数和分页参数计算。服务端分页可传当前页数据长度，Table 自动传入实际行数", type: "number", defaultValue: "自动计算" },
     { property: "current / pageSize", description: "当前页与每页条数", type: "number", defaultValue: "1 / 25" },
     { property: "pageSizeOptions", description: "每页条数候选项", type: "number[]", defaultValue: "10, 25, 50 ... 5000" },
     { property: "showSizeChanger / showTotal", description: "显示每页条数和总记录数", type: "boolean", defaultValue: "true" },
@@ -148,6 +150,15 @@ export function PaginationPage() {
     </DemoCard>
     <DemoCard title="自定义总数展示" description="可以隐藏每页条数，并自定义总数与当前范围。" code={`<Pagination total={100} showSizeChanger={false} showTotal={(total, range) => \`\${range[0]}-\${range[1]} / 共 \${total} 条\`} />`}>
       <Pagination total={100} showSizeChanger={false} showTotal={(total, range) => `${range[0]}-${range[1]} / 共 ${total} 条`} />
+    </DemoCard>
+    <DemoCard title="当前页条数" description="最前方展示本页条数：末页只计剩余数据，空数据为 0 条；服务端分页可使用 currentPageCount 指定实际返回条数。" code={`<Pagination total={23} defaultPageSize={10} defaultCurrent={3} />
+<Pagination total={0} defaultPageSize={10} />
+<Pagination total={100} defaultPageSize={10} currentPageCount={7} />`}>
+      <Space direction="vertical" style={{ width: "100%" }}>
+        <Pagination total={23} defaultPageSize={10} defaultCurrent={3} />
+        <Pagination total={0} defaultPageSize={10} />
+        <Pagination total={100} defaultPageSize={10} currentPageCount={7} />
+      </Space>
     </DemoCard>
   </ComponentDocPage>;
 }

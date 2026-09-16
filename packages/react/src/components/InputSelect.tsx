@@ -11,34 +11,93 @@ import { SelectionPanel } from "./SelectionPanel";
 import type { SelectionOption, SelectionValue } from "./SelectionPanel";
 import type { ControlSize, ControlStatus } from "./shared";
 
+/** 输入选择组合控件的属性配置。 */
 export interface InputSelectProps {
+  /** 可供用户选择的候选项列表。 */
   options: readonly SelectionOption[];
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
   value?: SelectionValue | readonly SelectionValue[] | null;
+  /** 非受控模式的初始值，仅在初始化时使用。 */
   defaultValue?: SelectionValue | readonly SelectionValue[];
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (value: SelectionValue | SelectionValue[] | undefined) => void;
+  /**
+   是否允许同时选择多个项目。
+   * @defaultValue false
+   */
   multiple?: boolean;
+  /**
+   * 选项主文本显示 label 还是 value。
+   * @defaultValue "label"
+   */
   displayField?: "label" | "value";
+  /**
+   * 在选项名称下方显示 value，下拉与弹框模式均支持；不影响按 value 搜索
+   * @defaultValue false
+   */
   showValue?: boolean;
+  /**
+   * 未填写或未选择时的提示内容。
+   * @defaultValue "请选择"
+   */
   placeholder?: string;
+  /** 占位提示的显示模式；floating 为浮动标签。 */
   placeholderMode?: InputPlaceholderMode;
+  /** 组件尺寸；用于调整控件高度、字号和间距。 */
   size?: ControlSize;
+  /** 当前状态，用于选择对应的状态样式。 */
   status?: ControlStatus;
+  /**
+   * 是否禁用交互。
+   * @defaultValue false
+   */
   disabled?: boolean;
+  /**
+   * 是否处于加载状态。
+   * @defaultValue false
+   */
   loading?: boolean;
+  /**
+   是否允许清空当前选择或输入值。
+   * @defaultValue true
+   */
   allowClear?: boolean;
+  /** 是否隐藏搜索输入框。 */
   hideSearch?: boolean;
+  /** 手动输入内容的最大长度 */
   inputMaxLength?: number;
+  /** 将输入文本解析为选项值的函数。 */
   parseInput?: (text: string) => SelectionValue | SelectionValue[] | undefined;
-  enableModal?: boolean | { title?: string; width?: number | string; columns?: number; maxHeight?: number };
+  /** 是否显示通过弹框选择的入口。 */
+  enableModal?: boolean | {
+  /** 标题内容，可传入文本或 React 节点。 */
+  title?: string;
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  width?: number | string;
+  /** 列配置或选项布局列数，具体类型见签名。 */
+  columns?: number;
+  /** 允许的最大高度。 */
+  maxHeight?: number };
+  /** 输入框后缀 */
   suffix?: ReactNode;
+  /** 组件根节点的内联样式。 */
   style?: CSSProperties;
+  /**
+   * 附加到组件根节点的 CSS 类名。
+   * @defaultValue ""
+   */
   className?: string;
+  /** 唯一标识，用于关联实例或插件。 */
   id?: string;
+  /** 辅助技术读取的控件名称。 */
   "aria-label"?: string;
+  /** 向辅助技术声明该控件是否必填。 */
   "aria-required"?: boolean | "true" | "false";
+  /** 打开状态改变时触发，参数为新的打开状态。 */
   onOpenChange?: (open: boolean) => void;
 }
 
+/** 输入选择组合控件组件。 */
 export const InputSelect = forwardRef<HTMLInputElement, InputSelectProps>(function InputSelect({ options, value, defaultValue, onChange,
   multiple = false, displayField = "label", showValue = false, placeholder = "请选择", placeholderMode, size: sizeProp, status,
   disabled = false, loading = false, allowClear = true, hideSearch, inputMaxLength, parseInput,

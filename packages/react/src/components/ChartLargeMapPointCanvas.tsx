@@ -1,6 +1,17 @@
 import {useEffect,useRef} from 'react';
 import {largeMapPointPulse,largeMapPointSize} from './largeMapPointPulse';
-export interface LargeMapPointCanvasGroup {name:string;color:string;size:number;symbol:'rect'|'diamond';points:readonly (readonly [number,number])[]}
+/** 使用 Canvas 批量绘制的地图点分组。 */
+export interface LargeMapPointCanvasGroup {
+  /** 名称或字段标识。 */
+  name:string;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color:string;
+  /** 组件尺寸；用于调整控件高度、字号和间距。 */
+  size:number;
+  /** 数据点或节点使用的图形符号。 */
+  symbol:'rect'|'diamond';
+  /** 数据点集合。 */
+  points:readonly (readonly [number,number])[]}
 /** One retained raster surface, with twenty independent pulse channels per series. */
 export function ChartLargeMapPointCanvas({groups,width,height}:{groups:readonly LargeMapPointCanvasGroup[];width:number;height:number}){
  const canvas=useRef<HTMLCanvasElement>(null),key=JSON.stringify(groups);

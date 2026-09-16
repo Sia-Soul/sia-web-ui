@@ -1,10 +1,32 @@
 import {chordMatrixLayout,chordMultiMatrixLayout,chordScaleTicks} from './chordMatrixLayout';
 import {useState} from 'react';
 import {ChartMark,chartColor,svgArcPath} from './Chart';
+/** 矩阵弦图节点、弦带和刻度的外观配置。 */
 export interface MatrixChordAppearance {
- borderColor?:string; borderWidth?:number; hoverBorderColor?:string; hoverBorderWidth?:number;
+ /** 边框颜色。 */
+ borderColor?:string;
+  /** 边框线宽。 */
+  borderWidth?:number;
+  /** 悬停状态的边框颜色。 */
+  hoverBorderColor?:string;
+  /** 悬停状态的边框宽度。 */
+  hoverBorderWidth?:number;
+ /** 标签与关联图形的间距。 */
  labelDistance?:number;
- markers?:readonly {name:string;value:number;x:number;y:number;size:number;color?:string}[];
+ /** 在指定文本范围显示错误、警告或信息波浪线 */
+ markers?:readonly {
+  /** 名称或字段标识。 */
+  name:string;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
+  value:number;
+  /** 横向位置或 X 轴数据值。 */
+  x:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y:number;
+  /** 组件尺寸；用于调整控件高度、字号和间距。 */
+  size:number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color?:string}[];
 }
 export function MatrixChordPlot({names,matrix,series,appearance,showNodeLabels=false,rotateNodeLabels=false,linkLabel,sort,sortSub,padAngle,clockwise,palette,geometry,legacySubSort=false,showScale=false}:{appearance?:MatrixChordAppearance;names:readonly string[];matrix:readonly (readonly number[])[];series?:readonly {name:string;color:string;matrix:readonly (readonly number[])[]}[];showNodeLabels?:boolean;rotateNodeLabels?:boolean;linkLabel?:(source:number,target:number)=>string;sort:'none'|'ascending'|'descending';sortSub:'none'|'ascending'|'descending';padAngle:number;clockwise:boolean;palette?:readonly string[];showScale?:boolean;legacySubSort?:boolean;geometry?:{center:readonly [number,number];innerRadius:number;outerRadius:number;startAngle?:number}}){
  const [hoveredLink,setHoveredLink]=useState<number|null>(null);

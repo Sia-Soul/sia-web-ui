@@ -5,23 +5,57 @@ import { Icon } from "./Icon";
 import { TextArea } from "./TextArea";
 import "../typography.css";
 
+/** 排版的类型标识。 */
 export type TypographyType = "secondary" | "success" | "warning" | "danger";
+/** 排版的属性配置。 */
 export interface TypographyProps extends HTMLAttributes<HTMLElement> {
+  /** 辅助、成功、警告或危险文本 */
   type?: TypographyType;
+  /** 禁用样式及复制、编辑操作 */
   disabled?: boolean;
+  /** 是否显示为加粗文字。 */
   strong?: boolean;
+  /** 是否显示为斜体。 */
   italic?: boolean;
+  /** 是否显示下划线。 */
   underline?: boolean;
+  /** 是否显示删除线。 */
   delete?: boolean;
+  /** 是否使用标记高亮样式。 */
   mark?: boolean;
+  /** 代码内容或按键代码。 */
   code?: boolean;
+  /** 是否允许通过 Esc 等键盘操作关闭。 */
   keyboard?: boolean;
-  copyable?: boolean | { text?: string; onCopy?: () => void };
-  editable?: boolean | { text?: string; onChange?: (text: string) => void; maxLength?: number };
-  ellipsis?: boolean | { rows?: number; expandable?: boolean };
+  /** 复制完整文本，可指定复制内容和成功回调 */
+  copyable?: boolean | {
+  /** 显示文本。 */
+  text?: string;
+  /** 复制操作触发后的回调。 */
+  onCopy?: () => void };
+  /** 纯文本编辑；text 用于受控内容，onChange 在保存时触发 */
+  editable?: boolean | {
+  /** 显示文本。 */
+  text?: string;
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
+  onChange?: (text: string) => void;
+  /** 允许输入的最大字符数 */
+  maxLength?: number };
+  /** 是否对超出可用宽度的内容进行省略，或指定省略配置。 */
+  ellipsis?: boolean | {
+  /** 默认可见行数 */
+  rows?: number;
+  /** 是否允许展开更多内容。 */
+  expandable?: boolean };
 }
-export interface TypographyTitleProps extends TypographyProps { level?: 1 | 2 | 3 | 4 | 5 }
-export interface TypographyLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> { disabled?: boolean }
+/** TypographyTitle的属性配置。 */
+export interface TypographyTitleProps extends TypographyProps {
+  /** 标题或节点的层级。 */
+  level?: 1 | 2 | 3 | 4 | 5 }
+/** TypographyLink的属性配置。 */
+export interface TypographyLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
+  /** 是否禁用交互。 */
+  disabled?: boolean }
 
 function TypographyContent({ as: Tag = "span", type, disabled, strong, italic, underline, delete: deleted, mark, code, keyboard,
   copyable, editable, ellipsis, children, className = "", ...props
@@ -106,4 +140,13 @@ function Link({ disabled, className = "", onClick, href, target, rel, ...props }
 function TypographyRoot({ className = "", ...props }: HTMLAttributes<HTMLDivElement>) {
   return <div {...props} className={`sia-typography ${className}`.trim()} />;
 }
-export const Typography = Object.assign(TypographyRoot, { Title, Text, Paragraph, Link });
+/** 排版组件。 */
+export const Typography = Object.assign(TypographyRoot, {
+  /** 语义化标题，支持标题级别、复制和编辑。 */
+  Title,
+  /** 行内文本，支持强调、复制、编辑和省略。 */
+  Text,
+  /** 段落文本，支持复制、编辑和省略。 */
+  Paragraph,
+  /** 具有排版样式的链接。 */
+  Link });

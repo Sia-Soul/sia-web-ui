@@ -10,26 +10,69 @@ import { TimePanel } from "./DatePickerPanel";
 import type { ControlSize, ControlStatus } from "./shared";
 import { useControllableState } from "./shared";
 
+/** 时间选择的属性配置。 */
 export interface TimePickerProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "size" | "value" | "defaultValue" | "onChange"> {
+  /** 占位提示的显示模式；floating 为浮动标签。 */
   placeholderMode?: InputPlaceholderMode;
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
   value?: string;
+  /**
+   * 非受控模式的初始值，仅在初始化时使用。
+   * @defaultValue ""
+   */
   defaultValue?: string;
+  /** 组件尺寸；用于调整控件高度、字号和间距。 */
   size?: ControlSize;
+  /**
+   * 当前状态，用于选择对应的状态样式。
+   * @defaultValue "default"
+   */
   status?: ControlStatus;
+  /**
+   是否允许清空当前选择或输入值。
+   * @defaultValue true
+   */
   allowClear?: boolean;
+  /**
+   * 是否使用 12 小时制。
+   * @defaultValue false
+   */
   use12Hours?: boolean;
+  /**
+   * 是否显示秒选择。
+   * @defaultValue false
+   */
   showSecond?: boolean;
+  /** 显示在控件末尾的图标。 */
   suffixIcon?: ReactNode;
+  /** 禁用时间判断 */
   disabledTime?: (value: string) => boolean;
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (value: string) => void;
+  /** 打开状态改变时触发，参数为新的打开状态。 */
   onOpenChange?: (open: boolean) => void;
 }
 
+/** 时间区间选择的属性配置。 */
 export interface TimeRangePickerProps extends Omit<TimePickerProps, "value" | "defaultValue" | "onChange" | "placeholder"> {
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
   value?: readonly [string, string];
+  /**
+   * 非受控模式的初始值，仅在初始化时使用。
+   * @defaultValue ["", ""]
+   */
   defaultValue?: readonly [string, string];
+  /**
+   * 未填写或未选择时的提示内容。
+   * @defaultValue ["开始时间", "结束时间"]
+   */
   placeholder?: readonly [string, string];
+  /**
+   * 全局分隔符，可传入图标或文字
+   * @defaultValue "→"
+   */
   separator?: ReactNode;
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (value: readonly [string, string]) => void;
 }
 
@@ -38,6 +81,7 @@ function seconds(value: string) {
   return h * 3600 + m * 60 + s;
 }
 
+/** 时间选择组件。 */
 export function TimePicker({
   value, defaultValue = "", size: sizeProp, status = "default", allowClear = true,
   use12Hours = false, showSecond = false, suffixIcon, disabledTime, disabled, readOnly,
@@ -146,5 +190,6 @@ function TimeRangePicker({ value, defaultValue = ["", ""], placeholder = ["开�
 }
 
 export namespace TimePicker {
+  /** 时间区间选择器。 */
   export const RangePicker = TimeRangePicker;
 }

@@ -5,17 +5,29 @@ import type { ControlSize, InputPlaceholderMode } from "./shared";
 import { Tooltip } from "./FloatingDisplay";
 import { Icon } from "./Icon";
 
+/** 开关的视觉样式。 */
 export type SwitchVariant = "standard" | "segmented";
 
+/** 开关的属性配置。 */
 export interface SwitchProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "size"> {
+  /** 标准开关高度为 16 / 22 / 28px，分段开关为 22 / 30 / 38px；默认继承 Form */
   size?: ControlSize;
+  /** 开关右侧的可见标签 */
   label?: ReactNode;
+  /**
+   组件的视觉样式。
+   * @defaultValue "standard"
+   */
   variant?: SwitchVariant;
+  /** 选中状态的文字、图标或自定义内容 */
   checkedContent?: ReactNode;
+  /** 未选中状态的文字、图标或自定义内容 */
   uncheckedContent?: ReactNode;
+  /** 状态变化时返回最新布尔值 */
   onCheckedChange?: (checked: boolean) => void;
 }
 
+/** 开关组件。 */
 export const Switch = forwardRef<HTMLInputElement, SwitchProps>(function Switch(
   {
     label,
@@ -60,36 +72,62 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(function Switch(
   );
 });
 
+/** 表单字段路径；字符串表示顶层字段，数组表示嵌套字段。 */
 export type NamePath = string | number | readonly (string | number)[];
+/** 表单字段名到当前值的映射。 */
 export type FormValues = Record<string, unknown>;
 
+/** 字段校验规则，支持必填、长度、正则和异步自定义校验。 */
 export interface FormRule {
+  /** 是否为必填字段。 */
   required?: boolean;
+  /** 是否将仅含空白字符的文本判为无效。 */
   whitespace?: boolean;
+  /** 类型标识，用于选择对应的表现形式。 */
   type?: "string" | "number" | "boolean" | "array" | "email" | "url";
+  /** 允许的最小值。 */
   min?: number;
+  /** 允许的最大值。 */
   max?: number;
+  /** 要求的精确长度。 */
   len?: number;
+  /** 用于校验字段值的正则表达式。 */
   pattern?: RegExp;
+  /** 提示或错误消息文本。 */
   message?: ReactNode;
+  /** 校验前转换字段值的函数。 */
   transform?: (value: unknown) => unknown;
+  /** 自定义校验函数；可返回 Promise，失败时抛出错误。 */
   validator?: (rule: FormRule, value: unknown, values: FormValues) => void | Promise<void>;
 }
 
+/** 校验失败的字段路径及其错误文本。 */
 export interface FormErrorField {
+  /** 名称或字段标识。 */
   name: readonly (string | number)[];
+  /** 字段的校验错误信息列表。 */
   errors: readonly ReactNode[];
 }
 
+/** 表单操作实例，提供读写字段值、校验、重置和提交方法。 */
 export interface FormInstance {
+  /** 读取指定字段的当前值，支持嵌套字段路径。 */
   getFieldValue: (name: NamePath) => unknown;
+  /** 读取表单当前字段值集合。 */
   getFieldsValue: () => FormValues;
+  /** 读取指定字段的校验错误信息。 */
   getFieldError: (name: NamePath) => readonly ReactNode[];
+  /** 设置单个字段的值；name 可为嵌套字段路径。 */
   setFieldValue: (name: NamePath, value: unknown) => void;
+  /** 批量设置表单字段值。 */
   setFieldsValue: (values: FormValues) => void;
+  /** 将字段恢复到初始值，并清理相关校验状态。 */
   resetFields: (names?: readonly NamePath[]) => void;
+  /** 执行字段校验；成功返回字段值，失败抛出校验错误信息。 */
   validateFields: (names?: readonly NamePath[]) => Promise<FormValues>;
+  /** 提交表单并执行校验；校验通过触发 onFinish，失败触发 onFinishFailed。 */
   submit: () => void;
+  /** 将指定字段滚动到可见区域。 */
   scrollToField: (name: NamePath) => void;
 }
 
@@ -305,21 +343,46 @@ class FormStore implements FormInstance {
 type InternalFormInstance = FormInstance & Pick<FormStore, "configure" | "getSnapshot" | "registerField" | "subscribe" | "validateField">;
 const FormContext = createContext<InternalFormInstance | null>(null);
 
+/** 创建或复用表单实例。返回单元素元组，可使用 const [form] = useForm() 获取实例并传给 Form 或 QueryForm。 */
 export function useForm(form?: FormInstance): readonly [FormInstance] {
   const ref = useRef<FormInstance>(form ?? new FormStore());
   return [ref.current] as const;
 }
 
+/** 表单的属性配置。 */
 export interface FormProps extends Omit<FormHTMLAttributes<HTMLFormElement>, "onSubmit"> {
+  /** 组件尺寸；用于调整控件高度、字号和间距。 */
   size?: ControlSize;
+  /** 表单实例；可由 Form.useForm() 或 useForm() 创建。 */
   form?: FormInstance;
+  /** 表单初始值 */
   initialValues?: FormValues;
+  /**
+   * 布局方式。
+   * @defaultValue "horizontal"
+   */
   layout?: "horizontal" | "vertical" | "inline";
+  /** 占位提示的显示模式；floating 为浮动标签。 */
   placeholderMode?: InputPlaceholderMode;
+  /**
+   * 是否禁用交互。
+   * @defaultValue false
+   */
   disabled?: boolean;
+  /**
+   * 是否显示必填标识。
+   * @defaultValue true
+   */
   requiredMark?: boolean | "optional";
+  /** 提交并且校验通过时调用，参数为完整的表单字段值。 */
   onFinish?: (values: FormValues) => void;
-  onFinishFailed?: (info: { values: FormValues; errorFields: readonly FormErrorField[] }) => void;
+  /** 表单提交校验失败时调用，参数包含字段值和错误列表。 */
+  onFinishFailed?: (info: {
+  /** 字段值或选中值的集合。 */
+  values: FormValues;
+  /** 校验失败的字段及其错误信息。 */
+  errorFields: readonly FormErrorField[] }) => void;
+  /** 字段通过表单控件交互更新时调用，接收本次变化字段和完整值；用于联动查询条件等业务逻辑。 */
   onValuesChange?: (changedValues: FormValues, values: FormValues) => void;
 }
 
@@ -356,22 +419,57 @@ function FormRoot({
   </ControlSizeContext.Provider></PlaceholderModeContext.Provider></FormContext.Provider>;
 }
 
+/** FormItem的属性配置。 */
 export interface FormItemProps {
+  /** 绑定到表单值的字段名或嵌套路径，例如 ["user", "name"]。 */
   name?: NamePath;
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
   label?: ReactNode;
+  /**
+   * 字段的校验规则，按配置执行。
+   * @defaultValue []
+   */
   rules?: readonly FormRule[];
+  /** 是否为必填字段。 */
   required?: boolean;
+  /** 主体之外的补充内容或操作区。 */
   extra?: ReactNode;
+  /** 字段下方的辅助说明或校验提示。 */
   help?: ReactNode;
+  /** 手动指定字段校验状态。 */
   validateStatus?: "success" | "warning" | "error" | "validating";
+  /**
+   * 向子控件传递值时使用的属性名，如 value 或 checked。
+   * @defaultValue "value"
+   */
   valuePropName?: string;
+  /**
+   * 触发显示的交互方式。
+   * @defaultValue "onChange"
+   */
   trigger?: string;
+  /**
+   * 触发字段校验的事件名或事件名集合。
+   * @defaultValue "onChange"
+   */
   validateTrigger?: string | readonly string[];
+  /** 从子控件的事件参数中提取需要写入表单的值。 */
   getValueFromEvent?: (...args: unknown[]) => unknown;
+  /**
+   * 只提供字段绑定与校验，不渲染 Form.Item 的布局容器。
+   * @defaultValue false
+   */
   noStyle?: boolean;
+  /** 依赖的字段路径；依赖变化时更新当前字段。 */
   dependencies?: readonly NamePath[];
+  /** 控制表单值变化后是否重新渲染此项，可传比较函数。 */
   shouldUpdate?: boolean | ((previous: FormValues, next: FormValues) => boolean);
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
   children?: ReactNode | ((form: FormInstance) => ReactNode);
+  /**
+   * 附加到组件根节点的 CSS 类名。
+   * @defaultValue ""
+   */
   className?: string;
 }
 
@@ -482,19 +580,29 @@ function FormItem({
   </div>;
 }
 
+/** 动态列表中一个字段的渲染标识和索引。 */
 export interface FormListField {
+  /** 唯一标识；同一集合内应保持唯一且稳定，用于定位、渲染和状态关联。 */
   key: number;
+  /** 该字段在表单列表中的索引。 */
   name: number;
 }
 
+/** 动态表单列表的新增、删除和移动操作。 */
 export interface FormListOperation {
+  /** 新增列表项，可指定初始值和插入位置。 */
   add: (value?: unknown, index?: number) => void;
+  /** 删除指定索引的列表项。 */
   remove: (index: number | readonly number[]) => void;
+  /** 将列表项从源索引移动到目标索引。 */
   move: (from: number, to: number) => void;
 }
 
+/** FormList的属性配置。 */
 export interface FormListProps {
+  /** 名称或字段标识。 */
   name: NamePath;
+  /** 列表渲染函数，接收字段描述和 add、remove、move 操作。 */
   children: (fields: readonly FormListField[], operations: FormListOperation) => ReactNode;
 }
 
@@ -524,13 +632,21 @@ function FormList({ name, children }: FormListProps) {
   return children(values.map((_, index) => ({ key: index, name: index })), operations);
 }
 
-function FormErrorList({ errors = [] }: { errors?: readonly ReactNode[] }) {
+function FormErrorList({ errors = [] }: {
+  /** 要显示的字段校验错误列表。 */
+  errors?: readonly ReactNode[];
+}) {
   return errors.length ? <div className="sia-form-error-list">{errors.map((error, index) => <div key={index}>{error}</div>)}</div> : null;
 }
 
+/** 表单组件。 */
 export const Form = Object.assign(FormRoot, {
+  /** 表单字段，负责字段值绑定、校验和标签布局。 */
   Item: FormItem,
+  /** 动态表单列表，提供字段索引以及新增、删除、移动操作。 */
   List: FormList,
+  /** 显示表单错误文本集合。 */
   ErrorList: FormErrorList,
+  /** 创建或复用表单实例，返回单元素元组 [form]。 */
   useForm,
 });

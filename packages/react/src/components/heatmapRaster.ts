@@ -1,11 +1,23 @@
 export interface RasterHeatPoint {x:number;y:number;value:number;}
-export interface HeatGradientStop {offset:number;color:readonly [number,number,number];}
+/** 热力渐变中的一个颜色停靠点。 */
+export interface HeatGradientStop {
+  /** 相对于默认位置的偏移。 */
+  offset:number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color:readonly [number,number,number];}
+/** HeatRaster的配置选项。 */
 export interface HeatRasterOptions {
+ /** 图形半径或圆角配置。 */
  radius?:number;
+ /** 模糊半径。 */
  blur?:number;
+ /** 最小透明度。 */
  minAlpha?:number;
+ /** 将数据值映射到显示尺寸的比例尺。 */
  valueScale?:number;
+ /** 透明度，0 为完全透明，1 为完全不透明。 */
  opacity?:number;
+ /** 渐变填充配置。 */
  gradient?:readonly HeatGradientStop[];
 }
 const defaultGradient:readonly HeatGradientStop[]=[{offset:.2,color:[0,0,255]},{offset:.4,color:[0,255,255]},{offset:.6,color:[0,255,0]},{offset:.8,color:[255,255,0]},{offset:1,color:[255,0,0]}];

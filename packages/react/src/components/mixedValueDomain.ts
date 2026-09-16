@@ -1,5 +1,8 @@
+/** MixedValueDomain的配置选项。 */
 export interface MixedValueDomainOptions {
+  /** 轴端是否保留间隔，或两端间隔的配置。 */
   boundaryGap?: readonly [number,number];
+  /** 坐标轴或仪表盘的分段数量。 */
   splitNumber?: number;
   /** Select a readable step near this count without forcing exactly that many sections. */
   targetSplitNumber?: number;

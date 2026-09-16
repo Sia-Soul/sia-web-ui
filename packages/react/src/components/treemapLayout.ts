@@ -1,4 +1,13 @@
-export interface TreemapLayoutBox {x:number;y:number;width:number;height:number}
+/** 矩形树图布局计算得到的矩形边界。 */
+export interface TreemapLayoutBox {
+  /** 横向位置或 X 轴数据值。 */
+  x:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y:number;
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  width:number;
+  /** 高度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  height:number}
 export interface TreemapLayoutCell extends TreemapLayoutBox {index:number;value:number}
 
 /** Preserve data order; choose each strip by the aspect ratio of its first cell. */

@@ -60,6 +60,7 @@ function serializeChartLayout(host:HTMLElement,stack:boolean):string|null{
  return new XMLSerializer().serializeToString(root);
 }
 
+/** 将组合图表的 SVG 内容转换并下载为图片。 */
 export async function saveCompositeImage(source:string|null,filename='sia-composite'){
  if(!source)return;
  const image=new Image();image.src=`data:image/svg+xml;charset=utf-8,${encodeURIComponent(source)}`;

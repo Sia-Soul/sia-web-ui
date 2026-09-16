@@ -28,122 +28,276 @@ import type {
   SVGAttributes,
 } from "react";
 
+/** 图表 SVG 内部坐标系的默认宽度。 */
 export const CHART_VIEWBOX_WIDTH = 720;
+/** 图表 SVG 内部坐标系的默认高度。 */
 export const CHART_VIEWBOX_HEIGHT = 360;
 
+/** 图表默认调色板。 */
 export const DEFAULT_CHART_PALETTE = [
   "#1677ff", "#36cfc9", "#52c41a", "#faad14", "#ff7a45",
   "#722ed1", "#eb2f96", "#13c2c2", "#2f54eb", "#a0d911",
 ] as const;
 
+/** 图例的项目定义。 */
 export interface ChartLegendItem {
+  /** 图片资源配置。 */
   image?: string;
+  /** 文字样式。 */
   textStyle?: CSSProperties;
   /** Optional measured label width in SVG coordinates. */
   textWidth?: number;
   /** Override the group's symbol for mixed-series legends. */
   symbol?: 'rect'|'line'|'sector';
-  fillGradient?: {start:readonly [number,number];end:readonly [number,number];stops:readonly {offset:number;color:string}[]};
+  /** 图形填充渐变配置。 */
+  fillGradient?: {
+  /** 范围起点。 */
+  start:readonly [number,number];
+  /** 范围终点。 */
+  end:readonly [number,number];
+  /** 渐变颜色停靠点集合。 */
+  stops:readonly {
+  /** 相对于默认位置的偏移。 */
+  offset:number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color:string}[]};
+  /** 边框颜色。 */
   borderColor?: string;
+  /** 名称或字段标识。 */
   name: string;
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color: string;
+  /** 是否禁用交互。 */
   disabled?: boolean;
 }
 
+/** ChartData的点击事件上下文。 */
 export interface ChartDataClickInfo<T = unknown> {
+  /** 名称或字段标识。 */
   name: string;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value: number | readonly number[];
+  /** 数据系列名称。 */
   seriesName?: string;
+  /** 用于渲染的数据集合。 */
   data: T;
+  /** 触发本次操作的原生事件。 */
   nativeEvent: PointerEvent<SVGGElement>;
 }
 
+/** 图表容器的实例引用接口。 */
 export interface SiaChartRef {
+  /** 读取组件底层 DOM 元素。 */
   getElement: () => SVGSVGElement | null;
+  /** 将焦点移入控件。 */
   focus: () => void;
+  /** 导出当前图表的 SVG 源码。 */
   toSvgString: () => string | null;
+  /** 将图表导出为图片 Data URL。 */
   toDataUrl: () => string | null;
 }
 
+/** 图表容器的属性配置。 */
 export interface SiaChartProps extends Omit<HTMLAttributes<HTMLDivElement>, "children" | "title"> {
+  /**
+   * 标题的水平对齐方式。
+   * @defaultValue "left"
+   */
   titleAlign?: "left" | "center" | "right";
+  /**
+   * 标题的垂直对齐方式。
+   * @defaultValue "top"
+   */
   titleVerticalAlign?: "top" | "bottom";
+  /**
+   * SVG 内部视图坐标系的尺寸。
+   * @defaultValue [CHART_VIEWBOX_WIDTH, CHART_VIEWBOX_HEIGHT]
+   */
   viewBoxSize?: readonly [number, number];
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
   children?: ReactNode;
   /** Additional SVG content above chart series and below interaction overlays. */
   svgOverlay?: ReactNode;
+  /**
+   * 宽度；数值按像素处理，字符串可使用 CSS 尺寸。
+   * @defaultValue "100%"
+   */
   width?: number | string;
+  /**
+   * 高度；数值按像素处理，字符串可使用 CSS 尺寸。
+   * @defaultValue 320
+   */
   height?: number | string;
+  /** 标题内容，可传入文本或 React 节点。 */
   title?: ReactNode;
+  /** 补充说明内容。 */
   description?: ReactNode;
+  /**
+   控件的无障碍名称，供屏幕阅读器识别。
+   * @defaultValue typeof title === "string" ? title : "数据图表"
+   */
   ariaLabel?: string;
+  /**
+   * 系列颜色；默认使用 Sia 数据可视化色板
+   * @defaultValue DEFAULT_CHART_PALETTE
+   */
   palette?: readonly string[];
+  /**
+   * 是否处于加载状态。
+   * @defaultValue false
+   */
   loading?: boolean;
+  /**
+   * 无数据时的展示内容或空状态配置。
+   * @defaultValue false
+   */
   empty?: boolean;
+  /**
+   * 没有数据时的显示内容。
+   * @defaultValue "暂无图表数据"
+   */
   emptyContent?: ReactNode;
+  /**
+   * 是否启用图形动画或自定义动画配置。
+   * @defaultValue true
+   */
   animation?: boolean;
+  /**
+   * 图形初次渲染动画的持续时间。
+   * @defaultValue 700
+   */
   animationDuration?: number;
+  /**
+   * 标线、数据视图、形态切换、还原与 SVG 图片保存
+   * @defaultValue false
+   */
   toolbox?: boolean | ChartToolboxOptions;
+  /** 时间轴配置。 */
   timeline?: ChartTimelineProps;
+  /** 框选交互配置。 */
   brush?: ChartBrushProps;
+  /** 提示框的附加属性。 */
   tooltipProps?: Omit<ChartTooltipProps, "open" | "left" | "top" | "children">;
   /** undefined uses local marks; null hides; a value synchronizes an external tooltip. */
-  controlledTooltip?: {content:ReactNode;point:readonly [number,number]} | null;
+  controlledTooltip?: {
+  /** 需要显示的内容，支持文本或 React 节点。 */
+  content:ReactNode;
+  /** 当前数据点或屏幕坐标点。 */
+  point:readonly [number,number]} | null;
+  /** 传给原生 SVG 根节点的属性 */
   svgProps?: Omit<SVGAttributes<SVGSVGElement>, "children" | "width" | "height">;
 }
 
+/** 组合图表中的一个图层，包含系列类型、数据和布局配置。 */
 export interface ChartCompositeLayer {
+  /** 唯一标识；同一集合内应保持唯一且稳定，用于定位、渲染和状态关联。 */
   key?: string;
+  /** 需要显示的内容，支持文本或 React 节点。 */
   content: ReactNode;
+  /** 距左侧的位置或间距。 */
   left?: number | string;
+  /** 距顶部的位置或间距。 */
   top?: number | string;
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
   width?: number | string;
+  /** 高度；数值按像素处理，字符串可使用 CSS 尺寸。 */
   height?: number | string;
+  /** 组件或浮层的堆叠层级。 */
   zIndex?: number;
+  /** SVG 或 DOM 元素的指针事件响应方式。 */
   pointerEvents?: CSSProperties["pointerEvents"];
 }
 
+/** 组合图表的实例引用接口。 */
 export interface ChartCompositeRef {
+  /** 导出当前图表的 SVG 源码。 */
   toSvgString:()=>string|null;
+  /** 将当前图表保存为图片。 */
   saveAsImage:(filename?:string)=>Promise<void>;
 }
+/** 组合图表的属性配置。 */
 export interface ChartCompositeProps extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
+  /** 组合图中的图层配置，按顺序绘制。 */
   layers: readonly ChartCompositeLayer[];
+  /**
+   * 宽度；数值按像素处理，字符串可使用 CSS 尺寸。
+   * @defaultValue "100%"
+   */
   width?: number | string;
+  /**
+   * 高度；数值按像素处理，字符串可使用 CSS 尺寸。
+   * @defaultValue 320
+   */
   height?: number | string;
+  /**
+   控件的无障碍名称，供屏幕阅读器识别。
+   * @defaultValue "组合图表"
+   */
   ariaLabel?: string;
 }
 
+/** 图表工具箱可以启用的功能名称。 */
 export type ChartToolboxFeature = "dataZoom" | "mark" | "dataView" | "restore" | "saveAsImage";
 
+/** 图表工具箱的配置选项。 */
 export interface ChartToolboxOptions {
+  /** 垂直对齐方式。 */
   verticalAlign?: 'top'|'bottom';
+  /** 触发图片导出时调用。 */
   onSaveAsImage?:()=>void;
+  /** 是否显示该功能。 */
   show?: boolean;
+  /** 组件的水平或垂直排列方向。 */
   orientation?: "horizontal" | "vertical";
+  /** 工具箱中启用的功能项。 */
   features?: readonly ChartToolboxFeature[];
+  /** 允许切换的图表类型。 */
   magicTypes?: readonly string[];
+  /** 当前切换后的图表类型。 */
   activeMagicType?: string;
   /** Selected options across independent mode groups; takes precedence for button display. */
   activeMagicTypes?: readonly string[];
+  /** 文件名。 */
   filename?: string;
+  /** 是否显示或如何配置数据视图。 */
   dataView?: ReactNode;
+  /** 数据视图是否只读。 */
   dataViewReadOnly?: boolean;
+  /** 视图缩放时调用。 */
   onZoom?: () => void;
+  /** 返回上一次缩放范围时调用。 */
   onZoomBack?: () => void;
+  /** 是否禁用缩放回退。 */
   zoomBackDisabled?: boolean;
+  /** 是否处于缩放选择模式。 */
   zoomActive?: boolean;
+  /** 进入或切换辅助标线模式时调用。 */
   onMark?: () => void;
+  /** 切换图表类型时调用。 */
   onMagicTypeChange?: (type: string) => void;
+  /** 还原初始图表状态时调用。 */
   onRestore?: () => void;
 }
 
+/** 图表工具箱的属性配置。 */
 export interface ChartToolboxProps extends ChartToolboxOptions {
+  /**
+   * 是否处于标线绘制模式。
+   * @defaultValue false
+   */
   markActive?: boolean;
+  /**
+   * 已绘制标线数量。
+   * @defaultValue 0
+   */
   markCount?: number;
+  /** 撤销最近标线时调用。 */
   onMarkUndo?: () => void;
+  /** 清空所有标线时调用。 */
   onMarkClear?: () => void;
+  /** 打开数据视图时调用。 */
   onDataView: () => void;
+  /** 触发图片导出时调用。 */
   onSaveAsImage: () => void;
 }
 
@@ -166,6 +320,7 @@ function toCssSize(value: number | string | undefined, fallback: string) {
   return value ?? fallback;
 }
 
+/** 组合图表组件。 */
 export const ChartComposite=forwardRef<ChartCompositeRef,ChartCompositeProps>(function ChartComposite({ layers, width = "100%", height = 320, ariaLabel = "组合图表", className = "", style, ...props },ref) {
   const host=useRef<HTMLDivElement>(null);
   useImperativeHandle(ref,()=>({toSvgString:()=>host.current?serializeChartComposite(host.current):null,saveAsImage:filename=>saveCompositeImage(host.current?serializeChartComposite(host.current):null,filename)}),[]);
@@ -174,6 +329,7 @@ export const ChartComposite=forwardRef<ChartCompositeRef,ChartCompositeProps>(fu
   </div>;
 });
 
+/** 图表提示框的属性配置。 */
 export interface ChartTooltipProps extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
   /** Axis placement follows category x / pointer y and applies measured edge corrections. */
   placement?: 'above'|'axis';
@@ -181,13 +337,18 @@ export interface ChartTooltipProps extends Omit<HTMLAttributes<HTMLDivElement>, 
   inheritTextStyle?: boolean;
   /** Keep item details available for pointer and keyboard interaction. */
   enterable?: boolean;
+  /** 是否打开；传入后由外部控制显示状态。 */
   open: boolean;
+  /** 距左侧的位置或间距。 */
   left: number;
+  /** 距顶部的位置或间距。 */
   top: number;
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
   children: ReactNode;
 }
 
 const useTooltipLayoutEffect=typeof window==='undefined'?useEffect:useLayoutEffect;
+/** 图表提示框组件。 */
 export function ChartTooltip({ open, left, top, children, enterable = false, inheritTextStyle=false, placement='above', className = "", style, ...props }: ChartTooltipProps) {
   const elementRef=useRef<HTMLDivElement>(null);
   const [position,setPosition]=useState<readonly [number,number]>([left,top]);
@@ -232,6 +393,7 @@ function ToolboxIcon({ children }: { children: ReactNode }) {
   return <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{children}</svg>;
 }
 
+/** 图表工具箱组件。 */
 export function ChartToolbox({
   show = true,
   orientation = "horizontal",
@@ -286,6 +448,7 @@ export function ChartToolbox({
   </div>;
 }
 
+/** 图表容器组件。 */
 export const SiaChart = forwardRef<SiaChartRef, SiaChartProps>(function SiaChart(
   {
     children,
@@ -534,12 +697,17 @@ export const SiaChart = forwardRef<SiaChartRef, SiaChartProps>(function SiaChart
   );
 });
 
+/** 图表标记的属性配置。 */
 export interface ChartMarkProps extends SVGAttributes<SVGGElement> {
+  /** 提示内容或提示框配置。 */
   tooltip?: ReactNode;
+  /** 提示框对应的数据点位置。 */
   tooltipPoint?: readonly [number, number];
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
   label: string;
 }
 
+/** 图表标记组件。 */
 export function ChartMark({ tooltip, tooltipPoint, label, onPointerMove, onPointerLeave, onFocus, onBlur, ...props }: ChartMarkProps) {
   const context = useContext(ChartContext);
   return <g
@@ -567,26 +735,80 @@ export function ChartMark({ tooltip, tooltipPoint, label, onPointerMove, onPoint
   />;
 }
 
+/** 图例的属性配置。 */
 export interface ChartLegendProps {
+  /** 图标宽度。 */
   iconWidth?: number;
+  /**
+   * 图标高度。
+   * @defaultValue 14
+   */
   iconHeight?: number;
+  /**
+   * 文字与相邻图形的间距。
+   * @defaultValue 5
+   */
   textGap?: number;
+  /** 文字样式。 */
   textStyle?: CSSProperties;
+  /** 未激活状态的颜色。 */
   inactiveColor?: string;
-  background?: {fill?:string;stroke?:string;strokeWidth?:number;padding?:number};
+  /** 背景颜色或填充配置。 */
+  background?: {
+  /** 图形填充颜色。 */
+  fill?:string;
+  /** 图形描边颜色。 */
+  stroke?:string;
+  /** 描边或进度轨道粗细。 */
+  strokeWidth?:number;
+  /** 内容内边距。 */
+  padding?:number};
+  /** 允许的最大宽度。 */
   maxWidth?: number;
+  /**
+   * 相邻行的间距。
+   * @defaultValue 24
+   */
   rowGap?: number;
+  /**
+   * 数据点或节点使用的图形符号。
+   * @defaultValue "rect"
+   */
   symbol?: "rect" | "line" | "sector";
+  /** 按展示顺序排列的项目配置。 */
   items: readonly ChartLegendItem[];
+  /**
+   * 横向位置或 X 轴数据值。
+   * @defaultValue CHART_VIEWBOX_WIDTH / 2
+   */
   x?: number;
+  /**
+   * 纵向位置或 Y 轴数据值。
+   * @defaultValue 20
+   */
   y?: number;
+  /**
+   * 交叉轴对齐
+   * @defaultValue "center"
+   */
   align?: "start" | "center" | "end";
+  /**
+   * 相邻项目的间距。
+   * @defaultValue 18
+   */
   itemGap?: number;
+  /**
+   组件的水平或垂直排列方向。
+   * @defaultValue "horizontal"
+   */
   orientation?: "horizontal" | "vertical";
+  /** 是否处于选中状态。 */
   selected?: Readonly<Record<string, boolean>>;
+  /** 点击项目时调用。 */
   onItemClick?: (name: string) => void;
 }
 
+/** 图例组件。 */
 export function ChartLegend({ items, symbol = "rect", x = CHART_VIEWBOX_WIDTH / 2, y = 20, align = "center", itemGap = 18, orientation = "horizontal", selected, onItemClick, maxWidth, rowGap = 24, iconWidth, iconHeight=14, textGap=5, textStyle, inactiveColor, background }: ChartLegendProps) {
   const paintId = useId().replaceAll(':', '');
   const widths = items.map((item) => (iconWidth==null?18:iconWidth+textGap) + (item.textWidth??Math.max(30, Array.from(item.name).reduce((width,character)=>width+(character.charCodeAt(0)>255 ? 13 : 7),0))));
@@ -640,52 +862,118 @@ export function ChartLegend({ items, symbol = "rect", x = CHART_VIEWBOX_WIDTH / 
   </g>;
 }
 
+/** 图表坐标轴的属性配置。 */
 export interface ChartAxisProps {
   /** Split axis strokes from bands/ticks/labels when a chart needs explicit layer ordering. */
   layer?: 'all'|'base'|'line';
+  /** 坐标轴分隔区域的填充颜色。 */
   splitAreaColors?: readonly string[];
   /** Normalized band boundaries; defaults to evenly spaced intervals. */
   splitAreaPositions?: readonly number[];
+  /** 线条样式。 */
   lineStyle?: CSSProperties;
+  /** 刻度线样式。 */
   tickStyle?: CSSProperties;
+  /** 网格线样式。 */
   gridStyle?: CSSProperties;
+  /** 标签文字样式。 */
   labelStyle?: CSSProperties;
+  /** 按标签配置的样式集合。 */
   labelStyles?: readonly (CSSProperties | undefined)[];
   /** Distance from the axis line to the label (independent of tick length). */
   labelMargin?: number;
+  /** SVG 标签的水平锚点。 */
   labelAnchor?: 'start'|'middle'|'end';
+  /** SVG 标签的文字基线。 */
   labelBaseline?: 'top'|'middle'|'bottom';
+  /** 轴端是否保留间隔，或两端间隔的配置。 */
   boundaryGap?: boolean;
+  /** 组件的水平或垂直排列方向。 */
   orientation: "top" | "bottom" | "left" | "right";
+  /** 横向位置或 X 轴数据值。 */
   x: number;
+  /** 纵向位置或 Y 轴数据值。 */
   y: number;
+  /** 长度。 */
   length: number;
+  /** 各操作入口的显示或无障碍文案。 */
   labels: readonly string[];
   /** Normalized positions for nonuniform numeric/calendar ticks. */
   positions?: readonly number[];
+  /** 刻度在轴上的位置集合。 */
   tickPositions?: readonly number[];
+  /** 网格线在轴上的位置集合。 */
   gridPositions?: readonly number[];
   /** Snap line centers to whole/half pixels according to their stroke width. Labels and bands are unaffected. */
   pixelAlign?: boolean;
   /** Outward distance of the axis stroke and tick origin from the logical axis. */
   lineOffset?: number;
+  /**
+   * 刻度相对于默认位置的偏移。
+   * @defaultValue 0
+   */
   tickOffset?: number;
+  /**
+   * 刻度线尺寸。
+   * @defaultValue 5
+   */
   tickSize?: number;
+  /**
+   * 网格线延伸长度。
+   * @defaultValue 0
+   */
   gridLength?: number;
+  /** 将原始值转换为展示文本的函数。 */
   formatter?: (label: string, index: number) => string;
+  /**
+   * 是否反转坐标轴方向。
+   * @defaultValue false
+   */
   inverse?: boolean;
+  /**
+   * 刻度之间的间隔。
+   * @defaultValue 1
+   */
   tickInterval?: number;
+  /**
+   * 标签旋转角度。
+   * @defaultValue 0
+   */
   labelRotate?: number;
+  /**
+   * 是否显示连接线。
+   * @defaultValue true
+   */
   showLine?: boolean;
+  /**
+   * 是否显示刻度线。
+   * @defaultValue true
+   */
   showTicks?: boolean;
+  /**
+   * 是否显示数据标签。
+   * @defaultValue true
+   */
   showLabels?: boolean;
+  /**
+   * 是否显示网格线。
+   * @defaultValue true
+   */
   showGrid?: boolean;
+  /** 名称或字段标识。 */
   name?: string;
+  /** 坐标轴线颜色。 */
   axisColor?: string;
+  /** 网格线颜色。 */
   gridColor?: string;
+  /**
+   * 是否使用虚线网格。
+   * @defaultValue false
+   */
   dashedGrid?: boolean;
 }
 
+/** 图表坐标轴组件。 */
 export function ChartAxis({ layer="all",orientation, x, y, length, labels, positions,tickPositions,gridPositions,pixelAlign=false,lineOffset=0,tickOffset=0, boundaryGap, tickSize = 5, gridLength = 0, formatter, inverse = false, tickInterval = 1, labelRotate = 0, showLine = true, showTicks = true, showLabels = true, showGrid = true, name, axisColor, gridColor, dashedGrid = false, lineStyle,tickStyle,gridStyle,labelStyle,labelStyles,labelMargin,labelAnchor,labelBaseline,splitAreaColors,splitAreaPositions }: ChartAxisProps) {
   const horizontal = orientation === "bottom" || orientation === "top";
   const count = Math.max(1, labels.length - ((boundaryGap??!horizontal) ? 0 : 1));
@@ -746,31 +1034,93 @@ export function ChartAxis({ layer="all",orientation, x, y, length, labels, posit
   </g>;
 }
 
+/** 图表视觉映射的属性配置。 */
 export interface ChartVisualMapProps {
+  /**
+   * 拖动过程中是否实时通知值变化。
+   * @defaultValue true
+   */
   realtime?:boolean;
+  /** 鼠标悬停范围变化时调用。 */
   onHoverRange?:(range:readonly [number,number]|undefined)=>void;
+  /** 指示器当前对应的值。 */
   indicatorValue?:number;
+  /**
+   * 是否使用 SVG 绘制交互手柄。
+   * @defaultValue false
+   */
   svgHandles?:boolean;
+  /** 范围两端显示的标签。 */
   endLabels?: readonly [string,string];
+  /** 允许的最小值。 */
   min: number;
+  /** 允许的最大值。 */
   max: number;
+  /**
+   * 可选颜色或颜色序列。
+   * @defaultValue ["#e6f4ff", "#1677ff"]
+   */
   colors?: readonly string[];
+  /**
+   * 横向位置或 X 轴数据值。
+   * @defaultValue 16
+   */
   x?: number;
+  /**
+   * 纵向位置或 Y 轴数据值。
+   * @defaultValue 284
+   */
   y?: number;
+  /**
+   * 宽度；数值按像素处理，字符串可使用 CSS 尺寸。
+   * @defaultValue 110
+   */
   width?: number;
+  /**
+   * 高度；数值按像素处理，字符串可使用 CSS 尺寸。
+   * @defaultValue 9
+   */
   height?: number;
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
   label?: string;
+  /**
+   组件的水平或垂直排列方向。
+   * @defaultValue "horizontal"
+   */
   orientation?: "horizontal" | "vertical";
+  /**
+   * 是否允许通过拖拽图形修改数据。
+   * @defaultValue false
+   */
   calculable?: boolean;
+  /**
+   * 当前值；作为受控属性时，需要在变更回调中同步更新。
+   * @defaultValue max
+   */
   value?: number;
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (value: number) => void;
+  /** 是否启用范围选择，或指定选择范围。 */
   range?: readonly [number, number];
+  /** 选择范围变化时调用。 */
   onRangeChange?: (range: [number, number]) => void;
-  pieces?: readonly { min?: number; max?: number; label?: string; color: string }[];
+  /** 分段视觉映射的区间配置。 */
+  pieces?: readonly {
+  /** 允许的最小值。 */
+  min?: number;
+  /** 允许的最大值。 */
+  max?: number;
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
+  label?: string;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color: string }[];
+  /** 当前选中的视觉映射分段。 */
   selectedPieces?: readonly boolean[];
+  /** 切换分段选中状态时调用。 */
   onPieceToggle?: (index:number)=>void;
 }
 
+/** 图表视觉映射组件。 */
 export function ChartVisualMap({ min, max, colors = ["#e6f4ff", "#1677ff"], x = 16, y = 284, width = 110, height = 9, label, endLabels, indicatorValue, onHoverRange, realtime=true, svgHandles=false, orientation = "horizontal", calculable = false, value = max, onChange, range, onRangeChange, pieces,selectedPieces,onPieceToggle }: ChartVisualMapProps) {
   const id = useId().replaceAll(":", "");
   const vertical = orientation === "vertical";
@@ -789,22 +1139,65 @@ export function ChartVisualMap({ min, max, colors = ["#e6f4ff", "#1677ff"], x = 
   </g>;
 }
 
+/** 图表数据缩放的属性配置。 */
 export interface ChartDataZoomProps {
+  /** 缩放手柄的显示标签。 */
   handleLabels?:readonly [ReactNode,ReactNode];
-  shadowBounds?:{width:number;height:number};
+  /** 数据阴影绘制范围。 */
+  shadowBounds?:{
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  width:number;
+  /** 高度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  height:number};
+  /**
+   * 是否允许平移当前可视范围。
+   * @defaultValue false
+   */
   panEnabled?: boolean;
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
   value: readonly [number, number];
+  /**
+   * 允许的最小值。
+   * @defaultValue 0
+   */
   min?: number;
+  /**
+   * 允许的最大值。
+   * @defaultValue 100
+   */
   max?: number;
+  /**
+   控件的无障碍名称，供屏幕阅读器识别。
+   * @defaultValue "图表可见范围"
+   */
   ariaLabel?: string;
+  /**
+   组件的水平或垂直排列方向。
+   * @defaultValue "horizontal"
+   */
   orientation?: "horizontal" | "vertical";
+  /**
+   * 缩放控件内的数据概览阴影。
+   * @defaultValue []
+   */
   dataShadow?: readonly number[];
+  /**
+   * 是否显示详细数值。
+   * @defaultValue false
+   */
   showDetail?: boolean;
+  /**
+   * 允许的最小区间跨度。
+   * @defaultValue 1
+   */
   minSpan?: number;
+  /** 将原始值转换为展示文本的函数。 */
   formatter?: (value: number) => ReactNode;
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange: (value: [number, number]) => void;
 }
 
+/** 图表数据缩放组件。 */
 export function ChartDataZoom({ value, min = 0, max = 100, ariaLabel = "图表可见范围", orientation = "horizontal", dataShadow = [], showDetail = false, minSpan = 1, formatter, onChange, panEnabled=false, shadowBounds,handleLabels }: ChartDataZoomProps) {
   const [activeHandle,setActiveHandle]=useState<0|1|null>(null);
   const pan=useRef<{id:number;origin:number;length:number;value:readonly [number,number]}>();
@@ -832,18 +1225,42 @@ export function ChartDataZoom({ value, min = 0, max = 100, ariaLabel = "图表�
   </div>;
 }
 
+/** 图表时间轴的属性配置。 */
 export interface ChartTimelineProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
+  /** 绘制或内容渲染器。 */
   renderer?: 'html' | 'nodes';
+  /** 时间轴日期序列。 */
   dates?: readonly string[];
-  x?:number;y?:number;width?:number;
+  /** 横向位置或 X 轴数据值。 */
+  x?:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y?:number;
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  width?:number;
+  /** 各操作入口的显示或无障碍文案。 */
   labels: readonly string[];
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
   value: number;
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange: (index: number) => void;
+  /**
+   * 是否自动播放时间轴。
+   * @defaultValue false
+   */
   autoPlay?: boolean;
+  /**
+   * 自动播放切换的时间间隔。
+   * @defaultValue 2000
+   */
   playInterval?: number;
+  /**
+   * 是否循环播放。
+   * @defaultValue true
+   */
   loop?: boolean;
 }
 
+/** 图表时间轴组件。 */
 export function ChartTimeline({ labels, value, onChange, autoPlay = false, playInterval = 2000, loop = true, className = "", ...props }: ChartTimelineProps) {
   const [playing, setPlaying] = useState(autoPlay);
   useEffect(() => setPlaying(autoPlay), [autoPlay]);
@@ -864,16 +1281,19 @@ export function ChartTimeline({ labels, value, onChange, autoPlay = false, playI
   </div>;
 }
 
+/** 按数据索引循环读取调色板颜色。 */
 export function chartColor(index: number, palette: readonly string[] = DEFAULT_CHART_PALETTE) {
   return palette[index % Math.max(1, palette.length)] ?? DEFAULT_CHART_PALETTE[0];
 }
 
+/** 将图表数字转换为适合标签展示的简洁文本。 */
 export function formatChartNumber(value: number) {
   if (Math.abs(value) >= 1_000_000) return `${Number((value / 1_000_000).toFixed(1))}m`;
   if (Math.abs(value) >= 1_000) return `${Number((value / 1_000).toFixed(1))}k`;
   return Number(value.toFixed(2)).toString();
 }
 
+/** 根据数据计算包含整齐刻度的数据范围，可配置是否包含零和分段数量。 */
 export function niceChartDomain(values: readonly number[], includeZero = true, splitNumber = 5, preferredSteps: readonly number[] = [1, 2, 5, 10]): [number, number, number] {
   const finite = values.filter(Number.isFinite);
   let minimum = finite.length ? Math.min(...finite) : 0;
@@ -890,6 +1310,7 @@ export function niceChartDomain(values: readonly number[], includeZero = true, s
   return [Math.floor(minimum / step) * step, Math.ceil(maximum / step) * step, step];
 }
 
+/** 根据数据范围生成坐标轴刻度值。 */
 export function chartTicks(domain: readonly [number, number, number]) {
   const [minimum, maximum, step] = domain;
   const result: number[] = [];
@@ -897,6 +1318,7 @@ export function chartTicks(domain: readonly [number, number, number]) {
   return result;
 }
 
+/** 将数据值从输入范围线性映射到输出范围。 */
 export function linearScale(value: number, domain: readonly [number, number], range: readonly [number, number]) {
   if (domain[0] === domain[1]) return (range[0] + range[1]) / 2;
   return range[0] + (value - domain[0]) / (domain[1] - domain[0]) * (range[1] - range[0]);
@@ -904,6 +1326,7 @@ export function linearScale(value: number, domain: readonly [number, number], ra
 
 export { svgArcPath } from "./arcPath";
 
+/** 根据坐标点集合生成平滑 SVG 路径。 */
 export function smoothSvgPath(points: readonly (readonly [number, number])[]) {
   if (points.length === 0) return "";
   if (points.length === 1) return `M ${points[0]![0]} ${points[0]![1]}`;

@@ -1,12 +1,29 @@
 import {useRef,useState} from 'react';
 import type {PointerEvent,CSSProperties} from 'react';
+/** ChartBrush的属性配置。 */
 export interface ChartBrushProps{
+ /**
+  * 框选区域的形状。
+  * @defaultValue 'band'
+  */
  selectionShape?:'band'|'rectangle';
+ /** 框选区域的样式。 */
  selectionStyle?:CSSProperties;
  /** Minimum accepted width and height in SVG coordinates. Omitted preserves the 4px horizontal gesture threshold. */
  minSelectionSize?:readonly [number,number];
- bounds:{x:number;y:number;width:number;height:number};
+ /** 布局边界。 */
+ bounds:{
+  /** 横向位置或 X 轴数据值。 */
+  x:number;
+  /** 纵向位置或 Y 轴数据值。 */
+  y:number;
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  width:number;
+  /** 高度；数值按像素处理，字符串可使用 CSS 尺寸。 */
+  height:number};
+ /** 选中项目时调用，参数包含选中项目及关联状态。 */
  onSelect:(range:readonly [number,number])=>void;
+ /** 用户取消或通过关闭入口退出时调用。 */
  onCancel?:()=>void;
 }
 /** Horizontal category brush. Output fractions are relative to the current plot. */

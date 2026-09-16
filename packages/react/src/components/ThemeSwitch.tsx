@@ -1,13 +1,25 @@
 import { forwardRef } from "react";
 import type { ButtonHTMLAttributes, MouseEvent } from "react";
 
+/** 主题切换的属性配置。 */
 export interface ThemeSwitchProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "onChange"> {
+  /** 当前是否勾选；作为受控属性时通过回调更新。 */
   checked: boolean;
+  /** 状态变化时返回最新布尔值 */
   onCheckedChange?: (checked: boolean) => void;
+  /**
+   * 亮色主题的显示文案。
+   * @defaultValue "亮色模式"
+   */
   lightLabel?: string;
+  /**
+   * 暗色主题的显示文案。
+   * @defaultValue "暗色模式"
+   */
   darkLabel?: string;
 }
 
+/** 主题切换组件。 */
 export const ThemeSwitch = forwardRef<HTMLButtonElement, ThemeSwitchProps>(function ThemeSwitch(
   {
     checked,

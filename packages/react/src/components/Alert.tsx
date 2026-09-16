@@ -2,20 +2,43 @@ import { useState } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
 import { Icon } from "./Icon";
 
+/** 警告提示的状态类型。 */
 export type AlertStatus = "info" | "success" | "warning" | "error";
 
+/** 警告提示的属性配置。 */
 export interface AlertProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
+  /** 当前状态，用于选择对应的状态样式。 */
   status?: AlertStatus;
+  /** 类型标识，用于选择对应的表现形式。 */
   type?: AlertStatus;
+  /** 标题内容，可传入文本或 React 节点。 */
   title?: ReactNode;
+  /** 提示或错误消息文本。 */
   message?: ReactNode;
+  /** 补充说明内容。 */
   description?: ReactNode;
+  /** 警告内容旁的业务操作节点。 */
   action?: ReactNode;
+  /**
+   * 是否显示状态图标。
+   * @defaultValue false
+   */
   showIcon?: boolean;
+  /**
+   * 是否显示关闭入口。
+   * @defaultValue false
+   */
   closable?: boolean;
+  /** 自定义关闭图标。 */
   closeIcon?: ReactNode;
+  /**
+   * 是否以通栏横幅形式显示。
+   * @defaultValue false
+   */
   banner?: boolean;
+  /** 请求关闭时触发的回调。 */
   onClose?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  /** 关闭完成后调用。 */
   afterClose?: () => void;
 }
 
@@ -26,6 +49,7 @@ const alertIcons: Record<AlertStatus, ReactNode> = {
   error: <Icon name="circle-close" size={20} />,
 };
 
+/** 警告提示组件。 */
 export function Alert({
   status, type, title, message, description, action, showIcon = false, closable = false, closeIcon,
   banner = false, onClose, afterClose, className = "", ...props

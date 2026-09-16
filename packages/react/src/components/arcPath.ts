@@ -1,3 +1,4 @@
+/** 生成扇形或环形扇区的 SVG 路径。 */
 export function svgArcPath(cx: number, cy: number, outerRadius: number, startAngle: number, endAngle: number, innerRadius = 0, clockwise = true) {
   if (![cx,cy,outerRadius,innerRadius,startAngle,endAngle].every(Number.isFinite) || outerRadius<=0 || Math.abs(endAngle-startAngle)<1e-12) return "";
   innerRadius=Math.max(0,Math.min(innerRadius,outerRadius));

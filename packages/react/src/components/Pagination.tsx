@@ -7,29 +7,74 @@ import { useControllableState } from "./shared";
 import { useControlSize } from "./shared";
 import type { ControlSize } from "./shared";
 
+/** 分页器默认提供的每页记录数选项。 */
 export const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 200, 500, 1000, 2000, 5000] as const;
 
+/** 分页的属性配置。 */
 export interface PaginationProps extends Omit<HTMLAttributes<HTMLElement>, "onChange"> {
+  /** 组件尺寸；用于调整控件高度、字号和间距。 */
   size?: ControlSize;
+  /**
+   * 数据总数
+   * @defaultValue 0
+   */
   total?: number;
+  /** 当前页实际条数；未提供时根据总数、页码和每页条数计算。 */
+  currentPageCount?: number;
+  /** 当前页码，从 1 开始；传入后由外部控制。 */
   current?: number;
+  /**
+   * 非受控模式的初始页码或步骤位置。
+   * @defaultValue 1
+   */
   defaultCurrent?: number;
+  /** 每页显示的记录数。 */
   pageSize?: number;
+  /**
+   * 非受控模式下每页默认展示的记录数。
+   * @defaultValue 25
+   */
   defaultPageSize?: number;
+  /**
+   * 每页条数候选项
+   * @defaultValue DEFAULT_PAGE_SIZE_OPTIONS
+   */
   pageSizeOptions?: readonly number[];
+  /**
+   * 是否显示每页条数切换控件。
+   * @defaultValue true
+   */
   showSizeChanger?: boolean;
+  /**
+   * 是否显示总数，或自定义总数文本的函数。
+   * @defaultValue true
+   */
   showTotal?: boolean | ((total: number, range: [number, number]) => ReactNode);
+  /**
+   * 是否禁用交互。
+   * @defaultValue false
+   */
   disabled?: boolean;
+  /**
+   * 只有一页数据时是否隐藏分页器。
+   * @defaultValue false
+   */
   hideOnSinglePage?: boolean;
+  /** 是否正在刷新总数。 */
   refreshing?: boolean;
+  /** 请求刷新总数时调用。 */
   onRefreshTotal?: () => void | Promise<void>;
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (page: number, pageSize: number) => void;
+  /** 每页条数变化时调用，参数为页码及新的每页条数。 */
   onShowSizeChange?: (current: number, pageSize: number) => void;
 }
 
+/** 分页组件。 */
 export function Pagination({
   size: sizeProp,
   total = 0,
+  currentPageCount,
   current,
   defaultCurrent = 1,
   pageSize,
@@ -58,6 +103,7 @@ export function Pagination({
   const range: [number, number] = safeTotal
     ? [(safePage - 1) * size + 1, Math.min(safeTotal, safePage * size)]
     : [0, 0];
+  const pageCount = Math.max(0, currentPageCount ?? (safeTotal ? range[1] - range[0] + 1 : 0));
 
   if (hideOnSinglePage && totalPages <= 1) return null;
 
@@ -87,6 +133,7 @@ export function Pagination({
 
   return (
     <nav className={`sia-pagination sia-pagination--${controlSize} ${className}`.trim()} aria-label="分页" {...props}>
+      <span className="sia-pagination__current-count" aria-live="polite">当前页 {pageCount} 条</span>
       {showSizeChanger ? (
         <div className="sia-pagination__size">
           <span>每页显示</span>

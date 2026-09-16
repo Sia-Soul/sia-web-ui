@@ -1,6 +1,20 @@
 import {useEffect,useRef,useState} from 'react';
+/** 图表漫游控制器的属性配置。 */
 export interface ChartRoamControllerProps {
- x?:number;y?:number;onPan:(x:number,y:number)=>void;onZoom:(factor:number)=>void;
+ /**
+  * 横向位置或 X 轴数据值。
+  * @defaultValue 800
+  */
+ x?:number;
+  /**
+   * 纵向位置或 Y 轴数据值。
+   * @defaultValue 5
+   */
+  y?:number;
+  /** 视图平移时调用。 */
+  onPan:(x:number,y:number)=>void;
+  /** 视图缩放时调用。 */
+  onZoom:(factor:number)=>void;
 }
 /** Independent SVG controls; deliberately separate from direct map gestures. */
 export function ChartRoamController({x=800,y=5,onPan,onZoom}:ChartRoamControllerProps){

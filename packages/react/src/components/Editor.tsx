@@ -8,40 +8,66 @@ import { registerJsonLanguage } from "./jsonLanguage";
 import type { MenuItem } from "./Navigation";
 import { registerSqlLanguages, type SqlDialectLanguage } from "./sqlLanguages";
 
+/** 代码编辑器的配色主题。 */
 export type EditorTheme = "light" | "dark";
+/** 代码编辑器支持的语言名称。 */
 export type EditorLanguage = SqlDialectLanguage | (string & {});
 
+/** 编辑器中的文本范围，行号和列号从 1 开始。 */
 export interface EditorRange {
+  /** 起始行号，从 1 开始。 */
   startLineNumber: number;
+  /** 起始列号，从 1 开始。 */
   startColumn: number;
+  /** 结束行号，从 1 开始。 */
   endLineNumber: number;
+  /** 结束列号，从 1 开始。 */
   endColumn: number;
 }
 
+/** 编辑器中的诊断标记，包含范围、严重程度和提示信息。 */
 export interface EditorMarker extends EditorRange {
+  /** 提示或错误消息文本。 */
   message: string;
+  /** 提示或问题的严重级别。 */
   severity?: "error" | "warning" | "info";
+  /** 触发来源，用于区分不同入口的操作。 */
   source?: string;
 }
 
+/** 编辑器选区变化时的范围和选中文本。 */
 export interface EditorSelectionChange {
+  /** 是否启用范围选择，或指定选择范围。 */
   range: EditorRange;
+  /** 显示文本。 */
   text: string;
+  /** 插入内容后相对于插入起点的光标偏移。 */
   cursorOffset: number;
 }
 
+/** 编辑器键盘事件及控制默认行为的方法。 */
 export interface EditorKeyDownEvent {
+  /** 唯一标识；同一集合内应保持唯一且稳定，用于定位、渲染和状态关联。 */
   key: string;
+  /** 代码内容或按键代码。 */
   code: string;
+  /** 事件发生时是否按下 Ctrl 键。 */
   ctrlKey: boolean;
+  /** 事件发生时是否按下 Command 或 Windows 键。 */
   metaKey: boolean;
+  /** 事件发生时是否按下 Shift 键。 */
   shiftKey: boolean;
+  /** 事件发生时是否按下 Alt 键。 */
   altKey: boolean;
+  /** 是否为按住按键产生的重复事件。 */
   repeat: boolean;
+  /** 阻止事件的浏览器默认行为。 */
   preventDefault(): void;
+  /** 阻止事件继续传播。 */
   stopPropagation(): void;
 }
 
+/** 补全候选项类别，用于显示对应图标。 */
 export type EditorCompletionItemKind =
   | "text"
   | "keyword"
@@ -55,45 +81,76 @@ export type EditorCompletionItemKind =
   | "procedure"
   | "value";
 
+/** 请求补全时的文档、光标和触发字符上下文。 */
 export interface EditorCompletionContext {
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value: string;
+  /** 文档起始位置到光标之前的文本。 */
   textBeforeCursor: string;
+  /** 当前行内光标之前的文本。 */
   lineTextBeforeCursor: string;
+  /** 光标所在位置的单词。 */
   word: string;
+  /** 显示位置或定位配置。 */
   position: {
+    /** 行号，从 1 开始。 */
     lineNumber: number;
+    /** 光标所在的列号，从 1 开始。 */
     column: number;
+    /** 相对于默认位置的偏移。 */
     offset: number;
   };
+  /** 触发补全的字符。 */
   triggerCharacter?: string;
 }
 
+/** EditorCompletion的项目定义。 */
 export interface EditorCompletionItem {
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
   label: string;
+  /** 接受补全项后插入的文本。 */
   insertText?: string;
+  /** 补全项或节点的类别。 */
   kind?: EditorCompletionItemKind;
+  /** 简短的补充说明。 */
   detail?: string;
+  /** 补全项的详细说明文档。 */
   documentation?: string;
+  /** 用于补全过滤匹配的文本。 */
   filterText?: string;
+  /** 用于补全排序的文本。 */
   sortText?: string;
+  /** 是否优先选中该补全项。 */
   preselect?: boolean;
+  /** 输入后可确认此补全项的字符集合。 */
   commitCharacters?: readonly string[];
+  /** 插入文本的格式，支持普通文本或代码片段。 */
   insertTextFormat?: "plain" | "snippet";
+  /** 是否启用范围选择，或指定选择范围。 */
   range?: EditorRange;
 }
 
+/** 根据编辑器上下文生成补全候选项的函数。 */
 export type EditorCompletionProvider = (
   context: EditorCompletionContext,
 ) => readonly EditorCompletionItem[] | Promise<readonly EditorCompletionItem[]>;
 
+/** 编辑器可执行的命令名称。 */
 export type EditorCommand = "cut" | "copy" | "paste" | "selectAll";
 
+/** EditorContextMenu的项目定义。 */
 export interface EditorContextMenuItem {
+  /** 唯一标识；同一集合内应保持唯一且稳定，用于定位、渲染和状态关联。 */
   key: string;
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
   label: string;
+  /** 待执行的编辑命令。 */
   command?: EditorCommand;
+  /** 显示或绑定的快捷键。 */
   shortcut?: string;
+  /** 是否禁用交互。 */
   disabled?: boolean | ((api: EditorHandle | null) => boolean);
+  /** 点击时触发，参数为当前点击事件或项目上下文。 */
   onClick?: (api: EditorHandle) => void;
 }
 
@@ -104,37 +161,94 @@ const EDITOR_COMMAND_SHORTCUTS: Record<EditorCommand, string> = {
   selectAll: "Ctrl+A",
 };
 
+/** 代码编辑器的操作句柄。 */
 export interface EditorHandle {
+  /** 将焦点移入控件。 */
   focus(): void;
+  /** 读取当前内容。 */
   getValue(): string;
+  /** 读取当前选区范围。 */
   getSelection(): EditorRange | null;
+  /** 读取当前选区的文本。 */
   getSelectedText(): string;
+  /** 在当前选区插入块内容。 */
   insertBlock(content: string): void;
+  /** 为选中行添加或移除行前缀。 */
   prefixLines(prefix: string): void;
+  /** 替换编辑器的全部内容。 */
   replaceValue(content: string): void;
+  /** 滚动到指定行并使其可见。 */
   revealLine(line: number): void;
+  /** 设置编辑器选区。 */
   setSelection(range: EditorRange): void;
+  /** 用指定前后文本包裹当前选区。 */
   wrapSelection(prefix: string, suffix: string, placeholder?: string): void;
 }
 
+/** 代码编辑器的属性配置。 */
 export interface EditorProps {
+  /** 编辑器内容 */
   value: string;
+  /** 内容变化回调 */
   onChange?: (value: string) => void;
+  /** 实例初始化完成时调用，提供可用的实例或操作接口。 */
   onReady?: (api: EditorHandle | null) => void;
+  /** 编辑器选区变化时调用。 */
   onSelectionChange?: (selection: EditorSelectionChange) => void;
+  /** 键盘按下时调用，可用于处理快捷键。 */
   onKeyDown?: (event: EditorKeyDownEvent) => void;
+  /**
+   * Monaco 语言标识
+   * @defaultValue "plaintext"
+   */
   language?: EditorLanguage;
+  /** 文件路径或文档标识，用于关联编辑器模型。 */
   path?: string;
+  /**
+   组件的配色主题。
+   * @defaultValue "light"
+   */
   theme?: EditorTheme;
+  /** Monaco 编辑器配置 */
   options?: Monaco.editor.IStandaloneEditorConstructionOptions;
+  /** 需要额外高亮的文档范围。 */
   highlightRange?: EditorRange | null;
+  /**
+   * 在指定文本范围显示错误、警告或信息波浪线
+   * @defaultValue []
+   */
   markers?: readonly EditorMarker[];
+  /**
+   * 右键菜单项目配置。
+   * @defaultValue []
+   */
   contextMenuItems?: readonly EditorContextMenuItem[];
+  /** 按当前文本和光标上下文异步提供智能提示 */
   completionProvider?: EditorCompletionProvider;
+  /**
+   * 主动触发智能提示的字符
+   * @defaultValue ["."]
+   */
   completionTriggerCharacters?: readonly string[];
+  /**
+   * 按空格时正常输入空格、关闭当前提示，并根据新的光标位置重新触发智能提示
+   * @defaultValue false
+   */
   refreshSuggestionOnSpace?: boolean;
+  /**
+   * 附加到组件根节点的 CSS 类名。
+   * @defaultValue ""
+   */
   className?: string;
+  /**
+   控件的无障碍名称，供屏幕阅读器识别。
+   * @defaultValue "代码编辑器"
+   */
   ariaLabel?: string;
+  /**
+   * 加载过程中的提示内容。
+   * @defaultValue "正在加载编辑器…"
+   */
   loadingText?: string;
 }
 
@@ -213,6 +327,7 @@ async function loadMonaco() {
   return monaco;
 }
 
+/** 代码编辑器组件。 */
 export function Editor({
   value,
   onChange,

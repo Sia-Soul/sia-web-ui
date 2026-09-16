@@ -4,31 +4,61 @@ import { createContext, forwardRef, useContext, useEffect, useId, useMemo, useRe
 import type { ChangeEvent, InputHTMLAttributes, ReactNode } from "react";
 import { useControllableState } from "./shared";
 
+/** 复选框的值类型。 */
 export type CheckboxValue = string | number;
 
+/** 复选框的属性配置。 */
 export interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "size" | "value" | "onChange"> {
+  /** 组件尺寸；用于调整控件高度、字号和间距。 */
   size?: ControlSize;
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
   value?: CheckboxValue;
+  /**
+   * 半选状态
+   * @defaultValue false
+   */
   indeterminate?: boolean;
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
   children?: ReactNode;
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (checked: boolean, event: ChangeEvent<HTMLInputElement>) => void;
 }
 
+/** 复选框的候选项定义。 */
 export interface CheckboxOption {
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
   label: ReactNode;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value: CheckboxValue;
+  /** 是否禁用交互。 */
   disabled?: boolean;
 }
 
+/** CheckboxGroup的属性配置。 */
 export interface CheckboxGroupProps {
+  /** 组件尺寸；用于调整控件高度、字号和间距。 */
   size?: ControlSize;
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
   value?: readonly CheckboxValue[];
+  /**
+   * 非受控模式的初始值，仅在初始化时使用。
+   * @defaultValue []
+   */
   defaultValue?: readonly CheckboxValue[];
+  /** 可供用户选择的候选项列表。 */
   options?: readonly (CheckboxOption | CheckboxValue)[];
+  /** 是否禁用交互。 */
   disabled?: boolean;
+  /** 名称或字段标识。 */
   name?: string;
+  /**
+   * 附加到组件根节点的 CSS 类名。
+   * @defaultValue ""
+   */
   className?: string;
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
   children?: ReactNode;
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (values: readonly CheckboxValue[]) => void;
 }
 
@@ -120,4 +150,7 @@ function CheckboxGroup({
   </CheckboxGroupContext.Provider></ControlSizeContext.Provider>;
 }
 
-export const Checkbox = Object.assign(CheckboxRoot, { Group: CheckboxGroup });
+/** 复选框组件。 */
+export const Checkbox = Object.assign(CheckboxRoot, {
+  /** 组合多个子项并统一管理布局或选择状态。 */
+  Group: CheckboxGroup });

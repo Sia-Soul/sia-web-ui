@@ -1,8 +1,21 @@
 import {useEffect,useState} from 'react';
 
+/** 图表旋转加载的属性配置。 */
 export interface ChartWhirlingLoadingProps {
+ /**
+  * 宽度；数值按像素处理，字符串可使用 CSS 尺寸。
+  * @defaultValue 720
+  */
  width?:number;
+ /**
+  * 高度；数值按像素处理，字符串可使用 CSS 尺寸。
+  * @defaultValue 360
+  */
  height?:number;
+ /**
+  * 显示文本。
+  * @defaultValue '数据获取中'
+  */
  text?:string;
  /** Measured text width in viewBox units; omitted uses a CJK-aware estimate. */
  textWidth?:number;

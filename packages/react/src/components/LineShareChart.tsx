@@ -4,9 +4,23 @@ import type {SiaChartProps,SiaChartRef} from './Chart';
 import {linePath} from './Charts';
 import {ChartPointMotion} from './ChartPointMotion';
 
+/** 分时图的属性配置。 */
 export interface LineShareChartProps extends Omit<SiaChartProps,'children'> {
- data:readonly {name:string;value:number}[];
+ /** 用于渲染的数据集合。 */
+ data:readonly {
+  /** 名称或字段标识。 */
+  name:string;
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
+  value:number}[];
+ /**
+  * 线条颜色。
+  * @defaultValue '#2ec7c9'
+  */
  lineColor?:string;
+ /**
+  * 分时图或共享数据区域的颜色。
+  * @defaultValue '#b6a2de'
+  */
  shareColor?:string;
 }
 /** A shifted area line and a masked share ring retain distinct displayed/raw values. */

@@ -1,9 +1,16 @@
+/** FlatTree的配置选项。 */
 export interface FlatTreeOptions {
+  /** 扁平数据中用作节点唯一标识的字段名。 */
   idField?: string;
+  /** 扁平数据中用作父节点标识的字段名。 */
   parentIdField?: string;
+  /** 用来判断根节点的父标识值。 */
   rootParentId?: unknown;
 }
-export type FlatTreeNode<T> = T & { children: FlatTreeNode<T>[] };
+/** 保留原始字段并补充 children 的树节点。 */
+export type FlatTreeNode<T> = T & {
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
+  children: FlatTreeNode<T>[] };
 
 /** 平级列表转树；容忍孤儿节点，并切断自引用和循环关系，防止递归溢出。 */
 export function buildFlatTree<T extends Record<string, any>>(items: readonly T[], options: FlatTreeOptions = {}): FlatTreeNode<T>[] {

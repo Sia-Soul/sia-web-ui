@@ -5,15 +5,29 @@ import type { ChangeEvent, ReactNode, TextareaHTMLAttributes } from "react";
 import type { ControlSize, ControlStatus } from "./shared";
 import { useControlSize } from "./shared";
 
+/** 多行输入的属性配置。 */
 export interface TextAreaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+  /** 调整字号和内边距；保留 rows 和内容决定的多行高度。默认继承 Form */
   size?: ControlSize;
+  /** 字段标签 */
   label?: ReactNode;
+  /** 帮助或校验信息 */
   hint?: ReactNode;
+  /**
+   * 校验状态
+   * @defaultValue "default"
+   */
   status?: ControlStatus;
+  /**
+   * 显示当前字符数
+   * @defaultValue false
+   */
   showCount?: boolean;
+  /** 占位提示的显示模式；floating 为浮动标签。 */
   placeholderMode?: InputPlaceholderMode;
 }
 
+/** 多行输入组件。 */
 export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function TextArea(
   {
     label,

@@ -5,41 +5,97 @@ import type {
 } from "react";
 import { Icon } from "./Icon";
 
+/** 窗口控制操作名称。 */
 export type WindowAction = "start-dragging" | "minimize" | "toggle-maximize" | "close";
+/** 窗口控制按钮可执行的操作。 */
 export type WindowControlAction = Exclude<WindowAction, "start-dragging">;
+/** 执行窗口控制操作的回调函数。 */
 export type WindowActionHandler = (action: WindowAction) => void | Promise<void>;
+/** 标题栏操作区域的对齐方式。 */
 export type WindowTitleBarActionsAlign = "left" | "right";
 
+/** 窗口控制按钮的显示和无障碍文案。 */
 export interface WindowControlLabels {
+  /** 最小化窗口。 */
   minimize: string;
+  /** 最大化窗口。 */
   maximize: string;
+  /** 还原窗口尺寸或还原初始状态。 */
   restore: string;
+  /** 关闭当前界面或实例。 */
   close: string;
 }
 
+/** 窗口框架的属性配置。 */
 export interface WindowFrameProps extends HTMLAttributes<HTMLDivElement> {
+  /** 标题栏内容或配置。 */
   titleBar?: ReactNode;
 }
 
+/** 窗口控制按钮的属性配置。 */
 export interface WindowControlsProps extends HTMLAttributes<HTMLDivElement> {
+  /**
+   * 当前窗口是否已最大化。
+   * @defaultValue false
+   */
   maximized?: boolean;
+  /**
+   * 是否显示最小化按钮。
+   * @defaultValue true
+   */
   showMinimize?: boolean;
+  /**
+   * 是否显示最大化或还原按钮。
+   * @defaultValue true
+   */
   showMaximize?: boolean;
+  /**
+   * 是否显示关闭按钮。
+   * @defaultValue true
+   */
   showClose?: boolean;
+  /**
+   * 不允许执行的窗口操作集合。
+   * @defaultValue []
+   */
   disabledActions?: readonly WindowControlAction[];
+  /** 各操作入口的显示或无障碍文案。 */
   labels?: Partial<WindowControlLabels>;
+  /** 操作按钮被触发时调用。 */
   onAction?: WindowActionHandler;
 }
 
+/** 窗口标题栏的属性配置。 */
 export interface WindowTitleBarProps extends HTMLAttributes<HTMLElement> {
+  /** 标题前的内容区域。 */
   leading?: ReactNode;
+  /** 附加的操作按钮区域。 */
   actions?: ReactNode;
+  /**
+   * 操作区域的对齐方式。
+   * @defaultValue "right"
+   */
   actionsAlign?: WindowTitleBarActionsAlign;
+  /**
+   是否显示窗口控制按钮。
+   * @defaultValue true
+   */
   controls?: boolean | ReactNode;
+  /**
+   * 当前窗口是否已最大化。
+   * @defaultValue false
+   */
   maximized?: boolean;
+  /**
+   * 是否允许拖拽。
+   * @defaultValue true
+   */
   draggable?: boolean;
+  /** 不允许执行的窗口操作集合。 */
   disabledActions?: readonly WindowControlAction[];
+  /** 窗口控制按钮的文案。 */
   controlLabels?: Partial<WindowControlLabels>;
+  /** 窗口控制操作触发时调用。 */
   onWindowAction?: WindowActionHandler;
 }
 
@@ -67,6 +123,7 @@ const NON_DRAG_SELECTOR = [
   "[data-sia-window-no-drag]",
 ].join(",");
 
+/** 窗口框架组件。 */
 export function WindowFrame({
   titleBar,
   className = "",
@@ -85,6 +142,7 @@ export function WindowFrame({
   );
 }
 
+/** 窗口控制按钮组件。 */
 export function WindowControls({
   maximized = false,
   showMinimize = true,
@@ -152,6 +210,7 @@ export function WindowControls({
   );
 }
 
+/** 窗口标题栏组件。 */
 export function WindowTitleBar({
   leading,
   actions,

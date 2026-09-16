@@ -4,7 +4,12 @@ import { useEffect } from "react";
 import type { RefObject } from "react";
 import { useScrollbarProximity } from "./useScrollbarProximity";
 
+/** 浮动滚动条接入组件的属性配置。 */
 export interface FloatingScrollbarProviderProps {
+  /**
+   * 是否禁用交互。
+   * @defaultValue false
+   */
   disabled?: boolean;
   /** 仅接管指定容器；不传时接管页面中的滚动容器。 */
   targetRef?: RefObject<HTMLElement | null>;
@@ -98,6 +103,7 @@ function createTrack(axis: ScrollAxis) {
   return { track, thumb };
 }
 
+/** 浮动滚动条接入组件组件。 */
 export function FloatingScrollbarProvider({ disabled = false, targetRef }: FloatingScrollbarProviderProps) {
   useScrollbarProximity();
   useEffect(() => {

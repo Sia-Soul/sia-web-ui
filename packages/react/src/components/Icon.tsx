@@ -76,7 +76,9 @@ const coreIconPaths = {
 
 const iconPaths = { ...coreIconPaths, ...extendedIconPaths };
 
+/** 可用的线框图标名称。 */
 export type IconName = keyof typeof iconPaths;
+/** 可用线框图标名称集合。 */
 export const ICON_NAMES = Object.freeze(Object.keys(iconPaths) as IconName[]);
 
 const filledIconPaths = {
@@ -110,18 +112,48 @@ const filledIconPaths = {
   token: <><circle cx="12" cy="12" r="5" fill="currentColor" stroke="none" /><path d="M12 1v4M12 19v4M1 12h4M19 12h4M4.2 4.2 7 7M17 17l2.8 2.8M19.8 4.2 17 7M7 17l-2.8 2.8" stroke="currentColor" strokeWidth="2.2" /></>,
 } satisfies Partial<Record<IconName, ReactNode>>;
 
+/** 可用的填充图标名称。 */
 export type FilledIconName = keyof typeof filledIconPaths;
+/** 图标采用线框还是填充样式。 */
 export type IconVariant = "outline" | "filled";
+/** 可用填充图标名称集合。 */
 export const FILLED_ICON_NAMES = Object.freeze(Object.keys(filledIconPaths) as FilledIconName[]);
 
+/** 图标的属性配置。 */
 export interface IconProps extends Omit<HTMLAttributes<HTMLSpanElement>, "children"> {
+  /** 名称或字段标识。 */
   name: IconName;
+  /**
+   * 组件尺寸；用于调整控件高度、字号和间距。
+   * @defaultValue "1em"
+   */
   size?: number | string;
+  /**
+   * 描边或进度轨道粗细。
+   * @defaultValue 1.8
+   */
   strokeWidth?: number;
+  /**
+   * 旋转角度。
+   * @defaultValue 0
+   */
   rotate?: number;
+  /**
+   * 是否显示持续旋转动画。
+   * @defaultValue false
+   */
   spin?: boolean;
+  /**
+   * 是否显示脉冲动画。
+   * @defaultValue false
+   */
   pulse?: boolean;
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
   label?: string;
+  /**
+   组件的视觉样式。
+   * @defaultValue "outline"
+   */
   variant?: IconVariant;
 }
 
@@ -130,6 +162,7 @@ type IconStyle = CSSProperties & {
   "--sia-icon-rotate"?: string;
 };
 
+/** 图标组件。 */
 export const Icon = forwardRef<HTMLSpanElement, IconProps>(function Icon(
   { name, size = "1em", strokeWidth = 1.8, rotate = 0, spin = false, pulse = false, label, variant = "outline", className = "", style, ...props },
   ref,

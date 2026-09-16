@@ -6,28 +6,69 @@ import { Icon } from "./Icon";
 import { PopupPortal } from "./PopupPortal";
 import { useControllableState } from "./shared";
 
+/** 颜色选择的模式类型。 */
 export type ColorPickerMode = "solid" | "gradient";
 
+/** 预设颜色分组定义。 */
 export interface ColorPickerPreset {
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
   label?: ReactNode;
+  /** 可选颜色或颜色序列。 */
   colors: readonly string[];
 }
 
+/** 颜色选择的属性配置。 */
 export interface ColorPickerProps extends Omit<HTMLAttributes<HTMLDivElement>, "defaultValue" | "onChange"> {
+  /** 组件尺寸；用于调整控件高度、字号和间距。 */
   size?: ControlSize;
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
   value?: string;
+  /**
+   * 非受控模式的初始值，仅在初始化时使用。
+   * @defaultValue "#1677FF"
+   */
   defaultValue?: string;
+  /** 展示或交互模式；可选值见类型定义。 */
   mode?: ColorPickerMode;
+  /**
+   * 初始化时使用的模式。
+   * @defaultValue "solid"
+   */
   defaultMode?: ColorPickerMode;
+  /**
+   允许切换的模式集合。
+   * @defaultValue DEFAULT_MODES
+   */
   modes?: readonly ColorPickerMode[];
+  /**
+   * 是否禁用交互。
+   * @defaultValue false
+   */
   disabled?: boolean;
+  /**
+   是否允许清空当前选择或输入值。
+   * @defaultValue false
+   */
   allowClear?: boolean;
+  /**
+   * 是否显示文字内容。
+   * @defaultValue false
+   */
   showText?: boolean | ((color: string) => ReactNode);
+  /**
+   * 是否显示透明度调节控件。
+   * @defaultValue false
+   */
   showAlpha?: boolean;
+  /** 预设候选值或快捷选项集合。 */
   presets?: readonly ColorPickerPreset[];
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (color: string) => void;
+  /** 拖动完成回调 */
   onChangeComplete?: (color: string) => void;
+  /** 模式切换后调用。 */
   onModeChange?: (mode: ColorPickerMode) => void;
+  /** 清空当前值时调用。 */
   onClear?: () => void;
 }
 
@@ -122,6 +163,7 @@ function createDefaultStops(color: string): GradientStop[] {
   return [createStop(color, 0), createStop("#FFFFFF", 100)];
 }
 
+/** 颜色选择组件。 */
 export function ColorPicker({
   size: sizeProp,
   value,

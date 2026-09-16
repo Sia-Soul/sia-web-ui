@@ -2,8 +2,11 @@ import { useLayoutEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "./Icon";
 
+/** 日期选择附带的时间选择配置。 */
 export type DatePickerShowTime = boolean | {
+  /** 是否显示秒选择。 */
   showSecond?: boolean;
+  /** 非受控模式的初始值，仅在初始化时使用。 */
   defaultValue?: string | readonly [string, string];
 };
 

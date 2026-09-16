@@ -7,22 +7,39 @@ import type { DropdownMenuProps } from "./Dropdown";
 import { Icon } from "./Icon";
 import { useControllableState } from "./shared";
 
+/** Floating的位置类型。 */
 export type FloatingPlacement = "top" | "top-start" | "top-end" | "bottom" | "bottom-start" | "bottom-end" | "left" | "right";
+/** 触发浮层显示的交互方式。 */
 export type FloatingTrigger = "hover" | "focus" | "click";
+/** 文字提示的属性配置。 */
 export interface TooltipProps {
+  /** 标题内容，可传入文本或 React 节点。 */
   title?: ReactNode;
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
   children: ReactElement;
+  /** 相对于触发元素的弹出方向和对齐位置。 */
   placement?: FloatingPlacement;
+  /** 触发显示的交互方式。 */
   trigger?: FloatingTrigger | readonly FloatingTrigger[];
+  /** 元素的无障碍语义角色。 */
   role?: string;
+  /** 是否打开；传入后由外部控制显示状态。 */
   open?: boolean;
+  /** 非受控模式下的初始打开状态。 */
   defaultOpen?: boolean;
+  /** 鼠标移入后延迟显示的时间。 */
   mouseEnterDelay?: number;
+  /** 鼠标移出后延迟隐藏的时间。 */
   mouseLeaveDelay?: number;
+  /** 显示箭头及是否指向触发器中心 */
   arrow?: boolean;
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
+  /** 附加到组件根节点的 CSS 类名。 */
   className?: string;
+  /** 浮层容器的附加 CSS 类名。 */
   overlayClassName?: string;
+  /** 打开状态改变时触发，参数为新的打开状态。 */
   onOpenChange?: (open: boolean) => void;
 }
 
@@ -200,24 +217,59 @@ function Floating({
   </>;
 }
 
+/** 文字提示组件。 */
 export function Tooltip(props: TooltipProps) { return <Floating {...props} content={props.title} />; }
 
+/** 气泡卡片的属性配置。 */
 export interface PopoverProps extends Omit<TooltipProps, "title"> {
+  /** 标题内容，可传入文本或 React 节点。 */
   title?: ReactNode;
+  /** 需要显示的内容，支持文本或 React 节点。 */
   content?: ReactNode;
 }
+/** 气泡卡片组件。 */
 export function Popover({ title, content, trigger = "click", overlayClassName = "", ...props }: PopoverProps) {
   return <Floating {...props} trigger={trigger} role="dialog" overlayClassName={`sia-popover ${overlayClassName}`.trim()} content={<>{title ? <strong className="sia-popover__title">{title}</strong> : null}<span className="sia-popover__content">{content}</span></>} />;
 }
 
-export type TimelineItem = { children?: ReactNode; label?: ReactNode; color?: "blue" | "red" | "green" | "gray" | string; dot?: ReactNode; position?: "left" | "right" };
+/** 时间轴的项目定义。 */
+export type TimelineItem = {
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
+  children?: ReactNode;
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
+  label?: ReactNode;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color?: "blue" | "red" | "green" | "gray" | string;
+  /** 是否以圆点形式显示状态或徽标。 */
+  dot?: ReactNode;
+  /** 显示位置或定位配置。 */
+  position?: "left" | "right" };
+/** 时间轴的属性配置。 */
 export interface TimelineProps extends HTMLAttributes<HTMLUListElement> {
+  /**
+   * 按展示顺序排列的项目配置。
+   * @defaultValue []
+   */
   items?: readonly TimelineItem[];
+  /**
+   * 展示或交互模式；可选值见类型定义。
+   * @defaultValue "left"
+   */
   mode?: "left" | "alternate" | "right";
+  /**
+   * 时间轴未完成节点的内容。
+   * @defaultValue false
+   */
   pending?: ReactNode | boolean;
+  /** 时间轴未完成节点的图标。 */
   pendingDot?: ReactNode;
+  /**
+   * 反转节点顺序
+   * @defaultValue false
+   */
   reverse?: boolean;
 }
+/** 时间轴组件。 */
 export function Timeline({ items = [], mode = "left", pending = false, pendingDot, reverse = false, className = "", ...props }: TimelineProps) {
   const values: TimelineItem[] = [...items, ...(pending ? [{ children: pending === true ? "加载中..." : pending, dot: pendingDot ?? <Icon name="loader" className="sia-spin-icon" /> }] : [])];
   if (reverse) values.reverse();
@@ -233,56 +285,175 @@ export function Timeline({ items = [], mode = "left", pending = false, pendingDo
   </ul>;
 }
 
+/** 树节点的唯一标识类型。 */
 export type TreeKey = string | number;
+/** 拖放目标相对于节点的位置。 */
 export type TreeDropPosition = "before" | "inside" | "after";
+/** 树组件的数据节点，支持子节点、勾选、禁用和异步加载。 */
 export interface TreeNode {
+  /** 唯一标识；同一集合内应保持唯一且稳定，用于定位、渲染和状态关联。 */
   key: TreeKey;
+  /** 标题内容，可传入文本或 React 节点。 */
   title: ReactNode;
+  /** 输入框前缀 */
   prefix?: ReactNode;
+  /** 主体之外的补充内容或操作区。 */
   extra?: ReactNode;
+  /** 是否禁用交互。 */
   disabled?: boolean;
+  /** 是否仅禁用该节点的勾选框。 */
   disableCheckbox?: boolean;
+  /** 是否允许选中项目。 */
   selectable?: boolean;
+  /** 是否显示勾选框或允许勾选。 */
   checkable?: boolean;
+  /** 是否为叶子节点；异步加载场景可用于标识无子项节点。 */
   isLeaf?: boolean;
+  /** 子节点是否已经加载完成。 */
   loaded?: boolean;
+  /** 显示在内容旁的图标节点，建议使用 Icon 组件。 */
   icon?: ReactNode;
+  /** 加载过程中的提示内容。 */
   loadingText?: ReactNode;
+  /** 是否允许拖拽。 */
   draggable?: boolean;
+  /** 是否允许作为拖放目标。 */
   droppable?: boolean;
+  /** 右键菜单配置或按当前项目生成菜单的函数。 */
   contextMenu?: DropdownMenuProps;
+  /** 右键菜单弹层的 CSS 类名。 */
   contextMenuPopupClassName?: string;
+  /** 行节点的附加属性，也可按行生成属性。 */
   rowProps?: Omit<HTMLAttributes<HTMLDivElement>, "children"> & Partial<Record<`data-${string}`, string | number>>;
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
   children?: readonly TreeNode[];
   [key: string]: unknown;
 }
+/** 树的属性配置。 */
 export interface TreeProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSelect" | "onDrop"> {
+  /** 树形节点数据 */
   treeData: readonly TreeNode[];
+  /** 当前选中项目的标识集合；传入后由外部控制。 */
   selectedKeys?: readonly TreeKey[];
+  /**
+   * 非受控模式下初始选中的项目标识集合。
+   * @defaultValue []
+   */
   defaultSelectedKeys?: readonly TreeKey[];
+  /** 受控的展开节点标识集合。 */
   expandedKeys?: readonly TreeKey[];
+  /**
+   * 初始化时展开的节点标识集合。
+   * @defaultValue []
+   */
   defaultExpandedKeys?: readonly TreeKey[];
+  /**
+   * 是否在初始化时展开所有节点。
+   * @defaultValue false
+   */
   defaultExpandAll?: boolean;
+  /** 受控的勾选节点标识集合。 */
   checkedKeys?: readonly TreeKey[];
+  /**
+   * 非受控模式下初始勾选的节点标识。
+   * @defaultValue []
+   */
   defaultCheckedKeys?: readonly TreeKey[];
+  /**
+   * 由外部控制正在异步加载的节点
+   * @defaultValue []
+   */
   loadingKeys?: readonly TreeKey[];
+  /**
+   * 是否显示勾选框或允许勾选。
+   * @defaultValue false
+   */
   checkable?: boolean;
+  /**
+   * 父子节点勾选状态是否相互独立。
+   * @defaultValue false
+   */
   checkStrictly?: boolean;
+  /**
+   是否允许同时选择多个项目。
+   * @defaultValue false
+   */
   multiple?: boolean;
+  /**
+   * 是否允许选中项目。
+   * @defaultValue true
+   */
   selectable?: boolean;
+  /**
+   * 是否显示连接线。
+   * @defaultValue false
+   */
   showLine?: boolean;
+  /**
+   * 是否显示状态图标。
+   * @defaultValue false
+   */
   showIcon?: boolean;
+  /**
+   * 节点是否占满整行宽度。
+   * @defaultValue false
+   */
   blockNode?: boolean;
+  /**
+   * 每级节点的缩进距离，单位为像素。
+   * @defaultValue 20
+   */
   indentSize?: number;
+  /**
+   * 展开开关预留宽度，单位为像素。
+   * @defaultValue 24
+   */
   switcherWidth?: number;
+  /**
+   * 滚动时是否固定显示当前节点的祖先行。
+   * @defaultValue false
+   */
   stickyAncestors?: boolean;
+  /**
+   * 固定祖先行的高度，单位为像素。
+   * @defaultValue 34
+   */
   stickyRowHeight?: number;
+  /**
+   * 是否允许拖拽。
+   * @defaultValue false
+   */
   draggable?: boolean;
+  /** 按当前节点异步加载子节点的函数。 */
   loadData?: (node: TreeNode) => void | Promise<void>;
-  onSelect?: (keys: TreeKey[], info: { selected: boolean; node: TreeNode; nativeEvent: React.MouseEvent }) => void;
-  onCheck?: (keys: TreeKey[], info: { checked: boolean; node: TreeNode }) => void;
-  onExpand?: (keys: TreeKey[], info: { expanded: boolean; node: TreeNode }) => void;
-  onDrop?: (info: { dragNode: TreeNode; node: TreeNode; dropPosition: TreeDropPosition }) => void;
+  /** 选中项目时调用，参数包含选中项目及关联状态。 */
+  onSelect?: (keys: TreeKey[], info: {
+  /** 是否处于选中状态。 */
+  selected: boolean;
+  /** 当前操作关联的节点数据。 */
+  node: TreeNode;
+  /** 触发本次操作的原生事件。 */
+  nativeEvent: React.MouseEvent }) => void;
+  /** 勾选状态变化时调用。 */
+  onCheck?: (keys: TreeKey[], info: {
+  /** 当前是否勾选；作为受控属性时通过回调更新。 */
+  checked: boolean;
+  /** 当前操作关联的节点数据。 */
+  node: TreeNode }) => void;
+  /** 节点展开或收起时调用。 */
+  onExpand?: (keys: TreeKey[], info: {
+  /** 是否处于展开状态。 */
+  expanded: boolean;
+  /** 当前操作关联的节点数据。 */
+  node: TreeNode }) => void;
+  /** 拖放完成时调用，提供拖拽源和目标位置。 */
+  onDrop?: (info: {
+  /** 正在拖拽的源节点。 */
+  dragNode: TreeNode;
+  /** 当前操作关联的节点数据。 */
+  node: TreeNode;
+  /** 相对于目标节点的落点位置。 */
+  dropPosition: TreeDropPosition }) => void;
 }
 
 function collectKeys(nodes: readonly TreeNode[], branchOnly = false, result: TreeKey[] = []) {
@@ -291,6 +462,7 @@ function collectKeys(nodes: readonly TreeNode[], branchOnly = false, result: Tre
 }
 function descendants(node: TreeNode) { return node.children ? collectKeys(node.children) : []; }
 
+/** 树组件。 */
 export function Tree({
   treeData, selectedKeys, defaultSelectedKeys = [], expandedKeys, defaultExpandedKeys = [], defaultExpandAll = false, checkedKeys, defaultCheckedKeys = [], loadingKeys = [],
   checkable = false, checkStrictly = false, multiple = false, selectable = true, showLine = false, showIcon = false, blockNode = false,

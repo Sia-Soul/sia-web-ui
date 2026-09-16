@@ -2,22 +2,40 @@ import { Children, cloneElement, isValidElement, useMemo, useRef, useState } fro
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, MouseEvent, ReactElement, ReactNode } from "react";
 import { Icon } from "./Icon";
 
+/** SplitterPanel的属性配置。 */
 export interface SplitterPanelProps extends HTMLAttributes<HTMLDivElement> {
+  /** 非受控模式下的初始尺寸。 */
   defaultSize?: number;
+  /** 非受控模式的初始收起状态。 */
   defaultCollapsed?: boolean;
+  /** 允许的最小值。 */
   min?: number;
+  /** 允许的最大值。 */
   max?: number;
+  /** 允许收起内容区域 */
   collapsible?: boolean;
+  /** 面板收起后的尺寸。 */
   collapsedSize?: number;
+  /** 面板收起时显示的内容。 */
   collapsedContent?: ReactNode;
+  /** 收起状态操作按钮的无障碍名称。 */
   collapsedAriaLabel?: string;
+  /** 是否允许通过拖拽调整尺寸。 */
   resizable?: boolean;
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
   children?: ReactNode;
 }
 
+/** 可拖拽分割面板的属性配置。 */
 export interface SplitterProps extends Omit<HTMLAttributes<HTMLDivElement>, "onResize"> {
+  /**
+   组件的水平或垂直排列方向。
+   * @defaultValue "horizontal"
+   */
   orientation?: "horizontal" | "vertical";
+  /** 拖拽调整过程中持续触发 */
   onResize?: (sizes: readonly number[]) => void;
+  /** 鼠标或键盘调整结束时触发 */
   onResizeEnd?: (sizes: readonly number[]) => void;
 }
 
@@ -217,4 +235,7 @@ function SplitterRoot({
   </div>;
 }
 
-export const Splitter = Object.assign(SplitterRoot, { Panel: SplitterPanel });
+/** 可拖拽分割面板组件。 */
+export const Splitter = Object.assign(SplitterRoot, {
+  /** Splitter 中的可调整大小面板。 */
+  Panel: SplitterPanel });

@@ -87,12 +87,17 @@ function flattenRecords<T extends Record<string, unknown>>(
 }
 
 // Column composition plugin
+/** TableColumnTransform的插件配置。 */
 export interface TableColumnTransformPluginOptions<T> {
+  /** 插入在原有列之前的列配置。 */
   prepend?: readonly TableColumn<T>[];
+  /** 追加在原有列之后的列配置。 */
   append?: readonly TableColumn<T>[];
+  /** 转换表格列配置，返回用于后续处理和渲染的新列集合。 */
   transform?: (columns: readonly TableColumn<T>[]) => readonly TableColumn<T>[];
 }
 
+/** 创建表格列转换插件。将返回值加入 Table 的 plugins 后生效。 */
 export function createColumnTransformPlugin<T extends Record<string, unknown>>(
   options: TableColumnTransformPluginOptions<T>,
 ): TablePlugin<T, undefined> {
@@ -111,14 +116,22 @@ export function createColumnTransformPlugin<T extends Record<string, unknown>>(
 }
 
 // Hover highlight plugin
+/** TableHighlight的值类型。 */
 export type TableHighlightValue = boolean | CSSProperties;
+/** TableHighlight的插件配置。 */
 export interface TableHighlightPluginOptions {
+  /** 当前行记录。 */
   row?: TableHighlightValue;
+  /** 列号或当前列配置，具体含义由所在类型决定。 */
   column?: TableHighlightValue;
+  /** 当前单元格的配置或状态。 */
   cell?: TableHighlightValue;
 }
+/** 当前高亮的行和列。 */
 interface HighlightState {
+  /** 当前高亮行的标识。 */
   rowKey?: TableKey;
+  /** 当前高亮列的标识。 */
   columnKey?: string;
 }
 
@@ -126,6 +139,7 @@ function highlightStyle(value: TableHighlightValue | undefined) {
   return value && typeof value === "object" ? value : undefined;
 }
 
+/** 创建表格行和单元格高亮插件。将返回值加入 Table 的 plugins 后生效。 */
 export function createHighlightPlugin<T extends Record<string, unknown>>(
   options: TableHighlightPluginOptions = { row: true },
 ): TablePlugin<T, HighlightState> {
@@ -175,54 +189,85 @@ export function createHighlightPlugin<T extends Record<string, unknown>>(
 }
 
 // Excel-like rectangular cell selection plugin
+/** 通过行标识和列标识定位一个单元格。 */
 export interface TableCellAddress {
+  /** 行唯一键字段或计算函数 */
   rowKey: TableKey;
+  /** 列的唯一标识，对应 TableColumn.key。 */
   columnKey: string;
 }
 
+/** 通过起止单元格定义的选区。 */
 export interface TableCellRange {
+  /** 单元格选区的起始锚点。 */
   anchor: TableCellAddress;
+  /** 将焦点移入控件。 */
   focus: TableCellAddress;
 }
 
+/** 选区内一个单元格的值和行列上下文。 */
 export interface TableSelectedCell<T> {
+  /** 行唯一键字段或计算函数 */
   rowKey: TableKey;
+  /** 列的唯一标识，对应 TableColumn.key。 */
   columnKey: string;
+  /** 当前业务记录。 */
   record: T;
+  /** 列号或当前列配置，具体含义由所在类型决定。 */
   column: TableColumn<T>;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value: unknown;
+  /** 行索引，从 0 开始。 */
   rowIndex: number;
+  /** 列索引，从 0 开始。 */
   columnIndex: number;
 }
 
+/** TableCellSelection的插件配置。 */
 export interface TableCellSelectionPluginOptions<T> {
+  /** 初始化时的单元格选区。 */
   defaultRange?: TableCellRange | null;
+  /** 是否包含勾选、序号等工具列。 */
   includeUtilityColumns?: boolean;
+  /** 复制完整文本，可指定复制内容和成功回调 */
   copyable?: boolean;
+  /** 判断指定单元格是否允许加入选区。 */
   isCellSelectable?: (
     record: T,
     column: TableColumn<T>,
     rowIndex: number,
     columnIndex: number,
   ) => boolean;
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (
     range: TableCellRange | null,
     cells: readonly TableSelectedCell<T>[],
   ) => void;
+  /** 复制操作触发后的回调。 */
   onCopy?: (text: string, cells: readonly TableSelectedCell<T>[]) => void;
 }
 
+/** 表格单元格选区状态。 */
 interface CellSelectionState {
+  /** 当前单元格选区，null 表示无选区。 */
   range: TableCellRange | null;
+  /** 复制选区时是否包含表头。 */
   includeHeaders: boolean;
+  /** 通过表头选择的列标识。 */
   selectedHeaderKey: string | null;
 }
 
+/** TableCellSelection的操作接口。 */
 export interface TableCellSelectionApi<T> {
+  /** 读取当前单元格选区。 */
   getRange: () => TableCellRange | null;
+  /** 设置单元格选区，传入空值可清除选区。 */
   setRange: (range: TableCellRange | null) => void;
+  /** 清空当前值或内容。 */
   clear: () => void;
+  /** 读取当前选区中的单元格信息。 */
   getSelectedCells: () => readonly TableSelectedCell<T>[];
+  /** 将当前选区转换为可复制文本。 */
   getCopyText: () => string;
 }
 
@@ -255,6 +300,7 @@ function isInteractiveTableTarget(target: EventTarget | null) {
   );
 }
 
+/** 创建表格单元格区域选择插件。将返回值加入 Table 的 plugins 后生效。 */
 export function createCellSelectionPlugin<T extends Record<string, unknown>>(
   options: TableCellSelectionPluginOptions<T> = {},
 ): TablePlugin<T, CellSelectionState, TableCellSelectionApi<T>> {
@@ -803,9 +849,13 @@ interface RowSpanCellMeta {
 type RowSpanMeta = Record<string, RowSpanCellMeta>;
 const ROW_SPAN_META_KEY = "__siaTableRowSpan";
 
+/** TableRowSpan的插件配置。 */
 export interface TableRowSpanPluginOptions<T> {
+  /** 列配置或选项布局列数，具体类型见签名。 */
   columns?: readonly string[];
+  /** 自定义两个值的相等性判断。 */
   equals?: (left: unknown, right: unknown, column: TableColumn<T>) => boolean;
+  /** 是否禁用虚拟渲染。 */
   disableVirtual?: boolean;
 }
 
@@ -824,6 +874,7 @@ function getRowSpanGroupValue<T extends Record<string, unknown>>(
   return getTableValue(record, dataIndex, column.code ?? column.key);
 }
 
+/** 创建表格跨行合并插件。将返回值加入 Table 的 plugins 后生效。 */
 export function createRowSpanPlugin<T extends Record<string, unknown>>(
   options: TableRowSpanPluginOptions<T> = {},
 ): TablePlugin<T, undefined> {
@@ -910,33 +961,59 @@ export function createRowSpanPlugin<T extends Record<string, unknown>>(
 }
 
 // Selection plugin
+/** TableSelection的模式类型。 */
 export type TableSelectionMode = "single" | "multiple" | "row";
+/** TableSelection的插件配置。 */
 export interface TableSelectionPluginOptions<T> {
+  /** 展示或交互模式；可选值见类型定义。 */
   mode?: TableSelectionMode;
+  /** 当前选中项目的标识集合；传入后由外部控制。 */
   selectedKeys?: readonly TableKey[];
+  /** 非受控模式下初始选中的项目标识集合。 */
   defaultSelectedKeys?: readonly TableKey[];
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (keys: readonly TableKey[], rows: readonly T[]) => void;
+  /** 按行判断其勾选框是否禁用。 */
   getCheckboxDisabled?: (record: T) => boolean;
+  /** 是否展示已选记录数。 */
   showSelectedCount?: boolean;
+  /** 切换页面或数据源时是否保留已选行标识。 */
   preserveSelectedRowKeys?: boolean;
+  /** 是否显示跨页保留勾选的开关。 */
   showPreserveSelectedRowKeys?: boolean;
+  /** 已选记录面板的列数。 */
   selectionPanelColumnCount?: number;
+  /** 已选记录面板最多展示的条数。 */
   selectionPanelMaxCount?: number;
+  /** 跨页保留勾选开关变化时调用。 */
   onPreserveSelectedRowKeysChange?: (preserve: boolean) => void;
+  /** 行数据中存放子行的字段名。 */
   childrenColumnName?: string;
 }
+/** 行勾选和已选面板状态。 */
 interface SelectionState {
+  /** 当前选中的行标识。 */
   selectedKeys: readonly TableKey[];
+  /** 是否跨页保留选中行。 */
   preserveSelectedRowKeys: boolean;
+  /** 已选记录面板是否打开。 */
   panelOpen: boolean;
 }
+/** TableSelection的操作接口。 */
 export interface TableSelectionApi<T> {
+  /** 读取当前选中行的标识。 */
   getSelectedKeys: () => readonly TableKey[];
+  /** 设置选中行标识集合。 */
   setSelectedKeys: (keys: readonly TableKey[]) => void;
+  /** 清空当前值或内容。 */
   clear: () => void;
+  /** 切换指定行的选中状态。 */
   toggle: (key: TableKey, checked?: boolean) => void;
+  /** 读取当前选中的行数据。 */
   getSelectedRows: () => readonly T[];
+  /** 读取是否跨页保留选中行。 */
   getPreserveSelectedRowKeys: () => boolean;
+  /** 设置是否跨页保留选中行。 */
   setPreserveSelectedRowKeys: (preserve: boolean) => void;
 }
 
@@ -1047,6 +1124,7 @@ function TableSelectedItemsPanel<T extends Record<string, unknown>>({
   );
 }
 
+/** 创建表格行勾选插件。将返回值加入 Table 的 plugins 后生效。 */
 export function createSelectionPlugin<T extends Record<string, unknown>>(
   options: TableSelectionPluginOptions<T> = {},
 ): TablePlugin<T, SelectionState, TableSelectionApi<T>> {
@@ -1341,23 +1419,37 @@ export function createSelectionPlugin<T extends Record<string, unknown>>(
 }
 
 // Sort plugin
+/** TableSort的插件配置。 */
 export interface TableSortPluginOptions {
+  /** 展示或交互模式；可选值见类型定义。 */
   mode?: "local" | "remote";
+  /** 配置存储的作用域，用于隔离不同模块和业务表格。 */
   scope?: "page" | "all";
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value?: TableSortInfo | null;
+  /** 非受控模式的初始值，仅在初始化时使用。 */
   defaultValue?: TableSortInfo | null;
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (sort: TableSortInfo) => void;
+  /** 比较两条记录的排序函数；负数表示前者排在前面。 */
   compare?: (a: unknown, b: unknown, field: string) => number;
 }
+/** 表格排序状态。 */
 interface SortState {
+  /** 当前排序配置。 */
   sort: TableSortInfo | null;
 }
+/** TableSort的操作接口。 */
 export interface TableSortApi {
+  /** 读取当前排序列及方向。 */
   getSortInfo: () => TableSortInfo | null;
+  /** 设置当前排序信息。 */
   setSortInfo: (sort: TableSortInfo | null) => void;
+  /** 清空当前值或内容。 */
   clear: () => void;
 }
 
+/** 创建表格列排序插件。将返回值加入 Table 的 plugins 后生效。 */
 export function createSortPlugin<T extends Record<string, unknown>>(
   options: TableSortPluginOptions = {},
 ): TablePlugin<T, SortState, TableSortApi> {
@@ -1475,26 +1567,40 @@ export function createSortPlugin<T extends Record<string, unknown>>(
 }
 
 // Column filter plugin
+/** 列标识到筛选条件的映射。 */
 export type TableFilterValues = Readonly<Record<string, string>>;
+/** TableFilter的插件配置。 */
 export interface TableFilterPluginOptions<T> {
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value?: TableFilterValues;
+  /** 非受控模式的初始值，仅在初始化时使用。 */
   defaultValue?: TableFilterValues;
+  /** 未填写或未选择时的提示内容。 */
   placeholder?: string | ((column: TableColumn<T>) => string);
+  /** 用于判断记录是否满足条件的函数。 */
   predicate?: (
     value: unknown,
     filterValue: string,
     record: T,
     column: TableColumn<T>,
   ) => boolean;
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (filters: TableFilterValues) => void;
 }
+/** 表格筛选条件状态。 */
 interface FilterState {
+  /** 按列保存的筛选条件。 */
   filters: Record<string, string>;
 }
+/** TableFilter的操作接口。 */
 export interface TableFilterApi<T> {
+  /** 读取当前筛选条件。 */
   getFilters: () => TableFilterValues;
+  /** 设置指定列的筛选条件。 */
   setFilter: (columnKey: string, value: string) => void;
+  /** 清空当前值或内容。 */
   clear: (columnKey?: string) => void;
+  /** 读取应用筛选后的行数据。 */
   getFilteredRows: () => readonly T[];
 }
 
@@ -1576,6 +1682,7 @@ function TableFilterControl<T extends Record<string, unknown>>({
   );
 }
 
+/** 创建表格数据筛选插件。将返回值加入 Table 的 plugins 后生效。 */
 export function createFilterPlugin<T extends Record<string, unknown>>(
   options: TableFilterPluginOptions<T> = {},
 ): TablePlugin<T, FilterState, TableFilterApi<T>> {
@@ -1683,31 +1790,60 @@ export function createFilterPlugin<T extends Record<string, unknown>>(
 }
 
 // Pagination plugin
+/** TablePagination的插件配置。 */
 export interface TablePaginationPluginOptions {
+  /** 展示或交互模式；可选值见类型定义。 */
   mode?: "local" | "server" | "auto";
+  /** 记录总条数。 */
   totalCount?: number;
+  /** 当前页码、步骤或播放位置，具体取值见组件类型。 */
   current?: number;
+  /** 每页显示的记录数。 */
   pageSize?: number;
+  /** 非受控模式的初始页码或步骤位置。 */
   defaultCurrent?: number;
+  /** 非受控模式下每页默认展示的记录数。 */
   defaultPageSize?: number;
+  /** 每页条数候选项 */
   pageSizeOptions?: readonly number[];
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (current: number, pageSize: number, isFirstLoad?: boolean) => void;
+  /** 按分页上下文异步请求总记录数。 */
   requestTotal?: (model?: unknown) => Promise<void>;
+  /** 是否为首次加载。 */
   isFirstLoad?: boolean;
 }
+/** 表格分页和总数请求状态。 */
 interface PaginationState {
+  /** 当前页码。 */
   current: number;
+  /** 每页记录数。 */
   pageSize: number;
+  /** 是否正在请求记录总数。 */
   requestLoading: boolean;
 }
+/** TablePagination的操作接口。 */
 export interface TablePaginationApi {
-  getPage: () => { current: number; pageSize: number };
-  setPage: (page: Partial<{ current: number; pageSize: number }>) => void;
+  /** 读取当前分页状态。 */
+  getPage: () => {
+  /** 当前页码、步骤或播放位置，具体取值见组件类型。 */
+  current: number;
+  /** 每页显示的记录数。 */
+  pageSize: number };
+  /** 设置当前页码与分页参数。 */
+  setPage: (page: Partial<{
+  /** 当前页码、步骤或播放位置，具体取值见组件类型。 */
+  current: number;
+  /** 每页显示的记录数。 */
+  pageSize: number }>) => void;
+  /** 将分页状态转换为业务请求需要的参数。 */
   generatePageParams: <Model extends Record<string, unknown>>(
     model: Model,
   ) => Model & TablePageParams;
+  /** 请求记录总数的函数。 */
   requestCount: (model?: unknown) => Promise<void>;
 }
+/** 创建表格分页插件。将返回值加入 Table 的 plugins 后生效。 */
 export function createPaginationPlugin<T extends Record<string, unknown>>(
   options: TablePaginationPluginOptions = {},
 ): TablePlugin<T, PaginationState, TablePaginationApi> {
@@ -1789,6 +1925,7 @@ export function createPaginationPlugin<T extends Record<string, unknown>>(
       return (
         <Pagination
           className="sia-table__pagination"
+          currentPageCount={context.rows.length}
           current={page.current}
           pageSize={page.pageSize}
           pageSizeOptions={options.pageSizeOptions ?? DEFAULT_PAGE_SIZE_OPTIONS}
@@ -1834,11 +1971,16 @@ export function createPaginationPlugin<T extends Record<string, unknown>>(
 }
 
 // Index plugin
+/** TableIndex的插件配置。 */
 export interface TableIndexPluginOptions {
+  /** 标题内容，可传入文本或 React 节点。 */
   title?: ReactNode;
+  /** 宽度；数值按像素处理，字符串可使用 CSS 尺寸。 */
   width?: number;
+  /** 序号列的起始编号。 */
   startIndex?: number;
 }
+/** 创建表格序号列插件。将返回值加入 Table 的 plugins 后生效。 */
 export function createIndexPlugin<T extends Record<string, unknown>>(
   options: TableIndexPluginOptions = {},
 ): TablePlugin<T, undefined> {
@@ -1886,25 +2028,41 @@ export function createIndexPlugin<T extends Record<string, unknown>>(
 }
 
 // Tree plugin
+/** TableTree的插件配置。 */
 export interface TableTreePluginOptions<T> {
+  /** 行数据中存放子行的字段名。 */
   childrenColumnName?: string;
+  /** 是否忽略数据内的子行字段。 */
   ignoreChildrenColumn?: boolean;
+  /** 受控的展开行标识集合。 */
   expandedRowKeys?: readonly TableKey[];
+  /** 初始化时展开的行标识集合。 */
   defaultExpandedRowKeys?: readonly TableKey[];
+  /** 是否在初始化时展开全部行。 */
   defaultExpandAllRows?: boolean;
+  /** 展开行集合变化时调用。 */
   onExpandedRowsChange?: (keys: readonly TableKey[]) => void;
+  /** 按记录判断是否允许展开该行。 */
   canExpand?: (record: T) => boolean;
 }
+/** 树形行的展开状态。 */
 interface TreeState {
+  /** 已展开的行标识集合。 */
   expandedKeys: readonly TableKey[];
 }
+/** TableTree的操作接口。 */
 export interface TableTreeApi {
+  /** 读取展开行或节点的标识集合。 */
   getExpandedKeys: () => readonly TableKey[];
+  /** 设置展开行或节点的标识集合。 */
   setExpandedKeys: (keys: readonly TableKey[]) => void;
+  /** 展开全部可展开行或节点。 */
   expandAll: () => void;
+  /** 收起全部已展开行或节点。 */
   collapseAll: () => void;
 }
 
+/** 创建表格树形行展开插件。将返回值加入 Table 的 plugins 后生效。 */
 export function createTreePlugin<T extends Record<string, unknown>>(
   options: TableTreePluginOptions<T> = {},
 ): TablePlugin<T, TreeState, TableTreeApi> {
@@ -2032,14 +2190,20 @@ export function createTreePlugin<T extends Record<string, unknown>>(
 }
 
 // Summary plugin
+/** TableSummary的插件配置。 */
 export interface TableSummaryPluginOptions<T> {
+  /** 当前数据范围的小计配置。 */
   subTotal?:
     | Record<string, ReactNode>
     | ((pageData: readonly T[]) => Record<string, ReactNode>);
+  /** 数据总数 */
   total?: Record<string, ReactNode>;
+  /** 小计行的标题文案。 */
   subTotalLabel?: ReactNode;
+  /** 总计行的标题文案。 */
   totalLabel?: ReactNode;
 }
+/** 创建表格小计与总计插件。将返回值加入 Table 的 plugins 后生效。 */
 export function createSummaryPlugin<T extends Record<string, unknown>>(
   options: TableSummaryPluginOptions<T>,
 ): TablePlugin<T, undefined> {
@@ -2070,19 +2234,31 @@ export function createSummaryPlugin<T extends Record<string, unknown>>(
 }
 
 // Editable plugin
+/** 表格当前编辑单元格的状态。 */
 interface EditableState {
-  editing: { rowKey: TableKey; columnKey: string } | null;
+  /** 是否处于编辑状态。 */
+  editing: {
+  /** 行唯一键字段或计算函数 */
+  rowKey: TableKey;
+  /** 列的唯一标识，对应 TableColumn.key。 */
+  columnKey: string } | null;
 }
+/** TableEditable的插件配置。 */
 export interface TableEditablePluginOptions<T> {
+  /** 单元格编辑值变化时调用，接收行、列及新旧值等上下文。 */
   onCellChange?: (
     columnKey: string,
     record: T,
     newValue: unknown,
   ) => boolean | Promise<boolean>;
+  /** 触发显示的交互方式。 */
   trigger?: "click" | "doubleClick";
 }
+/** TableEditable的操作接口。 */
 export interface TableEditableApi {
+  /** 取消当前编辑或操作。 */
   cancel: () => void;
+  /** 读取当前正在编辑的单元格。 */
   getEditingCell: () => EditableState["editing"];
 }
 
@@ -2241,6 +2417,7 @@ function EditableTableCell<T extends Record<string, unknown>>({
   );
 }
 
+/** 创建表格单元格编辑插件。将返回值加入 Table 的 plugins 后生效。 */
 export function createEditablePlugin<T extends Record<string, unknown>>(
   options: TableEditablePluginOptions<T> = {},
 ): TablePlugin<T, EditableState, TableEditableApi> {
@@ -2309,19 +2486,29 @@ export function createEditablePlugin<T extends Record<string, unknown>>(
 }
 
 // Column resize plugin
+/** 已调整列宽和手动布局状态。 */
 interface ResizeState {
+  /** 列标识到已调整宽度的映射。 */
   widths: Record<string, number>;
+  /** 是否已启用手动列宽布局。 */
   manualLayout?: boolean;
 }
+/** TableResize的插件配置。 */
 export interface TableResizePluginOptions {
+  /** 是否启用该功能。 */
   enabled?: boolean;
+  /** 拖拽调整列宽结束时调用，接收 columnKey 和最终宽度（px）；拖动过程中不会逐帧触发。 */
   onResize?: (columnKey: string, width: number) => void;
 }
+/** TableResize的操作接口。 */
 export interface TableResizeApi {
+  /** 读取已调整的列宽映射，键为列标识。 */
   getWidths: () => Readonly<Record<string, number>>;
+  /** 设置指定列的宽度，并通知列宽变更监听者。 */
   setWidth: (columnKey: string, width: number) => void;
 }
 
+/** 创建表格列宽拖拽调整插件。将返回值加入 Table 的 plugins 后生效。 */
 export function createResizePlugin<T extends Record<string, unknown>>(
   options: TableResizePluginOptions = {},
 ): TablePlugin<T, ResizeState, TableResizeApi> {
@@ -2457,6 +2644,7 @@ export function createResizePlugin<T extends Record<string, unknown>>(
 }
 
 // Column setting plugin and persistence adapter
+/** TableColumnSetting的插件配置。 */
 export interface TableColumnSettingPluginOptions<T> {
   /** 设置按钮的完整 Button 属性；className 合并，disabled/loading 同时禁用菜单触发。 */
   buttonProps?: ButtonProps;
@@ -2464,26 +2652,49 @@ export interface TableColumnSettingPluginOptions<T> {
   menuItems?: readonly TableToolbarItem<T>[];
   /** 是否显示设置菜单中的导出操作，默认 true。 */
   showExport?: boolean;
+  /** 未读取到保存配置时默认显示的列标识。 */
   defaultVisibleKeys?: readonly string[];
+  /** 是否在工具栏显示此插件的操作按钮。 */
   showButton?: boolean;
+  /** 可见列集合变化时调用。 */
   onVisibleChange?: (columns: readonly TableColumn<T>[]) => void;
+  /** 列顺序变化时调用。 */
   onOrderChange?: (columns: readonly TableColumn<T>[]) => void;
+  /** 配置持久化适配器，提供 load 和 save 方法对接本地或云端存储。 */
   adapter?: TableSettingsAdapter;
-  scope?: { moduleName: string; businessKey: string };
+  /** 配置存储的作用域，用于隔离不同模块和业务表格。 */
+  scope?: {
+  /** 所属业务模块名称。 */
+  moduleName: string;
+  /** 同一模块内用于区分表格配置的业务标识。 */
+  businessKey: string };
 }
+/** 列设置插件的加载、面板和持久化状态。 */
 interface ColumnSettingState {
+  /** 列设置面板是否打开。 */
   open: boolean;
+  /** 当前列设置集合。 */
   items: readonly TableColumnSettingItem[];
+  /** 是否已完成一次配置读取。 */
   loaded: boolean;
+  /** 是否正在读取配置。 */
   loading?: boolean;
+  /** 最近一次配置读取是否失败。 */
   loadError?: boolean;
+  /** 用于忽略过期读取响应的请求标记。 */
   loadToken?: symbol;
+  /** 每页记录数。 */
   pageSize?: number;
 }
+/** TableColumnSetting的操作接口。 */
 export interface TableColumnSettingApi {
+  /** 打开列设置面板，并通过已配置的适配器重新读取保存配置。 */
   open: () => void;
+  /** 关闭当前界面或实例。 */
   close: () => void;
+  /** 读取当前列设置快照。 */
   getSettings: () => readonly TableColumnSettingItem[];
+  /** 应用传入的配置；是否持久化由方法参数或插件选项控制。 */
   apply: (settings: readonly TableColumnSettingItem[]) => void;
 }
 
@@ -2817,7 +3028,6 @@ function ColumnSettingPanel<T extends Record<string, unknown>>({
               />
               <span
                 className="sia-table-settings__name"
-                title={labels.get(item.key) ?? item.key}
               >
                 {labels.get(item.key) ?? item.key}
               </span>
@@ -2870,6 +3080,7 @@ function ColumnSettingPanel<T extends Record<string, unknown>>({
 
 const columnSettingLoadTokens = new WeakMap<object, symbol>();
 
+/** 创建表格列设置和持久化插件。将返回值加入 Table 的 plugins 后生效。 */
 export function createColumnSettingPlugin<T extends Record<string, unknown>>(
   options: TableColumnSettingPluginOptions<T> = {},
 ): TablePlugin<T, ColumnSettingState, TableColumnSettingApi> {
@@ -3106,6 +3317,7 @@ export function createColumnSettingPlugin<T extends Record<string, unknown>>(
   };
 }
 
+/** 创建使用 localStorage 持久化表格设置的适配器，按模块及业务标识隔离配置。 */
 export function createLocalStorageTableSettingsAdapter(
   prefix = "sia-table",
 ): TableSettingsAdapter {
@@ -3133,21 +3345,36 @@ export function createLocalStorageTableSettingsAdapter(
 }
 
 // Toolbar plugin. Upload/export/permission actions are provided as independent items.
+/** TableToolbar的项目定义。 */
 export interface TableToolbarItem<T> {
+  /** 唯一标识；同一集合内应保持唯一且稳定，用于定位、渲染和状态关联。 */
   key: string;
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
   label: ReactNode;
+  /** 显示在内容旁的图标节点，建议使用 Icon 组件。 */
   icon?: ReactNode;
+  /** 显示位置或定位配置。 */
   position?: "start" | "end";
+  /** 是否允许该列出现在列设置面板中。 */
   inSettings?: boolean;
+  /** 危险操作样式 */
   danger?: boolean;
+  /** 是否禁用交互。 */
   disabled?: boolean | ((context: TablePluginContext<T, any>) => boolean);
+  /** 是否隐藏此项。 */
   hidden?: boolean | ((context: TablePluginContext<T, any>) => boolean);
+  /** 点击时触发，参数为当前点击事件或项目上下文。 */
   onClick?: (context: TablePluginContext<T, any>) => void | Promise<void>;
 }
+/** TableToolbar的插件配置。 */
 export interface TableToolbarPluginOptions<T> {
+  /** 范围起点。 */
   start?: ReactNode;
+  /** 范围终点。 */
   end?: ReactNode;
+  /** 按展示顺序排列的项目配置。 */
   items?: readonly TableToolbarItem<T>[];
+  /** 按业务权限判断是否允许访问或展示。 */
   canAccess?: (item: TableToolbarItem<T>) => boolean;
 }
 function ToolbarItems<T extends Record<string, unknown>>({
@@ -3175,7 +3402,6 @@ function ToolbarItems<T extends Record<string, unknown>>({
             danger={item.danger}
             icon={item.icon}
             disabled={disabled}
-            title={typeof item.label === "string" ? item.label : undefined}
             onClick={() => void item.onClick?.(context)}
           >
             {item.label}
@@ -3185,6 +3411,7 @@ function ToolbarItems<T extends Record<string, unknown>>({
     </>
   );
 }
+/** 创建表格工具栏操作插件。将返回值加入 Table 的 plugins 后生效。 */
 export function createToolbarPlugin<T extends Record<string, unknown>>(
   options: TableToolbarPluginOptions<T>,
 ): TablePlugin<T, undefined> {
@@ -3226,20 +3453,34 @@ export function createToolbarPlugin<T extends Record<string, unknown>>(
 }
 
 // CSV export plugin
+/** 表格导出的数据范围。 */
 export type TableExportScope = "visible" | "all" | "selected";
+/** TableExport的插件配置。 */
 export interface TableExportPluginOptions<T> {
+  /** 配置存储的作用域，用于隔离不同模块和业务表格。 */
   scope?: TableExportScope;
+  /** 导出文件名。 */
   fileName?: string | ((context: TablePluginContext<T, undefined>) => string);
+  /** CSV 字段分隔符。 */
   delimiter?: "," | "\t" | ";";
+  /** 是否在导出文本前添加 UTF-8 BOM，便于表格软件识别中文。 */
   includeBom?: boolean;
+  /** 是否处理可能被表格软件当作公式执行的单元格文本。 */
   sanitizeFormula?: boolean;
+  /** 操作按钮的显示文案。 */
   buttonLabel?: ReactNode;
+  /** 是否在工具栏显示此插件的操作按钮。 */
   showButton?: boolean;
+  /** 执行导出时调用。 */
   onExport?: (csv: string, rows: readonly T[]) => void | Promise<void>;
 }
+/** TableExport的操作接口。 */
 export interface TableExportApi<T> {
+  /** 生成当前导出范围的 CSV 文本。 */
   getCsv: (scope?: TableExportScope) => string;
+  /** 下载当前导出结果。 */
   download: (scope?: TableExportScope) => Promise<void>;
+  /** 读取插件当前处理的行数据。 */
   getRows: (scope?: TableExportScope) => readonly T[];
 }
 
@@ -3274,6 +3515,7 @@ function tableExportEscape(value: string, delimiter: string) {
     : value;
 }
 
+/** 创建表格数据导出插件。将返回值加入 Table 的 plugins 后生效。 */
 export function createExportPlugin<T extends Record<string, unknown>>(
   options: TableExportPluginOptions<T> = {},
 ): TablePlugin<T, undefined, TableExportApi<T>> {

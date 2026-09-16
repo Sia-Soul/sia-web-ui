@@ -2,10 +2,38 @@ import {useEffect,useMemo,useRef} from 'react';
 import {bundleEdges} from './edgeBundling';
 import type {BundleEdge,BundlePoint} from './edgeBundling';
 import {smoothBundledPath,sampleBundledPath} from './bundledPath';
+/** 地图捆绑路径数据及其视觉和动画配置。 */
 export interface BundledMapLines {
- edges:readonly BundleEdge[];points?:readonly BundlePoint[];smoothness?:number;
- color?:string;opacity?:number;lineWidth?:number;pointColor?:string;pointRadius?:number;
- effect?:{period?:number;color?:string;radius?:number;shadowBlur?:number;shadowColor?:string;alpha?:number};
+ /** 节点之间的边集合。 */
+ edges:readonly BundleEdge[];
+  /** 数据点集合。 */
+  points?:readonly BundlePoint[];
+  /** 曲线平滑程度。 */
+  smoothness?:number;
+ /** 显示颜色，可使用 CSS 颜色值。 */
+ color?:string;
+  /** 透明度，0 为完全透明，1 为完全不透明。 */
+  opacity?:number;
+  /** 线条粗细。 */
+  lineWidth?:number;
+  /** 数据点颜色。 */
+  pointColor?:string;
+  /** 数据点半径。 */
+  pointRadius?:number;
+ /** 滚动或淡入效果 */
+ effect?:{
+  /** 周期动画的周期时长。 */
+  period?:number;
+  /** 显示颜色，可使用 CSS 颜色值。 */
+  color?:string;
+  /** 图形半径或圆角配置。 */
+  radius?:number;
+  /** 阴影模糊半径。 */
+  shadowBlur?:number;
+  /** 阴影颜色。 */
+  shadowColor?:string;
+  /** 透明度或布局迭代的衰减参数。 */
+  alpha?:number};
 }
 /** Batched static strokes and one shared retained animation canvas, with no per-edge DOM. */
 export function ChartBundledMapCanvas({edges,points=[],smoothness=.1,color='rgba(2,166,253,0.05)',opacity=.2,lineWidth=.5,pointColor='rgba(255,0,0,0.5)',pointRadius=1.5,effect,width,height}:BundledMapLines&{width:number;height:number}){

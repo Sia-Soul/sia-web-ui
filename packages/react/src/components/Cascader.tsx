@@ -8,32 +8,84 @@ import { Icon } from "./Icon";
 import { PopupPortal } from "./PopupPortal";
 import { useControllableState } from "./shared";
 
+/** 级联选择的值类型。 */
 export type CascaderValue = string | number;
+/** 级联选择的候选项定义。 */
 export interface CascaderOption {
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value: CascaderValue;
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
   label?: ReactNode;
+  /** 是否禁用交互。 */
   disabled?: boolean;
+  /** 是否为叶子节点；异步加载场景可用于标识无子项节点。 */
   isLeaf?: boolean;
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
   children?: readonly CascaderOption[];
   [key: string]: unknown;
 }
-export interface CascaderFieldNames { label?: string; value?: string; children?: string }
+/** 级联数据中 label、value 和 children 的字段映射。 */
+export interface CascaderFieldNames {
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
+  label?: string;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
+  value?: string;
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
+  children?: string }
+/** 级联选择的属性配置。 */
 export interface CascaderProps extends Omit<HTMLAttributes<HTMLDivElement>, "defaultValue" | "onChange"> {
+  /** small / medium / large 高度为 22 / 30 / 38px；默认继承 Form，组件自身 size 优先 */
   size?: ControlSize;
+  /** 级联选项树 */
   options: readonly CascaderOption[];
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
   value?: readonly CascaderValue[] | readonly (readonly CascaderValue[])[];
+  /** 非受控模式的初始值，仅在初始化时使用。 */
   defaultValue?: readonly CascaderValue[] | readonly (readonly CascaderValue[])[];
+  /**
+   是否允许同时选择多个项目。
+   * @defaultValue false
+   */
   multiple?: boolean;
+  /**
+   是否显示搜索输入框。
+   * @defaultValue false
+   */
   showSearch?: boolean;
+  /**
+   是否允许清空当前选择或输入值。
+   * @defaultValue false
+   */
   allowClear?: boolean;
+  /**
+   * 是否在选中任意层级节点时立即提交值。
+   * @defaultValue false
+   */
   changeOnSelect?: boolean;
+  /**
+   * 子级面板的展开方式。
+   * @defaultValue "click"
+   */
   expandTrigger?: "click" | "hover";
+  /**
+   * 未填写或未选择时的提示内容。
+   * @defaultValue "请选择"
+   */
   placeholder?: ReactNode;
+  /** 占位提示的显示模式；floating 为浮动标签。 */
   placeholderMode?: InputPlaceholderMode;
+  /**
+   * 是否禁用交互。
+   * @defaultValue false
+   */
   disabled?: boolean;
+  /** 数据字段名映射，用于适配业务数据结构。 */
   fieldNames?: CascaderFieldNames;
+  /** 自定义已选结果的显示内容。 */
   displayRender?: (labels: ReactNode[], selectedOptions: CascaderOption[]) => ReactNode;
+  /** 按当前节点异步加载子节点的函数。 */
   loadData?: (selectedOptions: CascaderOption[]) => void | Promise<void>;
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (value: readonly CascaderValue[] | readonly (readonly CascaderValue[])[] | undefined, selectedOptions: CascaderOption[] | CascaderOption[][]) => void;
 }
 
@@ -65,6 +117,7 @@ function leafPaths(options: readonly CascaderOption[], fields: Required<Cascader
   return result;
 }
 
+/** 级联选择组件。 */
 export function Cascader({
   options, value, defaultValue, size: sizeProp, multiple = false, showSearch = false, allowClear = false, changeOnSelect = false,
   expandTrigger = "click", placeholder = "请选择", placeholderMode, disabled = false, fieldNames, displayRender, loadData, onChange, className = "", ...props

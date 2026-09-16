@@ -92,6 +92,8 @@ export type { MarkdownProps } from "./components/Markdown";
 export { InputNumber } from "./components/InputNumber";
 export type { InputNumberProps } from "./components/InputNumber";
 export { Select } from "./components/Select";
+export { openSelectModal } from "./components/SelectModal";
+export type { SelectModalConfig } from "./components/SelectModal";
 export type { SelectChangeValue, SelectMode, SelectOption, SelectProps, SelectValue } from "./components/Select";
 export type { ControlSize, ControlStatus, InputPlaceholderMode } from "./components/shared";
 export { FILLED_ICON_NAMES, ICON_NAMES, Icon } from "./components/Icon";

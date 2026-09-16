@@ -5,19 +5,40 @@ import { usePlaceholderMode } from "./shared";
 import { Icon } from "./Icon";
 import type { ControlSize, ControlStatus, InputPlaceholderMode } from "./shared";
 
+/** 输入框的属性配置。 */
 export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "prefix" | "size"> {
+  /** 字段标签 */
   label?: ReactNode;
+  /** 帮助或校验信息 */
   hint?: ReactNode;
+  /**
+   * 校验状态
+   * @defaultValue "default"
+   */
   status?: ControlStatus;
+  /** small / medium / large 高度为 22 / 30 / 38px；默认继承 Form，组件自身 size 优先 */
   size?: ControlSize;
+  /** 输入框前缀 */
   prefix?: ReactNode;
+  /** 输入框后缀 */
   suffix?: ReactNode;
+  /**
+   是否允许清空当前选择或输入值。
+   * @defaultValue false
+   */
   allowClear?: boolean;
+  /** 清空当前值时调用。 */
   onClear?: () => void;
+  /**
+   * 显示当前字符数
+   * @defaultValue false
+   */
   showCount?: boolean;
+  /** 占位文案的显示模式 */
   placeholderMode?: InputPlaceholderMode;
 }
 
+/** 输入框组件。 */
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   {
     label,

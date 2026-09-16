@@ -2,46 +2,118 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, HTMLAttributes, MouseEvent, ReactNode } from "react";
 import { Icon } from "./Icon";
 
+/** 矩形树图节点的种类。 */
 export type TreemapNodeKind = "directory" | "file";
 
+/** 可下钻矩形树图的节点，包含权重、子节点和业务数据。 */
 export interface TreemapNode {
+  /** 唯一标识；同一集合内应保持唯一且稳定，用于定位、渲染和状态关联。 */
   key: string;
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
   label: string;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
   value: number;
+  /** 补全项或节点的类别。 */
   kind?: TreemapNodeKind;
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
+  /** 附加的业务元数据。 */
   meta?: ReactNode;
+  /** 用于布局计算的权重值。 */
   layoutValue?: number;
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
   children?: readonly TreemapNode[];
+  /** 是否包含子节点。 */
   hasChildren?: boolean;
+  /** 是否禁用交互。 */
   disabled?: boolean;
 }
 
+/** TreemapNode的点击事件上下文。 */
 export interface TreemapNodeClickInfo {
+  /** 当前操作关联的节点数据。 */
   node: TreemapNode;
+  /** 是否处于展开状态。 */
   expanded: boolean;
+  /** 触发本次操作的原生事件。 */
   nativeEvent: MouseEvent<HTMLElement>;
 }
 
+/** 矩形树图的属性配置。 */
 export interface TreemapProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
+  /** 用于渲染的数据集合。 */
   data: readonly TreemapNode[];
+  /**
+   * 高亮节点键值
+   * @defaultValue null
+   */
   activeKey?: string | null;
+  /** 受控的展开节点标识集合。 */
   expandedKeys?: readonly string[];
+  /**
+   * 初始化时展开的节点标识集合。
+   * @defaultValue []
+   */
   defaultExpandedKeys?: readonly string[];
+  /** 当前聚焦节点的唯一标识。 */
   focusedKey?: string | null;
+  /**
+   * 初始化时聚焦的节点标识。
+   * @defaultValue null
+   */
   defaultFocusedKey?: string | null;
+  /**
+   * 预设或自定义间距
+   * @defaultValue 2
+   */
   gap?: number;
+  /**
+   * 标题区域高度。
+   * @defaultValue 28
+   */
   headerHeight?: number;
+  /**
+   * 显示标签所需的最小宽度。
+   * @defaultValue 26
+   */
   minLabelWidth?: number;
+  /**
+   * 显示标签所需的最小高度。
+   * @defaultValue 18
+   */
   minLabelHeight?: number;
+  /**
+   * 矩形块的最小宽度。
+   * @defaultValue 28
+   */
   minTileWidth?: number;
+  /**
+   * 矩形块的最小高度。
+   * @defaultValue 18
+   */
   minTileHeight?: number;
+  /**
+   * 最大可见节点数，超出后合并为其他项
+   * @defaultValue 180
+   */
   maxVisibleNodes?: number;
+  /**
+   * 没有数据时的显示内容。
+   * @defaultValue "暂无数据"
+   */
   emptyContent?: ReactNode;
+  /**
+   将数值格式化为显示文本的函数。
+   * @defaultValue defaultValueFormatter
+   */
   valueFormatter?: (value: number, node: TreemapNode) => ReactNode;
+  /** 自定义合并节点文案 */
   overflowLabel?: (count: number) => string;
+  /** 展开状态改变时调用。 */
   onExpandedChange?: (keys: string[]) => void;
+  /** 聚焦节点改变时调用。 */
   onFocusedChange?: (key: string | null) => void;
+  /** 节点点击回调 */
   onNodeClick?: (info: TreemapNodeClickInfo) => void;
 }
 
@@ -398,6 +470,7 @@ function findNode(nodes: readonly TreemapNode[], key: string): TreemapNode | nul
   return null;
 }
 
+/** 矩形树图组件。 */
 export function Treemap({
   data,
   activeKey = null,

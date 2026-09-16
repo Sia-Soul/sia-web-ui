@@ -23,52 +23,131 @@ import {
 } from "./DatePickerPanel";
 import type { DatePickerShowTime } from "./DatePickerPanel";
 
+/** 日期选择的类型标识。 */
 export type DatePickerType = "date" | "week" | "month" | "year" | "quarter";
+/** 日期选择的值类型。 */
 export type DatePickerValue = string | readonly string[];
-export type DatePickerPreset = { label: ReactNode; value: string | (() => string) };
-export type DateRangePickerPreset = { label: ReactNode; value: readonly [string, string] | (() => readonly [string, string]) };
-export type DatePickerDisabledInfo = { from?: string; type: "date" };
+/** 日期选择面板中的快捷日期选项。 */
+export type DatePickerPreset = {
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
+  label: ReactNode;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
+  value: string | (() => string) };
+/** 日期区间面板中的快捷范围选项。 */
+export type DateRangePickerPreset = {
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
+  label: ReactNode;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
+  value: readonly [string, string] | (() => readonly [string, string]) };
+/** 日期禁用判断函数收到的面板和范围上下文。 */
+export type DatePickerDisabledInfo = {
+  /** 范围、渐变或转换的起始值。 */
+  from?: string;
+  /** 类型标识，用于选择对应的表现形式。 */
+  type: "date" };
 
+/** SharedDatePicker的属性配置。 */
 type SharedDatePickerProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "size" | "value" | "defaultValue" | "onChange" | "multiple">;
 
+/** 日期选择的属性配置。 */
 export interface DatePickerProps extends SharedDatePickerProps {
+  /** 占位提示的显示模式；floating 为浮动标签。 */
   placeholderMode?: InputPlaceholderMode;
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
   value?: DatePickerValue;
+  /** 非受控模式的初始值，仅在初始化时使用。 */
   defaultValue?: DatePickerValue;
+  /**
+   * 日期粒度
+   * @defaultValue "date"
+   */
   picker?: DatePickerType;
+  /** 组件尺寸；用于调整控件高度、字号和间距。 */
   size?: ControlSize;
+  /**
+   * 当前状态，用于选择对应的状态样式。
+   * @defaultValue "default"
+   */
   status?: ControlStatus;
+  /**
+   是否允许清空当前选择或输入值。
+   * @defaultValue true
+   */
   allowClear?: boolean;
+  /**
+   是否允许在同一面板选择多个日期。
+   * @defaultValue false
+   */
   multiple?: boolean;
+  /** 选择后需要点击确定才提交 */
   needConfirm?: boolean;
+  /**
+   * 组合时间面板，可显示秒；范围选择会在宽屏并排显示起止面板，在窄屏分步选择
+   * @defaultValue false
+   */
   showTime?: DatePickerShowTime;
+  /**
+   * 是否显示返回今天的入口。
+   * @defaultValue true
+   */
   showToday?: boolean;
+  /** 是否打开；传入后由外部控制显示状态。 */
   open?: boolean;
+  /**
+   * 非受控模式下的初始打开状态。
+   * @defaultValue false
+   */
   defaultOpen?: boolean;
+  /** 显示在控件末尾的图标。 */
   suffixIcon?: ReactNode;
+  /** 允许选择的最早日期。 */
   minDate?: string;
+  /** 允许选择的最晚日期。 */
   maxDate?: string;
+  /** 预设候选值或快捷选项集合。 */
   presets?: readonly DatePickerPreset[];
+  /** 判断某个日期是否不可选的函数。 */
   disabledDate?: (value: string, info: DatePickerDisabledInfo) => boolean;
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (value: DatePickerValue) => void;
+  /** 打开状态改变时触发，参数为新的打开状态。 */
   onOpenChange?: (open: boolean) => void;
   /** 只格式化显示文字，不改变传入和回调的标准日期值。 */
   formatValue?: (value: string) => string;
+  /** 渲染面板底部的自定义扩展区域。 */
   renderExtraFooter?: () => ReactNode;
 }
 
+/** 日期区间选择的属性配置。 */
 export interface DateRangePickerProps extends Omit<DatePickerProps, "value" | "defaultValue" | "onChange" | "placeholder" | "multiple" | "presets"> {
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
   value?: readonly [string, string];
+  /**
+   * 非受控模式的初始值，仅在初始化时使用。
+   * @defaultValue ["", ""]
+   */
   defaultValue?: readonly [string, string];
+  /**
+   * 未填写或未选择时的提示内容。
+   * @defaultValue ["开始日期", "结束日期"]
+   */
   placeholder?: readonly [string, string];
+  /**
+   * 全局分隔符，可传入图标或文字
+   * @defaultValue "→"
+   */
   separator?: ReactNode;
+  /** 预设候选值或快捷选项集合。 */
   presets?: readonly DateRangePickerPreset[];
+  /** 日期区间允许的最大天数。 */
   maxRangeDays?: number;
   /** 允许单独保留起点或终点；需要点击确定提交未完整的范围。 */
   allowEmpty?: readonly [boolean, boolean];
   /** 锁定指定端点，编辑和清空时保留其值。 */
   endpointDisabled?: readonly [boolean, boolean];
+  /** 日期区间选择过程中的暂存值变化时调用。 */
   onCalendarChange?: (value: readonly [string, string]) => void;
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (value: readonly [string, string]) => void;
 }
 
@@ -126,6 +205,7 @@ function resolveRangePreset(value: readonly [string, string] | (() => readonly [
   return typeof value === "function" ? value() : value;
 }
 
+/** 日期选择组件。 */
 export function DatePicker({
   value,
   defaultValue,
@@ -655,6 +735,7 @@ function DateRangePicker({
 }
 
 export namespace DatePicker {
+  /** 日期区间选择器。 */
   export const RangePicker = DateRangePicker;
 }
 

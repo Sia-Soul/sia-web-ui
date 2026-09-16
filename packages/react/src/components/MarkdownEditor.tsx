@@ -8,33 +8,72 @@ import { VDITOR_ZH_CN } from "./vditorZhCn";
 
 export { isLikelyMarkdown } from "./markdownPaste";
 
+/** 用于创建 Markdown 编辑器的 Vditor 构造函数类型。 */
 type VditorConstructor = typeof import("vditor")["default"];
 type VditorInstance = InstanceType<VditorConstructor>;
 
 declare global {
+  /** 供 Markdown 编辑器加载器使用的浏览器全局声明补充。 */
   interface Window {
+    /** Vditor 编辑器的构造入口。 */
     Vditor?: VditorConstructor;
   }
 }
 
 const vditorLoaders = new Map<string, Promise<VditorConstructor>>();
 
+/** Markdown编辑器的模式类型。 */
 export type MarkdownEditorMode = "wysiwyg" | "ir" | "sv";
 
+/** Markdown编辑器的属性配置。 */
 export interface MarkdownEditorProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "defaultValue" | "onChange"> {
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
   value?: string;
+  /**
+   * 非受控模式的初始值，仅在初始化时使用。
+   * @defaultValue ""
+   */
   defaultValue?: string;
+  /** Markdown 内容变化回调 */
   onChange?: (markdown: string) => void;
+  /**
+   * 所见即所得、即时渲染或源码模式
+   * @defaultValue "wysiwyg"
+   */
   mode?: MarkdownEditorMode;
+  /**
+   * 空内容提示
+   * @defaultValue "请输入 Markdown 正文"
+   */
   placeholder?: string;
+  /** 占位提示的显示模式；floating 为浮动标签。 */
   placeholderMode?: InputPlaceholderMode;
+  /**
+   * 编辑器最小高度
+   * @defaultValue 320
+   */
   minHeight?: number | string;
+  /**
+   * 禁用编辑器
+   * @defaultValue false
+   */
   disabled?: boolean;
+  /**
+   控件的无障碍名称，供屏幕阅读器识别。
+   * @defaultValue "Markdown 编辑器"
+   */
   ariaLabel?: string;
+  /** Vditor 静态资源地址；不传时使用组件库已安装的版本 */
   assetBaseUrl?: string;
+  /** 按 Ctrl / Command + S 时执行 */
   saveShortcut?: () => void;
+  /** 上传图片并返回图片地址；配置后显示上传按钮 */
   onUploadImage?: (file: File) => Promise<string> | string;
+  /**
+   * 识别剪贴板 Markdown 并保留语法结构
+   * @defaultValue true
+   */
   smartMarkdownPaste?: boolean;
 }
 
@@ -147,6 +186,7 @@ function loadVditor(assetBaseUrl?: string) {
   return loader;
 }
 
+/** Markdown编辑器组件。 */
 export function MarkdownEditor({
   value,
   defaultValue = "",

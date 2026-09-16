@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { Tooltip } from "../FloatingDisplay";
 
 export function TableCellContent({ children, ellipsis, title }: { children: ReactNode; ellipsis: boolean; title?: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -35,7 +36,7 @@ export function TableCellContent({ children, ellipsis, title }: { children: Reac
     };
   }, [children, ellipsis, customContent]);
 
-  return <div ref={ref} className="sia-table__cell-content" title={title} data-custom-content={customContent || undefined} data-content-overflow={ellipsis && customContent && overflowing || undefined}>
-    {children}
+  return <div ref={ref} className="sia-table__cell-content" data-custom-content={customContent || undefined} data-content-overflow={ellipsis && customContent && overflowing || undefined}>
+    {title ? <Tooltip title={title} className="sia-table__cell-tooltip"><span>{children}</span></Tooltip> : children}
   </div>;
 }

@@ -8,30 +8,66 @@ import { ChartPointMotion } from "./ChartPointMotion";
 import { ChartDataEditor } from "./ChartDataEditor";
 import { linePath } from "./Charts";
 
+/** 二维坐标图中的一个数据点。 */
 export type XYPoint = readonly [number, number, number?];
+/** XY的数据系列。 */
 export interface XYSeries {
+  /** 名称或字段标识。 */
   name: string;
+  /** 用于渲染的数据集合。 */
   data: readonly XYPoint[];
+  /** 连接数据点的曲线类型。 */
   curve?: "smooth" | "straight";
+  /** 数据点符号的半径。 */
   symbolRadius?: number | ((point: XYPoint) => number);
+  /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
+  /** 图形几何形状及布局参数。 */
   geometry?: "line" | "bar";
+  /** 柱状图的排列方向。 */
   barOrientation?: "vertical" | "horizontal";
+  /** 柱形的尺寸。 */
   barSize?: number;
+  /** 统计信息或统计标记配置。 */
   statistics?: boolean;
 }
+/** 二维坐标图的属性配置。 */
 export interface XYChartProps extends Omit<SiaChartProps,"children"> {
+  /** 图表数据系列。 */
   series: readonly XYSeries[];
+  /** X 轴的数据范围。 */
   xDomain?: readonly [number,number,number];
+  /** Y 轴的数据范围。 */
   yDomain?: readonly [number,number,number];
+  /** 动画当前进度，通常为 0 到 1。 */
   animationProgress?: number;
+  /**
+   * 是否允许通过拖拽图形修改数据。
+   * @defaultValue false
+   */
   calculable?: boolean;
+  /**
+   * X 轴类型。
+   * @defaultValue "value"
+   */
   xAxisType?: "value" | "time";
+  /** X 轴数值的格式化函数。 */
   xFormatter?: (value: number) => string;
+  /** 提示框内容的格式化函数。 */
   tooltipFormatter?: (point: XYPoint, series: XYSeries) => ReactNode;
+  /**
+   * 数据区域缩放配置。
+   * @defaultValue false
+   */
   dataZoom?: boolean;
+  /**
+   * 初始缩放范围或缩放级别。
+   * @defaultValue [0,100]
+   */
   defaultZoom?: readonly [number, number];
+  /** 缩放范围变化时调用。 */
   onZoomChange?: (value: readonly [number, number]) => void;
+  /** 数据被交互修改后调用。 */
   onDataChange?: (series: readonly XYSeries[]) => void;
 }
 

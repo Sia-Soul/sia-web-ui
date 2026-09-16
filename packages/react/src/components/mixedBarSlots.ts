@@ -1,3 +1,4 @@
+/** 混合图中柱形与柱组的间隔配置。 */
 export interface MixedBarSpacing {
   /** Fraction of each category band reserved between category groups. */
   categoryGap: number;

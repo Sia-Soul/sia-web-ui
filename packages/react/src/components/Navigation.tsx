@@ -6,37 +6,106 @@ import { PopupPortal } from "./PopupPortal";
 import type { PopupPortalPlacement } from "./PopupPortal";
 import { useControllableState } from "./shared";
 
+/** 菜单的模式类型。 */
 export type MenuMode = "vertical" | "horizontal" | "inline";
+/** 菜单的亮色或暗色主题。 */
 export type MenuTheme = "light" | "dark";
+/** 菜单的项目定义。 */
 export type MenuItem = {
+  /** 唯一标识；同一集合内应保持唯一且稳定，用于定位、渲染和状态关联。 */
   key: string;
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
   label?: ReactNode;
+  /** 显示在内容旁的图标节点，建议使用 Icon 组件。 */
   icon?: ReactNode;
+  /** 主体之外的补充内容或操作区。 */
   extra?: ReactNode;
+  /** 标题内容，可传入文本或 React 节点。 */
   title?: string;
+  /** 是否禁用交互。 */
   disabled?: boolean;
+  /** 危险操作样式 */
   danger?: boolean;
+  /** 类型标识，用于选择对应的表现形式。 */
   type?: "item" | "group" | "divider";
+  /** 子内容；组件嵌套内容或当前节点的子项。 */
   children?: readonly MenuItem[];
 };
-export type MenuClickInfo = { key: string; keyPath: string[]; domEvent: React.MouseEvent; item: MenuItem };
+/** 菜单的点击事件上下文。 */
+export type MenuClickInfo = {
+  /** 唯一标识；同一集合内应保持唯一且稳定，用于定位、渲染和状态关联。 */
+  key: string;
+  /** 从当前项目到祖先项目的标识路径。 */
+  keyPath: string[];
+  /** 触发本次操作的 React 鼠标事件。 */
+  domEvent: React.MouseEvent;
+  /** 本次操作关联的项目配置。 */
+  item: MenuItem };
 
+/** 菜单的属性配置。 */
 export interface MenuProps extends Omit<HTMLAttributes<HTMLUListElement>, "onClick" | "onSelect"> {
+  /** 按展示顺序排列的项目配置。 */
   items: readonly MenuItem[];
+  /**
+   * 展示或交互模式；可选值见类型定义。
+   * @defaultValue "vertical"
+   */
   mode?: MenuMode;
+  /**
+   组件的配色主题。
+   * @defaultValue "light"
+   */
   theme?: MenuTheme;
+  /** 当前选中项目的标识集合；传入后由外部控制。 */
   selectedKeys?: readonly string[];
+  /**
+   * 非受控模式下初始选中的项目标识集合。
+   * @defaultValue []
+   */
   defaultSelectedKeys?: readonly string[];
+  /** 当前展开的子菜单标识集合。 */
   openKeys?: readonly string[];
+  /**
+   * 初始展开的子菜单标识集合。
+   * @defaultValue []
+   */
   defaultOpenKeys?: readonly string[];
+  /**
+   是否允许同时选择多个项目。
+   * @defaultValue false
+   */
   multiple?: boolean;
+  /**
+   * 是否允许选中项目。
+   * @defaultValue true
+   */
   selectable?: boolean;
+  /**
+   * 收起内嵌菜单
+   * @defaultValue false
+   */
   inlineCollapsed?: boolean;
+  /**
+   * 内嵌子菜单每增加一级时增加的缩进，单位为像素。
+   * @defaultValue 20
+   */
   inlineIndent?: number;
+  /**
+   * 打开子菜单的方式：hover 为悬停，click 为点击。
+   * @defaultValue "click"
+   */
   triggerSubMenuAction?: "hover" | "click";
+  /** 点击时触发，参数为当前点击事件或项目上下文。 */
   onClick?: (info: MenuClickInfo) => void;
-  onSelect?: (info: MenuClickInfo & { selectedKeys: string[] }) => void;
-  onDeselect?: (info: MenuClickInfo & { selectedKeys: string[] }) => void;
+  /** 选中项目时调用，参数包含选中项目及关联状态。 */
+  onSelect?: (info: MenuClickInfo & {
+  /** 当前选中项目的标识集合；传入后由外部控制。 */
+  selectedKeys: string[] }) => void;
+  /** 取消选中项目时调用。 */
+  onDeselect?: (info: MenuClickInfo & {
+  /** 当前选中项目的标识集合；传入后由外部控制。 */
+  selectedKeys: string[] }) => void;
+  /** 打开状态改变时触发，参数为新的打开状态。 */
   onOpenChange?: (keys: string[]) => void;
 }
 
@@ -198,6 +267,7 @@ function MenuLevel({
   </>;
 }
 
+/** 菜单组件。 */
 export function Menu({
   items,
   mode = "vertical",
@@ -255,20 +325,77 @@ export function Menu({
   </ul>;
 }
 
+/** Step的状态类型。 */
 export type StepStatus = "wait" | "process" | "finish" | "error";
-export type StepItem = { title: ReactNode; description?: ReactNode; subTitle?: ReactNode; icon?: ReactNode; status?: StepStatus; disabled?: boolean };
+/** Step的项目定义。 */
+export type StepItem = {
+  /** 标题内容，可传入文本或 React 节点。 */
+  title: ReactNode;
+  /** 补充说明内容。 */
+  description?: ReactNode;
+  /** 主标题旁的次级标题。 */
+  subTitle?: ReactNode;
+  /** 显示在内容旁的图标节点，建议使用 Icon 组件。 */
+  icon?: ReactNode;
+  /** 当前状态，用于选择对应的状态样式。 */
+  status?: StepStatus;
+  /** 是否禁用交互。 */
+  disabled?: boolean };
+/** 步骤条的属性配置。 */
 export interface StepsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
+  /** 按展示顺序排列的项目配置。 */
   items: readonly StepItem[];
+  /**
+   当前步骤索引，从 0 开始。
+   * @defaultValue 0
+   */
   current?: number;
+  /**
+   * 起始步骤的编号偏移。
+   * @defaultValue 0
+   */
   initial?: number;
+  /**
+   排列或展示方向。
+   * @defaultValue "horizontal"
+   */
   direction?: "horizontal" | "vertical";
+  /**
+   * 类型标识，用于选择对应的表现形式。
+   * @defaultValue "default"
+   */
   type?: "default" | "navigation" | "dot";
+  /**
+   * 组件尺寸；用于调整控件高度、字号和间距。
+   * @defaultValue "default"
+   */
   size?: "default" | "small";
+  /**
+   * 当前状态，用于选择对应的状态样式。
+   * @defaultValue "process"
+   */
   status?: "process" | "error";
-  progressDot?: boolean | ((dot: ReactNode, info: { index: number; status: StepStatus; title: ReactNode; description?: ReactNode }) => ReactNode);
+  /**
+   * 是否以点状指示步骤，可传入自定义渲染函数。
+   * @defaultValue false
+   */
+  progressDot?: boolean | ((dot: ReactNode, info: {
+  /** 项目在当前集合中的索引，从 0 开始。 */
+  index: number;
+  /**
+   * 当前状态，用于选择对应的状态样式。
+   * @defaultValue "process"
+   */
+  status: StepStatus;
+  /** 标题内容，可传入文本或 React 节点。 */
+  title: ReactNode;
+  /** 补充说明内容。 */
+  description?: ReactNode }) => ReactNode);
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (current: number) => void;
 }
 
+/** 步骤条组件。 */
 export function Steps({ items, current = 0, initial = 0, direction = "horizontal", type = "default", size = "default", status = "process", progressDot = false, onChange, className = "", ...props }: StepsProps) {
   return <div className={`sia-steps sia-steps--${direction} sia-steps--${type} sia-steps--${size} ${className}`.trim()} {...props}>
     {items.map((item, rawIndex) => {
@@ -285,19 +412,50 @@ export function Steps({ items, current = 0, initial = 0, direction = "horizontal
   </div>;
 }
 
+/** 分段选择的值类型。 */
 export type SegmentedValue = string | number;
-export type SegmentedOption = SegmentedValue | { label?: ReactNode; value: SegmentedValue; icon?: ReactNode; disabled?: boolean; title?: string };
-export interface SegmentedProps extends Omit<HTMLAttributes<HTMLDivElement>, "defaultValue" | "onChange"> {
-  options: readonly SegmentedOption[];
-  value?: SegmentedValue;
-  defaultValue?: SegmentedValue;
-  size?: "small" | "medium" | "large";
-  block?: boolean;
-  vertical?: boolean;
+/** 分段选择的候选项定义。 */
+export type SegmentedOption = SegmentedValue | {
+  /** 展示给用户的名称，可传入文本或 React 节点。 */
+  label?: ReactNode;
+  /** 该项目对应的数据值，用于标识、选择或计算。 */
+  value: SegmentedValue;
+  /** 显示在内容旁的图标节点，建议使用 Icon 组件。 */
+  icon?: ReactNode;
+  /** 是否禁用交互。 */
   disabled?: boolean;
+  /** 标题内容，可传入文本或 React 节点。 */
+  title?: string };
+/** 分段选择的属性配置。 */
+export interface SegmentedProps extends Omit<HTMLAttributes<HTMLDivElement>, "defaultValue" | "onChange"> {
+  /** 可供用户选择的候选项列表。 */
+  options: readonly SegmentedOption[];
+  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
+  value?: SegmentedValue;
+  /** 非受控模式的初始值，仅在初始化时使用。 */
+  defaultValue?: SegmentedValue;
+  /** 组件尺寸；用于调整控件高度、字号和间距。 */
+  size?: "small" | "medium" | "large";
+  /**
+   * 宽度撑满父容器
+   * @defaultValue false
+   */
+  block?: boolean;
+  /**
+   * 是否使用垂直布局。
+   * @defaultValue false
+   */
+  vertical?: boolean;
+  /**
+   * 是否禁用交互。
+   * @defaultValue false
+   */
+  disabled?: boolean;
+  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (value: SegmentedValue) => void;
 }
 
+/** 分段选择组件。 */
 export function Segmented({ options, value, defaultValue, size: sizeProp, block = false, vertical = false, disabled = false, onChange, className = "", onKeyDown, ...props }: SegmentedProps) {
   const size = useControlSize(sizeProp);
   const normalized = useMemo(() => options.map((option) => typeof option === "object" ? option : { label: option, value: option }), [options]);
