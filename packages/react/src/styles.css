@@ -89,10 +89,15 @@
 .sia-floating-scrollbar { position: fixed; box-sizing: border-box; opacity: 0; pointer-events: none; transition: opacity 150ms ease; }
 .sia-floating-scrollbar[hidden] { display: none; }
 .sia-floating-scrollbar--visible { opacity: 1; pointer-events: auto; }
-.sia-floating-scrollbar__thumb { position: absolute; box-sizing: border-box; cursor: default; background: var(--sia-scrollbar-thumb); border: 1px solid rgb(255 255 255 / 24%); border-radius: 999px; box-shadow: 0 1px 1px rgb(0 0 0 / 24%); touch-action: none; transition: background-color 120ms ease; }
-.sia-floating-scrollbar__thumb:hover { background: var(--sia-scrollbar-thumb-hover); }
-.sia-floating-scrollbar--horizontal .sia-floating-scrollbar__thumb { bottom: 0; left: 0; height: var(--sia-scrollbar-size); transition: background-color 120ms ease, height 150ms ease; }
-.sia-floating-scrollbar--vertical .sia-floating-scrollbar__thumb { top: 0; right: 0; width: var(--sia-scrollbar-size); transition: background-color 120ms ease, width 150ms ease; }
+/* 滑块本体始终覆盖完整轨道厚度，仅让视觉滑块缩放，避免动画期间命中区域缩窄。 */
+.sia-floating-scrollbar__thumb { position: absolute; box-sizing: border-box; cursor: default; touch-action: none; }
+.sia-floating-scrollbar__thumb::before { content: none; }
+.sia-floating-scrollbar__thumb::after { content: ""; position: absolute; right: 0; bottom: 0; box-sizing: border-box; pointer-events: none; background: var(--sia-scrollbar-thumb); border: 1px solid rgb(255 255 255 / 24%); border-radius: 999px; box-shadow: 0 1px 1px rgb(0 0 0 / 24%); transition: background-color 120ms ease, width 150ms ease, height 150ms ease; }
+.sia-floating-scrollbar__thumb:hover::after { background: var(--sia-scrollbar-thumb-hover); }
+.sia-floating-scrollbar--horizontal .sia-floating-scrollbar__thumb { bottom: 0; left: 0; height: 100%; }
+.sia-floating-scrollbar--horizontal .sia-floating-scrollbar__thumb::after { width: 100%; height: var(--sia-scrollbar-size); }
+.sia-floating-scrollbar--vertical .sia-floating-scrollbar__thumb { top: 0; right: 0; width: 100%; }
+.sia-floating-scrollbar--vertical .sia-floating-scrollbar__thumb::after { width: var(--sia-scrollbar-size); height: 100%; }
 
 .sia-button,
 .sia-input,
