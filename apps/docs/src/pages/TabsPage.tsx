@@ -95,7 +95,7 @@ export default function Demo() {
     style={{ width: 636, maxWidth: "100%" }}
     items={[
       { key: "amount", label: "金额" },
-      { key: "orders", label: "订单数" },
+      { key: "orders", label: "合作门店订单数" },
       { key: "quantity", label: "件数" },
     ]}
   />;
@@ -148,10 +148,13 @@ const apiRows = [
   { property: "items", description: "标签项，包含 key、label、children、icon、disabled 和 closable", type: "TabItem[]", defaultValue: "[]" },
   { property: "activeKey / defaultActiveKey", description: "受控激活项与默认激活项", type: "string", defaultValue: "首个可用项" },
   { property: "onChange", description: "激活项变化回调", type: "(key: string) => void", defaultValue: "-" },
+  { property: "deferContent", description: "动画结束后切换面板，等待期间保留旧内容；启用且保留面板时，未访问的面板不预挂载", type: "boolean", defaultValue: "false" },
+  { property: "onAfterChange", description: "动画结束后通知最终目标，可用于更新外部表格或路由；首次渲染不触发，连续切换取消中间任务", type: "(key: string) => void", defaultValue: "-" },
   { property: "type", description: "线型、卡片型、胶囊型、圆角胶囊、紧凑下划线或科技样式", type: "'line' | 'card' | 'pill' | 'capsule' | 'underline' | 'tech' | 'tech-line'", defaultValue: "'line'" },
   { property: "tabPosition", description: "标签栏位于内容的上、右、下或左侧", type: "'top' | 'right' | 'bottom' | 'left'", defaultValue: "'top'" },
   { property: "orientation", description: "兼容旧版横向、纵向排列，推荐使用 tabPosition", type: "'horizontal' | 'vertical'", defaultValue: "'horizontal'" },
   { property: "size / centered", description: "尺寸与居中排列", type: "ControlSize / boolean", defaultValue: "'medium' / false" },
+  { property: "contentGap", description: "导航与内容面板的间距（px），仅作用于当前实例", type: "number", defaultValue: "上下 16 / 左右 20" },
   { property: "tabBarTitle", description: "标签栏左侧标题，科技大屏型会附带装饰线", type: "ReactNode", defaultValue: "-" },
   { property: "tabBarExtraContent", description: "标签栏右侧额外操作", type: "ReactNode", defaultValue: "-" },
   { property: "destroyInactiveTabPane", description: "是否卸载非激活面板", type: "boolean", defaultValue: "true" },
@@ -238,11 +241,35 @@ export function TabsPage() {
       <DemoCard title="科技大屏样式" description="选中背景以 240ms 滑动切换，使用框架主题实色，顶部装饰线由深到浅，并自动适配亮色与暗色模式。" code={techCode}>
         <Tabs type="tech" tabBarTitle="查看部门" items={techItems} defaultActiveKey="private" />
       </DemoCard>
-      <DemoCard title="折线科技大屏样式" description="标题底线向上折入标签栏，右侧斜切选中背景平滑滑动，并支持明暗主题。" code={techLineCode}>
+      <DemoCard title="折线科技大屏样式" description="左侧宽度随标题内容自适应；选中框采用固定倾角和圆角，长标题仅扩展中段，并在 300ms 内同步移动和伸缩，支持明暗主题。" code={techLineCode}>
         <Tabs type="tech-line" tabBarTitle="今日销售分布" style={{ width: 636, maxWidth: "100%" }} items={[
           { key: "amount", label: "金额" },
-          { key: "orders", label: "订单数" },
+          { key: "orders", label: "合作门店订单数" },
           { key: "quantity", label: "件数" },
+        ]} />
+      </DemoCard>
+      <DemoCard title="动画结束后切换内容" description="deferContent 让旧面板保持到动画结束；外部表格或路由应在 onAfterChange 中更新，onChange 仅同步标签状态。" code={`// 面板在 Tabs 内部：动画结束后才挂载目标组件。
+<Tabs type="tech-line" deferContent items={[
+  { key: "amount", label: "金额", children: <AmountTable /> },
+  { key: "orders", label: "合作门店订单数", children: <OrderTable /> },
+]} />
+
+// 内容在 Tabs 外部：分别管理标签状态与内容状态。
+<Tabs type="tech-line" activeKey={activeKey}
+  onChange={setActiveKey} onAfterChange={setContentKey} items={items} />
+{contentKey === "amount" ? <AmountTable /> : <OrderTable />}`}>
+        <Tabs type="tech-line" deferContent items={[
+          { key: "amount", label: "金额", children: <p>金额面板：切换时保留此内容，直到选中框动画结束。</p> },
+          { key: "orders", label: "合作门店订单数", children: <p>订单面板：选中框到位后才显示此内容。</p> },
+        ]} />
+      </DemoCard>
+      {/* 嵌套示例验证外层科技装饰不穿透到内层竖向导航。 */}
+      <DemoCard title="嵌套页签与内容间距" description="contentGap 控制导航与面板之间的像素间距；内层 Tabs 独立使用自己的样式和间距。" code={'<Tabs type="tech-line" contentGap={0} items={[{ key: "settings", label: "基础设置", children: <Tabs tabPosition="left" items={items} /> }]} />'}>
+        <Tabs type="tech-line" contentGap={0} items={[
+          { key: "settings", label: "基础设置", children: <Tabs tabPosition="left" items={[
+            { key: "application", label: "合作申请设置", children: "内容与导航紧凑排列，左侧不应出现科技装饰横线。" },
+            { key: "sync", label: "数据同步设置", children: "内层选中态保持普通竖向线条。" },
+          ]} /> },
         ]} />
       </DemoCard>
       <DemoCard title="受控、禁用与额外操作" description="发布项不可选择，激活状态由页面统一管理。" code={controlledCode}>

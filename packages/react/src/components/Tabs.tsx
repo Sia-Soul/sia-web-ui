@@ -1,5 +1,5 @@
 import { withTitleTooltip } from "./titleTooltip";
-import { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { HTMLAttributes, KeyboardEvent, ReactNode } from "react";
 import { Dropdown } from "./Dropdown";
 import { Icon } from "./Icon";
@@ -44,10 +44,14 @@ export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChang
   activeKey?: string;
   /** 非受控模式下初始激活的项目标识。 */
   defaultActiveKey?: string;
-  /** 激活项变化回调 */
+  /** 用户切换标签时立即调用，参数为目标 key；受控模式需同步更新 activeKey。重内容或路由切换可放在 onAfterChange 中，避免阻塞选中框动画。 */
   onChange?: (key: string) => void;
+  /** 选中框动画结束且目标面板获准显示时调用，参数为最终目标 key；首次渲染不调用，连续切换仅通知最终目标。无动画或系统减少动态效果时在下一帧完成，不等待面板数据请求；也适用于业务在 Tabs 外渲染内容或切换路由。 */
+  onAfterChange?: (key: string) => void;
+  /** 是否等选中框动画结束后再切换 items[].children，等待期间保留旧面板。默认 false，立即切换；true 时配合 destroyInactiveTabPane=false 仅在首次激活后挂载并保留面板。不能延迟父组件已执行的同步计算或 onChange 中的渲染，请将外部重内容更新放到 onAfterChange。 */
+  deferContent?: boolean;
   /**
-   * 线型、卡片型、胶囊型、圆角胶囊、紧凑下划线或科技样式
+   * 线型、卡片型、胶囊型、圆角胶囊、紧凑下划线或科技样式；tech-line 使用固定倾角的圆角斜切选中框，长标题仅扩展中段宽度；位移与尺寸在 300ms 内同步过渡，系统减少动态效果时直接切换。
    * @defaultValue "line"
    */
   type?: TabsType;
@@ -68,8 +72,10 @@ export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChang
    * @defaultValue false
    */
   centered?: boolean;
-  /** 标签栏左侧标题，科技大屏型会附带装饰线 */
+  /** 标签栏左侧标题，科技大屏型会附带装饰线；折线科技型横向布局按标题内容及装饰留白确定宽度，窄屏时标题独占一行。 */
   tabBarTitle?: ReactNode;
+  /** 标签栏与内容面板之间的间距，单位 px，支持 0；未指定时上下布局为 16px，左右布局为 20px。仅影响当前 Tabs，不传递给嵌套实例。 */
+  contentGap?: number;
   /** 标签栏右侧额外操作 */
   tabBarExtraContent?: ReactNode;
   /**
@@ -96,6 +102,8 @@ export function Tabs({
   activeKey,
   defaultActiveKey,
   onChange,
+  onAfterChange,
+  deferContent = false,
   type = "line",
   size = "medium",
   tabPosition,
@@ -103,6 +111,7 @@ export function Tabs({
   centered = false,
   tabBarTitle,
   tabBarExtraContent,
+  contentGap,
   destroyInactiveTabPane = true,
   closable = false,
   onEdit,
@@ -123,6 +132,10 @@ export function Tabs({
   const sliding = ["capsule", "line", "underline", "tech", "tech-line"].includes(type);
   const listRef = useRef<HTMLDivElement>(null);
   const indicatorRef = useRef<HTMLSpanElement>(null);
+  const [contentState, setContentState] = useState(() => ({ key: selectedKey, visited: new Set([selectedKey]) }));
+  const settledKeyRef = useRef(selectedKey);
+  const afterChangeRef = useRef(onAfterChange);
+  useLayoutEffect(() => { afterChangeRef.current = onAfterChange; }, [onAfterChange]);
 
   useLayoutEffect(() => {
     if (!sliding) return;
@@ -151,6 +164,33 @@ export function Tabs({
     list.querySelectorAll('[role="tab"]').forEach(tab => observer.observe(tab));
     return () => observer.disconnect();
   }, [sliding, type, selectedKey, items, size, resolvedPosition, centered, closable]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let frame = 0;
+    // 读取浏览器的真实过渡，兼容自定义时长、减少动态效果和动画被取消；不硬编码延迟。
+    // 等一帧让新选中框样式生效，再等待全部位移/尺寸过渡，连续点击时废弃旧任务。
+    frame = requestAnimationFrame(() => {
+      const indicator = indicatorRef.current;
+      if (indicator) getComputedStyle(indicator).transform;
+      const animations = indicator?.getAnimations() ?? [];
+      const complete = () => {
+        if (cancelled) return;
+        setContentState(previous => ({ key: selectedKey, visited: new Set([...previous.visited].filter(key => items.some(item => item.key === key))).add(selectedKey) }));
+        if (settledKeyRef.current !== selectedKey) {
+          settledKeyRef.current = selectedKey;
+          afterChangeRef.current?.(selectedKey);
+        }
+      };
+      if (!animations.length) complete();
+      else Promise.allSettled(animations.map(animation => animation.finished)).then(() => {
+        if (!cancelled) frame = requestAnimationFrame(complete);
+      });
+    });
+    return () => { cancelled = true; cancelAnimationFrame(frame); };
+  }, [selectedKey, type, deferContent]);
+
+  const contentKey = deferContent ? contentState.key : selectedKey;
 
   function selectTab(key: string) {
     if (key === selectedKey) return;
@@ -186,23 +226,13 @@ export function Tabs({
       <div className="sia-tabs__header">
         {tabBarTitle ? <div className="sia-tabs__title">{tabBarTitle}{type === "tech-line" ? (
           <svg className="sia-tabs__title-connector" viewBox="0 0 32 40" aria-hidden="true">
-            <path d="M0 39 H5 Q8 39 10 35 L28 3 Q29 1 32 1" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            {/* 端点对齐两条 1.5px 横线的中心，而非上边缘，避免接点出现半像素尖刺。 */}
+            <path d="M0 39.25 H5 Q8 39.25 10 35.25 L28 3.75 Q29 1.75 32 1.75" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
           </svg>
         ) : null}</div> : null}
         <div ref={listRef} className={`sia-tabs__list${sliding ? " sia-tabs__list--sliding" : ""}`} role="tablist" aria-orientation={resolvedOrientation}>
           {sliding ? <span key={type} ref={indicatorRef} className={`sia-tabs__indicator${type === "capsule" ? " sia-tabs__capsule-indicator" : ""}`} aria-hidden="true">
-            {type === "tech-line" ? (                    <svg className="sia-tabs__indicator-shape" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true">
-                      <defs>
-                        <linearGradient id={`${baseId}-tab-fill-indicator`} x1="0" y1="0" x2="1" y2="0">
-                          <stop offset="0" stopColor="var(--sia-tabs-line-fill-edge, var(--sia-tabs-line-fill))" />
-                          <stop offset=".53" stopColor="var(--sia-tabs-line-fill-center, var(--sia-tabs-line-fill))" />
-                          <stop offset="1" stopColor="var(--sia-tabs-line-fill-edge, var(--sia-tabs-line-fill))" />
-                        </linearGradient>
-                      </defs>
-                      <path d="M19 1 H96 Q99 1 97.5 4 L83.5 30 Q82 33 79 33 H4 Q1 33 2.5 30 L16.5 4 Q18 1 19 1 Z"
-                        fill={`url(#${baseId}-tab-fill-indicator)`}
-                        stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-                    </svg>) : null}
+            {type === "tech-line" ? (                    <span className="sia-tabs__indicator-shape" aria-hidden="true" />) : null}
           </span> : null}
           {items.map((item) => {
             const selected = item.key === selectedKey;
@@ -222,18 +252,7 @@ export function Tabs({
                   onKeyDown={(event) => handleKeyDown(event, item.key)}
                 >
                   {type === "tech-line" ? (
-                    <svg className="sia-tabs__tab-shape" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true">
-                      <defs>
-                        <linearGradient id={`${baseId}-tab-fill-${item.key}`} x1="0" y1="0" x2="1" y2="0">
-                          <stop offset="0" stopColor="var(--sia-tabs-line-fill-edge, var(--sia-tabs-line-fill))" />
-                          <stop offset=".53" stopColor="var(--sia-tabs-line-fill-center, var(--sia-tabs-line-fill))" />
-                          <stop offset="1" stopColor="var(--sia-tabs-line-fill-edge, var(--sia-tabs-line-fill))" />
-                        </linearGradient>
-                      </defs>
-                      <path d="M19 1 H96 Q99 1 97.5 4 L83.5 30 Q82 33 79 33 H4 Q1 33 2.5 30 L16.5 4 Q18 1 19 1 Z"
-                        fill={`url(#${baseId}-tab-fill-${item.key})`}
-                        stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-                    </svg>
+                    <span className="sia-tabs__tab-shape" aria-hidden="true" />
                   ) : null}
                   {item.icon ? <span className="sia-tabs__icon">{item.icon}</span> : null}
                   <span>{item.label}</span>
@@ -276,10 +295,15 @@ export function Tabs({
         {tabBarExtraContent ? <div className="sia-tabs__extra">{tabBarExtraContent}</div> : null}
       </div>
       {hasPanels ? (
-        <div className="sia-tabs__panels">
+        <div className="sia-tabs__panels" style={contentGap === undefined ? undefined : {
+          // 仅设置面板靠近导航的一侧，保留各方向布局原有的其余边界。
+          [resolvedPosition === "top" ? "paddingTop" : resolvedPosition === "bottom" ? "paddingBottom" : resolvedPosition === "left" ? "paddingLeft" : "paddingRight"]: contentGap,
+        }} aria-busy={deferContent && contentKey !== selectedKey || undefined}>
           {items.map((item) => {
-            const selected = item.key === selectedKey;
+            const selected = item.key === contentKey;
             if (destroyInactiveTabPane && !selected) return null;
+            // 延迟模式下未访问的面板不预挂载，避免隐藏表格抢占切换动画的主线程。
+            if (deferContent && !selected && !contentState.visited.has(item.key)) return null;
             return (
               <div
                 key={item.key}

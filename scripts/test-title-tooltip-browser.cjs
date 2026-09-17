@@ -16,6 +16,22 @@ const { chromium } = require(require('node:path').join(process.argv[2], 'playwri
     assert.equal(await tip.innerText(), '查看其他操作');
     assert.ok(await button.getAttribute('aria-describedby'));
     const light = await tip.evaluate(el => getComputedStyle(el).backgroundColor);
+    // 回归：点击输入框后焦点仍在，但鼠标移出不能因焦点回退而重新显示 title。
+    const clickedInput = page.getByRole('textbox', { name: '标题提示输入框' });
+    await clickedInput.click();
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(750);
+    assert.equal(await clickedInput.evaluate(el => el === document.activeElement), true);
+    assert.equal(await tip.count(), 0, 'Pointer focus must not retain or reopen title after leaving');
+    await clickedInput.hover(); await tip.waitFor();
+    await page.mouse.move(0, 0); await tip.waitFor({ state: 'hidden' });
+    // 点击之后用 Tab 回到输入框，仍应提供键盘提示。
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+    await tip.waitFor();
+    assert.equal(await tip.innerText(), '请输入项目名称');
+    await page.keyboard.press('Escape'); await tip.waitFor({ state: 'hidden' });
+    await button.hover(); await tip.waitFor();
     await page.keyboard.press('Escape'); await tip.waitFor({ state: 'hidden' });
     assert.equal(await button.getAttribute('aria-describedby'), null);
     await page.getByRole('button', { name: '禁用提示示例', exact: true }).hover();

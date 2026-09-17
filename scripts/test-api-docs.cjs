@@ -7,7 +7,7 @@ const packageRoot = path.resolve(__dirname, '../packages/react');
 const filename = path.join(packageRoot, '__api-doc-consumer__.tsx').replaceAll('\\', '/');
 // 上传新增的命令式句柄、OSS 配置及自定义渲染同样从发布产物检查悬停。
 const source = `import { Upload, type UploadRef, type UploadHttpRequest, type UploadRequestOptions, QueryForm, Select, Modal, message, Form, createColumnSettingPlugin, type TableSettingsAdapter, type BarChartProps, type SelectModalConfig, type QueryFormProps, type TableProps } from '@sia.soul/sia-react-ui';
-import type { TagProps, CheckboxGroupProps } from '@sia.soul/sia-react-ui';
+import type { TagProps, CheckboxGroupProps, TabsProps } from '@sia.soul/sia-react-ui';
 import type { TagVariant as CoreTagVariant } from '@sia.soul/sia-react-ui/core';
 import type { TagSize as CoreTagSize } from '@sia.soul/sia-react-ui/core';
 declare const tagProps: TagProps;
@@ -20,6 +20,11 @@ declare const checkboxGroupProps: CheckboxGroupProps;
 checkboxGroupProps.columns;
 checkboxGroupProps.direction;
 checkboxGroupProps.gap;
+// 动画完成时机必须能从发布声明中直接获知。
+declare const tabsProps: TabsProps;
+tabsProps.deferContent;
+tabsProps.contentGap;
+tabsProps.onAfterChange;
 const tagSize: CoreTagSize = 'large';
 const tagVariant: CoreTagVariant = 'outlined';
 const upload = <Upload recursive pastable autoUpload={false} itemRender={node => node} />;
@@ -59,6 +64,7 @@ cases.push(['recursive', '子文件夹'], ['pastable', '粘贴'], ['autoUpload',
 // Tag 主入口属性注释与 core 配色类型都必须在发布后可用。
 cases.push(['tagProps.color', 'CSS 颜色'], ['tagProps.variant', '边框'], ['tagProps.closeOnHover', '向右扩展'], ['tagProps.size', '继承 Form']);
 cases.push(['checkboxGroupProps.columns', '等宽网格'], ['checkboxGroupProps.direction', '纵向单列'], ['checkboxGroupProps.gap', '行间距']);
+cases.push(['tabsProps.contentGap', '仅影响当前 Tabs'], ['tabsProps.deferContent', '保留旧面板'], ['tabsProps.onAfterChange', '连续切换']);
 for(const[needle,expected]of cases){const offset=needle.includes('.')?needle.lastIndexOf('.')+1:0;const pos=source.indexOf(needle)+offset+1;const info=service.getQuickInfoAtPosition(filename,pos);const text=ts.displayPartsToString(info?.documentation);assert(text.includes(expected),`${needle}: expected ${expected}, got ${JSON.stringify(text)}`);console.log(`PASS hover ${needle}: ${text.slice(0,70)}`);}
 for(const entry of ['index.d.ts','index.d.cts']){
   const text=fs.readFileSync(path.join(packageRoot,'dist',entry),'utf8');assert(text.includes('底部已保存快捷查询标签'));assert(text.includes('@defaultValue'));assert(!text.includes('\uFFFD'),'UTF-8 replacement character found');
