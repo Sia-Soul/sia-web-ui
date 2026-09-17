@@ -700,7 +700,8 @@
 .sia-table__viewport { isolation: isolate; min-width: 0; min-height: 0; flex: 1 1 auto; overflow: auto; scrollbar-width: none; }
 .sia-table__viewport::-webkit-scrollbar { display: none; width: 0; height: 0; }
 .sia-table__element { table-layout: fixed; min-width: 100%; border-spacing: 0; border-collapse: separate; background: var(--sia-color-surface); }
-.sia-table__header-cell, .sia-table__cell { position: relative; height: 38px; padding: 8px 12px; border-right: var(--sia-table-column-border-width) solid var(--sia-table-border-color, #EFF2F6); border-bottom: var(--sia-table-row-border-width) solid var(--sia-table-border-color, #EFF2F6); background: var(--sia-color-surface); vertical-align: middle; }
+/* 明确单元格字号和文字行高，避免宿主页面的排版样式撑高默认 medium 行；自定义内容仍可自行设置排版。 */
+.sia-table__header-cell, .sia-table__cell { position: relative; height: 36px; padding: 5px 12px; border-right: var(--sia-table-column-border-width) solid var(--sia-table-border-color, #EFF2F6); border-bottom: var(--sia-table-row-border-width) solid var(--sia-table-border-color, #EFF2F6); background: var(--sia-color-surface); vertical-align: middle; font-size: 13px; line-height: 1.5; }
 .sia-table__cell:last-child { border-right: 0; }
 .sia-table__header-cell { position: relative; color: var(--sia-color-text); background: var(--sia-color-control-hover); font-weight: 650; text-align: left; }
 .sia-table__head--sticky .sia-table__header-cell { position: sticky; z-index: 4; }
@@ -711,7 +712,11 @@
 .sia-table__header-cell.sia-table__cell--center > .sia-table__checkbox { display: block; margin-inline: auto; }
 .sia-table__header-cell.sia-table__cell--center .sia-table__resizable-header { justify-content: center; }
 .sia-table__header-label { display: flex; align-items: center; min-width: 0; gap: 5px; }
-.sia-table__header-label-content { min-width: 0; flex: 1; }
+/* 各层插件包裹都允许文字收缩；仅裁剪内容，保留列头上的拖拽热区。 */
+.sia-table__header-label-content { display: block; min-width: 0; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.sia-table__sortable-header > span:first-child,
+.sia-table__filter-header > span:first-child,
+.sia-table__resizable-header > span:first-child { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .sia-table__header-description { display: inline-grid; place-items: center; flex: 0 0 20px; width: 20px; height: 20px; padding: 0; color: var(--sia-color-text-secondary); cursor: help; background: transparent; border: 0; border-radius: 50%; }
 .sia-table__header-description:hover, .sia-table__header-description:focus-visible { color: var(--sia-color-primary-text); background: color-mix(in srgb, var(--sia-color-primary) 10%, transparent); outline: none; }
 .sia-table__cell--ellipsis > .sia-table__cell-content { position: relative; display: block; min-width: 0; height: auto; background: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -720,7 +725,9 @@
 .sia-table__cell--ellipsis > .sia-table__cell-content[data-custom-content] { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; }
 .sia-table__cell--ellipsis > .sia-table__cell-content[data-content-overflow="true"]::after { position: absolute; top: 0; right: 0; bottom: 0; display: grid; place-items: center end; width: 1.4em; content: "…"; color: inherit; background: inherit; pointer-events: none; }
 .sia-table__cell--auto-width .sia-table__cell-content { white-space: nowrap; }
-.sia-table__row { content-visibility: auto; contain-intrinsic-size: auto 38px; }
+.sia-table__row { content-visibility: auto; contain-intrinsic-size: auto 36px; }
+.sia-table--small .sia-table__row { contain-intrinsic-size: auto 28px; }
+.sia-table--large .sia-table__row { contain-intrinsic-size: auto 46px; }
 .sia-table__row--striped .sia-table__cell { background: color-mix(in srgb, var(--sia-color-background) 55%, var(--sia-color-surface)); }
 .sia-table__row:hover .sia-table__cell { background: var(--sia-color-control-hover); }
 .sia-table__row--selected .sia-table__cell { background: color-mix(in srgb, var(--sia-color-primary) 10%, var(--sia-color-surface)); }
@@ -738,7 +745,7 @@
 .sia-table__header-cell--range-selected { background: color-mix(in srgb, var(--sia-color-primary) 14%, var(--sia-color-surface)) !important; }
 .sia-table__header-cell--range-anchor::after { position: absolute; z-index: 8; inset: -1px; content: ""; border: 2px solid var(--sia-color-primary); pointer-events: none; }
 .sia-table__cell--row-span { vertical-align: middle; }
-.sia-table__cell--merge-sticky > .sia-table__cell-content { position: sticky; z-index: var(--sia-table-merge-sticky-z-index, 3); top: calc(var(--sia-table-header-height, 38px) + var(--sia-table-merge-sticky-inset, 0px)); }
+.sia-table__cell--merge-sticky > .sia-table__cell-content { position: sticky; z-index: var(--sia-table-merge-sticky-z-index, 3); top: calc(var(--sia-table-header-height, 36px) + var(--sia-table-merge-sticky-inset, 0px)); }
 .sia-table__cell--fixed { position: sticky; z-index: 2; }
 .sia-table__header-cell.sia-table__cell--fixed { z-index: 6; }
 .sia-table__viewport-wrap::before,
@@ -764,17 +771,28 @@
 .sia-table__scrollbar--horizontal .sia-table__scrollbar-thumb::after { width: 100%; height: var(--sia-scrollbar-size); }
 .sia-table__scrollbar--vertical .sia-table__scrollbar-thumb { top: 0; right: 0; width: 100%; height: var(--sia-table-scrollbar-y-size, 0); transform: translateY(var(--sia-table-scrollbar-y-position, 0)); }
 .sia-table__scrollbar--vertical .sia-table__scrollbar-thumb::after { width: var(--sia-scrollbar-size); height: 100%; }
-.sia-table__empty { position: absolute; z-index: 7; inset: var(--sia-table-header-height, 38px) 0 0; display: grid; place-items: center; min-width: 0; padding: 24px; overflow: hidden; color: var(--sia-color-text-secondary); text-align: center; text-overflow: ellipsis; background: var(--sia-color-surface); pointer-events: none; }
+.sia-table__empty { position: absolute; z-index: 7; inset: var(--sia-table-header-height, 36px) 0 0; display: grid; place-items: center; min-width: 0; padding: 24px; overflow: hidden; color: var(--sia-color-text-secondary); text-align: center; text-overflow: ellipsis; background: var(--sia-color-surface); pointer-events: none; }
 .sia-table__loading { position: absolute; z-index: 12; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: var(--sia-color-primary-text); background: color-mix(in srgb, var(--sia-color-surface) 72%, transparent); }
-.sia-table--small .sia-table__header-cell, .sia-table--small .sia-table__cell { height: 32px; padding: 5px 9px; font-size: 12px; }
+.sia-table--small .sia-table__header-cell, .sia-table--small .sia-table__cell { height: 28px; padding: 3px 9px; font-size: 12px; }
 .sia-table--large .sia-table__header-cell, .sia-table--large .sia-table__cell { height: 46px; padding: 10px 14px; font-size: 14px; }
 .sia-table__checkbox { display: inline-flex; width: auto; height: auto; margin: 0; cursor: pointer; }
 .sia-table__checkbox:disabled { cursor: not-allowed; }
 .sia-table__cell--selection-action, .sia-table__cell--index-action { cursor: pointer; }
-.sia-table__sortable-header { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-.sia-table__sort-button { display: grid; align-content: center; width: 20px; height: 28px; padding: 0; color: var(--sia-color-text-secondary); cursor: pointer; background: transparent; border: 0; }
-.sia-table__sort-button .sia-icon { margin-block: -2px; }
-.sia-table__sort-button .is-active { color: var(--sia-color-primary-text); }
+.sia-table__sortable-header { display: flex; align-items: center; justify-content: space-between; min-width: 0; gap: 6px; }
+/* 固定按钮占位避免切换排序时列头跳动；单箭头、加粗描边和底色共同强调当前方向。 */
+.sia-table__sort-button { display: grid; align-content: center; justify-items: center; flex: 0 0 26px; width: 26px; height: 28px; padding: 0; color: var(--sia-color-text-secondary); cursor: pointer; background: transparent; border: 0; border-radius: var(--sia-radius); }
+.sia-table__sort-button[data-sort-order="none"] .sia-icon { margin-block: -2px; }
+.sia-table__sort-button:not([data-sort-order="none"]) { color: var(--sia-color-primary-text); background: color-mix(in srgb, var(--sia-color-primary) 14%, var(--sia-color-surface)); }
+.sia-table__sort-button:not([data-sort-order="none"]) .sia-icon { stroke-width: 2.5; }
+.sia-table__sort-button:hover { color: var(--sia-color-primary-text); background: color-mix(in srgb, var(--sia-color-primary) 20%, var(--sia-color-surface)); }
+.sia-table__sort-button:focus-visible { outline: 2px solid var(--sia-color-primary); outline-offset: 1px; }
+/* 只缩小按钮容器，不改变未排序 11px、已排序 18px 的图标尺寸。 */
+.sia-table--medium .sia-table__sort-button { height: 24px; }
+.sia-table--small .sia-table__sort-button,
+.sia-table--small .sia-table__filter-button { height: 20px; }
+/* 数据行中的文字操作无需占用表单按钮的 30px 高度，否则 medium 会被上下内边距撑至 41px。仅适配链接按钮，工具栏保持原尺寸。 */
+.sia-table--medium .sia-table__cell .sia-button--link { height: 24px; }
+.sia-table--small .sia-table__cell .sia-button--link { height: 20px; }
 .sia-table__filter-header { display: flex; align-items: center; justify-content: space-between; min-width: 0; gap: 4px; }
 .sia-table__filter-header > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .sia-table__filter-button { display: grid; place-items: center; flex: 0 0 24px; width: 24px; height: 24px; padding: 0; color: var(--sia-color-text-secondary); cursor: pointer; background: transparent; border: 0; border-radius: var(--sia-radius); }
@@ -874,7 +892,7 @@
 @media (max-width: 650px) { .sia-modal-root { padding: 16px 12px; } .sia-modal { width: min(var(--sia-modal-width), calc(100vw - 24px)); } .sia-modal__header { padding-inline: 16px; } .sia-modal__body { padding-inline: 16px; } .sia-modal__footer { flex-wrap: wrap; padding-inline: 16px; } .sia-modal__footer .sia-button { flex: 1 1 110px; } }
 @media (prefers-reduced-motion: reduce) { .sia-button, .sia-input-control, .sia-input-control__clear, .sia-input-control__floating-placeholder, .sia-input-number, .sia-input-number__floating-placeholder, .sia-select__trigger, .sia-select__arrow, .sia-select__clear, .sia-switch, .sia-switch__thumb, .sia-switch__content-item, .sia-switch__segment, .sia-theme-switch, .sia-theme-switch__selection, .sia-theme-switch__icon, .sia-drawer { transition: none; } .sia-button::after, .sia-icon--spin, .sia-icon--pulse, .sia-modal-root, .sia-modal, .sia-drawer, .sia-drawer__mask, .sia-message { animation: none !important; } .sia-modal-root[data-state="closing"] { visibility: hidden; } }
 
-.sia-table__settings-dropdown .sia-menu__item { min-height: 34px; padding: 4px 12px; gap: 10px; font-size: 14px; line-height: 24px; }
+.sia-table__settings-dropdown .sia-menu__item { min-height: 36px; padding: 5px 12px; gap: 10px; font-size: 14px; line-height: 24px; }
 .sia-table__settings-dropdown .sia-menu__divider { margin: 4px 8px; }
 
 .sia-table--borderless-toolbar { border: 0; }

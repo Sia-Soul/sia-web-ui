@@ -1,7 +1,7 @@
 import { FloatingPlaceholderDemo } from "./FloatingPlaceholderDemo";
 import { FormSizeDemo } from "./FormSizeDemo";
 import formSizeCode from "./FormSizeDemo.tsx?raw";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Button,
   Checkbox,
@@ -15,7 +15,6 @@ import {
   Space,
   TimePicker,
   TreeSelect,
-  Upload,
   message,
 } from "@sia.soul/sia-react-ui";
 import type { CheckboxValue, FormRule, SliderValue, TreeSelectNode } from "@sia.soul/sia-react-ui";
@@ -436,66 +435,5 @@ export function TreeSelectPage() {
   </DocPage>;
 }
 
-const uploadListCode = `import { Upload, message } from "@sia.soul/sia-react-ui";
-
-export default function Demo() {
-  function beforeUpload(file) {
-    if (file.size <= 5 * 1024 * 1024) return true;
-    message.error(\`\${file.name} 超过 5MB\`);
-    return false;
-  }
-
-  return (
-    <Upload
-      multiple
-      maxCount={3}
-      accept=".png,.jpg,.pdf"
-      beforeUpload={beforeUpload}
-      onChange={({ file }) => console.log(file.name, file.status ?? "ready")}
-    />
-  );
-}`;
-
-const uploadDraggerCode = `import { Upload, message } from "@sia.soul/sia-react-ui";
-
-export default function Demo() {
-  function beforeUpload(file) {
-    if (file.size <= 5 * 1024 * 1024) return true;
-    message.error(\`\${file.name} 超过 5MB\`);
-    return false;
-  }
-
-  return (
-    <Upload.Dragger
-      multiple
-      maxCount={5}
-      accept=".png,.jpg,.pdf"
-      beforeUpload={beforeUpload}
-    />
-  );
-}`;
-
-export function UploadPage() {
-  const [latest, setLatest] = useState("尚未选择文件");
-  const beforeUpload = useMemo(() => (file: File) => {
-    if (file.size > 5 * 1024 * 1024) {
-      message.error(`${file.name} 超过 5MB`);
-      return false;
-    }
-    return true;
-  }, []);
-  return <DocPage eyebrow="组件 / 数据录入 / Upload" title="Upload 上传" description="选择或拖拽文件，管理上传校验、进度和文件列表。" name="Upload" apiRows={[
-    { property: "accept / multiple / directory", description: "文件类型、多选和目录上传", type: "input file props", defaultValue: "-" },
-    { property: "fileList / defaultFileList", description: "受控或默认文件列表", type: "UploadFile[]", defaultValue: "[]" },
-    { property: "beforeUpload", description: "上传前校验或转换文件", type: "(file, list) => boolean | File | Promise", defaultValue: "-" },
-    { property: "customRequest", description: "自定义上传实现", type: "(options) => void", defaultValue: "本地模拟" },
-    { property: "Upload.Dragger", description: "拖拽上传形态", type: "UploadDraggerProps", defaultValue: "-" },
-  ]}>
-    <DemoCard title="文件列表" description={latest} code={uploadListCode}>
-      <Upload multiple maxCount={3} accept=".png,.jpg,.pdf" beforeUpload={beforeUpload} onChange={({ file }) => setLatest(`${file.name}：${file.status ?? "ready"}`)} />
-    </DemoCard>
-    <DemoCard title="拖拽上传" description="支持点击或把多个文件拖入上传区域。" code={uploadDraggerCode}>
-      <Upload.Dragger multiple maxCount={5} accept=".png,.jpg,.pdf" beforeUpload={beforeUpload} />
-    </DemoCard>
-  </DocPage>;
-}
+// 上传示例独立维护，覆盖目录、OSS 和完全受控模式。
+export { UploadPage } from "./UploadPage";

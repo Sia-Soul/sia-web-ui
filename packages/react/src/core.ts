@@ -10,6 +10,7 @@ export type { CardAccent, CardProps } from "./components/Card";
 export { Icon } from "./components/Icon";
 export type { FilledIconName, IconName, IconProps, IconVariant } from "./components/Icon";
 export { Tag } from "./components/Tag";
+// 轻量入口与完整入口保持标签视觉样式类型一致。
 export type { TagProps, TagStatus, TagVariant } from "./components/Tag";
 export { Tabs } from "./components/Tabs";
 export type { TabItem, TabsOrientation, TabsPosition, TabsProps, TabsType } from "./components/Tabs";

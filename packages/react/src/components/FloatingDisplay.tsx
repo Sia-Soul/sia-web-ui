@@ -1,3 +1,4 @@
+import { getTreeCheckState, toggleTreeCheck } from "./treeCheckState";
 import { withTitleTooltip } from "./titleTooltip";
 import { cloneElement, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, HTMLAttributes, ReactElement, ReactNode } from "react";
@@ -353,7 +354,7 @@ export interface TreeProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSelec
    * @defaultValue false
    */
   defaultExpandAll?: boolean;
-  /** 受控的勾选节点标识集合。 */
+  /** 受控勾选键；非独立模式自动向下关联子节点、向上汇总父节点及半选，禁用节点阻断传播。通过 onCheck 同步更新。 */
   checkedKeys?: readonly TreeKey[];
   /**
    * 非受控模式下初始勾选的节点标识。
@@ -371,7 +372,7 @@ export interface TreeProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSelec
    */
   checkable?: boolean;
   /**
-   * 父子节点勾选状态是否相互独立。
+   * 为 true 时父子独立；为 false 时父子联动，并显示部分子项选中的半选状态。
    * @defaultValue false
    */
   checkStrictly?: boolean;
@@ -435,10 +436,12 @@ export interface TreeProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSelec
   node: TreeNode;
   /** 触发本次操作的原生事件。 */
   nativeEvent: React.MouseEvent }) => void;
-  /** 勾选状态变化时调用。 */
+  /** 用户切换勾选时调用；keys 为联动后的完整选中键，info.halfCheckedKeys 为半选父节点。 */
   onCheck?: (keys: TreeKey[], info: {
   /** 当前是否勾选；作为受控属性时通过回调更新。 */
   checked: boolean;
+  /** 联动计算后处于半选状态的节点键；独立模式为空数组。 */
+  halfCheckedKeys: TreeKey[];
   /** 当前操作关联的节点数据。 */
   node: TreeNode }) => void;
   /** 节点展开或收起时调用。 */
@@ -461,7 +464,6 @@ function collectKeys(nodes: readonly TreeNode[], branchOnly = false, result: Tre
   nodes.forEach((node) => { if (!branchOnly || node.children?.length) result.push(node.key); if (node.children) collectKeys(node.children, branchOnly, result); });
   return result;
 }
-function descendants(node: TreeNode) { return node.children ? collectKeys(node.children) : []; }
 
 /** 树组件。 */
 export function Tree({
@@ -511,11 +513,11 @@ export function Tree({
     const next = nextExpanded ? [...expanded, node.key] : expanded.filter((key) => key !== node.key);
     setExpanded(next); onExpand?.([...next], { expanded: nextExpanded, node });
   }
+  const checkState = useMemo(() => getTreeCheckState(treeData, checked, checkStrictly), [treeData, checked, checkStrictly]);
   function check(node: TreeNode) {
-    const nodeChecked = checked.includes(node.key);
-    const affected = checkStrictly ? [node.key] : [node.key, ...descendants(node)];
-    const next = nodeChecked ? checked.filter((key) => !affected.includes(key)) : [...new Set([...checked, ...affected])];
-    setChecked(next); onCheck?.([...next], { checked: !nodeChecked, node });
+    const next = toggleTreeCheck(treeData, checked, node, checkStrictly);
+    setChecked([...next.checked]);
+    onCheck?.([...next.checked], { checked: next.checkedValue, halfCheckedKeys: [...next.halfChecked], node });
   }
   function select(node: TreeNode, event: React.MouseEvent) {
     if (!selectable || node.selectable === false || node.disabled) return;
@@ -599,7 +601,8 @@ export function Tree({
       const open = expanded.includes(node.key);
       const isSelected = selected.includes(node.key);
       const isSelectedAncestor = selectedAncestorKeys.has(node.key);
-      const isChecked = checked.includes(node.key);
+      const isChecked = checkState.checked.has(node.key);
+      const isHalfChecked = checkState.halfChecked.has(node.key);
       const hasChildren = Boolean(node.children?.length || node.isLeaf === false);
       const nodeLoading = loading.has(node.key) || controlledLoading.has(node.key);
       const sticky = stickyAncestors && hasChildren && open;
@@ -627,7 +630,7 @@ export function Tree({
           {(() => {
             const content = <span className="sia-tree__context-content">
               {hasChildren ? <button type="button" className="sia-tree__switcher" aria-label={open ? "收起节点" : "展开节点"} aria-expanded={open} style={{ width: normalizedSwitcherWidth, flexBasis: normalizedSwitcherWidth }} disabled={node.disabled} onClick={(event) => { event.stopPropagation(); void toggleExpand(node); }}>{nodeLoading ? <Icon name="loader" className="sia-spin-icon" size={13} /> : <Icon name={open ? "chevron-down" : "chevron-right"} size={13} />}</button> : <span className="sia-tree__switcher" aria-label={open ? "收起节点" : "展开节点"} aria-expanded={open} style={{ width: normalizedSwitcherWidth, flexBasis: normalizedSwitcherWidth }} aria-hidden="true" />}
-              {checkable || node.checkable ? <span onClick={(event) => event.stopPropagation()}><Checkbox checked={isChecked} disabled={node.disabled || node.disableCheckbox} onChange={() => check(node)} /></span> : null}
+              {checkable || node.checkable ? <span onClick={(event) => event.stopPropagation()}><Checkbox checked={isChecked} indeterminate={isHalfChecked} disabled={node.disabled || node.disableCheckbox} onChange={() => check(node)} /></span> : null}
               {node.prefix ? <span className="sia-tree__prefix" onClick={(event) => event.stopPropagation()}>{node.prefix}</span> : null}
               {showIcon ? <span className="sia-tree__icon">{node.icon ?? <Icon name={hasChildren ? "folder" : "file"} size={15} />}</span> : null}
               <button

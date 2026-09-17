@@ -358,14 +358,15 @@ export function TreePage() {
     { property: "treeData", description: "树形节点数据", type: "TreeNode[]", defaultValue: "[]" },
     { property: "selectedKeys / expandedKeys / checkedKeys", description: "选择、展开和勾选键", type: "Key[]", defaultValue: "[]" },
     { property: "loadingKeys", description: "由外部控制正在异步加载的节点", type: "Key[]", defaultValue: "[]" },
-    { property: "checkable / checkStrictly", description: "勾选与父子独立模式", type: "boolean", defaultValue: "false" },
+    { property: "checkable / checkStrictly", description: "启用勾选；checkStrictly=false 时父子联动并显示半选，禁用节点阻断传播", type: "boolean", defaultValue: "false" },
+    { property: "onCheck", description: "切换时返回联动后的完整选中键，以及 info.halfCheckedKeys 半选键；受控模式需更新 checkedKeys", type: "(keys, info) => void", defaultValue: "-" },
     { property: "loadData / draggable / onDrop", description: "异步节点与拖拽", type: "function / boolean / function", defaultValue: "-" },
     { property: "stickyAncestors / stickyRowHeight", description: "滚动时按层级吸顶已展开的祖先节点及其行高", type: "boolean / number", defaultValue: "false / 34" },
     { property: "TreeNode.loadingText", description: "异步加载节点时显示的状态文案", type: "ReactNode", defaultValue: "正在加载…" },
     { property: "TreeNode.loaded", description: "标记子级数据是否已经加载；false 时节点标题使用次级文字色", type: "boolean", defaultValue: "-" },
     { property: "TreeNode.rowProps", description: "传递到节点整行容器的原生属性，可用于右键菜单与测试标识", type: "HTMLAttributes<HTMLDivElement>", defaultValue: "-" },
   ]}>
-    <DemoCard title="选择与勾选" description={`选择 ${selected.length} 项，勾选 ${checked.length} 项`} code={`<Tree
+    <DemoCard title="选择与勾选" description={`初始勾选前端组，研发中心显示半选；勾选后端组后父节点自动全选，点击父节点可取消整组。选择 ${selected.length} 项，勾选 ${checked.length} 项`} code={`<Tree
   treeData={treeData}
   selectedKeys={selected}
   onSelect={setSelected}

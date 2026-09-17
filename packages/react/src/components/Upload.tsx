@@ -1,252 +1,234 @@
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import type { ClipboardEvent, DragEvent } from "react";
 import { withTitleTooltip } from "./titleTooltip";
-import { useId, useRef } from "react";
-import type { ChangeEvent, DragEvent, HTMLAttributes, ReactNode } from "react";
 import { Button } from "./Button";
 import { Icon } from "./Icon";
-import { useControllableState } from "./shared";
+import { ImagePreview } from "./DataDisplay";
+import { acceptsUploadFile, includeUploadPath, readUploadEntries } from "./uploadFiles";
+import { sendUploadRequest } from "./uploadRequest";
+import type { UploadChangeInfo, UploadFile, UploadProps, UploadDraggerProps, UploadRef, UploadRequestHandle, UploadRequestOptions, UploadItemActions } from "./uploadTypes";
+export type { UploadChangeInfo, UploadDraggerProps, UploadFile, UploadFileStatus, UploadProps, UploadRequestOptions, UploadHttpRequest, UploadRequestHandle, UploadRejectInfo, UploadRef, UploadItemActions } from "./uploadTypes";
 
 const LIST_IGNORE = Symbol("SIA_UPLOAD_LIST_IGNORE");
 
-/** UploadFile的状态类型。 */
-export type UploadFileStatus = "ready" | "uploading" | "done" | "error";
-
-/** 上传文件的状态记录，包含唯一标识、文件名、原始文件和服务端响应。 */
-export interface UploadFile {
-  /** 文件的唯一标识。 */
-  uid: string;
-  /** 名称或字段标识。 */
-  name: string;
-  /** 组件尺寸；用于调整控件高度、字号和间距。 */
-  size?: number;
-  /** 类型标识，用于选择对应的表现形式。 */
-  type?: string;
-  /** 当前状态，用于选择对应的状态样式。 */
-  status?: UploadFileStatus;
-  /** 进度百分比。 */
-  percent?: number;
-  /** 文件或资源的访问地址。 */
-  url?: string;
-  /** 上传服务返回的响应数据。 */
-  response?: unknown;
-  /** 错误信息或错误对象。 */
-  error?: unknown;
-  /** 上传前的原始 File 对象。 */
-  originFileObj?: File;
-}
-
-/** UploadRequest的配置选项。 */
-export interface UploadRequestOptions {
-  /** 当前操作涉及的文件。 */
-  file: File;
-  /** 文件名。 */
-  filename: string;
-  /** 上传进度更新时调用。 */
-  onProgress: (percent: number) => void;
-  /** 上传成功时调用，接收响应数据。 */
-  onSuccess: (response?: unknown) => void;
-  /** 操作发生错误时调用，可用于显示业务错误提示。 */
-  onError: (error: unknown) => void;
-}
-
-/** 文件上传的变更事件上下文。 */
-export interface UploadChangeInfo {
-  /** 当前操作涉及的文件。 */
-  file: UploadFile;
-  /** 受控的文件列表。 */
-  fileList: readonly UploadFile[];
-}
-
-/** 文件上传的属性配置。 */
-export interface UploadProps extends Omit<HTMLAttributes<HTMLDivElement>, "defaultValue" | "onChange"> {
-  /** 允许的文件类型，格式同原生 input 的 accept。 */
-  accept?: string;
-  /**
-   是否允许同时选择多个项目。
-   * @defaultValue false
-   */
-  multiple?: boolean;
-  /**
-   * 是否允许选择文件夹。
-   * @defaultValue false
-   */
-  directory?: boolean;
-  /**
-   * 是否禁用交互。
-   * @defaultValue false
-   */
-  disabled?: boolean;
-  /** 允许的最大文件数量。 */
-  maxCount?: number;
-  /** 受控的文件列表。 */
-  fileList?: readonly UploadFile[];
-  /**
-   * 非受控模式下的初始文件列表。
-   * @defaultValue []
-   */
-  defaultFileList?: readonly UploadFile[];
-  /**
-   * 上传文件列表的展示形式。
-   * @defaultValue "text"
-   */
-  listType?: "text" | "picture" | "picture-card";
-  /**
-   * 是否显示上传文件列表。
-   * @defaultValue true
-   */
-  showUploadList?: boolean;
-  /** 上传前校验或转换文件 */
-  beforeUpload?: (file: File, fileList: readonly File[]) => boolean | File | typeof LIST_IGNORE | Promise<boolean | File | typeof LIST_IGNORE>;
-  /** 自定义上传实现 */
-  customRequest?: (options: UploadRequestOptions) => void | {
-  /** 取消当前上传请求。 */
-  abort?: () => void };
-  /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
-  onChange?: (info: UploadChangeInfo) => void;
-  /** 请求移除文件时调用；返回值控制是否允许移除。 */
-  onRemove?: (file: UploadFile) => boolean | Promise<boolean>;
-  /** 子内容；组件嵌套内容或当前节点的子项。 */
-  children?: ReactNode;
-}
-
-/** UploadDragger的属性配置。 */
-export interface UploadDraggerProps extends UploadProps {
-  /**
-   * 帮助或校验信息
-   * @defaultValue "支持单个或批量上传"
-   */
-  hint?: ReactNode;
-}
-
-function UploadRoot({
-  accept,
-  multiple = false,
-  directory = false,
-  disabled = false,
-  maxCount,
-  fileList,
-  defaultFileList = [],
-  listType = "text",
-  showUploadList = true,
-  beforeUpload,
-  customRequest,
-  onChange,
-  onRemove,
-  children,
-  className = "",
-  onDragOver,
-  onDrop,
-  ...props
-}: UploadProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const filesRef = useRef<readonly UploadFile[]>(fileList ?? defaultFileList);
-  const id = useId();
-  const [files, setFiles] = useControllableState<readonly UploadFile[]>({ value: fileList, defaultValue: defaultFileList });
-  filesRef.current = files;
-
-  function emit(file: UploadFile, nextList: readonly UploadFile[]) {
-    filesRef.current = nextList;
-    setFiles(nextList);
-    onChange?.({ file, fileList: nextList });
-  }
-
-  async function processFile(file: File, allFiles: readonly File[]) {
-    const beforeResult = await beforeUpload?.(file, allFiles);
-    if (beforeResult === LIST_IGNORE) return;
-    if (beforeResult === false) {
-      const pending: UploadFile = { uid: `${Date.now()}-${file.name}`, name: file.name, size: file.size, type: file.type, status: "ready", originFileObj: file };
-      emit(pending, maxCount === 1 ? [pending] : [...filesRef.current, pending].slice(-(maxCount ?? Number.POSITIVE_INFINITY)));
-      return;
+/** 每个预览独立持有对象 URL，在文件替换或卸载时释放，避免照片墙长期占用内存。 */
+function useThumbnail(file?: UploadFile) {
+  const [local, setLocal] = useState<string>();
+  useEffect(() => {
+    if (!file?.thumbUrl && file?.originFileObj?.type.startsWith("image/")) {
+      const url = URL.createObjectURL(file.originFileObj);
+      setLocal(url);
+      return () => URL.revokeObjectURL(url);
     }
-    const uploadFile = beforeResult instanceof File ? beforeResult : file;
-    const item: UploadFile = { uid: `${Date.now()}-${Math.random().toString(36).slice(2)}`, name: uploadFile.name, size: uploadFile.size, type: uploadFile.type, status: "uploading", percent: 0, originFileObj: uploadFile };
-    const nextList = maxCount === 1 ? [item] : [...filesRef.current, item].slice(-(maxCount ?? Number.POSITIVE_INFINITY));
-    emit(item, nextList);
-    const request: UploadRequestOptions = {
-      file: uploadFile,
-      filename: uploadFile.name,
-      onProgress: (percent) => {
-        const progressing = { ...item, status: "uploading" as const, percent };
-        const progressList = filesRef.current.map((entry) => entry.uid === item.uid ? progressing : entry);
-        emit(progressing, progressList);
-      },
-      onSuccess: (response) => {
-        const done = { ...item, status: "done" as const, percent: 100, response };
-        const completed = filesRef.current.map((entry) => entry.uid === item.uid ? done : entry);
-        emit(done, completed);
-      },
-      onError: (error) => {
-        const failed = { ...item, status: "error" as const, error };
-        const completed = filesRef.current.map((entry) => entry.uid === item.uid ? failed : entry);
-        emit(failed, completed);
-      },
-    };
-    if (customRequest) customRequest(request);
-    else window.setTimeout(() => request.onSuccess({ local: true }), 180);
-  }
+    setLocal(undefined);
+  }, [file?.originFileObj, file?.thumbUrl]);
+  return file?.thumbUrl || local || (file?.type?.startsWith("image/") || /\.(png|jpe?g|gif|webp|avif|svg)(\?|$)/i.test(file?.url ?? "") ? file?.url : undefined);
+}
 
-  function handleFiles(event: ChangeEvent<HTMLInputElement>) {
-    const selected = [...(event.currentTarget.files ?? [])];
-    selected.forEach((file) => void processFile(file, selected));
-    event.currentTarget.value = "";
-  }
-
-  function handleDrop(event: DragEvent<HTMLDivElement>) {
-    onDrop?.(event);
-    if (event.defaultPrevented || disabled) return;
-    event.preventDefault();
-    const selected = [...event.dataTransfer.files];
-    selected.forEach((file) => void processFile(file, selected));
-  }
-
-  async function remove(file: UploadFile) {
-    if (await onRemove?.(file) === false) return;
-    const next = files.filter((item) => item.uid !== file.uid);
-    emit({ ...file, status: "ready" }, next);
-  }
-
-  return <div
-    className={`sia-upload sia-upload--${listType} ${className}`.trim()}
-    onDragOver={(event) => {
-      onDragOver?.(event);
-      if (!event.defaultPrevented && !disabled) event.preventDefault();
-    }}
-    onDrop={handleDrop}
-    {...withTitleTooltip(props)}
-  >
-    <input
-      ref={inputRef}
-      id={id}
-      className="sia-upload__input"
-      type="file"
-      accept={accept}
-      multiple={multiple}
-      disabled={disabled}
-      {...withTitleTooltip((directory ? { webkitdirectory: "", directory: "" } as Record<string, string> : {}))}
-      onChange={handleFiles}
-    />
-    <div className="sia-upload__trigger" onClick={() => !disabled && inputRef.current?.click()}>
-      {children ?? <Button icon={<Icon name="upload" size={16} />} disabled={disabled}>选择文件</Button>}
-    </div>
-    {showUploadList && files.length ? <div className="sia-upload__list">
-      {files.map((file) => <div className={`sia-upload__item sia-upload__item--${file.status ?? "ready"}`} key={file.uid}>
-        <Icon name={file.status === "done" ? "circle-check" : "file"} size={16} />
-        <span className="sia-upload__name" {...withTitleTooltip({ title: file.name })}>{file.name}</span>
-        {file.status === "uploading" ? <span className="sia-upload__progress"><span style={{ width: `${file.percent ?? 0}%` }} /></span> : null}
-        <button type="button" aria-label={`移除 ${file.name}`} onClick={() => void remove(file)}><Icon name="close" size={14} /></button>
-      </div>)}
-    </div> : null}
+/** 列表缩略图及状态；自定义渲染仍可复用默认节点和受限操作。 */
+function UploadItem({ file, files, props, actions }: { file: UploadFile; files: readonly UploadFile[]; props: UploadProps; actions: UploadItemActions }) {
+  const source = useThumbnail(file);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [source]);
+  const node = <div className={`sia-upload__item sia-upload__item--${file.status ?? "ready"}`}>
+    {props.listType !== "text" ? <Button variant="text" className="sia-upload__thumbnail" aria-label={`预览 ${file.name}`} onClick={actions.preview} disabled={!source && !props.onPreview}>
+      {source && !failed ? <img src={source} alt={file.name} onError={() => setFailed(true)} /> : <Icon name={file.type?.startsWith("image/") ? "image" : "file"} size={28} />}
+    </Button> : <Icon name={file.status === "done" ? "circle-check" : "file"} size={16} />}
+    <span className="sia-upload__name" {...withTitleTooltip({ title: file.relativePath || file.name })}>{file.url ? <a href={file.url} target="_blank" rel="noreferrer">{file.name}</a> : file.name}</span>
+    <Button variant="text" className="sia-upload__remove" disabled={props.disabled} aria-label={`移除 ${file.name}`} onClick={() => void actions.remove()}><Icon name="close" size={14} /></Button>
+    {file.status === "uploading" && <div className="sia-upload__uploading"><span>上传中 {Math.round(file.percent ?? 0)}%</span><span className="sia-upload__progress" role="progressbar" aria-label={`${file.name} 上传进度`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={file.percent ?? 0}><span style={{ width: `${file.percent ?? 0}%` }} /></span></div>}
+    {file.status === "error" && <span className="sia-upload__error">上传失败</span>}
   </div>;
+  return <>{props.itemRender ? props.itemRender(node, file, files, actions) : node}</>;
 }
 
-function UploadDragger({ hint = "支持单个或批量上传", children, className = "", ...props }: UploadDraggerProps) {
-  return <UploadRoot {...props} className={`sia-upload-dragger ${className}`.trim()}>
-    {children ?? <div className="sia-upload-dragger__content"><Icon name="upload" size={28} /><strong>点击或拖拽文件到此区域上传</strong><span>{hint}</span></div>}
+/** 请求令牌区分重试前后的回调，完成 Promise 同时供手动批量操作等待。 */
+type UploadTask = { controller: AbortController; handle?: UploadRequestHandle; done: Promise<void>; finish: () => void };
+
+/** 上传根实现：选择同步占位，校验和请求独立执行，防止多入口并发绕过数量上限。 */
+const UploadRoot = forwardRef<UploadRef, UploadProps>(function UploadRoot({ accept, multiple = false, directory = false, recursive = true, pastable = false,
+  disabled = false, autoUpload = true, maxCount, fileList, defaultFileList = [], listType = "text", showUploadList = true,
+  beforeUpload, request, customRequest, onChange, onRemove, onReject, onReadError, onPreview, itemRender, children,
+  className = "", onDragOver, onDragLeave, onDrop, onPaste, tabIndex, ...props }, ref) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [internalFiles, setInternalFiles] = useState<readonly UploadFile[]>(defaultFileList);
+  const files = fileList ?? internalFiles;
+  const filesRef = useRef(files);
+  filesRef.current = files;
+  const tasks = useRef(new Map<string, UploadTask>());
+  const mounted = useRef(true);
+  const [dragging, setDragging] = useState(false);
+  const [preview, setPreview] = useState<UploadFile>();
+  const previewSource = useThumbnail(preview);
+  const limit = maxCount === undefined || !Number.isFinite(maxCount) ? Infinity : Math.max(0, Math.floor(maxCount));
+  const full = files.length >= limit;
+  const current = useRef({ disabled, directory, recursive });
+  current.current = { disabled, directory, recursive };
+
+  function cancel(uid: string) {
+    const task = tasks.current.get(uid);
+    tasks.current.delete(uid);
+    task?.controller.abort();
+    try { task?.handle?.abort?.(); } catch { /* 单个 SDK 取消失败不能中断其他资源清理。 */ }
+    task?.finish();
+  }
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; [...tasks.current.keys()].forEach(cancel); };
+  }, []);
+  useEffect(() => {
+    // 外部受控删除也取消任务；不允许迟到回调把记录重新插入列表。
+    for (const uid of tasks.current.keys()) if (!files.some(file => file.uid === uid)) cancel(uid);
+    if (preview && !files.some(file => file.uid === preview.uid)) setPreview(undefined);
+  }, [files, preview]);
+
+  function emit(file: UploadFile, next: readonly UploadFile[], event: UploadChangeInfo["event"]) {
+    if (!mounted.current) return;
+    filesRef.current = next;
+    if (fileList === undefined) setInternalFiles(next);
+    onChange?.({ file, fileList: next, event });
+  }
+
+  function start(file: UploadFile): Promise<void> {
+    if (current.current.disabled || !mounted.current || file.status === "done" || !file.originFileObj) return Promise.resolve();
+    const existing = tasks.current.get(file.uid);
+    if (existing) return existing.done;
+    let finish = () => {};
+    const done = new Promise<void>(resolve => { finish = resolve; });
+    const task: UploadTask = { controller: new AbortController(), done, finish };
+    tasks.current.set(file.uid, task);
+    const active = () => mounted.current && tasks.current.get(file.uid) === task && !task.controller.signal.aborted && filesRef.current.some(entry => entry.uid === file.uid);
+    const update = (patch: Partial<UploadFile>, event: UploadChangeInfo["event"]) => {
+      if (!active()) return;
+      const next = { ...filesRef.current.find(entry => entry.uid === file.uid)!, ...patch };
+      emit(next, filesRef.current.map(entry => entry.uid === file.uid ? next : entry), event);
+    };
+    const settle = () => { if (tasks.current.get(file.uid) === task) tasks.current.delete(file.uid); finish(); };
+    const options: UploadRequestOptions = {
+      file: file.originFileObj, filename: file.name, uploadFile: file, relativePath: file.relativePath || file.name, signal: task.controller.signal,
+      onProgress: percent => { if (Number.isFinite(percent)) update({ percent: Math.max(0, Math.min(100, percent)) }, "progress"); },
+      onSuccess: (response, url) => { if (!active()) return; update({ status: "done", percent: 100, response, ...(url ? { url } : {}) }, "success"); settle(); },
+      onError: error => { if (!active()) return; update({ status: "error", error }, "error"); settle(); },
+    };
+    // 先注册任务再通知状态，业务方可在 onChange 内同步取消。
+    update({ status: "uploading", percent: 0, error: undefined }, "start");
+    void (async () => {
+      try {
+        if (!active()) return;
+        const result = await beforeUpload?.(options.file, filesRef.current.flatMap(entry => entry.originFileObj ? [entry.originFileObj] : []));
+        if (!active()) return;
+        if (result === LIST_IGNORE) { settle(); emit(file, filesRef.current.filter(entry => entry.uid !== file.uid), "remove"); return; }
+        if (result === false || (!customRequest && !request)) { update({ status: "ready" }, "cancel"); settle(); return; }
+        if (result instanceof File) { options.file = result; options.filename = result.name; }
+        if (customRequest) task.handle = (await customRequest(options)) || undefined;
+        else {
+          const config = typeof request === "function" ? await request({ ...file, originFileObj: options.file, name: options.filename }, task.controller.signal) : request!;
+          if (active()) task.handle = sendUploadRequest(config, options);
+        }
+        // 签名或 SDK 初始化期间取消，异步返回的句柄也必须立即中止。
+        if (task.controller.signal.aborted) task.handle?.abort?.();
+      } catch (error) { options.onError(error); }
+    })();
+    return done;
+  }
+
+  function abort(uid?: string) {
+    const ids = uid ? [uid] : [...tasks.current.keys()];
+    for (const id of ids) {
+      if (!tasks.current.has(id)) continue;
+      cancel(id);
+      const file = filesRef.current.find(entry => entry.uid === id);
+      if (file) { const next = { ...file, status: "ready" as const, percent: 0 }; emit(next, filesRef.current.map(entry => entry.uid === id ? next : entry), "cancel"); }
+    }
+  }
+  async function remove(uid: string) {
+    if (current.current.disabled) return;
+    const file = filesRef.current.find(entry => entry.uid === uid);
+    if (!file) return;
+    try {
+      if (await onRemove?.(file) === false || !mounted.current || current.current.disabled) return;
+      cancel(uid);
+      emit(file, filesRef.current.filter(entry => entry.uid !== uid), "remove");
+    } catch { /* onRemove 拒绝与返回 false 相同，保留记录和请求。 */ }
+  }
+  useImperativeHandle(ref, () => ({
+    upload: async uid => { await Promise.all(filesRef.current.filter(file => (!uid || file.uid === uid) && file.status !== "done").map(start)); },
+    abort, remove,
+  }));
+
+  function ingest(entries: { file: File; path: string }[]) {
+    if (current.current.disabled || !mounted.current) return;
+    const filtered = directory ? entries.filter(entry => includeUploadPath(entry.path, recursive)) : entries;
+    const selected = multiple || directory ? filtered : filtered.slice(0, 1);
+    const added: UploadFile[] = [];
+    for (const { file, path } of selected) {
+      if (!acceptsUploadFile(file, accept)) { onReject?.({ file, reason: "accept" }); continue; }
+      if (filesRef.current.length >= limit) { onReject?.({ file, reason: "max-count" }); continue; }
+      const item: UploadFile = { uid: `upload-${Date.now()}-${Math.random().toString(36).slice(2)}`, name: file.name, size: file.size, type: file.type, relativePath: path, originFileObj: file, status: "ready", percent: 0 };
+      emit(item, [...filesRef.current, item], "add");
+      added.push(item);
+    }
+    if (autoUpload) added.forEach(file => { void start(file); });
+  }
+
+  async function handleDrop(event: DragEvent<HTMLDivElement>) {
+    onDrop?.(event);
+    setDragging(false);
+    if (event.defaultPrevented) return;
+    event.preventDefault();
+    if (disabled) return;
+    // DataTransfer 只能在事件期间读取；先同步保存句柄，再异步读取目录。
+    const fallback = [...event.dataTransfer.files].map(file => ({ file, path: file.webkitRelativePath || file.name }));
+    const entries = [...event.dataTransfer.items].map(item => item.webkitGetAsEntry?.()).filter((entry): entry is FileSystemEntry => !!entry);
+    try {
+      if (entries.length) ingest(await readUploadEntries(entries.filter(entry => directory || !entry.isDirectory), recursive));
+      else ingest(fallback);
+    } catch (error) { if (mounted.current) onReadError?.(error); }
+  }
+  function handlePaste(event: ClipboardEvent<HTMLDivElement>) {
+    onPaste?.(event);
+    if (event.defaultPrevented || disabled || !pastable) return;
+    const selected = [...event.clipboardData.files];
+    if (!selected.length) return;
+    event.preventDefault();
+    ingest(selected.map(file => ({ file, path: file.name })));
+  }
+
+  const trigger = !(listType === "picture-card" && full) && <div className="sia-upload__trigger">
+    <Button className="sia-upload__choose" disabled={disabled || full} onClick={() => inputRef.current?.click()}>
+      {children ?? (listType === "picture-card" ? <><Icon name="plus" size={24} /><span>上传图片</span></> : <><Icon name="upload" size={16} />{directory ? "选择文件夹" : "选择文件"}</>)}
+    </Button>
+  </div>;
+  return <div {...withTitleTooltip(props)} className={`sia-upload sia-upload--${listType}${dragging ? " is-dragging" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()}
+    tabIndex={tabIndex ?? (pastable && !disabled ? 0 : undefined)} onPaste={handlePaste}
+    onDragOver={event => { onDragOver?.(event); if (!event.defaultPrevented) { event.preventDefault(); if (!disabled) setDragging(true); } }}
+    onDragLeave={event => { onDragLeave?.(event); if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false); }}
+    onDrop={event => void handleDrop(event)}>
+    <input ref={inputRef} className="sia-upload__input" type="file" accept={accept} multiple={multiple || directory} disabled={disabled || full}
+      {...(directory ? { webkitdirectory: "", directory: "" } : {})}
+      onChange={event => { ingest([...(event.currentTarget.files ?? [])].map(file => ({ file, path: file.webkitRelativePath || file.name }))); event.currentTarget.value = ""; }} />
+    {listType !== "picture-card" && trigger}
+    <div className="sia-upload__list">
+      {showUploadList && files.map(file => <UploadItem key={file.uid} file={file} files={files} props={{ listType, disabled, itemRender, onPreview }} actions={{
+        upload: () => start(file), abort: () => abort(file.uid), remove: () => remove(file.uid), preview: () => { if (onPreview) onPreview(file); else setPreview(file); },
+      }} />)}
+      {listType === "picture-card" && trigger}
+    </div>
+    <ImagePreview open={!!preview && !!(preview.url || previewSource)} src={preview?.url || previewSource} alt={preview?.name} onOpenChange={open => { if (!open) setPreview(undefined); }} />
+  </div>;
+});
+
+/** 拖拽入口与普通上传共享列表、请求、取消和校验流程。 */
+const UploadDragger = forwardRef<UploadRef, UploadDraggerProps>(function UploadDragger({ hint = "支持单个或批量上传", children, className = "", ...props }, ref) {
+  return <UploadRoot {...props} ref={ref} className={`sia-upload-dragger ${className}`.trim()}>
+    {children ?? <span className="sia-upload-dragger__content"><Icon name="upload" size={32} /><strong>点击或拖拽{props.directory ? "文件夹" : "文件"}到此区域上传</strong><span>{hint}</span>{props.pastable && <span>聚焦此区域后按 Ctrl / ⌘ + V 粘贴文件或截图</span>}</span>}
   </UploadRoot>;
-}
+});
 
-/** 文件上传组件。 */
+/** 上传组件，支持图片列表、照片墙、目录、粘贴与完全受控请求；未配置请求时仅选择文件。 */
 export const Upload = Object.assign(UploadRoot, {
-  /** 支持拖入文件上传的区域组件。 */
+  /** 可点击、键盘操作和拖拽的上传区域，ref 支持手动上传、取消及移除。 */
   Dragger: UploadDragger,
-  /** beforeUpload 返回此标记时忽略该文件，不加入上传列表。 */
-  LIST_IGNORE });
+  /** beforeUpload 返回时移除该文件，不进行上传。 */
+  LIST_IGNORE,
+});

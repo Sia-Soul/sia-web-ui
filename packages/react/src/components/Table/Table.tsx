@@ -1,7 +1,7 @@
 import { withTitleTooltip } from "../titleTooltip";
 import { useScrollbarProximity } from "../useScrollbarProximity";
 import { TableCellContent } from "./TableCellContent";
-import { Fragment, forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { Fragment, forwardRef, isValidElement, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactElement, ReactNode, Ref } from "react";
 import { Tooltip } from "../FloatingDisplay";
 import { Icon } from "../Icon";
@@ -24,7 +24,16 @@ const EMPTY_DATA: readonly Record<string, unknown>[] = [];
 const EMPTY_COLUMNS: readonly TableColumn<Record<string, unknown>>[] = [];
 const EMPTY_PLUGINS: readonly AnyTablePlugin<Record<string, unknown>>[] = [];
 const DEFAULT_WIDTH = 160;
-const SIZE_ROW_HEIGHT = { small: 32, medium: 38, large: 46 } as const;
+// 与各尺寸单元格样式同步，确保虚拟滚动按实际默认行高计算占位。
+const SIZE_ROW_HEIGHT = { small: 28, medium: 36, large: 46 } as const;
+
+/** 提取声明式标题中的文本；不执行自定义组件，无法提取时由列名称或键名补充提示。 */
+function getHeaderTitleText(content: ReactNode): string {
+  if (typeof content === "string" || typeof content === "number") return String(content);
+  if (Array.isArray(content)) return content.map(getHeaderTitleText).join("");
+  if (isValidElement<{ children?: ReactNode }>(content)) return getHeaderTitleText(content.props.children);
+  return "";
+}
 
 interface HeaderCell<T> {
   column: TableColumn<T>;
@@ -628,15 +637,16 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     return fixed === "left" ? { left: leftOffsets.get(column.key) } : fixed === "right" ? { right: rightOffsets.get(column.key) } : undefined;
   }
 
+  /** 在各表头插件外统一约束文字宽度，提示只使用原始标题，避免混入排序、筛选操作文案。 */
   function renderHeaderContent(column: TableColumn<T>, content: ReactNode) {
-    if (column.description === undefined || column.description === null) return content;
+    const title = getHeaderTitleText(column.title ?? column.name) || column.name || column.key;
     return <span className="sia-table__header-label">
-      <span className="sia-table__header-label-content">{content}</span>
-      <Tooltip title={column.description} placement="top" trigger={["hover", "focus"]}>
+      <span className="sia-table__header-label-content" {...withTitleTooltip({ title })}>{content}</span>
+      {column.description != null && <Tooltip title={column.description} placement="top" trigger={["hover", "focus"]}>
         <button type="button" className="sia-table__header-description" aria-label={`${column.name ?? column.key}列说明`} onClick={(event) => event.stopPropagation()}>
           <Icon name="info" size={14} />
         </button>
-      </Tooltip>
+      </Tooltip>}
     </span>;
   }
 

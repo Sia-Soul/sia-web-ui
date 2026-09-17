@@ -1,4 +1,5 @@
 import { isValidElement, useEffect, useRef, useState } from "react";
+import { withTitleTooltip } from "../titleTooltip";
 import type {
   CSSProperties,
   PointerEvent as ReactPointerEvent,
@@ -1499,7 +1500,7 @@ export interface TableSortApi {
   clear: () => void;
 }
 
-/** 创建表格列排序插件。将返回值加入 Table 的 plugins 后生效。 */
+/** 创建表格列排序插件。将返回值加入 Table 的 plugins 后生效；点击列头按钮依次切换升序、降序和未排序，当前方向以高亮单箭头显示，悬停提示当前状态及下一步操作。 */
 export function createSortPlugin<T extends Record<string, unknown>>(
   options: TableSortPluginOptions = {},
 ): TablePlugin<T, SortState, TableSortApi> {
@@ -1539,6 +1540,9 @@ export function createSortPlugin<T extends Record<string, unknown>>(
           ...column,
           renderHeader: (currentColumn, coreContext) => {
             const info = current(context);
+            // 用单一方向和背景共同标识已排序状态，避免仅凭两个小箭头的颜色辨认。
+            const order = info?.field === field ? info.order : null;
+            const sortHint = `${getColumnLabel(currentColumn)}：${order === "ascend" ? "当前升序，点击切换为降序" : order === "descend" ? "当前降序，点击取消排序" : "未排序，点击按升序排序"}`;
             return (
               <span className="sia-table__sortable-header">
                 <span>
@@ -1551,30 +1555,18 @@ export function createSortPlugin<T extends Record<string, unknown>>(
                 <button
                   type="button"
                   className="sia-table__sort-button"
-                  aria-label={`切换${getColumnLabel(currentColumn)}排序`}
+                  data-sort-order={order ?? "none"}
+                  aria-label={sortHint}
+                  {...withTitleTooltip({ title: sortHint })}
                   onClick={(event) => {
                     event.stopPropagation();
                     cycle(field, context);
                   }}
                 >
-                  <Icon
-                    name="chevron-up"
-                    size={11}
-                    className={
-                      info?.field === field && info.order === "ascend"
-                        ? "is-active"
-                        : ""
-                    }
-                  />
-                  <Icon
-                    name="chevron-down"
-                    size={11}
-                    className={
-                      info?.field === field && info.order === "descend"
-                        ? "is-active"
-                        : ""
-                    }
-                  />
+                  {order ? <Icon name={order === "ascend" ? "arrow-up" : "arrow-down"} size={18} /> : <>
+                    <Icon name="chevron-up" size={11} />
+                    <Icon name="chevron-down" size={11} />
+                  </>}
                 </button>
               </span>
             );

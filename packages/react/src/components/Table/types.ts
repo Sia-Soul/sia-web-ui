@@ -57,7 +57,7 @@ export interface TableColumn<T = Record<string, unknown>> {
   code?: string;
   /** 名称或字段标识。 */
   name?: string;
-  /** 标题内容，可传入文本或 React 节点。 */
+  /** 列头内容，可传入文本或 React 节点；默认单行显示，超宽省略，并通过框架 title 提示展示完整文本。节点无法提取文本时使用 name 或 key。 */
   title?: ReactNode;
   /** 补充说明内容。 */
   description?: ReactNode;
@@ -79,11 +79,11 @@ export interface TableColumn<T = Record<string, unknown>> {
   fixed?: TableFixed | boolean;
   /** 是否隐藏此项。 */
   hidden?: boolean;
-  /** 默认单行显示并省略溢出内容（含 Space 标签组）；设为 false 允许多行。 */
+  /** 数据单元格默认单行显示并省略溢出内容（含 Space 标签组）；设为 false 允许多行，不影响列头始终单行省略。 */
   ellipsis?: boolean;
-  /** 是否使用 Sia Tooltip 显示完整文本；默认 false，不生成浏览器原生 title。 */
+  /** 数据单元格是否使用 Sia Tooltip 显示完整文本；默认 false，不生成浏览器原生 title。列头始终提供完整标题提示，不受此属性影响。 */
   showTitle?: boolean;
-  /** 是否允许该列排序。 */
+  /** 是否允许该列排序；配合排序插件显示按钮，依次切换升序、降序、未排序，当前排序方向以高亮单箭头显示。 */
   sortable?: boolean;
   /** 是否允许该列筛选。 */
   filterable?: boolean;
@@ -103,7 +103,7 @@ export interface TableColumn<T = Record<string, unknown>> {
   children?: readonly TableColumn<T>[];
   /** 自定义数据单元格内容，接收该列的值、行数据和单元格上下文。 */
   render?: (value: unknown, record: T, index: number, info: TableCellRenderInfo<T>) => ReactNode;
-  /** 自定义列头内容。 */
+  /** 自定义列头内容，接收当前列及插件上下文；外层保持单行省略，悬停提示从 title 提取文本，无法提取时回退到 name 或 key。 */
   renderHeader?: (column: TableColumn<T>, context: TablePluginContext<T, any>) => ReactNode;
   /** 数据单元格的 CSS 类名，也可按单元格计算。 */
   cellClassName?: string | ((record: T, index: number) => string);
@@ -286,7 +286,12 @@ export interface TableProps<T extends Record<string, unknown> = Record<string, u
   height?: number | string;
   /** 表格滚动区域的高度。 */
   tableHeight?: number | string;
-  /** 表格密度 */
+  /**
+   * 表格密度；省略时与显式传 medium 相同。small、medium、large 默认行高分别为 28、36、46px。
+   * 单元格使用各尺寸字号和 1.5 倍文字行高，不继承宿主页面的文字行高。
+   * small / medium 数据单元格内的链接按钮高度分别为 20 / 24px，以适配行高；工具栏不受影响，其他自定义内容仍可能撑高单元格。
+   * @defaultValue "medium"
+   */
   size?: TableSize;
   /** 是否显示边框。 */
   bordered?: boolean;
@@ -302,7 +307,7 @@ export interface TableProps<T extends Record<string, unknown> = Record<string, u
   virtual?: boolean;
   /** 启用虚拟滚动的选项数量 */
   virtualThreshold?: number;
-  /** 行高度，虚拟滚动用其计算行位置。 */
+  /** 行高度，单位为 px，虚拟滚动用其计算行位置；默认随 size 取 small 28、medium 36、large 46。自定义内容应适配行高，避免撑高后导致虚拟滚动位置偏差。 */
   rowHeight?: number;
   /** 虚拟列表在可视区域前后额外渲染的数量。 */
   overscan?: number;

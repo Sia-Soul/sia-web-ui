@@ -247,7 +247,7 @@ export default function Demo() {
       .then((result) => setRows(result.data.items));
   }, []);
   return <Table rowKey="id" columns={columns} dataSource={rows}
-    plugins={[createSortPlugin()]} virtual height={420} rowHeight={38} />;
+    plugins={[createSortPlugin()]} virtual height={420} rowHeight={36} />;
 }`;
 
 function JsonTableBenchmark() {
@@ -326,7 +326,7 @@ function JsonTableBenchmark() {
         plugins={plugins}
         virtual={virtual}
         height={420}
-        rowHeight={38}
+        rowHeight={36}
         overscan={8}
       />
     </div> : <div className="table-benchmark__empty">{error ? "数据加载失败" : "正在加载测试数据…"}</div>}
@@ -421,6 +421,39 @@ const enhancedColumns: readonly TableColumn<ProductRow>[] = [
   { key: "stock", name: "库存", width: 100, align: "right" },
   { key: "status", name: "状态", width: 100, align: "center", render: (value) => statusTag(value as ProductRow["status"]), exportRender: (value) => String(value) },
 ];
+
+// 共用列与数据，只改变 size，便于比较密度和排序图标。
+const sizeDemoColumns: readonly TableColumn<ProductRow>[] = [
+  { key: "name", title: "商品名称", width: 240, sortable: true },
+  { key: "category", title: "分类", width: 150 },
+  { key: "price", title: "价格", width: 120, sortable: true },
+];
+const tableSizes = ["small", "medium", "large"] as const;
+const sizeDemoCode = `import { useMemo } from "react";
+import { Space, Table, createSortPlugin } from "@sia.soul/sia-react-ui";
+
+const columns = [
+  { key: "name", title: "商品名称", width: 240, sortable: true },
+  { key: "category", title: "分类", width: 150 },
+  { key: "price", title: "价格", width: 120, sortable: true },
+];
+const data = [
+  { id: 1, name: "无线鼠标", category: "数码配件", price: 99 },
+  { id: 2, name: "机械键盘", category: "数码配件", price: 299 },
+  { id: 3, name: "办公支架", category: "办公用品", price: 129 },
+];
+
+export function TableSizeDemo() {
+  // 保持插件实例稳定，每张表独立维护排序状态。
+  const plugins = useMemo(() => [createSortPlugin()], []);
+  return <Space direction="vertical" size={20} style={{ width: "100%" }}>
+    {(["small", "medium", "large"] as const).map(size => <div key={size}>
+      <p>{size}{size === "medium" ? "（默认）" : ""}</p>
+      {/* medium 示例省略 size，验证默认尺寸。 */}
+      <Table size={size === "medium" ? undefined : size} rowKey="id" columns={columns} dataSource={data} plugins={plugins} />
+    </div>)}
+  </Space>;
+}`;
 
 const basicCode = `import { Table, createSummaryPlugin } from "@sia.soul/sia-react-ui";
 
@@ -653,7 +686,7 @@ export default function Demo() {
     plugins={[createIndexPlugin()]}
     virtual
     height={360}
-    rowHeight={38}
+    rowHeight={36}
     overscan={6}
   />;
 }`;
@@ -744,8 +777,12 @@ const apiRows = [
   { property: "TableColumn.rowSpan", description: "加载 RowSpan 插件后合并连续相同值的单元格", type: "boolean / data path / function", defaultValue: "false" },
   { property: "TableColumn.mergeSticky", description: "合并单元格滚动越过表头时保持内容可见", type: "boolean / config", defaultValue: "false" },
   { property: "TableColumn.description", description: "列头说明；悬停说明图标后以页面级 Tooltip 展示", type: "ReactNode", defaultValue: "-" },
-  { property: "TableColumn.ellipsis", description: "默认单行显示，文字及 Space 标签组超出列宽时显示省略号；设为 false 允许多行", type: "boolean", defaultValue: "true" },
-  { property: "TableColumn.showTitle", description: "默认不显示单元格提示；设为 true 时使用统一的 Sia Tooltip 展示完整文本，不使用浏览器原生 title", type: "boolean", defaultValue: "false" },
+  // 列头始终单行并提供完整标题提示，以下两个开关只控制数据单元格。
+  // 排序状态通过箭头方向和底色区分，悬停还可查看下一次点击的操作。
+  { property: "TableColumn.sortable / createSortPlugin", description: "启用列排序；未排序显示双箭头，升序／降序显示高亮向上／向下单箭头，悬停提示当前状态与下一步操作", type: "boolean / TableSortPluginOptions", defaultValue: "false / -" },
+  { property: "TableColumn.title", description: "列头单行显示，超宽自动省略；悬停通过框架 title 提示展示完整文本，React 节点无法提取文本时回退到 name 或 key", type: "ReactNode", defaultValue: "name / key" },
+  { property: "TableColumn.ellipsis", description: "数据单元格默认单行省略，含 Space 标签组；false 允许数据多行，列头仍单行省略", type: "boolean", defaultValue: "true" },
+  { property: "TableColumn.showTitle", description: "默认不显示数据单元格提示；true 时使用 Sia Tooltip 展示完整文本。列头始终提供标题提示", type: "boolean", defaultValue: "false" },
   { property: "TableColumn.exportable / exportRender", description: "控制导出列及自定义导出内容", type: "boolean / function", defaultValue: "true / 原始值" },
   { property: "TableColumn.filterable / createFilterPlugin", description: "为列头增加文本筛选面板，支持自定义匹配函数和受控筛选值", type: "boolean / TableFilterPluginOptions<T>", defaultValue: "false / -" },
   { property: "showIndex", description: "默认显示序号列，从 1 开始；分页连续编号。false 隐藏序号，显式 createIndexPlugin 可自定义且不会重复加载", type: "boolean", defaultValue: "true" },
@@ -761,7 +798,7 @@ const apiRows = [
   { property: "createSelectionPlugin.selectionPanelMaxCount", description: "已选项面板点击“展示全部”前最多渲染的记录数", type: "number", defaultValue: "100" },
   { property: "virtual / virtualThreshold", description: "虚拟滚动开关与自动启用阈值", type: "boolean / number", defaultValue: "行数 ≥ 100" },
   { property: "height / rowHeight / overscan", description: "滚动视口、固定行高和预渲染行数", type: "number | string / number / number", defaultValue: "- / 按尺寸 / 6" },
-  { property: "size", description: "表格密度", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
+  { property: "size", description: "省略时为 medium；small / medium / large 默认行高为 28 / 36 / 46px。单元格文字行高不继承页面设置，small / medium 行内链接按钮适配为 20 / 24px；其他较高内容仍可撑高数据行", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
   { property: "toolbarBordered", description: "工具栏是否纳入表格边框；默认无边框，主体边框仍由 bordered 控制", type: "boolean", defaultValue: "false" },
   { property: "bordered / striped / stickyHeader", description: "边框、斑马纹和粘性表头", type: "boolean", defaultValue: "true" },
   { property: "rowBordered", description: "显示行分隔线，作用于表头、数据行及汇总行；独立于外边框 bordered", type: "boolean", defaultValue: "true" },
@@ -771,6 +808,8 @@ const apiRows = [
 ] as const;
 
 export function TablePage() {
+  // 无外部受控状态的排序插件可复用，各尺寸示例的排序互不影响。
+  const sizeDemoPlugins = useMemo(() => [createSortPlugin<ProductRow>()], []);
   const [rowBordered, setRowBordered] = useState(true);
   const [columnBordered, setColumnBordered] = useState(true);
   const [tab, setTab] = useState<"examples" | "api">("examples");
@@ -867,6 +906,15 @@ export function TablePage() {
       <DemoCard title="基础表格" description="核心负责数据、列、分组表头、固定列、滚动和渲染，并默认支持行悬停高亮和拖拽调整列宽。" code={basicCode}>
         <Table className="table-demo" rowKey="id" columns={basicColumns} dataSource={basicData} plugins={basicPlugins} height={350} />
       </DemoCard>
+      <DemoCard title="表格尺寸" description="相同数据对比 small（紧凑，28px）、medium（默认，36px）、large（宽松，46px）的行高、字号和内边距。点击商品名称或价格排序：未排序为 11px 小双箭头，排序生效后为 18px 高亮单箭头。" code={sizeDemoCode}>
+        <Space direction="vertical" size={20} style={{ width: "100%" }}>
+          {tableSizes.map(size => <div key={size} className={`table-size-demo-${size}`}>
+            <p>{size}{size === "medium" ? "（默认）" : size === "small" ? "（紧凑）" : "（宽松）"}</p>
+            {/* medium 不传 size，直观展示组件默认尺寸。 */}
+            <Table size={size === "medium" ? undefined : size} rowKey="id" columns={sizeDemoColumns} dataSource={products.slice(0, 3)} plugins={sizeDemoPlugins} />
+          </div>)}
+        </Space>
+      </DemoCard>
       <DemoCard title="行列边框" description="行、列分隔线可独立控制，外边框仍由 bordered 控制。默认边框颜色为 #EFF2F6。" code={'<Table columns={columns} dataSource={data} rowBordered={true} columnBordered={false} />'}>
         <Space style={{ marginBottom: 12 }}>
           <Checkbox checked={rowBordered} onChange={setRowBordered}>显示行边框线</Checkbox>
@@ -892,7 +940,7 @@ export function TablePage() {
         <Table className="table-demo" rowKey="id" columns={enhancedColumns} dataSource={groupedData} plugins={enhancedPlugins} height={420} />
       </DemoCard>
       <DemoCard title="5000 行虚拟滚动" description="只渲染视口附近的行；排序和行选择仍可作为独立插件组合使用。" code={virtualCode}>
-        <Table className="table-demo virtual-table-demo" rowKey="id" columns={advancedColumns} dataSource={virtualData} plugins={virtualPlugins} virtual height={360} rowHeight={38} overscan={6} />
+        <Table className="table-demo virtual-table-demo" rowKey="id" columns={advancedColumns} dataSource={virtualData} plugins={virtualPlugins} virtual height={360} rowHeight={36} overscan={6} />
       </DemoCard>
       <DemoCard title="真实 JSON 无分页压测" description="直接加载测试数据的 data.items，并按给定的 57 个业务列、中文列名、排序和格式化规则展示；可对比完整 DOM 与无分页虚拟滚动的实际开销。" code={benchmarkCode}>
         <JsonTableBenchmark />

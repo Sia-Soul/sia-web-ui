@@ -63,7 +63,8 @@ export { buildFlatTree } from "./components/flatTree";
 export type { FlatTreeOptions, FlatTreeNode } from "./components/flatTree";
 export type { TreeSelectNode, TreeSelectProps, TreeSelectValue } from "./components/TreeSelect";
 export { Upload } from "./components/Upload";
-export type { UploadChangeInfo, UploadDraggerProps, UploadFile, UploadFileStatus, UploadProps, UploadRequestOptions } from "./components/Upload";
+// 上传扩展类型与主组件使用同一发布入口，业务方可配置 OSS 和命令式操作。
+export type { UploadChangeInfo, UploadDraggerProps, UploadFile, UploadFileStatus, UploadProps, UploadRequestOptions, UploadHttpRequest, UploadRequestHandle, UploadRejectInfo, UploadRef, UploadItemActions } from "./components/Upload";
 export { Input } from "./components/Input";
 export type { InputProps } from "./components/Input";
 export { TextArea } from "./components/TextArea";
@@ -105,6 +106,7 @@ export type { MessageConfig, MessageHandle, MessageKey, MessageType } from "./co
 export { Modal } from "./components/Modal";
 export type { ModalActionResult, ModalOpenConfig, ModalProps, ModalType, OverlayApiHandle } from "./components/Modal";
 export { Tag } from "./components/Tag";
+// 标签颜色与视觉样式统一由 TagProps 和 TagVariant 表达。
 export type { TagProps, TagStatus, TagVariant } from "./components/Tag";
 export { Tabs } from "./components/Tabs";
 export type { TabItem, TabsContextMenuClickInfo, TabsOrientation, TabsPosition, TabsProps, TabsType } from "./components/Tabs";
