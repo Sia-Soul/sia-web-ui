@@ -41,6 +41,11 @@ const coreIconPaths = {
   redo: <><path d="m16 7 5 5-5 5" /><path d="M21 12H11a7 7 0 0 0-7 7" /></>,
   "zoom-in": <><circle cx="10.8" cy="10.8" r="6.8" /><path d="m15.8 15.8 5.2 5.2M10.8 7.8v6M7.8 10.8h6" /></>,
   "zoom-out": <><circle cx="10.8" cy="10.8" r="6.8" /><path d="m15.8 15.8 5.2 5.2M7.8 10.8h6" /></>,
+  // 图片变换工具使用独立图标，便于在预览及其他编辑界面复用。
+  "flip-horizontal": <><path d="M12 3v18M3 6h5v12H3zM16 6h5v12h-5z" /></>,
+  "flip-vertical": <><path d="M3 12h18M6 3h12v5H6zM6 16h12v5H6z" /></>,
+  "rotate-left": <><path d="M4 9a8 8 0 1 1 0 6M4 3v6h6" /><rect x="9" y="9" width="6" height="6" rx="1" /></>,
+  "rotate-right": <><path d="M20 9a8 8 0 1 0 0 6M20 3v6h-6" /><rect x="9" y="9" width="6" height="6" rx="1" /></>,
   download: <><path d="M12 3v12M7 10l5 5 5-5M4 20h16" /></>,
   upload: <><path d="M12 16V4M7 9l5-5 5 5M4 20h16" /></>,
   refresh: <><path d="M20 4v4.686h-4.686" /><path d="M20 8.686 17.657 6.343A8 8 0 1 0 20 12" /></>,

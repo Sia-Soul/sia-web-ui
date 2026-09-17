@@ -115,7 +115,7 @@ export function CollapsePage() {
 const imageSrc = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='720' height='400'%3E%3Cdefs%3E%3ClinearGradient id='g' x2='1' y2='1'%3E%3Cstop stop-color='%231677ff'/%3E%3Cstop offset='1' stop-color='%236f55d9'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='720' height='400' rx='24' fill='url(%23g)'/%3E%3Ccircle cx='590' cy='85' r='38' fill='%23fff' fill-opacity='.22'/%3E%3Cpath d='M0 330 190 160l130 120 95-80 305 200H0Z' fill='%23fff' fill-opacity='.2'/%3E%3Ctext x='42' y='72' font-size='34' font-family='sans-serif' fill='white'%3ESia Web UI%3C/text%3E%3C/svg%3E";
 export function ImagePage() {
   const [previewOpen, setPreviewOpen] = useState(false);
-  return <ComponentDocPage eyebrow="组件 / 数据展示 / Image" title="Image 图片" description="展示图片并提供占位、加载失败回退和遮罩预览。" name="Image" apiRows={[
+  return <ComponentDocPage eyebrow="组件 / 数据展示 / Image" title="Image 图片" description="展示图片并提供占位、加载失败回退和遮罩预览。预览大图自动适应窗口，底部工具条支持翻转、旋转、缩放和重置，并显示相对原图的缩放百分比，图片可拖动查看。" name="Image" apiRows={[
     { property: "src / fallback", description: "图片地址和失败回退地址", type: "string", defaultValue: "-" },
     { property: "placeholder", description: "加载完成前的占位内容", type: "ReactNode", defaultValue: "-" },
     { property: "preview", description: "预览开关或配置", type: "boolean | ImagePreviewConfig", defaultValue: "true" },

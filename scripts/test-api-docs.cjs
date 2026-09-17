@@ -37,6 +37,7 @@ uploadRequest.signal;
 // 下载入口必须明确 Blob 约定和失败行为。
 declare const uploadProps: UploadProps;
 uploadProps.downloadRequest;
+uploadProps.cardSize;
 declare const uploadActions: UploadItemActions;
 uploadActions.download;
 const query = <QueryForm savedQueries={[]} onSaveQuery={async ({name,values})=>{}} onSearch={()=>{}} />;
@@ -71,6 +72,7 @@ cases.push(['tagProps.color', 'CSS 颜色'], ['tagProps.variant', '边框'], ['t
 cases.push(['checkboxGroupProps.columns', '等宽网格'], ['checkboxGroupProps.direction', '纵向单列'], ['checkboxGroupProps.gap', '行间距']);
 cases.push(['tabsProps.contentGap', '仅影响当前 Tabs'], ['tabsProps.deferContent', '保留旧面板'], ['tabsProps.onAfterChange', '连续切换']);
 cases.push(['uploadProps.downloadRequest', 'Blob'], ['uploadActions.download', '不打开新标签页']);
+cases.push(['uploadProps.cardSize', '卡片尺寸']);
 for(const[needle,expected]of cases){const offset=needle.includes('.')?needle.lastIndexOf('.')+1:0;const pos=source.indexOf(needle)+offset+1;const info=service.getQuickInfoAtPosition(filename,pos);const text=ts.displayPartsToString(info?.documentation);assert(text.includes(expected),`${needle}: expected ${expected}, got ${JSON.stringify(text)}`);console.log(`PASS hover ${needle}: ${text.slice(0,70)}`);}
 for(const entry of ['index.d.ts','index.d.cts']){
   const text=fs.readFileSync(path.join(packageRoot,'dist',entry),'utf8');assert(text.includes('底部已保存快捷查询标签'));assert(text.includes('@defaultValue'));assert(!text.includes('\uFFFD'),'UTF-8 replacement character found');

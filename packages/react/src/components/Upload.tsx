@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
-import type { ClipboardEvent, DragEvent } from "react";
+import type { ClipboardEvent, CSSProperties, DragEvent } from "react";
 import { withTitleTooltip } from "./titleTooltip";
 import { Button } from "./Button";
 import { Icon } from "./Icon";
@@ -66,9 +66,14 @@ type UploadTask = { controller: AbortController; handle?: UploadRequestHandle; d
 
 /** 上传根实现：选择同步占位，校验和请求独立执行，防止多入口并发绕过数量上限。 */
 const UploadRoot = forwardRef<UploadRef, UploadProps>(function UploadRoot({ accept, multiple = false, directory = false, recursive = true, pastable = false,
-  disabled = false, autoUpload = true, maxCount, fileList, defaultFileList = [], listType = "text", showUploadList = true,
+  disabled = false, autoUpload = true, maxCount, fileList, defaultFileList = [], listType = "text", cardSize, showUploadList = true,
   beforeUpload, request, customRequest, onChange, onRemove, onReject, onReadError, onPreview, downloadRequest, itemRender, children,
-  className = "", onDragOver, onDragLeave, onDrop, onPaste, tabIndex, ...props }, ref) {
+  className = "", style, onDragOver, onDragLeave, onDrop, onPaste, tabIndex, ...props }, ref) {
+  // 对无效尺寸回退，给极小卡片保留可点击的缩略图区域。
+  const cardDimension = (value?: number) => value !== undefined && Number.isFinite(value) ? Math.max(48, value) : 112;
+  const cardWidth = cardDimension(typeof cardSize === "number" ? cardSize : cardSize?.width);
+  const cardHeight = cardDimension(typeof cardSize === "number" ? cardSize : cardSize?.height);
+  const compactCard = listType === "picture-card" && (cardWidth < 88 || cardHeight < 88);
   const inputRef = useRef<HTMLInputElement>(null);
   const [internalFiles, setInternalFiles] = useState<readonly UploadFile[]>(defaultFileList);
   const files = fileList ?? internalFiles;
@@ -214,11 +219,12 @@ const UploadRoot = forwardRef<UploadRef, UploadProps>(function UploadRoot({ acce
   }
 
   const trigger = !(listType === "picture-card" && full) && <div className="sia-upload__trigger">
-    <Button className="sia-upload__choose" disabled={disabled || full} onClick={() => inputRef.current?.click()}>
+    <Button className="sia-upload__choose" aria-label={compactCard ? (directory ? "选择文件夹" : "选择文件") : undefined} disabled={disabled || full} onClick={() => inputRef.current?.click()}>
       {children ?? (listType === "picture-card" ? <><Icon name="plus" size={24} /><span>上传图片</span></> : <><Icon name="upload" size={16} />{directory ? "选择文件夹" : "选择文件"}</>)}
     </Button>
   </div>;
-  return <div {...withTitleTooltip(props)} className={`sia-upload sia-upload--${listType}${dragging ? " is-dragging" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()}
+  return <div {...withTitleTooltip(props)} className={`sia-upload sia-upload--${listType}${compactCard ? " sia-upload--compact-card" : ""}${dragging ? " is-dragging" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()}
+    style={listType === "picture-card" ? { "--sia-upload-card-width": `${cardWidth}px`, "--sia-upload-card-height": `${cardHeight}px`, ...style } as CSSProperties : style}
     tabIndex={tabIndex ?? (pastable && !disabled ? 0 : undefined)} onPaste={handlePaste}
     onDragOver={event => { onDragOver?.(event); if (!event.defaultPrevented) { event.preventDefault(); if (!disabled) setDragging(true); } }}
     onDragLeave={event => { onDragLeave?.(event); if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false); }}

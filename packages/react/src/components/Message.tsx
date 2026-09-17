@@ -14,7 +14,7 @@ export interface MessageConfig {
   key?: MessageKey;
   /** 类型标识，用于选择对应的表现形式。 */
   type?: MessageType;
-  /** 消息正文，默认字号为 14px；支持文本或 React 节点，自定义节点可自行设置字号。 */
+  /** 消息正文，支持文本或 React 节点。 */
   content: ReactNode;
   /** 自动关闭延迟，单位为秒；0 表示不自动关闭。 */
   duration?: number;

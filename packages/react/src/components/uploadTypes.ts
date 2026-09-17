@@ -134,8 +134,15 @@ export interface UploadProps extends Omit<HTMLAttributes<HTMLDivElement>, "defau
   fileList?: readonly UploadFile[];
   /** 非受控初始列表，后续修改不重置列表。 @defaultValue [] */
   defaultFileList?: readonly UploadFile[];
-  /** text 为文件列表，picture 为图片行，picture-card 为照片墙；照片墙满额隐藏添加入口。 @defaultValue "text" */
+  /** 文件列表样式：text 为文字列表，picture 为带缩略图的图片列表，picture-card 为照片墙。 @defaultValue "text" */
   listType?: "text" | "picture" | "picture-card";
+  /** 照片墙卡片尺寸，仅 listType="picture-card" 生效；数字设置正方形，对象分别设置宽高，单位 px。默认 112×112，各边最小 48，无效数值使用默认值；宽或高小于 88px 时隐藏文件名。 */
+  cardSize?: number | {
+    /** 卡片宽度，默认 112px，最小 48px。 */
+    width?: number;
+    /** 卡片高度，默认 112px，最小 48px。 */
+    height?: number;
+  };
   /** 是否显示列表；隐藏时仍执行数量限制和变更通知。 @defaultValue true */
   showUploadList?: boolean;
   /** 启动前校验，可异步；false 保留 ready，Upload.LIST_IGNORE 移除，File 转换本次上传内容；拒绝或抛错进入 error。手动上传时在调用 upload 后执行。 */

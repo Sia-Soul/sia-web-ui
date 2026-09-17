@@ -51,7 +51,7 @@ export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChang
   /** 是否等选中框动画结束后再切换 items[].children，等待期间保留旧面板。默认 false，立即切换；true 时配合 destroyInactiveTabPane=false 仅在首次激活后挂载并保留面板。不能延迟父组件已执行的同步计算或 onChange 中的渲染，请将外部重内容更新放到 onAfterChange。 */
   deferContent?: boolean;
   /**
-   * 线型、卡片型、胶囊型、圆角胶囊、紧凑下划线或科技样式；tech-line 导航栏最小高度为 50px，左右内边距为 12px（含窄屏），内容较高时自然撑开，使用固定倾角的圆角斜切选中框，长标题仅扩展中段宽度；位移与尺寸在 300ms 内同步过渡，系统减少动态效果时直接切换。
+   * 标签样式：line 线型、card 卡片、pill 胶囊、capsule 圆角胶囊、underline 紧凑下划线、tech 科技型、tech-line 折线科技型。
    * @defaultValue "line"
    */
   type?: TabsType;

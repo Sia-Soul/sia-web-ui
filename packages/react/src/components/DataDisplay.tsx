@@ -3,6 +3,7 @@ import { Children, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, HTMLAttributes, ImgHTMLAttributes, ReactElement, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "./Icon";
+import { Button } from "./Button";
 import { useOverlayLifecycle } from "./Overlay";
 import { useControllableState } from "./shared";
 import { useControlSize } from "./shared";
@@ -461,15 +462,59 @@ export interface ImagePreviewProps {
   onOpenChange: (open: boolean) => void;
 }
 
-/** 图片预览组件。 */
+/** 图片预览弹层，初始按窗口适配大图，支持水平/垂直翻转、左右旋转、缩放及拖动；重新打开或更换图片时重置视图。 */
 export function ImagePreview({ open, src, alt = "", onOpenChange }: ImagePreviewProps) {
   const previewRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [natural, setNatural] = useState({ src: "", width: 0, height: 0 });
+  const [area, setArea] = useState({ width: 0, height: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [flip, setFlip] = useState({ x: 1, y: 1 });
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [failed, setFailed] = useState(false);
+  const drag = useRef<{ id: number; x: number; y: number; left: number; top: number }>();
   useOverlayLifecycle(open, previewRef, () => onOpenChange(false));
+  const reset = () => { setZoom(1); setRotation(0); setFlip({ x: 1, y: 1 }); setPan({ x: 0, y: 0 }); drag.current = undefined; };
+  useEffect(() => { reset(); setFailed(false); }, [open, src]);
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!open || !stage) return;
+    const measure = () => { setArea({ width: stage.clientWidth, height: stage.clientHeight }); setPan({ x: 0, y: 0 }); };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, [open, src]);
+  const ready = natural.src === src && natural.width > 0 && area.width > 0 && area.height > 0 && !failed;
+  // 按旋转后的包围盒计算适配比例，给底部工具条和顶部关闭按钮保留独立区域。
+  const sideways = Math.abs(rotation % 180) === 90;
+  const fit = ready ? Math.min(1, area.width / (sideways ? natural.height : natural.width), area.height / (sideways ? natural.width : natural.height)) : 0;
+  const changeZoom = (factor: number) => setZoom(value => Math.max(.25, Math.min(8, value * factor)));
 
   if (!open || !src || typeof document === "undefined") return null;
   return createPortal(<div ref={previewRef} className="sia-image-preview" role="dialog" aria-modal="true" aria-label="图片预览" tabIndex={-1} onClick={() => onOpenChange(false)}>
-    <button type="button" aria-label="关闭预览" onClick={() => onOpenChange(false)}><Icon name="close" /></button>
-    <img src={src} alt={alt} onClick={(event) => event.stopPropagation()} />
+    <Button variant="text" className="sia-image-preview__close" aria-label="关闭预览" onClick={event => { event.stopPropagation(); onOpenChange(false); }}><Icon name="close" /></Button>
+    <div ref={stageRef} className="sia-image-preview__stage">
+      {failed ? <span className="sia-image-preview__error">图片加载失败</span> : <img key={src} src={src} alt={alt} draggable={false}
+        style={{ width: natural.width * fit, height: natural.height * fit, visibility: ready ? "visible" : "hidden", transform: `translate(${pan.x}px, ${pan.y}px) rotate(${rotation}deg) scale(${zoom * flip.x}, ${zoom * flip.y})` }}
+        onLoad={event => setNatural({ src, width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} onError={() => setFailed(true)}
+        onClick={event => event.stopPropagation()}
+        onPointerDown={event => { if (event.button !== 0) return; event.preventDefault(); event.stopPropagation(); event.currentTarget.setPointerCapture(event.pointerId); drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, left: pan.x, top: pan.y }; }}
+        onPointerMove={event => { const start = drag.current; if (start?.id === event.pointerId) setPan({ x: start.left + event.clientX - start.x, y: start.top + event.clientY - start.y }); }}
+        onPointerUp={() => { drag.current = undefined; }} onPointerCancel={() => { drag.current = undefined; }} onLostPointerCapture={() => { drag.current = undefined; }} />}
+    </div>
+    <div className="sia-image-preview__toolbar" role="toolbar" aria-label="图片操作" onClick={event => event.stopPropagation()}>
+      <Button variant="text" title="水平翻转" aria-label="水平翻转" disabled={!ready} onClick={() => setFlip(value => ({ ...value, x: -value.x }))}><Icon name="flip-horizontal" size={20} /></Button>
+      <Button variant="text" title="垂直翻转" aria-label="垂直翻转" disabled={!ready} onClick={() => setFlip(value => ({ ...value, y: -value.y }))}><Icon name="flip-vertical" size={20} /></Button>
+      <Button variant="text" title="向左旋转" aria-label="向左旋转" disabled={!ready} onClick={() => { setRotation(value => value - 90); setPan({ x: 0, y: 0 }); }}><Icon name="rotate-left" size={20} /></Button>
+      <Button variant="text" title="向右旋转" aria-label="向右旋转" disabled={!ready} onClick={() => { setRotation(value => value + 90); setPan({ x: 0, y: 0 }); }}><Icon name="rotate-right" size={20} /></Button>
+      <Button variant="text" title="缩小" aria-label="缩小" disabled={!ready || zoom <= .25} onClick={() => changeZoom(1 / 1.25)}><Icon name="zoom-out" size={20} /></Button>
+      {/* 百分比以原图为基准，同时计入窗口适配比例与用户缩放倍率。 */}
+      <output className="sia-image-preview__scale" aria-label="当前缩放比例" aria-live="polite">{ready ? `${Math.round(fit * zoom * 100)}%` : "—"}</output>
+      <Button variant="text" title="放大" aria-label="放大" disabled={!ready || zoom >= 8} onClick={() => changeZoom(1.25)}><Icon name="zoom-in" size={20} /></Button>
+      <Button variant="text" title="适应窗口" aria-label="适应窗口" disabled={!ready} onClick={reset}><Icon name="refresh" size={20} /></Button>
+    </div>
   </div>, document.body);
 }
 

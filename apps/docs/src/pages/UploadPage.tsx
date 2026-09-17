@@ -76,6 +76,7 @@ export function UploadPage() {
   const [paths, setPaths] = useState<readonly UploadFile[]>([]);
   return <ComponentDocPage eyebrow="组件 / 数据录入 / Upload" title="Upload 上传" description="照片墙、图片列表、拖拽粘贴、目录上传与完全受控的 OSS 请求。" name="Upload" apiRows={[
     { property: "listType", description: "文件列表、图片行或照片墙；照片墙满额隐藏添加按钮", type: "text | picture | picture-card", defaultValue: "text" },
+    { property: "cardSize", description: "照片墙卡片宽高，单位 px；数字为正方形，对象分别设置宽高。每边最小 48px，宽或高小于 88px 时隐藏文件名", type: "number | { width?: number; height?: number }", defaultValue: "112" },
     { property: "multiple / maxCount / accept", description: "批量、总数量和类型限制；拖拽、粘贴同样校验，超限触发 onReject", type: "boolean / number / string", defaultValue: "false / 不限 / 不限" },
     { property: "directory / recursive", description: "目录上传及是否包含子文件夹，路径保存在 relativePath", type: "boolean / boolean", defaultValue: "false / true" },
     { property: "pastable", description: "焦点在上传区域内时接收剪贴板文件和截图", type: "boolean", defaultValue: "false" },
@@ -89,10 +90,16 @@ export function UploadPage() {
     { property: "downloadRequest", description: "自定义获取 Blob，用于鉴权、OSS 签名或代理；默认请求 url，无 url 则使用本地原文件。通过 Blob 触发浏览器下载，不打开新标签页；跨域地址需支持 CORS，失败时提示错误", type: "(file: UploadFile) => Blob | Promise<Blob>", defaultValue: "内置下载" },
     { property: "onReject / onReadError", description: "文件类型、数量拒绝与目录读取失败通知", type: "回调", defaultValue: "-" },
   ]}>
-    <DemoCard title="照片墙" description="每项提供预览、下载与移除按钮；下载按文件名保存，不打开新标签页。最多 6 张，满额隐藏添加入口，新增文件使用本地模拟进度。" code={'<Upload listType="picture-card" accept="image/*" multiple maxCount={6} customRequest={yourUploader} />'}>
+    <DemoCard title="照片墙" description="悬停或键盘焦点进入卡片后，预览、下载与移除按钮居中浮动显示；触屏始终显示。下载按文件名保存，最多 6 张，新增文件使用本地模拟进度。" code={'<Upload listType="picture-card" accept="image/*" multiple maxCount={6} customRequest={yourUploader} />'}>
       <Upload aria-label="照片墙" listType="picture-card" accept="image/*" multiple maxCount={6} defaultFileList={initialPictures} customRequest={demoRequest} onReject={({ reason }) => message.warning(reason === "accept" ? "请选择图片" : "最多 6 张图片")} />
     </DemoCard>
-    <DemoCard title="图片列表" description="横向图片列表支持本地缩略图、预览和下载按钮、上传进度与失败状态。" code={'<Upload listType="picture" accept="image/*" multiple customRequest={yourUploader} />'}>
+    <DemoCard title="卡片尺寸" description="数字设置正方形尺寸，也可分别设置宽高。操作栏相对卡片水平、垂直居中，超出小卡片的部分保持完整显示。" code={'<Upload listType="picture-card" cardSize={56} />\n<Upload listType="picture-card" cardSize={{ width: 160, height: 120 }} />'}>
+      <Space direction="vertical">
+        <Upload listType="picture-card" cardSize={56} defaultFileList={initialPictures.slice(0, 2)} />
+        <Upload listType="picture-card" cardSize={{ width: 160, height: 120 }} defaultFileList={initialPictures.slice(0, 2)} />
+      </Space>
+    </DemoCard>
+    <DemoCard title="图片列表" description="支持缩略图、预览、下载及上传状态；预览大图自动适应窗口，底部工具条提供翻转、旋转、缩放和重置。" code={'<Upload listType="picture" accept="image/*" multiple customRequest={yourUploader} />'}>
       <Upload aria-label="图片列表" listType="picture" multiple accept="image/*" defaultFileList={initialPictures.slice(1)} customRequest={demoRequest} />
     </DemoCard>
     <DemoCard title="拖拽与粘贴上传" description="点击、拖入文件或聚焦区域后粘贴截图。限制图片和 PDF，最多 5 项；演示使用本地模拟请求。" code={'<Upload.Dragger multiple pastable accept="image/*,.pdf" maxCount={5} customRequest={yourUploader} />'}>
