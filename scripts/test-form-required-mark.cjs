@@ -10,15 +10,15 @@ const { renderToStaticMarkup } = localRequire('react-dom/server');
 (async () => {
   // 只打包表单入口，避免服务端测试加载富文本编辑器的浏览器 CSS。
   const esbuild = createRequire(localRequire.resolve('tsup'))('esbuild');
-  const bundled = esbuild.buildSync({entryPoints:[path.resolve(__dirname,'../packages/react/src/components/Form.tsx')], bundle:true, write:false, platform:'node', format:'cjs', packages:'external'});
+  const bundled = esbuild.buildSync({stdin:{contents:'export { Form } from "./Form"; export { Tooltip } from "./FloatingDisplay";', resolveDir:path.resolve(__dirname,'../packages/react/src/components'), loader:'tsx'}, bundle:true, write:false, platform:'node', format:'cjs', packages:'external', loader:{'.css':'empty'}});
   const Module = require('node:module');
   const filename = path.resolve(__dirname,'../packages/react/form-test.cjs');
   const compiled = new Module(filename, module);
   compiled.filename = filename;
   compiled.paths = Module._nodeModulePaths(path.dirname(filename));
   compiled._compile(bundled.outputFiles[0].text,filename);
-  const { Form } = compiled.exports;
-  const { Input, Tooltip } = require('../packages/react/dist/core.cjs');
+  const { Form, Tooltip } = compiled.exports;
+  const { Input } = require('../packages/react/dist/core.cjs');
   const css = fs.readFileSync(path.resolve(__dirname, '../packages/react/dist/index.css'), 'utf8');
   assert(!/\.sia-form-item__label\s*>\s*span/.test(css), '不得用直接 span 选择器给所有标签染色');
   assert(/\.sia-form-item__required-mark\s*\{[^}]*color:\s*var\(--sia-color-error\)/.test(css), '独立星号应保留必填色');
