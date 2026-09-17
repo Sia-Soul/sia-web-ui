@@ -420,7 +420,7 @@ function FormRoot({
   </ControlSizeContext.Provider></PlaceholderModeContext.Provider></FormContext.Provider>;
 }
 
-/** FormItem的属性配置。 */
+/** 表单项的属性配置。根节点默认保留 6px 下外边距，适用于水平、垂直和行内布局，可通过 className 对应的样式覆盖。 */
 export interface FormItemProps {
   /** 绑定到表单值的字段名或嵌套路径，例如 ["user", "name"]。 */
   name?: NamePath;
@@ -642,7 +642,7 @@ function FormErrorList({ errors = [] }: {
 
 /** 表单组件。 */
 export const Form = Object.assign(FormRoot, {
-  /** 表单字段，负责字段值绑定、校验和标签布局。 */
+  /** 表单字段，负责字段值绑定、校验和标签布局；默认下外边距为 6px。 */
   Item: FormItem,
   /** 动态表单列表，提供字段索引以及新增、删除、移动操作。 */
   List: FormList,

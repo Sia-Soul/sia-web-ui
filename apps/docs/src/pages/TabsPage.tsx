@@ -241,7 +241,7 @@ export function TabsPage() {
       <DemoCard title="科技大屏样式" description="选中背景以 240ms 滑动切换，使用框架主题实色，顶部装饰线由深到浅，并自动适配亮色与暗色模式。" code={techCode}>
         <Tabs type="tech" tabBarTitle="查看部门" items={techItems} defaultActiveKey="private" />
       </DemoCard>
-      <DemoCard title="折线科技大屏样式" description="左侧宽度随标题内容自适应；选中框采用固定倾角和圆角，长标题仅扩展中段，并在 300ms 内同步移动和伸缩，支持明暗主题。" code={techLineCode}>
+      <DemoCard title="折线科技大屏样式" description="导航栏最小高度为 50px，左右内边距为 12px；左侧宽度随标题内容自适应，选中框采用固定倾角和圆角，并在 300ms 内同步移动和伸缩，支持明暗主题。" code={techLineCode}>
         <Tabs type="tech-line" tabBarTitle="今日销售分布" style={{ width: 636, maxWidth: "100%" }} items={[
           { key: "amount", label: "金额" },
           { key: "orders", label: "合作门店订单数" },

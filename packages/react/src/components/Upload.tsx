@@ -6,6 +6,8 @@ import { Icon } from "./Icon";
 import { ImagePreview } from "./DataDisplay";
 import { acceptsUploadFile, includeUploadPath, readUploadEntries } from "./uploadFiles";
 import { sendUploadRequest } from "./uploadRequest";
+import { downloadUploadFile } from "./uploadDownload";
+import { message } from "./Message";
 import type { UploadChangeInfo, UploadFile, UploadProps, UploadDraggerProps, UploadRef, UploadRequestHandle, UploadRequestOptions, UploadItemActions } from "./uploadTypes";
 export type { UploadChangeInfo, UploadDraggerProps, UploadFile, UploadFileStatus, UploadProps, UploadRequestOptions, UploadHttpRequest, UploadRequestHandle, UploadRejectInfo, UploadRef, UploadItemActions } from "./uploadTypes";
 
@@ -29,13 +31,30 @@ function useThumbnail(file?: UploadFile) {
 function UploadItem({ file, files, props, actions }: { file: UploadFile; files: readonly UploadFile[]; props: UploadProps; actions: UploadItemActions }) {
   const source = useThumbnail(file);
   const [failed, setFailed] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const downloadingRef = useRef(false);
+  const canPreview = !!(source || file.url || file.originFileObj || props.onPreview);
+  const canDownload = !!(file.url || file.originFileObj || props.downloadRequest);
+  // 默认操作区负责呈现失败与防止重复下载，自定义 itemRender 可自行处理 actions.download 的拒绝。
+  async function download() {
+    if (downloadingRef.current) return;
+    downloadingRef.current = true;
+    setDownloading(true);
+    try { await actions.download(); }
+    catch { message.error("下载失败，请检查文件地址、访问权限或跨域配置"); }
+    finally { downloadingRef.current = false; setDownloading(false); }
+  }
   useEffect(() => setFailed(false), [source]);
   const node = <div className={`sia-upload__item sia-upload__item--${file.status ?? "ready"}`}>
-    {props.listType !== "text" ? <Button variant="text" className="sia-upload__thumbnail" aria-label={`预览 ${file.name}`} onClick={actions.preview} disabled={!source && !props.onPreview}>
+    {props.listType !== "text" ? <Button variant="text" className="sia-upload__thumbnail" aria-label={`预览缩略图 ${file.name}`} onClick={actions.preview} disabled={!canPreview}>
       {source && !failed ? <img src={source} alt={file.name} onError={() => setFailed(true)} /> : <Icon name={file.type?.startsWith("image/") ? "image" : "file"} size={28} />}
     </Button> : <Icon name={file.status === "done" ? "circle-check" : "file"} size={16} />}
     <span className="sia-upload__name" {...withTitleTooltip({ title: file.relativePath || file.name })}>{file.url ? <a href={file.url} target="_blank" rel="noreferrer">{file.name}</a> : file.name}</span>
-    <Button variant="text" className="sia-upload__remove" disabled={props.disabled} aria-label={`移除 ${file.name}`} onClick={() => void actions.remove()}><Icon name="close" size={14} /></Button>
+    <span className="sia-upload__actions">
+      <Button variant="text" title="预览" aria-label={`预览 ${file.name}`} disabled={!canPreview} onClick={actions.preview}><Icon name="eye" size={14} /></Button>
+      <Button variant="text" title="下载" aria-label={`下载 ${file.name}`} disabled={!canDownload} loading={downloading} onClick={() => void download()}><Icon name="download" size={14} /></Button>
+      <Button variant="text" title="移除" className="sia-upload__remove" disabled={props.disabled} aria-label={`移除 ${file.name}`} onClick={() => void actions.remove()}><Icon name="close" size={14} /></Button>
+    </span>
     {file.status === "uploading" && <div className="sia-upload__uploading"><span>上传中 {Math.round(file.percent ?? 0)}%</span><span className="sia-upload__progress" role="progressbar" aria-label={`${file.name} 上传进度`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={file.percent ?? 0}><span style={{ width: `${file.percent ?? 0}%` }} /></span></div>}
     {file.status === "error" && <span className="sia-upload__error">上传失败</span>}
   </div>;
@@ -48,7 +67,7 @@ type UploadTask = { controller: AbortController; handle?: UploadRequestHandle; d
 /** 上传根实现：选择同步占位，校验和请求独立执行，防止多入口并发绕过数量上限。 */
 const UploadRoot = forwardRef<UploadRef, UploadProps>(function UploadRoot({ accept, multiple = false, directory = false, recursive = true, pastable = false,
   disabled = false, autoUpload = true, maxCount, fileList, defaultFileList = [], listType = "text", showUploadList = true,
-  beforeUpload, request, customRequest, onChange, onRemove, onReject, onReadError, onPreview, itemRender, children,
+  beforeUpload, request, customRequest, onChange, onRemove, onReject, onReadError, onPreview, downloadRequest, itemRender, children,
   className = "", onDragOver, onDragLeave, onDrop, onPaste, tabIndex, ...props }, ref) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [internalFiles, setInternalFiles] = useState<readonly UploadFile[]>(defaultFileList);
@@ -209,8 +228,18 @@ const UploadRoot = forwardRef<UploadRef, UploadProps>(function UploadRoot({ acce
       onChange={event => { ingest([...(event.currentTarget.files ?? [])].map(file => ({ file, path: file.webkitRelativePath || file.name }))); event.currentTarget.value = ""; }} />
     {listType !== "picture-card" && trigger}
     <div className="sia-upload__list">
-      {showUploadList && files.map(file => <UploadItem key={file.uid} file={file} files={files} props={{ listType, disabled, itemRender, onPreview }} actions={{
-        upload: () => start(file), abort: () => abort(file.uid), remove: () => remove(file.uid), preview: () => { if (onPreview) onPreview(file); else setPreview(file); },
+      {showUploadList && files.map(file => <UploadItem key={file.uid} file={file} files={files} props={{ listType, disabled, itemRender, onPreview, downloadRequest }} actions={{
+        upload: () => start(file), abort: () => abort(file.uid), remove: () => remove(file.uid), download: () => downloadUploadFile(file, downloadRequest),
+        preview: () => {
+          if (onPreview) onPreview(file);
+          else if ((file.type || file.originFileObj?.type)?.startsWith("image/") || /\.(png|jpe?g|gif|webp|avif|svg)$/i.test(file.name)) setPreview(file);
+          else if (file.url || file.originFileObj) {
+            // 非图片交给浏览器查看；此入口与强制下载完全独立。
+            const url = file.url || URL.createObjectURL(file.originFileObj!);
+            window.open(url, "_blank", "noopener,noreferrer");
+            if (!file.url) window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+          } else if (file.thumbUrl) setPreview(file);
+        },
       }} />)}
       {listType === "picture-card" && trigger}
     </div>

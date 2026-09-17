@@ -8,7 +8,7 @@ import { DemoCard } from "./DemoCard";
 const sampleImage = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="240" height="180" viewBox="0 0 240 180"><rect width="240" height="180" fill="#dbeafe"/><circle cx="180" cy="42" r="22" fill="#fbbf24"/><path d="M0 150 75 48 140 132 180 92 240 155V180H0" fill="#588c7e"/><path d="m40 180 90-90 110 90" fill="#2d5f68"/></svg>')}`;
 const initialPictures: UploadFile[] = [
   { uid: "sample-1", name: "山间日落.svg", type: "image/svg+xml", status: "done", url: sampleImage },
-  { uid: "sample-2", name: "旅行纪念.svg", type: "image/svg+xml", status: "done", thumbUrl: sampleImage },
+  { uid: "sample-2", name: "旅行纪念.svg", type: "image/svg+xml", status: "done", url: sampleImage, thumbUrl: sampleImage },
   { uid: "sample-3", name: "上传示例.png", type: "image/png", status: "uploading", percent: 48 },
   { uid: "sample-4", name: "失败示例.png", type: "image/png", status: "error" },
 ];
@@ -85,13 +85,14 @@ export function UploadPage() {
     { property: "request", description: "静态 HTTP 配置或逐文件异步签名；支持 multipart 和二进制直传", type: "UploadHttpRequest | (file, signal) => config | Promise", defaultValue: "仅选择文件" },
     { property: "customRequest", description: "覆盖 HTTP 上传，支持 SDK/分片任务，回调状态并返回取消句柄", type: "(options) => void | UploadRequestHandle | Promise", defaultValue: "-" },
     { property: "onChange / onRemove", description: "列表及事件原因通知；移除可异步阻止", type: "回调", defaultValue: "-" },
-    { property: "itemRender / onPreview", description: "完全自定义列表项及预览，操作句柄复用内置取消和删除逻辑", type: "回调", defaultValue: "默认列表 / 图片预览" },
+    { property: "itemRender / onPreview", description: "完全自定义列表项及预览；操作句柄支持预览、下载、取消和删除。图片默认弹层预览，其他文件交给浏览器查看", type: "回调", defaultValue: "默认列表 / 内置预览" },
+    { property: "downloadRequest", description: "自定义获取 Blob，用于鉴权、OSS 签名或代理；默认请求 url，无 url 则使用本地原文件。通过 Blob 触发浏览器下载，不打开新标签页；跨域地址需支持 CORS，失败时提示错误", type: "(file: UploadFile) => Blob | Promise<Blob>", defaultValue: "内置下载" },
     { property: "onReject / onReadError", description: "文件类型、数量拒绝与目录读取失败通知", type: "回调", defaultValue: "-" },
   ]}>
-    <DemoCard title="照片墙" description="展示成功、上传中和失败状态。点击缩略图预览；最多 6 张，满额隐藏添加入口。新增文件使用本地模拟进度，不发送网络请求。" code={'<Upload listType="picture-card" accept="image/*" multiple maxCount={6} customRequest={yourUploader} />'}>
+    <DemoCard title="照片墙" description="每项提供预览、下载与移除按钮；下载按文件名保存，不打开新标签页。最多 6 张，满额隐藏添加入口，新增文件使用本地模拟进度。" code={'<Upload listType="picture-card" accept="image/*" multiple maxCount={6} customRequest={yourUploader} />'}>
       <Upload aria-label="照片墙" listType="picture-card" accept="image/*" multiple maxCount={6} defaultFileList={initialPictures} customRequest={demoRequest} onReject={({ reason }) => message.warning(reason === "accept" ? "请选择图片" : "最多 6 张图片")} />
     </DemoCard>
-    <DemoCard title="图片列表" description="横向图片列表支持本地缩略图、预览、上传进度与失败状态。" code={'<Upload listType="picture" accept="image/*" multiple customRequest={yourUploader} />'}>
+    <DemoCard title="图片列表" description="横向图片列表支持本地缩略图、预览和下载按钮、上传进度与失败状态。" code={'<Upload listType="picture" accept="image/*" multiple customRequest={yourUploader} />'}>
       <Upload aria-label="图片列表" listType="picture" multiple accept="image/*" defaultFileList={initialPictures.slice(1)} customRequest={demoRequest} />
     </DemoCard>
     <DemoCard title="拖拽与粘贴上传" description="点击、拖入文件或聚焦区域后粘贴截图。限制图片和 PDF，最多 5 项；演示使用本地模拟请求。" code={'<Upload.Dragger multiple pastable accept="image/*,.pdf" maxCount={5} customRequest={yourUploader} />'}>

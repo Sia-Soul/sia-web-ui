@@ -16,7 +16,7 @@ export interface UploadFile {
   status?: UploadFileStatus;
   /** 上传百分比，范围 0–100。 */
   percent?: number;
-  /** 远程访问地址，用于预览和文件链接。 */
+  /** 远程访问地址，用于预览及下载；默认下载会 fetch 为 Blob，跨域地址需要服务端允许 CORS。 */
   url?: string;
   /** 缩略图地址，优先于本地缩略图；预览优先使用 url。 */
   thumbUrl?: string;
@@ -98,8 +98,10 @@ export interface UploadItemActions {
   abort: () => void;
   /** 请求移除，等待 onRemove 允许后取消并删除。 */
   remove: () => Promise<void>;
-  /** 触发自定义 onPreview，未提供时打开框架图片预览。 */
+  /** 触发自定义 onPreview；默认图片使用框架预览，其他文件在新标签页交给浏览器查看。 */
   preview: () => void;
+  /** 获取文件 Blob 并按文件名触发浏览器下载，不打开新标签页；优先 downloadRequest，其次 url，最后 originFileObj。失败时 Promise 拒绝，自定义列表需自行处理。 */
+  download: () => Promise<void>;
 }
 /** Upload 的命令式句柄，适用于手动上传及业务工具栏。 */
 export interface UploadRef {
@@ -150,8 +152,10 @@ export interface UploadProps extends Omit<HTMLAttributes<HTMLDivElement>, "defau
   onReject?: (info: UploadRejectInfo) => void;
   /** 拖拽目录读取失败时调用，本次批次不上传。 */
   onReadError?: (error: unknown) => void;
-  /** 点击预览时调用，提供后完全接管预览，可实现 PDF、视频或业务弹窗。 */
+  /** 点击预览时调用，提供后完全接管预览；默认图片使用框架预览，其他文件在新标签页交给浏览器查看，不支持的格式由浏览器处理。 */
   onPreview?: (file: UploadFile) => void;
+  /** 点击下载时获取实际文件内容，返回 Blob 或 Promise<Blob>，可用于鉴权请求、OSS 签名或代理接口；组件仍负责按 file.name 触发浏览器下载。未提供时 fetch(file.url)，无 url 时使用 originFileObj；跨域请求需允许 CORS。抛错或拒绝时默认列表显示失败消息，不回退到打开新标签页。 */
+  downloadRequest?: (file: UploadFile) => Blob | Promise<Blob>;
   /** 完全自定义列表项；接收默认节点、记录、最新列表及操作句柄，应自行提供可访问的按钮。 */
   itemRender?: (node: ReactNode, file: UploadFile, fileList: readonly UploadFile[], actions: UploadItemActions) => ReactNode;
   /** 上传按钮内容，不应嵌套其他交互控件；外层负责点击和键盘操作。 */

@@ -651,7 +651,9 @@
 /* 折线科技标签栏：标题底线折向标签上沿，紧凑选项保留参考图比例。 */
 .sia-tabs--tech-line { --sia-tabs-line-accent: var(--sia-color-primary-text); --sia-tabs-line-surface: var(--sia-color-surface); --sia-tabs-line-fill: var(--sia-color-primary-light); --sia-tabs-line-text: var(--sia-color-text-secondary); --sia-tabs-line-selected: var(--sia-color-primary-text); }
 [data-sia-theme="dark"] .sia-tabs--tech-line { --sia-tabs-line-accent: color-mix(in srgb, var(--sia-color-primary-text) 70%, #35c6dc); --sia-tabs-line-surface: color-mix(in srgb, var(--sia-color-primary-active) 15%, #05091c); --sia-tabs-line-fill: var(--sia-color-primary-light); --sia-tabs-line-text: var(--sia-color-text-secondary); --sia-tabs-line-selected: var(--sia-color-text); }
-.sia-tabs--tech-line > .sia-tabs__header { min-height: 60px; padding: 0 28px; background: var(--sia-tabs-line-surface); gap: 28px; }
+/* 导航最小高度 50px，为 47px 的标签区域保留少量底部留白；额外内容较高时仍可自然撑开。 */
+/* 导航左右内边距统一为 12px，窄屏也沿用，避免标题两侧留下过多空白。 */
+.sia-tabs--tech-line > .sia-tabs__header { min-height: 50px; padding: 0 12px; background: var(--sia-tabs-line-surface); gap: 28px; }
 /* 标题按内容和装饰留白确定宽度，不分配剩余空间，避免标签栏被推向右侧。 */
 .sia-tabs--tech-line > .sia-tabs__header .sia-tabs__title { position: relative; flex: 0 0 auto; min-width: 0; align-items: flex-start; padding: 3px 34px 0 0; height: 46px; box-sizing: border-box; color: var(--sia-color-text); font-size: 26px; line-height: 36px; font-weight: 700; white-space: nowrap; }
 /* 连接 SVG 从标题右边缘内侧 1px 起笔，底线在同一位置结束，避免重叠抗锯齿使接点显粗。 */
@@ -681,7 +683,7 @@
 .sia-tabs--tech-line.sia-tabs--vertical > .sia-tabs__header .sia-tabs__list { padding: 0; }
 .sia-tabs--tech-line.sia-tabs--vertical > .sia-tabs__header .sia-tabs__list::before { display: none; }
 @media (max-width: 480px) {
-  .sia-tabs--tech-line.sia-tabs--horizontal > .sia-tabs__header { flex-wrap: wrap; gap: 0; padding-inline: 16px; }
+  .sia-tabs--tech-line.sia-tabs--horizontal > .sia-tabs__header { flex-wrap: wrap; gap: 0; }
   .sia-tabs--tech-line.sia-tabs--horizontal > .sia-tabs__header .sia-tabs__title { flex-basis: 100%; }
   .sia-tabs--tech-line.sia-tabs--horizontal > .sia-tabs__header .sia-tabs__title-connector { display: none; }
   .sia-tabs--tech-line.sia-tabs--horizontal > .sia-tabs__header .sia-tabs__list { max-width: 100%; overflow-x: auto; padding: 8px 0; }
