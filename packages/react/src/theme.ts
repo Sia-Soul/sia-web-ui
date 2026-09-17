@@ -27,8 +27,8 @@ export const SIA_THEME = {
   spacing: 16,
   /** 默认字号，单位为像素。 */
   fontSize: 16,
-  /** 小号文字尺寸，单位为像素。 */
-  fontSizeSmall: 14,
+  /** 默认小号文字尺寸为 13 像素，对应 --sia-font-size-small；业务可通过 CSS 变量覆盖。 */
+  fontSizeSmall: 13,
   /** 大号文字尺寸，单位为像素。 */
   fontSizeLarge: 18,
 } as const;
@@ -38,4 +38,3 @@ export function applySiaTheme(mode: SiaThemeMode, target: HTMLElement = document
   target.dataset.siaTheme = mode;
   target.style.colorScheme = mode;
 }
-

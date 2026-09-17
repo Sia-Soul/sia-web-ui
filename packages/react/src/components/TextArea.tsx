@@ -8,7 +8,7 @@ import { useControlSize } from "./shared";
 
 /** 多行输入的属性配置。 */
 export interface TextAreaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
-  /** 调整字号和内边距；保留 rows 和内容决定的多行高度。默认继承 Form */
+  /** 调整字号和内边距；small / medium / large 字号为 12 / 14 / 16 像素，保留 rows 和内容决定的多行高度。默认继承 Form，无上下文时为 medium（14px）。 */
   size?: ControlSize;
   /** 字段标签 */
   label?: ReactNode;

@@ -64,6 +64,17 @@ export default function Demo() {
   );
 }`;
 
+// 使用真实业务选项演示等宽三列，无需额外的布局 className 或 style。
+const scopeOptions = ["店铺", "商品", "订单", "售后单", "库存", "店铺商品资料", "采购退货", "其它出入库", "库存盘点", "采购入库", "合作方商品", "平台报文", "胜算报文", "销售退仓", "销售出库", "调拨出", "调拨入"];
+const checkboxColumnsCode = `import { Checkbox } from "@sia.soul/sia-react-ui";
+
+const options = ${JSON.stringify(scopeOptions)};
+
+export default function Demo() {
+  // columns 指定等宽列数，gap 按 [行间距, 列间距] 设置像素间距。
+  return <Checkbox.Group columns={3} gap={[20, 24]} options={options} />;
+}`;
+
 export function CheckboxPage() {
   const allOptions = ["查看", "编辑", "管理"];
   const [selected, setSelected] = useState<readonly CheckboxValue[]>(["查看"]);
@@ -74,6 +85,9 @@ export function CheckboxPage() {
     { property: "indeterminate", description: "半选状态", type: "boolean", defaultValue: "false" },
     { property: "onChange", description: "选中状态变化", type: "(checked, event) => void", defaultValue: "-" },
     { property: "Checkbox.Group", description: "成组管理值和禁用状态", type: "value / options / onChange", defaultValue: "-" },
+    { property: "Group.columns", description: "正整数启用等宽网格，按行排列并占满容器宽度；优先于 direction，无效值回退到方向布局", type: "number", defaultValue: "-" },
+    { property: "Group.direction", description: "横向自动换行或纵向单列排列；未设置有效 columns 时生效", type: "'horizontal' | 'vertical'", defaultValue: "'horizontal'" },
+    { property: "Group.gap", description: "像素间距：数字设置统一间距，二元组为 [行间距, 列间距]；支持 0，负数按 0 处理", type: "number | readonly [number, number]", defaultValue: "[12, 18]" },
   ]}>
     <DemoCard title="分组与全选" description={`已选择 ${selected.length} 项`} code={checkboxCode}>
       <Space direction="vertical" align="start">
@@ -81,6 +95,20 @@ export function CheckboxPage() {
         <Checkbox.Group value={selected} options={allOptions} onChange={setSelected} />
         <Checkbox disabled>禁用选项</Checkbox>
       </Space>
+    </DemoCard>
+    <DemoCard title="同步范围：等宽多列" description="设置 columns={3} 即可排成三列，gap={[20, 24]} 设置行列间距。" code={checkboxColumnsCode}>
+      <Checkbox.Group columns={3} gap={[20, 24]} options={scopeOptions} />
+    </DemoCard>
+    <DemoCard title="纵向排列" description="direction 控制排列方向，gap 设置间距；也支持直接嵌套 Checkbox。" code={`<Checkbox.Group direction="vertical" gap={16}>
+  <Checkbox value="view">查看</Checkbox>
+  <Checkbox value="edit">编辑</Checkbox>
+  <Checkbox value="manage" disabled>管理</Checkbox>
+</Checkbox.Group>`}>
+      <Checkbox.Group direction="vertical" gap={16}>
+        <Checkbox value="view">查看</Checkbox>
+        <Checkbox value="edit">编辑</Checkbox>
+        <Checkbox value="manage" disabled>管理</Checkbox>
+      </Checkbox.Group>
     </DemoCard>
   </DocPage>;
 }
@@ -163,7 +191,7 @@ export function DatePickerPage() {
   const [multipleDates, setMultipleDates] = useState<readonly string[]>(["2026-07-01", "2026-07-05", "2026-07-14"]);
   const [dateTimeRange, setDateTimeRange] = useState<readonly [string, string]>(["", ""]);
   return <DocPage eyebrow="组件 / 数据录入 / DatePicker" title="DatePicker 日期选择器" description="选择日期、多个日期、日期时间或受约束的日期范围。" name="DatePicker" apiRows={[
-    { property: "size", description: "日期与范围日期高度为 22 / 30 / 38px、字号为 12 / 14 / 16px；默认继承 Form，组件自身 size 优先", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
+    { property: "size", description: "日期与范围日期高度为 22 / 30 / 38px、字号为 12 / 13 / 16px；默认继承 Form，组件自身 size 优先", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
     { property: "value / defaultValue", description: "单值或多选日期值", type: "string | readonly string[]", defaultValue: "''" },
     { property: "picker", description: "日期粒度", type: "date | week | month | year | quarter", defaultValue: "'date'" },
     { property: "multiple", description: "在同一面板内选择多个日期", type: "boolean", defaultValue: "false" },
@@ -256,7 +284,7 @@ export function FormPage() {
     { property: "Form.Item", description: "字段绑定、标签、校验规则和非占位错误气泡", type: "name / rules / valuePropName", defaultValue: "-" },
     { property: "Form.List", description: "动态数组字段", type: "render function", defaultValue: "-" },
   ]}>
-    <DemoCard title="统一组件尺寸" description="输入、选择、日期、按钮、颜色与分段控件统一为 22 / 30 / 38px，日期和时间文字为 12 / 14 / 16px；Checkbox 和 Radio 图形为 14 / 16 / 18px，标准 Switch 高度为 16 / 22 / 28px，Rate 星形为 15 / 20 / 25px。多行文本保留多行高度。支持 Form 继承、组尺寸和组件单独覆盖，切换尺寸不丢失已输入内容。" code={formSizeCode}>
+    <DemoCard title="统一组件尺寸" description="输入、选择、日期、按钮、颜色与分段控件统一为 22 / 30 / 38px，日期和时间文字为 12 / 13 / 16px；Checkbox 和 Radio 图形为 14 / 16 / 18px，标准 Switch 高度为 16 / 22 / 28px，Rate 星形为 15 / 20 / 25px。多行文本保留多行高度。支持 Form 继承、组尺寸和组件单独覆盖，切换尺寸不丢失已输入内容。" code={formSizeCode}>
       <FormSizeDemo />
     </DemoCard>
     <DemoCard title="统一浮动标签" description="空值时显示占位文字，聚焦、展开或已有值时浮到边框；可填入示例值，再清空检查所有组件。范围日期合并显示两端标签，范围时间分别显示。" code={`<Form placeholderMode="floating" layout="vertical">

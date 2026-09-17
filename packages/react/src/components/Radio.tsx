@@ -10,7 +10,7 @@ export type RadioValue = string | number;
 
 /** 单选框的属性配置。 */
 export interface RadioProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "size" | "value" | "onChange"> {
-  /** 组件尺寸；用于调整控件高度、字号和间距。 */
+  /** small / medium / large 文字字号为 12 / 13 / 16 像素，同时调整图形和间距；默认继承所在组或 Form，无上下文时为 medium（13px），组件显式 size 优先。 */
   size?: ControlSize;
   /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
   value: RadioValue;
@@ -32,7 +32,7 @@ export interface RadioOption {
 
 /** RadioGroup的属性配置。 */
 export interface RadioGroupProps {
-  /** 组件尺寸；用于调整控件高度、字号和间距。 */
+  /** small / medium / large 文字字号为 12 / 13 / 16 像素，同时调整图形和间距；默认继承所在组或 Form，无上下文时为 medium（13px），组件显式 size 优先。 */
   size?: ControlSize;
   /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
   value?: RadioValue;

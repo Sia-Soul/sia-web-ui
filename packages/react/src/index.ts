@@ -107,7 +107,7 @@ export { Modal } from "./components/Modal";
 export type { ModalActionResult, ModalOpenConfig, ModalProps, ModalType, OverlayApiHandle } from "./components/Modal";
 export { Tag } from "./components/Tag";
 // 标签颜色与视觉样式统一由 TagProps 和 TagVariant 表达。
-export type { TagProps, TagStatus, TagVariant } from "./components/Tag";
+export type { TagProps, TagStatus, TagVariant, TagSize } from "./components/Tag";
 export { Tabs } from "./components/Tabs";
 export type { TabItem, TabsContextMenuClickInfo, TabsOrientation, TabsPosition, TabsProps, TabsType } from "./components/Tabs";
 export { Treemap } from "./components/Treemap";

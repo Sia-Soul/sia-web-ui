@@ -117,6 +117,11 @@
 .sia-checkbox__input:indeterminate + .sia-checkbox__control span { width: 9px; height: 2px; background: #fff; border: 0; opacity: 1; transform: none; }
 .sia-checkbox__input:focus-visible + .sia-checkbox__control, .sia-radio__input:focus-visible + .sia-radio__control { outline: none; }
 .sia-checkbox-group, .sia-radio-group { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 18px; }
+/* 分组排列由属性启用；网格允许长标签换行，防止内容撑破等宽列。 */
+.sia-checkbox-group--vertical { flex-direction: column; align-items: flex-start; flex-wrap: nowrap; }
+.sia-checkbox-group--grid { display: grid; width: 100%; align-items: start; }
+.sia-checkbox-group--grid > .sia-checkbox { min-width: 0; }
+.sia-checkbox-group--grid > .sia-checkbox > .sia-checkbox__label { min-width: 0; overflow-wrap: anywhere; }
 .sia-radio__control { display: grid; place-items: center; flex: 0 0 auto; width: 17px; height: 17px; background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: 50%; transition: border-color 140ms ease, box-shadow 140ms ease; }
 .sia-radio__control span { width: 9px; height: 9px; background: var(--sia-color-primary); border-radius: 50%; opacity: 0; transform: scale(.4); transition: opacity 140ms ease, transform 140ms ease; }
 .sia-radio__input:checked + .sia-radio__control { border-color: var(--sia-color-primary); }

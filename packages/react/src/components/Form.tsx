@@ -11,7 +11,7 @@ export type SwitchVariant = "standard" | "segmented";
 
 /** 开关的属性配置。 */
 export interface SwitchProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "size"> {
-  /** 标准开关高度为 16 / 22 / 28px，分段开关为 22 / 30 / 38px；默认继承 Form */
+  /** small / medium / large 标准开关高度为 16 / 22 / 28px，分段开关为 22 / 30 / 38px，文字字号为 12 / 13 / 16px；默认继承 Form，无上下文时为 medium（13px）。 */
   size?: ControlSize;
   /** 开关右侧的可见标签 */
   label?: ReactNode;

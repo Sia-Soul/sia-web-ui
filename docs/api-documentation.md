@@ -57,7 +57,15 @@ pnpm test:api-docs
 - `--sia-query-field-gap`：字段间距，默认 `12px`，使用 CSS 长度值；双列宽度计算使用同一个变量，可在 QueryForm 的 `style` 或 `className` 中覆盖。
 - `fields[].width`：显式指定单个字段宽度时优先于自动双列规则；窄屏展开布局仍适配容器宽度。
 
+## 默认字号变量
+
+- `--sia-font-size-small`：默认 `13px`，用于按钮、输入框等组件的小字号文本；单位为 CSS 长度，业务可在组件或容器上覆盖。
+- `--sia-control-font-size`：默认 `13px`，用于选择及日期控件字号；尺寸类在控件上分别指定 small `12px`、medium `13px`、large `16px`，优先于父级继承值；组件内联变量可覆盖尺寸类。
+
 ## 框架交互默认行为
+
+- TextArea 默认正文及浮动占位字号为 `14px`，small / medium / large 分别为 `12 / 14 / 16px`。
+- Checkbox、Radio、Switch 默认标签字号为 `13px`，small / medium / large 分别为 `12 / 13 / 16px`，不改变勾选框、圆点或开关的图形尺寸。
 
 - 原生 `title` 转换为框架提示后，鼠标停留 600ms 才显示；移出、点击或滚动会取消等待或隐藏提示。
 - 表格单元格选区在点击表格空白处或外部时清除；勾选框对应的行选择保持不变。拖拽经过表格外部不会提前清除选区。

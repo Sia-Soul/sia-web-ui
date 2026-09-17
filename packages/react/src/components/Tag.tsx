@@ -1,14 +1,23 @@
 import { withTitleTooltip } from "./titleTooltip";
 import type { CSSProperties, HTMLAttributes, MouseEvent, ReactNode } from "react";
 import { Icon } from "./Icon";
+import { useControlSize } from "./shared";
+import type { ControlSize } from "./shared";
 
 /** 标签的状态类型。 */
 export type TagStatus = "default" | "success" | "processing" | "warning" | "error";
 /** 标签的视觉样式：soft 为柔和浅底，outlined 为透明底描边，filled 为实色背景。 */
 export type TagVariant = "soft" | "outlined" | "filled";
+/** 标签尺寸等级：small、medium、large，分别对应最小高度 20、24、32 像素。 */
+export type TagSize = ControlSize;
 
 /** 标签的属性配置。 */
 export interface TagProps extends HTMLAttributes<HTMLSpanElement> {
+  /**
+   * 标签尺寸，small / medium / large 的最小高度为 20 / 24 / 32 像素，字号为 12 / 12 / 14 像素。显式 size 优先于 compact；未设置时 compact=true 使用 small，否则继承 Form 的尺寸，无 Form 时为 medium。
+   * @defaultValue "medium"（未指定且无 Form 上下文、未开启 compact 时）
+   */
+  size?: TagSize;
   /** 自定义 CSS 颜色，支持十六进制、rgb、颜色名称及 CSS 变量；覆盖 status 的颜色，由 variant 决定浅底、描边或实色效果。未提供非空颜色时沿用状态配色，style 中对应属性优先级最高。 */
   color?: string;
   /**
@@ -17,7 +26,7 @@ export interface TagProps extends HTMLAttributes<HTMLSpanElement> {
    */
   status?: TagStatus;
   /**
-   * 紧凑尺寸
+   * 兼容旧版的紧凑尺寸，未显式设置 size 时等同于 size="small"，优先于 Form 继承尺寸；新代码建议直接使用 size。
    * @defaultValue false
    */
   compact?: boolean;
@@ -49,6 +58,7 @@ export interface TagProps extends HTMLAttributes<HTMLSpanElement> {
 
 /** 标记状态或筛选条件的标签，支持语义配色、自定义边框色或背景色及关闭操作。 */
 export function Tag({
+  size: sizeProp,
   color,
   status = "default",
   compact = false,
@@ -63,6 +73,8 @@ export function Tag({
   style,
   ...props
 }: TagProps) {
+  // 显式 size 优先，旧 compact 作为 small 的兼容入口，最后才使用表单上下文。
+  const size = useControlSize(sizeProp ?? (compact ? "small" : undefined));
   // color 只选定基色，variant 统一决定呈现形式；透明混色适配亮暗底色，style 保留最终覆盖权。
   const customColor: CSSProperties | undefined = color?.trim() ? variant === "outlined"
     ? { borderColor: color, color, backgroundColor: "transparent" }
@@ -72,7 +84,7 @@ export function Tag({
     : undefined;
   return (
     <span
-      className={`sia-tag${closable && closeOnHover ? " sia-tag--close-on-hover" : ""} sia-tag--${status} sia-tag--${variant}${compact ? " sia-tag--compact" : ""}${disabled ? " sia-tag--disabled" : ""} ${className}`.trim()}
+      className={`sia-tag${closable && closeOnHover ? " sia-tag--close-on-hover" : ""} sia-tag--${status} sia-tag--${variant} sia-tag--${size}${compact && size === "small" ? " sia-tag--compact" : ""}${disabled ? " sia-tag--disabled" : ""} ${className}`.trim()}
       aria-disabled={disabled || undefined}
       style={customColor ? { ...customColor, ...style } : style}
       {...withTitleTooltip(props)}
@@ -90,7 +102,7 @@ export function Tag({
             onClose?.(event);
           }}
         >
-          <Icon name="close" size={12} />
+          <Icon name="close" size={size === "large" ? 14 : 12} />
         </button>
       ) : null}
     </span>

@@ -2,7 +2,7 @@ import { withTitleTooltip } from "./titleTooltip";
 import { ControlSizeContext, useControlSize } from "./shared";
 import type { ControlSize } from "./shared";
 import { createContext, forwardRef, useContext, useEffect, useId, useMemo, useRef } from "react";
-import type { ChangeEvent, InputHTMLAttributes, ReactNode } from "react";
+import type { ChangeEvent, CSSProperties, InputHTMLAttributes, ReactNode } from "react";
 import { useControllableState } from "./shared";
 
 /** 复选框的值类型。 */
@@ -10,7 +10,7 @@ export type CheckboxValue = string | number;
 
 /** 复选框的属性配置。 */
 export interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "size" | "value" | "onChange"> {
-  /** 组件尺寸；用于调整控件高度、字号和间距。 */
+  /** small / medium / large 文字字号为 12 / 13 / 16 像素，同时调整图形和间距；默认继承所在组或 Form，无上下文时为 medium（13px），组件显式 size 优先。 */
   size?: ControlSize;
   /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
   value?: CheckboxValue;
@@ -37,7 +37,13 @@ export interface CheckboxOption {
 
 /** CheckboxGroup的属性配置。 */
 export interface CheckboxGroupProps {
-  /** 组件尺寸；用于调整控件高度、字号和间距。 */
+  /** 等宽网格的列数，按选项顺序从左到右逐行排列并占满容器宽度；仅正整数生效，未设置或无效时使用 direction 排列。设置有效列数后优先于 direction；同样适用于直接传入的 Checkbox 子项。 */
+  columns?: number;
+  /** 非网格模式的排列方向：horizontal 横向排列并自动换行，vertical 纵向单列排列；有效 columns 优先。默认 horizontal。 */
+  direction?: "horizontal" | "vertical";
+  /** 选项间距，单位 px；数字表示统一间距，二元组为 [行间距, 列间距]，支持 0，负数按 0 处理。默认 [12, 18]，适用于横向、纵向和网格布局。 */
+  gap?: number | readonly [number, number];
+  /** small / medium / large 文字字号为 12 / 13 / 16 像素，同时调整图形和间距；默认继承所在组或 Form，无上下文时为 medium（13px），组件显式 size 优先。 */
   size?: ControlSize;
   /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
   value?: readonly CheckboxValue[];
@@ -117,6 +123,9 @@ const CheckboxRoot = forwardRef<HTMLInputElement, CheckboxProps>(function Checkb
 
 function CheckboxGroup({
   size: sizeProp,
+  columns,
+  direction = "horizontal",
+  gap,
   value,
   defaultValue = [],
   options,
@@ -127,6 +136,13 @@ function CheckboxGroup({
   onChange,
 }: CheckboxGroupProps) {
   const size = useControlSize(sizeProp);
+  // 仅接受合法列数，避免生成无效网格；不传布局属性时保留已有 CSS 的默认布局和间距。
+  const gridColumns = columns !== undefined && Number.isInteger(columns) && columns > 0 ? columns : undefined;
+  const layoutStyle: CSSProperties = {
+    gridTemplateColumns: gridColumns ? `repeat(${gridColumns}, minmax(0, 1fr))` : undefined,
+    gap: gap === undefined ? undefined : typeof gap === "number"
+      ? Math.max(0, gap) : `${Math.max(0, gap[0])}px ${Math.max(0, gap[1])}px`,
+  };
   const [values, setValues] = useControllableState<readonly CheckboxValue[]>({ value, defaultValue, onChange });
   const context = useMemo<CheckboxGroupContextValue>(() => ({
     values,
@@ -141,7 +157,7 @@ function CheckboxGroup({
   }), [disabled, name, setValues, values]);
 
   return <ControlSizeContext.Provider value={size}><CheckboxGroupContext.Provider value={context}>
-    <div className={`sia-checkbox-group ${className}`.trim()} role="group">
+    <div className={`sia-checkbox-group${gridColumns ? " sia-checkbox-group--grid" : direction === "vertical" ? " sia-checkbox-group--vertical" : ""} ${className}`.trim()} style={layoutStyle} role="group">
       {options?.map((option) => {
         const normalized = typeof option === "object" ? option : { label: String(option), value: option };
         return <CheckboxRoot value={normalized.value} disabled={normalized.disabled} key={normalized.value}>{normalized.label}</CheckboxRoot>;

@@ -1,16 +1,17 @@
-/* Explicit component classes keep local size overrides independent of Form. */
+/* 尺寸类优先于继承的字号：默认 medium 为 13px，小号 12px、大号 16px；组件内联变量可进一步覆盖。 */
 :is(.sia-picker, .sia-time-range).sia-picker--small { --sia-control-font-size: 12px; font-size: 12px; }
-:is(.sia-picker, .sia-time-range).sia-picker--medium { --sia-control-font-size: 14px; font-size: 14px; }
+:is(.sia-picker, .sia-time-range).sia-picker--medium { --sia-control-font-size: 13px; font-size: var(--sia-control-font-size); }
 :is(.sia-picker, .sia-time-range).sia-picker--large { --sia-control-font-size: 16px; font-size: 16px; }
 .sia-picker .sia-picker__trigger { font: inherit; }
 :is(.sia-select--small, .sia-tree-select--small, .sia-cascader--small) { --sia-control-font-size: 12px; }
-:is(.sia-select--medium, .sia-tree-select--medium, .sia-cascader--medium) { --sia-control-font-size: 14px; }
+:is(.sia-select--medium, .sia-tree-select--medium, .sia-cascader--medium) { --sia-control-font-size: 13px; }
 :is(.sia-select--large, .sia-tree-select--large, .sia-cascader--large) { --sia-control-font-size: 16px; }
-.sia-tree-select .sia-tree-select__trigger, .sia-cascader .sia-cascader__trigger { font-size: var(--sia-control-font-size, 14px); }
+.sia-tree-select .sia-tree-select__trigger, .sia-cascader .sia-cascader__trigger { font-size: var(--sia-control-font-size, 13px); }
 .sia-segmented.sia-segmented--medium button { font-size: 14px; }
 .sia-segmented.sia-segmented--large button { font-size: 16px; }
 .sia-checkbox.sia-checkbox--small, .sia-radio.sia-radio--small { --sia-choice-size: 14px; --sia-choice-dot: 6px; gap: 6px; font-size: 12px; }
-.sia-checkbox--medium, .sia-radio--medium { --sia-choice-size: 16px; --sia-choice-dot: 8px; font-size: 14px; }
+/* 中号选择控件默认文字为 13px，图形尺寸保持不变。 */
+.sia-checkbox--medium, .sia-radio--medium { --sia-choice-size: 16px; --sia-choice-dot: 8px; font-size: 13px; }
 .sia-checkbox.sia-checkbox--large, .sia-radio.sia-radio--large { --sia-choice-size: 18px; --sia-choice-dot: 10px; gap: 10px; font-size: 16px; }
 .sia-checkbox .sia-checkbox__control, .sia-radio .sia-radio__control { width: var(--sia-choice-size); height: var(--sia-choice-size); }
 .sia-checkbox--small .sia-checkbox__control { border-radius: 4px; }
@@ -21,13 +22,17 @@
 .sia-radio--button.sia-radio--medium { height: var(--sia-control-height-medium); }
 .sia-radio--button.sia-radio--large { height: var(--sia-control-height-large); padding-inline: 19px; }
 .sia-switch-wrap.sia-switch-wrap--small { --sia-switch-width: 32px; --sia-switch-height: 16px; --sia-switch-segmented-height: var(--sia-control-height-small); font-size: 12px; }
-.sia-switch-wrap.sia-switch-wrap--medium { --sia-switch-width: 44px; --sia-switch-height: 22px; --sia-switch-segmented-height: var(--sia-control-height-medium); font-size: 14px; }
+.sia-switch-wrap.sia-switch-wrap--medium { --sia-switch-width: 44px; --sia-switch-height: 22px; --sia-switch-segmented-height: var(--sia-control-height-medium); font-size: 13px; }
 .sia-switch-wrap.sia-switch-wrap--large { --sia-switch-width: 52px; --sia-switch-height: 28px; --sia-switch-segmented-height: var(--sia-control-height-large); font-size: 16px; }
 .sia-switch-wrap.sia-switch-wrap--small { gap: 6px; }
 .sia-switch-wrap.sia-switch-wrap--large { gap: 10px; }
 .sia-select--small .sia-select__tag { padding-block: 0; line-height: 16px; }
 .sia-cascader--small .sia-cascader__tag { padding-block: 0; line-height: 16px; }
 .sia-input-select .sia-input-control--small .sia-button { height: 18px; }
+/* 浮动占位文字继承相同尺寸，避免中号正文 14px 而占位仍为 13px。 */
+.sia-textarea-control--small { --sia-control-font-size: 12px; }
+.sia-textarea-control--medium { --sia-control-font-size: 14px; }
+.sia-textarea-control--large { --sia-control-font-size: 16px; }
 .sia-textarea-control--small .sia-textarea { padding: 4px 7px 22px; font-size: 12px; }
 .sia-textarea-control--large .sia-textarea { padding: 10px 11px 28px; font-size: 16px; }
 .sia-color-picker--small { --sia-color-control-height: var(--sia-control-height-small); font-size: 12px; }

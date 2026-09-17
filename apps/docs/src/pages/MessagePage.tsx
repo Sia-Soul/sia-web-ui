@@ -38,7 +38,7 @@ export function MessagePage() {
     <PageHeader eyebrow="组件 / 反馈 / Message" title="Message 全局提示" description="轻量反馈当前操作结果，通过 API 在任意位置调用。" />
     <DocsTabs showApi={false} />
     <div className="demo-stack">
-      <DemoCard title="提示类型" description="提示会自动堆叠并在设定时间后关闭。" code={typeCode}>
+      <DemoCard title="提示类型" description="提示正文默认字号为 14px，会自动堆叠并在设定时间后关闭。" code={typeCode}>
         <Space wrap>
           <Button onClick={() => message.info("这是一条普通提示")}>普通提示</Button>
           <Button onClick={() => message.success("操作成功")}>成功</Button>

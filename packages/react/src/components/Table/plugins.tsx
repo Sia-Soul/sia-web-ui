@@ -1500,7 +1500,7 @@ export interface TableSortApi {
   clear: () => void;
 }
 
-/** 创建表格列排序插件。将返回值加入 Table 的 plugins 后生效；点击列头按钮依次切换升序、降序和未排序，当前方向以高亮单箭头显示，悬停提示当前状态及下一步操作。 */
+/** 创建表格列排序插件。将返回值加入 Table 的 plugins 后生效；点击列头按钮依次切换升序、降序和未排序，升序使用高亮 chevron-up，降序使用高亮 chevron-down，悬停提示当前状态及下一步操作。 */
 export function createSortPlugin<T extends Record<string, unknown>>(
   options: TableSortPluginOptions = {},
 ): TablePlugin<T, SortState, TableSortApi> {
@@ -1540,7 +1540,7 @@ export function createSortPlugin<T extends Record<string, unknown>>(
           ...column,
           renderHeader: (currentColumn, coreContext) => {
             const info = current(context);
-            // 用单一方向和背景共同标识已排序状态，避免仅凭两个小箭头的颜色辨认。
+            // 已排序时使用框架 chevron 图标和背景共同标识方向，与未排序图标保持同一风格。
             const order = info?.field === field ? info.order : null;
             const sortHint = `${getColumnLabel(currentColumn)}：${order === "ascend" ? "当前升序，点击切换为降序" : order === "descend" ? "当前降序，点击取消排序" : "未排序，点击按升序排序"}`;
             return (
@@ -1563,7 +1563,7 @@ export function createSortPlugin<T extends Record<string, unknown>>(
                     cycle(field, context);
                   }}
                 >
-                  {order ? <Icon name={order === "ascend" ? "arrow-up" : "arrow-down"} size={18} /> : <>
+                  {order ? <Icon name={order === "ascend" ? "chevron-up" : "chevron-down"} size={18} /> : <>
                     <Icon name="chevron-up" size={11} />
                     <Icon name="chevron-down" size={11} />
                   </>}

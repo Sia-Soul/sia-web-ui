@@ -30,7 +30,9 @@
   --sia-control-height: var(--sia-control-height-medium);
   --sia-spacing: 16px;
   --sia-font-size: 16px;
-  --sia-font-size-small: 14px;
+  /* 默认小字号与控件字号均为 13px；组件尺寸类及业务局部样式可覆盖。 */
+  --sia-font-size-small: 13px;
+  --sia-control-font-size: 13px;
   --sia-font-size-large: 18px;
   --sia-shadow-popup: 0 4px 12px rgb(0 0 0 / 22%);
   --sia-scroll-overflow: auto;
@@ -214,7 +216,8 @@
 .sia-textarea-control--error:hover:not(.is-disabled) { border-color: var(--sia-color-error); }
 .sia-textarea-control--error:focus-within:not(.is-disabled) { border-color: var(--sia-color-error); }
 .sia-textarea-control.is-disabled { color: var(--sia-color-text-secondary); cursor: not-allowed; background: var(--sia-color-control-hover); }
-.sia-textarea { display: block; width: 100%; min-height: inherit; padding: 8px 11px 26px; resize: vertical; color: inherit; font: 400 var(--sia-font-size-small)/1.6 system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; background: transparent; border: 0; outline: 0; }
+/* 多行正文默认 14px，独立于全局 13px 小字号；显式尺寸类仍可覆盖。 */
+.sia-textarea { display: block; width: 100%; min-height: inherit; padding: 8px 11px 26px; resize: vertical; color: inherit; font: 400 14px/1.6 system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; background: transparent; border: 0; outline: 0; }
 .sia-textarea::placeholder { color: var(--sia-color-text-secondary); opacity: 0.65; }
 .sia-textarea:disabled { cursor: not-allowed; }
 .sia-textarea-control__count { position: absolute; right: 9px; bottom: 6px; color: var(--sia-color-text-secondary); pointer-events: none; font-size: 12px; font-variant-numeric: tabular-nums; }
@@ -479,8 +482,8 @@
 
 .sia-message-root { position: fixed; z-index: 1100; inset: 18px 0 auto; display: flex; justify-content: center; pointer-events: none; }
 .sia-message-list { display: flex; align-items: center; flex-direction: column; gap: 10px; width: min(100%, 520px); padding-inline: 16px; }
-/* 消息正文使用框架标准字号减 1px（默认 15px），避免继承业务页面的较小字号。 */
-.sia-message { font-size: calc(var(--sia-font-size, 16px) - 1px); display: flex; align-items: center; gap: 9px; min-height: 42px; max-width: 100%; padding: 9px 14px; color: var(--sia-color-text); pointer-events: auto; background: var(--sia-color-surface); border: 1px solid rgb(0 0 0 / 6%); border-radius: calc(var(--sia-radius) + 2px); box-shadow: var(--sia-shadow-popup); animation: sia-message-pop-in 200ms cubic-bezier(.22, 1, .36, 1) both; will-change: transform, opacity; }
+/* 消息正文默认使用 14px，避免全局字号或业务页面字号影响提示文字。 */
+.sia-message { font-size: 14px; display: flex; align-items: center; gap: 9px; min-height: 42px; max-width: 100%; padding: 9px 14px; color: var(--sia-color-text); pointer-events: auto; background: var(--sia-color-surface); border: 1px solid rgb(0 0 0 / 6%); border-radius: calc(var(--sia-radius) + 2px); box-shadow: var(--sia-shadow-popup); animation: sia-message-pop-in 200ms cubic-bezier(.22, 1, .36, 1) both; will-change: transform, opacity; }
 .sia-message__icon { display: inline-flex; flex: 0 0 auto; color: var(--sia-color-primary-text); }
 .sia-message--success .sia-message__icon { color: var(--sia-color-success); }
 .sia-message--warning .sia-message__icon { color: var(--sia-color-warning); }
@@ -518,7 +521,10 @@
 [data-sia-theme="dark"] .sia-alert { background: var(--sia-color-control-hover); }
 
 .sia-tag { display: inline-flex; align-items: center; gap: 4px; min-height: 24px; padding: 0 8px; color: var(--sia-color-text-secondary); font: 400 12px/1 system-ui, sans-serif; background: var(--sia-color-control-hover); border: 1px solid var(--sia-color-border); border-radius: 5px; }
-.sia-tag--compact { min-height: 20px; padding-inline: 6px; }
+/* 标签保留原有中号和 compact 尺寸，大号同步放大字号；内联样式仍可覆盖尺寸。 */
+.sia-tag--small, .sia-tag--compact { min-height: 20px; padding-inline: 6px; }
+.sia-tag--medium { min-height: 24px; padding-inline: 8px; }
+.sia-tag--large { min-height: 32px; padding-inline: 10px; font-size: 14px; }
 .sia-tag--success { color: #389e0d; background: #f6ffed; border-color: #b7eb8f; }
 .sia-tag--processing { color: var(--sia-color-primary-text); background: var(--sia-color-primary-light); border-color: color-mix(in srgb, var(--sia-color-primary) 48%, var(--sia-color-border)); }
 .sia-tag--warning { color: #d48806; background: #fffbe6; border-color: #ffe58f; }
