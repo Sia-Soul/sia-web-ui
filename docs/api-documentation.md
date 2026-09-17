@@ -73,3 +73,7 @@ pnpm test:api-docs
 ## 清空能力的默认值
 
 框架中已提供 `allowClear` 的组件统一默认启用（`true`），显式传入 `allowClear={false}` 可关闭对应清空入口或再次点击取消选择的能力。包括 Input、InputSelect、Select、Cascader、TreeSelect、ColorPicker、DatePicker、TimePicker 和 Rate；日期／时间区间继承对应配置。新增带有该属性的组件也应遵守此约定。各组件保留原有清空值及回调语义，禁用状态下仍遵循原有交互限制。
+
+## Form 标签与必填标记
+
+`Form.Item.label` 支持文本和包含 Tooltip 的 React 节点。必填星号使用独立类名 `sia-form-item__required-mark`，红色仅标识星号，不表示字段已校验失败，也不应改变自定义标签的颜色。只有用户交互触发校验或提交校验时，才按原有规则显示字段错误。

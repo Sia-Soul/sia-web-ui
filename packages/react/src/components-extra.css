@@ -429,7 +429,8 @@
 /* 表单项统一保留 6px 下外边距，避免相邻字段的标签与上一项控件紧贴。 */
 .sia-form-item { display: grid; grid-template-columns: minmax(90px, 140px) minmax(0, 1fr); gap: 8px 14px; margin-bottom: 6px; color: var(--sia-color-text); }
 .sia-form-item__label { padding-top: 8px; text-align: right; line-height: 1.45; }
-.sia-form-item__label > span { margin-right: 4px; color: var(--sia-color-error); }
+/* 必填色只作用于框架生成的星号，不能匹配用户标签或 Tooltip 的 span。 */
+.sia-form-item__required-mark { margin-right: 4px; color: var(--sia-color-error); }
 .sia-form-item__control { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; min-width: 0; }
 .sia-form-item__input-wrap { position: relative; min-width: 0; }
 .sia-form-item__control > .sia-floating { display: block; width: 100%; min-width: 0; max-width: 100%; }

@@ -424,7 +424,7 @@ function FormRoot({
 export interface FormItemProps {
   /** 绑定到表单值的字段名或嵌套路径，例如 ["user", "name"]。 */
   name?: NamePath;
-  /** 展示给用户的名称，可传入文本或 React 节点。 */
+  /** 字段标签，可传入文本、span 或 Tooltip 等 React 节点；必填颜色仅作用于独立星号，不改变标签内容的颜色。 */
   label?: ReactNode;
   /**
    * 字段的校验规则，按配置执行。
@@ -559,7 +559,7 @@ function FormItem({
   const inputWrap = <div className="sia-form-item__input-wrap">{content}</div>;
   const hasError = status === "error" && Boolean(helpContent);
   return <div ref={itemRef} className={`sia-form-item${status ? ` sia-form-item--${status}` : ""} ${className}`.trim()} data-sia-form-field={key || undefined}>
-    {label ? <div id={labelId} className="sia-form-item__label">{ruleRequired ? <span aria-hidden="true">*</span> : null}{label}</div> : null}
+    {label ? <div id={labelId} className="sia-form-item__label">{ruleRequired ? <span className="sia-form-item__required-mark" aria-hidden="true">*</span> : null}{label}</div> : null}
     <div className="sia-form-item__control">
       <Tooltip
         title={hasError ? <span id={errorId} className="sia-form-item__error-content">
