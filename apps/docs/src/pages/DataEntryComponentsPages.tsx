@@ -180,7 +180,8 @@ const presets = [
 export default function Demo() {
   return (
     <Space direction="vertical">
-      <DatePicker.RangePicker showTime needConfirm presets={presets} />
+      {/* 任一端允许为空时立即回显所选日期时间，确认流程完成后再提交。 */}
+      <DatePicker.RangePicker showTime={{ showSecond: true }} allowEmpty={[true, true]} needConfirm presets={presets} />
       <DatePicker.RangePicker maxRangeDays={7} />
     </Space>
   );
@@ -195,10 +196,11 @@ export function DatePickerPage() {
     { property: "value / defaultValue", description: "单值或多选日期值", type: "string | readonly string[]", defaultValue: "''" },
     { property: "picker", description: "日期粒度", type: "date | week | month | year | quarter", defaultValue: "'date'" },
     { property: "multiple", description: "在同一面板内选择多个日期", type: "boolean", defaultValue: "false" },
-    { property: "needConfirm", description: "选择后需要点击确定才提交", type: "boolean", defaultValue: "showTime 时为 true" },
-    { property: "showTime", description: "组合时间面板，可显示秒；范围选择会在宽屏并排显示起止面板，在窄屏分步选择", type: "boolean | { showSecond, defaultValue }", defaultValue: "false" },
-    { property: "presets", description: "预设日期或预设范围", type: "DatePickerPreset[]", defaultValue: "-" },
+    { property: "needConfirm", description: "选择后需要点击确定才提交；带时间的范围始终使用确定按钮分步确认并提交", type: "boolean", defaultValue: "showTime 时为 true" },
+    { property: "showTime", description: "组合时间面板，可显示秒；范围选择始终显示单面板，点击起止输入框直接编辑对应端点；当前端点确定后切换到另一端，再确定提交", type: "boolean | { showSecond, defaultValue }", defaultValue: "false" },
+    { property: "presets", description: "面板左侧纵向显示的快捷日期或范围；带时间范围回填后点击一次确定即提交关闭", type: "DatePickerPreset[]", defaultValue: "-" },
     { property: "disabledDate / minDate / maxDate", description: "禁用或限制可选日期", type: "function / string", defaultValue: "-" },
+    { property: "RangePicker.allowEmpty", description: "分别允许开始、结束为空；任一端允许为空时，选值立即回显；纯日期点选即保存合法值，带时间必须确定后保存；均为 false 时两端完整确认后一起更新", type: "readonly [boolean, boolean]", defaultValue: "[false, false]" },
     { property: "RangePicker.maxRangeDays", description: "限制一次最多可选择的天数", type: "number", defaultValue: "-" },
   ]}>
     <DemoCard title="基础日期与手动确认" description="面板使用统一的圆角日期单元格；手动确认模式不会在点选日期后立即关闭。" code={dateBasicCode}>
@@ -214,12 +216,13 @@ export function DatePickerPage() {
         <DatePicker.RangePicker value={range} onChange={setRange} />
       </Space>
     </DemoCard>
-    <DemoCard title="日期时间、快捷范围与选择限制" description={`当前日期时间范围：${dateTimeRange[0] || "未选择"} 至 ${dateTimeRange[1] || "未选择"}`} code={dateAdvancedCode}>
+    <DemoCard title="日期时间、快捷范围与选择限制" description={`点击起止输入框切换编辑，底线标识当前端点；手动选择两端确认后提交，左侧快捷范围只需一次确认；当前日期时间范围：${dateTimeRange[0] || "未选择"} 至 ${dateTimeRange[1] || "未选择"}`} code={dateAdvancedCode}>
       <Space direction="vertical" size={16}>
         <DatePicker.RangePicker
           value={dateTimeRange}
           onChange={setDateTimeRange}
-          showTime
+          showTime={{ showSecond: true }}
+          allowEmpty={[true, true]}
           needConfirm
           presets={[
             { label: "今天", value: ["2026-07-20 00:00", "2026-07-20 23:59"] },

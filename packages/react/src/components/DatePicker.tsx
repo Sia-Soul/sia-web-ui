@@ -79,10 +79,10 @@ export interface DatePickerProps extends SharedDatePickerProps {
    * @defaultValue false
    */
   multiple?: boolean;
-  /** 选择后需要点击确定才提交 */
+  /** 选择后需要点击确定才提交；带时间的范围必须确认后保存；纯日期范围点选后立即保存合法值，此属性仅控制是否保留面板供确认关闭。 */
   needConfirm?: boolean;
   /**
-   * 组合时间面板，可显示秒；范围选择会在宽屏并排显示起止面板，在窄屏分步选择
+   * 组合时间面板，可显示秒；范围选择始终显示单个面板，点击起止输入区域直接编辑对应端点；先确认当前端点，再切换到另一端点，两个端点确认后提交并关闭；锁定端点无需再次确认，快捷范围只需一次确认
    * @defaultValue false
    */
   showTime?: DatePickerShowTime;
@@ -137,11 +137,15 @@ export interface DateRangePickerProps extends Omit<DatePickerProps, "value" | "d
    * @defaultValue "→"
    */
   separator?: ReactNode;
-  /** 预设候选值或快捷选项集合。 */
+  /** 在面板左侧按配置顺序纵向显示的快捷范围；带时间时点击仅回填暂存值，再点击一次确定即提交并关闭，无需逐端确认；手动修改后恢复分步确认。 */
   presets?: readonly DateRangePickerPreset[];
   /** 日期区间允许的最大天数。 */
   maxRangeDays?: number;
-  /** 允许单独保留起点或终点；需要点击确定提交未完整的范围。 */
+  /**
+   * 按开始、结束顺序指定端点是否允许为空。任一端允许为空时，展开期间输入框即时显示暂存的日期时间；两端均必填时保留已提交值，完整确认后一起更新。
+   * 纯日期点选后立即通过 onChange 保存合法值，收起后保留；带时间仅即时显示暂存值，必须点击确定保存，未确认就收起则恢复已提交值。缺少必填端点或范围不合法时不保存。
+   * @defaultValue [false, false]
+   */
   allowEmpty?: readonly [boolean, boolean];
   /** 锁定指定端点，编辑和清空时保留其值。 */
   endpointDisabled?: readonly [boolean, boolean];
@@ -388,6 +392,7 @@ export function DatePicker({
   </span>;
 }
 
+/** 日期范围选择；纯日期按两次点击组成范围，带时间时使用单面板分步设置起止值并确认提交。 */
 function DateRangePicker({
   value,
   defaultValue = ["", ""],
@@ -426,11 +431,14 @@ function DateRangePicker({
   const [currentValue, setCurrentValue] = useControllableState<readonly [string, string]>({ value: value === undefined ? undefined : Array.isArray(value) ? value : ["", ""], defaultValue, onChange });
   const [visible, setVisible] = useControllableState({ value: open, defaultValue: defaultOpen, onChange: onOpenChange });
   const [draftValue, setDraftValue] = useState<readonly [string, string]>(currentValue);
-  const [activeIndex, setActiveIndex] = useState<0 | 1>(currentValue[0] && !currentValue[1] ? 1 : 0);
+  const [activeIndex, setActiveIndex] = useState<0 | 1>(endpointDisabled[0] || currentValue[0] && !currentValue[1] ? 1 : 0);
+  // 每次打开独立记录已确认端点，使从开始或结束进入都先确认本端、再确认另一端。
+  const [confirmedIndex, setConfirmedIndex] = useState<0 | 1 | null>(null);
+  // 快捷范围一次提供两端，无需逐端确认；重新手动编辑后恢复分步确认。
+  const [presetSelected, setPresetSelected] = useState(false);
   const [hoverDate, setHoverDate] = useState("");
   const [viewMonth, setViewMonth] = useState(() => startOfMonth(parseDate(dayFromValue(currentValue[0] || currentValue[1])) ?? new Date()));
   const [endViewMonth, setEndViewMonth] = useState(() => startOfMonth(parseDate(dayFromValue(currentValue[1])) ?? addMonths(parseDate(dayFromValue(currentValue[0])) ?? new Date(), 1)));
-  const [compactDateTime, setCompactDateTime] = useState(false);
   const showSecond = showSecondFrom(showTime);
   const defaultTime = defaultTimeFrom(showTime);
   const defaultEndTime = defaultTimeFrom(showTime, 1);
@@ -443,53 +451,51 @@ function DateRangePicker({
   const invalidDateTimeRange = Boolean(showTime && draftValue[0] && draftValue[1] && draftValue[0] > draftValue[1]);
 
   useEffect(() => {
-    if (!showTime || typeof document === "undefined") {
-      setCompactDateTime(false);
-      return undefined;
-    }
-    const updateLayout = () => {
-      const pairedPanelWidth = 2 * (280 + (showSecond ? 144 : 96) + 1) + 3;
-      setCompactDateTime(document.documentElement.clientWidth < pairedPanelWidth + 16);
-    };
-    updateLayout();
-    window.addEventListener("resize", updateLayout);
-    return () => window.removeEventListener("resize", updateLayout);
-  }, [showSecond, showTime]);
-
-  useEffect(() => {
     if (!visible) return undefined;
     const close = (event: PointerEvent) => {
       const target = event.target as Node;
-      if (!rootRef.current?.contains(target) && !popupRef.current?.contains(target)) setVisible(false);
+      if (!rootRef.current?.contains(target) && !popupRef.current?.contains(target)) dismissPanel();
     };
     document.addEventListener("pointerdown", close);
     return () => document.removeEventListener("pointerdown", close);
-  }, [setVisible, visible]);
+  });
 
-  function changeOpen(next: boolean) {
-    if (next) {
+  /** 收起面板；纯日期已在点选时保存，带时间的暂存值需显式确认。 */
+  function dismissPanel() {
+    setVisible(false);
+  }
+
+  function changeOpen(next: boolean, endpoint?: 0 | 1) {
+    if (next && !visible) {
+      setConfirmedIndex(null);
+      setPresetSelected(false);
       setDraftValue(currentValue);
       setTimes([timePart(currentValue[0], defaultTime), timePart(currentValue[1], defaultEndTime)]);
-      setActiveIndex(endpointDisabled[0] ? 1 : endpointDisabled[1] ? 0 : currentValue[0] && !currentValue[1] ? 1 : 0);
+      setActiveIndex(endpointDisabled[0] ? 1 : endpointDisabled[1] ? 0 : endpoint ?? (currentValue[0] && !currentValue[1] ? 1 : 0));
       const nextStartMonth = startOfMonth(parseDate(dayFromValue(currentValue[0] || currentValue[1])) ?? new Date());
       setViewMonth(nextStartMonth);
       setEndViewMonth(startOfMonth(parseDate(dayFromValue(currentValue[1])) ?? addMonths(nextStartMonth, 1)));
     }
+    // 已展开时切换输入端点仅切换面板，保留尚未提交的日期、时间和月份。
+    if (next && endpoint !== undefined && !endpointDisabled[endpoint]) setActiveIndex(endpoint);
     setVisible(next);
   }
 
-  function isDisabled(day: string, index: 0 | 1 = activeIndex, pairedDateTime = false) {
+  function isDisabled(day: string, index: 0 | 1 = activeIndex, dateTimeStep = false) {
     if (endpointDisabled[index]) return true;
     const minimum = minDate ?? props.min;
     const maximum = maxDate ?? props.max;
     if (minimum && day < String(minimum).slice(0, 10)) return true;
     if (maximum && day > String(maximum).slice(0, 10)) return true;
     const from = index === 1 ? rangeDates[0] : undefined;
-    if (pairedDateTime) {
-      const otherEndpoint = index === 0 ? rangeDates[1] : rangeDates[0];
-      if (index === 0 && otherEndpoint && day > otherEndpoint) return true;
-      if (index === 1 && otherEndpoint && day < otherEndpoint) return true;
-      if (otherEndpoint && maxRangeDays && Math.abs(daysBetween(otherEndpoint, day)) >= maxRangeDays) return true;
+    if (dateTimeStep) {
+      // 只有另一端已确认或锁定时才约束当前日期，避免旧值阻止从任一端重新选择。
+      const otherIndex = index === 0 ? 1 : 0;
+      const otherEndpoint = rangeDates[otherIndex];
+      if (otherEndpoint && (endpointDisabled[otherIndex] || confirmedIndex === otherIndex)) {
+        if (index === 0 && day > otherEndpoint || index === 1 && day < otherEndpoint) return true;
+        if (maxRangeDays && Math.abs(daysBetween(otherEndpoint, day)) >= maxRangeDays) return true;
+      }
     } else if (from && maxRangeDays && Math.abs(daysBetween(from, day)) >= maxRangeDays) return true;
     return disabledDate?.(day, { from, type: "date" }) ?? false;
   }
@@ -499,8 +505,13 @@ function DateRangePicker({
   }
 
   function updateDraft(next: readonly [string, string]) {
+    setPresetSelected(false);
     setDraftValue(next);
     onCalendarChange?.(next);
+    // 纯日期点击即保存合法值；允许为空的端点可留空，必填范围必须先选齐。
+    if (!showTime && isValidRange(next) && (next[0] !== currentValue[0] || next[1] !== currentValue[1])) {
+      setCurrentValue(next);
+    }
   }
 
   function selectDate(day: string) {
@@ -511,7 +522,6 @@ function DateRangePicker({
       next[index] = buildRangeValue(day, index);
       updateDraft(next);
       if (!resolvedNeedConfirm && isValidRange(next)) {
-        setCurrentValue(next);
         changeOpen(false);
       }
       return;
@@ -531,7 +541,6 @@ function DateRangePicker({
     setActiveIndex(0);
     setHoverDate("");
     if (!resolvedNeedConfirm) {
-      setCurrentValue(ordered);
       changeOpen(false);
     }
   }
@@ -542,16 +551,8 @@ function DateRangePicker({
     nextValue[index] = buildRangeValue(day, index);
     updateDraft(nextValue);
     setHoverDate("");
-    if (!resolvedNeedConfirm && compactDateTime && index === 0) {
-      setActiveIndex(1);
-      setEndViewMonth(startOfMonth(parseDate(day) ?? new Date()));
-      return;
-    }
+    // 点选日期只更新当前步骤，必须由底部按钮切换步骤或提交。
     setActiveIndex(index);
-    if (!resolvedNeedConfirm && nextValue[0] && nextValue[1] && nextValue[0] <= nextValue[1]) {
-      setCurrentValue(nextValue);
-      changeOpen(false);
-    }
   }
 
   function changeTime(index: 0 | 1, nextTime: string) {
@@ -584,11 +585,18 @@ function DateRangePicker({
     return true;
   }
 
+  const otherIndex: 0 | 1 = activeIndex === 0 ? 1 : 0;
+  const needsOtherConfirmation = Boolean(showTime && !presetSelected && !endpointDisabled[otherIndex] && confirmedIndex !== otherIndex);
+
   function confirm() {
-    if (compactDateTime && showTime && activeIndex === 0) {
-      if (!draftValue[0]) return;
-      setActiveIndex(1);
-      setEndViewMonth(startOfMonth(parseDate(dayFromValue(draftValue[1] || draftValue[0])) ?? new Date()));
+    if (needsOtherConfirmation) {
+      if (!draftValue[activeIndex] && !allowEmpty[activeIndex]) return;
+      setConfirmedIndex(activeIndex);
+      setActiveIndex(otherIndex);
+      // 另一端从刚确认的月份继续选择，两个进入方向均适用于同月范围。
+      const month = startOfMonth(parseDate(dayFromValue(draftValue[activeIndex])) ?? new Date());
+      if (otherIndex === 0) setViewMonth(month);
+      else setEndViewMonth(month);
       setHoverDate("");
       return;
     }
@@ -605,12 +613,13 @@ function DateRangePicker({
     ];
     if (!isValidRange(next)) return;
     updateDraft(next);
+    setConfirmedIndex(null);
+    setPresetSelected(true);
     setTimes([timePart(next[0], defaultTime), timePart(next[1], defaultEndTime)]);
     const nextStartMonth = startOfMonth(parseDate(dayFromValue(next[0] || next[1])) ?? new Date());
     setViewMonth(nextStartMonth);
     setEndViewMonth(startOfMonth(parseDate(dayFromValue(next[1])) ?? addMonths(nextStartMonth, 1)));
-    if (!resolvedNeedConfirm) {
-      setCurrentValue(next);
+    if (!showTime && !resolvedNeedConfirm) {
       changeOpen(false);
     }
   }
@@ -653,13 +662,16 @@ function DateRangePicker({
         value={times[index]}
         showSecond={showSecond}
         ariaLabel={`${endpointLabel}时间`}
+        disabledTime={endpointDisabled[index] ? () => true : undefined}
         onChange={(nextTime) => changeTime(index, nextTime)}
       />
     </div>;
   }
 
-  const startFloating = useFloatingPlaceholder({ mode: placeholderMode, placeholder: placeholder[0], filled: Boolean(currentValue[0]), active: visible });
-  const endFloating = useFloatingPlaceholder({ mode: placeholderMode, placeholder: placeholder[1], filled: Boolean(currentValue[1]), active: visible });
+  // 允许部分范围时回显草稿，避免把输入框显示与最终提交绑定；必填范围保持原子的确认更新。
+  const displayValue = visible && allowEmpty.some(Boolean) ? draftValue : currentValue;
+  const startFloating = useFloatingPlaceholder({ mode: placeholderMode, placeholder: placeholder[0], filled: Boolean(displayValue[0]), active: visible });
+  const endFloating = useFloatingPlaceholder({ mode: placeholderMode, placeholder: placeholder[1], filled: Boolean(displayValue[1]), active: visible });
   return <span ref={rootRef} className={`sia-picker sia-picker-range-control sia-picker--${size} sia-picker--${status}${visible ? " is-open" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()}>
     <button
       type="button"
@@ -673,25 +685,38 @@ function DateRangePicker({
       aria-describedby={props["aria-describedby"]}
       aria-errormessage={props["aria-errormessage"]}
       disabled={disabled}
-      onClick={() => changeOpen(!visible)}
+      onClick={(event) => {
+        // 浮动标签和日期文字都归属各自输入区域，点击结束区域直接编辑结束值。
+        const field = (event.target as HTMLElement).closest<HTMLElement>("[data-range-endpoint]");
+        const endpoint = field?.dataset.rangeEndpoint;
+        if (showTime && (endpoint === "0" || endpoint === "1")) {
+          const index = Number(endpoint) as 0 | 1;
+          if (!endpointDisabled[index]) changeOpen(true, index);
+        } else if (visible) dismissPanel();
+        else changeOpen(true);
+      }}
     >
-      <span className={`sia-picker-range-control__field${startFloating.className}`}>
-      <span className={`sia-picker-range-control__value${currentValue[0] ? "" : " is-placeholder"}`}>{currentValue[0] ? formatValue(currentValue[0]) : placeholder[0]}</span>
+      <span data-range-endpoint="0" className={`sia-picker-range-control__field${startFloating.className}${visible && activeIndex === 0 ? " is-active" : ""}`}>
+      <span className={`sia-picker-range-control__value${displayValue[0] ? "" : " is-placeholder"}`}>{displayValue[0] ? formatValue(displayValue[0]) : placeholder[0]}</span>
         {startFloating.label}
       </span>
       <span className="sia-picker-range-control__separator">{separator}</span>
-      <span className={`sia-picker-range-control__field${endFloating.className}`}>
-      <span className={`sia-picker-range-control__value${currentValue[1] ? "" : " is-placeholder"}`}>{currentValue[1] ? formatValue(currentValue[1]) : placeholder[1]}</span>
+      <span data-range-endpoint="1" className={`sia-picker-range-control__field${endFloating.className}${visible && activeIndex === 1 ? " is-active" : ""}`}>
+      <span className={`sia-picker-range-control__value${displayValue[1] ? "" : " is-placeholder"}`}>{displayValue[1] ? formatValue(displayValue[1]) : placeholder[1]}</span>
         {endFloating.label}
       </span>
 
       <span className="sia-picker__icon" aria-hidden="true">{suffixIcon ?? <Icon name="calendar" size={16} />}</span>
     </button>
-    {allowClear && (currentValue[0] || currentValue[1]) && !disabled ? <button type="button" className="sia-picker__clear" aria-label="清除日期范围" onClick={clearValue}><Icon name="circle-close" variant="filled" size={15} /></button> : null}
-    <PopupPortal ref={popupRef} anchorRef={rootRef} open={visible} className={`sia-date-panel sia-date-panel--range${showTime ? ` sia-date-panel--with-time sia-date-panel--range-time-${compactDateTime ? "compact" : "paired"}` : ""}${presets?.length ? " sia-date-panel--with-presets" : ""}`} role="dialog" aria-label="日期范围选择面板">
+    {allowClear && (displayValue[0] || displayValue[1]) && !disabled ? <button type="button" className="sia-picker__clear" aria-label="清除日期范围" onClick={clearValue}><Icon name="circle-close" variant="filled" size={15} /></button> : null}
+    <PopupPortal ref={popupRef} anchorRef={rootRef} open={visible} className={`sia-date-panel sia-date-panel--range${showTime ? " sia-date-panel--with-time sia-date-panel--range-time-compact" : ""}${presets?.length ? " sia-date-panel--with-presets" : ""}`} role="dialog" aria-label="日期范围选择面板">
       <div className="sia-date-panel__body">
+        {/* 快捷范围复用框架日期面板侧栏，在日历左侧按配置顺序纵向排列。 */}
+        {presets?.length ? <aside className="sia-date-panel__presets" aria-label="快捷日期范围">
+          {presets.map((preset, index) => <button type="button" key={index} onClick={() => applyPreset(preset)}>{preset.label}</button>)}
+        </aside> : null}
         {showTime ? <div className="sia-date-panel__range-date-time">
-          {compactDateTime ? renderDateTimeGroup(activeIndex) : <>{renderDateTimeGroup(0)}{renderDateTimeGroup(1)}</>}
+          {renderDateTimeGroup(activeIndex)}
         </div> : <div className="sia-date-panel__range-calendars">
           <section className="sia-date-panel__calendar">
             <CalendarHeader
@@ -715,16 +740,10 @@ function DateRangePicker({
       </div>
       <DatePanelFooter
         showToday={showToday && !presets?.length}
-        needConfirm={resolvedNeedConfirm || allowEmpty.some(Boolean)}
-        disabledConfirm={compactDateTime && showTime && activeIndex === 0 ? !draftValue[0] : !isValidRange(draftValue)}
-        confirmText={compactDateTime && showTime && activeIndex === 0 ? "下一步" : "确定"}
+        needConfirm={Boolean(showTime) || resolvedNeedConfirm || allowEmpty.some(Boolean)}
+        disabledConfirm={needsOtherConfirmation ? !draftValue[activeIndex] && !allowEmpty[activeIndex] : !isValidRange(draftValue)}
         extra={<>
           {renderExtraFooter?.()}
-          {presets?.map((preset, index) => <button type="button" key={index} onClick={() => applyPreset(preset)}>{preset.label}</button>)}
-          {compactDateTime && showTime && activeIndex === 1 ? <button type="button" onClick={() => {
-            setActiveIndex(0);
-            setViewMonth(startOfMonth(parseDate(dayFromValue(draftValue[0])) ?? new Date()));
-          }}>上一步</button> : null}
           {invalidDateTimeRange ? <small className="sia-date-panel__range-error">结束时间不能早于开始时间</small> : maxRangeDays ? <small>最多选择 {maxRangeDays} 天</small> : null}
         </>}
         onToday={() => showTime ? selectDateTime(dateKey(new Date()), activeIndex) : selectDate(dateKey(new Date()))}
@@ -735,7 +754,7 @@ function DateRangePicker({
 }
 
 export namespace DatePicker {
-  /** 日期区间选择器。 */
+  /** 日期区间选择器；带时间时可从任一端开始，点击确定切换到另一端，两端确认后提交；锁定端点无需再次确认，快捷范围只需一次确认。纯日期支持在任一日历连续点选起止日期。 */
   export const RangePicker = DateRangePicker;
 }
 

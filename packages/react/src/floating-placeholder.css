@@ -43,6 +43,8 @@ fieldset:disabled .sia-placeholder-floating > .sia-floating-placeholder { backgr
 fieldset:disabled .sia-input-control__floating-placeholder, fieldset:disabled .sia-input-number__floating-placeholder { background: var(--sia-color-control-hover); }
 
 .sia-picker-range-control__field { position: relative; display: flex; align-items: center; flex: 1; min-width: 0; height: 100%; }
+/* 活动端点使用 3px 底线覆盖原边框，不占布局空间；切换面板时跟随当前编辑端点。 */
+.sia-picker-range-control__field.is-active::after { content: ""; position: absolute; right: 0; bottom: -1px; left: 0; height: 3px; background: var(--sia-color-primary); pointer-events: none; }
 .sia-picker-range-control__field.sia-placeholder-floating > .is-placeholder { color: transparent; }
 .sia-picker-range-control__field > .sia-floating-placeholder { left: -4px; max-width: 100%; }
 .sia-picker-range-control__field.sia-placeholder-floating--filled > .sia-floating-placeholder,
