@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  Button, Cascader, Checkbox, ColorPicker, DatePicker, Form, Icon, Input,
+  Button, Card, Cascader, Checkbox, ColorPicker, DatePicker, Form, Icon, Input,
   InputNumber, InputSelect, Pagination, Radio, Rate, Segmented, Select,
   SelectDateRange, Space, Switch, TextArea, TimePicker, TreeSelect,
 } from "@sia.soul/sia-react-ui";
@@ -21,6 +21,15 @@ export function FormSizeDemo() {
       ]} />
       <Checkbox checked={floating} onChange={setFloating}>浮动占位符</Checkbox>
     </Space>
+    {/* 横向表单穿过卡片布局，单选与多选仍与字段标签的首行垂直居中。 */}
+    <Form className="form-horizontal-alignment-demo" size={size} layout="horizontal">
+      <Card title="横向表单对齐">
+        <Form.Item label="申请人"><Input placeholder="请输入申请人" /></Form.Item>
+        <Form.Item label="补拉模式"><Radio.Group disabled defaultValue="partner" options={[{ value: "partner", label: "按合作方" }, { value: "channel", label: "按渠道" }]} /></Form.Item>
+        <Form.Item label="通知方式"><Checkbox.Group options={["邮件", "短信"]} /></Form.Item>
+        <Form.Item label="确认"><Checkbox>已阅读</Checkbox></Form.Item>
+      </Card>
+    </Form>
     <Form className="form-size-demo" size={size} layout="vertical" placeholderMode={floating ? "floating" : "default"}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 310px), 1fr))", gap: "0 24px" }}>
         <Form.Item label="Input 文本输入"><div data-size-control="input"><Input placeholder="输入内容" allowClear /></div></Form.Item>

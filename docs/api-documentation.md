@@ -79,3 +79,9 @@ pnpm test:api-docs
 ## Form 标签与必填标记
 
 `Form.Item.label` 支持文本和包含 Tooltip 的 React 节点。必填星号使用独立类名 `sia-form-item__required-mark`，红色仅标识星号，不表示字段已校验失败，也不应改变自定义标签的颜色。只有用户交互触发校验或提交校验时，才按原有规则显示字段错误。
+
+## Upload 已上传图片回填
+
+回填记录可使用 `{ uid, name, url, status: "done" }`。Upload 统一按 `thumbUrl`、图片 MIME、文件名或 URL 路径后缀判断缩略图与内置预览；URL 的查询参数和 hash 不影响后缀识别。没有 MIME 和后缀的远程图片，在 `accept="image/*"` 等纯图片限制下尝试加载；混合文件场景应提供准确的 `type` 或 `thumbUrl`，已知非图片 MIME 保持文件预览。
+
+Upload 会在选择、进度和完成时通知 `onChange`。若业务要求“上传完成”才算合法，应通过 `Form.Item validateTrigger={[]}` 在提交时验证，避免进度变化被当作用户填写错误；上传完成后可对该字段单独校验，清除先前提交的错误。

@@ -12,9 +12,9 @@ export interface AlertProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"
   status?: AlertStatus;
   /** 类型标识，用于选择对应的表现形式。 */
   type?: AlertStatus;
-  /** 标题内容，可传入文本或 React 节点。 */
+  /** 标题内容，支持文本或 React 节点；message 未提供时使用。 */
   title?: ReactNode;
-  /** 提示或错误消息文本。 */
+  /** 提示标题，支持文本或 React 节点，优先于 title；没有标题内容时不渲染标题区域。 */
   message?: ReactNode;
   /** 补充说明内容。 */
   description?: ReactNode;
@@ -57,12 +57,15 @@ export function Alert({
 }: AlertProps) {
   const [visible, setVisible] = useState(true);
   const resolvedStatus = status ?? type ?? (banner ? "warning" : "info");
+  const heading = message ?? title;
+  // 空标题不生成网格行；数字 0 仍是有效标题内容。
+  const hasHeading = heading != null && heading !== "" && typeof heading !== "boolean";
   if (!visible) return null;
   return (
     <div className={`sia-alert sia-alert--${resolvedStatus}${banner ? " sia-alert--banner" : ""}${description ? " sia-alert--with-description" : ""} ${className}`.trim()} role="alert" {...withTitleTooltip(props)}>
       {showIcon || banner ? <span className="sia-alert__icon" aria-hidden="true">{alertIcons[resolvedStatus]}</span> : null}
       <div className="sia-alert__content">
-        <strong>{message ?? title}</strong>
+        {hasHeading ? <strong>{heading}</strong> : null}
         {description ? <span>{description}</span> : null}
       </div>
       {action ? <div className="sia-alert__action">{action}</div> : null}

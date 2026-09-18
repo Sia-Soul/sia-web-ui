@@ -1,0 +1,24 @@
+// 无后缀远程图片、签名 URL 和明确非图片文件的识别回归。
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const ts = require('typescript');
+const source = fs.readFileSync(path.resolve(__dirname, '../packages/react/src/components/uploadImage.ts'), 'utf8');
+const compiled = ts.transpileModule(source, {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const context = {exports:{}, URL};
+vm.runInNewContext(compiled,context);
+const {isUploadImage} = context.exports;
+const file = {uid:'saved',name:'数据授权协议',status:'done',url:'https://example.test/files/123'};
+assert.equal(isUploadImage(file,'image/*'),true);
+assert.equal(isUploadImage(file,'.png,.jpg'),true);
+assert.equal(isUploadImage(file),false);
+assert.equal(isUploadImage(file,'image/*,application/pdf'),false);
+assert.equal(isUploadImage({...file,type:'application/pdf'},'image/*'),false);
+assert.equal(isUploadImage({...file,type:'image/png'}),true);
+assert.equal(isUploadImage({...file,url:'https://example.test/photo.PNG?signature=1#preview'}),true);
+assert.equal(isUploadImage({...file,url:'https://example.test/files/123',name:'photo.webp'}),true);
+assert.equal(isUploadImage({...file,url:'data:image/png;base64,abc'}),true);
+assert.equal(isUploadImage({...file,url:undefined,thumbUrl:'https://example.test/thumb/123'}),true);
+assert.equal(isUploadImage(undefined,'image/*'),false);
+console.log('PASS: stored images, signed URLs, MIME priority and mixed-file safety');

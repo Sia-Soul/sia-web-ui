@@ -46,10 +46,16 @@
 .sia-segmented.sia-segmented--small button { height: calc(var(--sia-control-height-small) - 4px); min-height: 0; padding-block: 0; }
 .sia-segmented.sia-segmented--medium button { height: calc(var(--sia-control-height-medium) - 4px); min-height: 0; padding-block: 0; }
 .sia-segmented.sia-segmented--large button { height: calc(var(--sia-control-height-large) - 4px); min-height: 0; padding-block: 0; }
-.sia-form--small > fieldset > .sia-form-item > .sia-form-item__label { padding-top: 1px; }
-.sia-form--medium > fieldset > .sia-form-item > .sia-form-item__label { padding-top: 5px; }
-.sia-form--large > fieldset > .sia-form-item > .sia-form-item__label { padding-top: 9px; }
-.sia-form.sia-form--vertical > fieldset > .sia-form-item > .sia-form-item__label { padding-top: 0; }
+/* 表单尺寸通过变量穿透 Card、Space 等布局层，标签对齐首行控件而非整个多行内容。 */
+.sia-form--small { --sia-form-row-height: var(--sia-control-height-small); }
+.sia-form--medium { --sia-form-row-height: var(--sia-control-height-medium); }
+.sia-form--large { --sia-form-row-height: var(--sia-control-height-large); }
+@media (min-width: 651px) {
+  .sia-form--horizontal .sia-form-item__label { padding-top: max(0px, calc((var(--sia-form-row-height) - 1.45em) / 2)); }
+  /* 单选、多选及其组使用与输入框相同的最小行高，保留组内换行和禁用状态。 */
+  .sia-form--horizontal .sia-form-item__input-wrap > :is(.sia-radio, .sia-checkbox, .sia-radio-group, .sia-checkbox-group) { min-height: var(--sia-form-row-height); }
+}
+.sia-form.sia-form--vertical .sia-form-item__label { padding-top: 0; }
 .sia-rate--small .sia-rate__item button { font-size: 15px; }
 .sia-rate--medium .sia-rate__item button { font-size: 20px; }
 .sia-rate--large .sia-rate__item button { font-size: 25px; }

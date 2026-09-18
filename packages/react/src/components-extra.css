@@ -922,7 +922,9 @@ body > .sia-popup-portal[data-sia-popup-layer] { position: fixed; z-index: 1080;
 .sia-alert__icon { display: inline-flex; align-self: flex-start; }
 .sia-alert__content { flex: 1; }
 .sia-alert__content strong, .sia-alert__content > span { display: block; }
-.sia-alert__content > span { margin-top: 3px; color: var(--sia-color-text-secondary); }
+/* 描述仅在标题之后增加间距，独立描述与状态图标保持顶部对齐。 */
+.sia-alert__content > span { color: var(--sia-color-text-secondary); }
+.sia-alert__content > strong + span { margin-top: 3px; }
 .sia-alert__close { align-self: flex-start; padding: 3px; color: inherit; cursor: pointer; background: transparent; border: 0; opacity: .65; }
 .sia-alert--banner { border-radius: 0; }
 

@@ -25,6 +25,9 @@ export function AlertPage() {
         <Alert type="error" showIcon message="保存失败" description="请检查网络后重试。" />
       </Space>
     </DemoCard>
+    <DemoCard title="仅描述内容" description="不传 message 或 title 时，描述直接与图标顶部对齐。" code={'<Alert type="error" showIcon description="当前状态不是合作中，不可审核。" />'}>
+      <Alert type="error" showIcon description="当前状态不是合作中，不可审核。" />
+    </DemoCard>
     <DemoCard title="横幅提示" description="banner 默认使用警告状态和图标。" code={`<Alert banner message="系统将在今晚 23:00 进行维护" closable />`}><Alert banner message="系统将在今晚 23:00 进行维护" closable /></DemoCard>
   </ComponentDocPage>;
 }

@@ -7,6 +7,7 @@ import { ImagePreview } from "./DataDisplay";
 import { acceptsUploadFile, includeUploadPath, readUploadEntries } from "./uploadFiles";
 import { sendUploadRequest } from "./uploadRequest";
 import { downloadUploadFile } from "./uploadDownload";
+import { isUploadImage } from "./uploadImage";
 import { message } from "./Message";
 import type { UploadChangeInfo, UploadFile, UploadProps, UploadDraggerProps, UploadRef, UploadRequestHandle, UploadRequestOptions, UploadItemActions } from "./uploadTypes";
 export type { UploadChangeInfo, UploadDraggerProps, UploadFile, UploadFileStatus, UploadProps, UploadRequestOptions, UploadHttpRequest, UploadRequestHandle, UploadRejectInfo, UploadRef, UploadItemActions } from "./uploadTypes";
@@ -14,7 +15,7 @@ export type { UploadChangeInfo, UploadDraggerProps, UploadFile, UploadFileStatus
 const LIST_IGNORE = Symbol("SIA_UPLOAD_LIST_IGNORE");
 
 /** 每个预览独立持有对象 URL，在文件替换或卸载时释放，避免照片墙长期占用内存。 */
-function useThumbnail(file?: UploadFile) {
+function useThumbnail(file?: UploadFile, accept?: string) {
   const [local, setLocal] = useState<string>();
   useEffect(() => {
     if (!file?.thumbUrl && file?.originFileObj?.type.startsWith("image/")) {
@@ -24,12 +25,12 @@ function useThumbnail(file?: UploadFile) {
     }
     setLocal(undefined);
   }, [file?.originFileObj, file?.thumbUrl]);
-  return file?.thumbUrl || local || (file?.type?.startsWith("image/") || /\.(png|jpe?g|gif|webp|avif|svg)(\?|$)/i.test(file?.url ?? "") ? file?.url : undefined);
+  return file?.thumbUrl || local || (isUploadImage(file, accept) ? file?.url : undefined);
 }
 
 /** 列表缩略图及状态；自定义渲染仍可复用默认节点和受限操作。 */
 function UploadItem({ file, files, props, actions }: { file: UploadFile; files: readonly UploadFile[]; props: UploadProps; actions: UploadItemActions }) {
-  const source = useThumbnail(file);
+  const source = useThumbnail(file, props.accept);
   const [failed, setFailed] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const downloadingRef = useRef(false);
@@ -83,7 +84,7 @@ const UploadRoot = forwardRef<UploadRef, UploadProps>(function UploadRoot({ acce
   const mounted = useRef(true);
   const [dragging, setDragging] = useState(false);
   const [preview, setPreview] = useState<UploadFile>();
-  const previewSource = useThumbnail(preview);
+  const previewSource = useThumbnail(preview, accept);
   const limit = maxCount === undefined || !Number.isFinite(maxCount) ? Infinity : Math.max(0, Math.floor(maxCount));
   const full = files.length >= limit;
   const current = useRef({ disabled, directory, recursive });
@@ -234,11 +235,11 @@ const UploadRoot = forwardRef<UploadRef, UploadProps>(function UploadRoot({ acce
       onChange={event => { ingest([...(event.currentTarget.files ?? [])].map(file => ({ file, path: file.webkitRelativePath || file.name }))); event.currentTarget.value = ""; }} />
     {listType !== "picture-card" && trigger}
     <div className="sia-upload__list">
-      {showUploadList && files.map(file => <UploadItem key={file.uid} file={file} files={files} props={{ listType, disabled, itemRender, onPreview, downloadRequest }} actions={{
+      {showUploadList && files.map(file => <UploadItem key={file.uid} file={file} files={files} props={{ listType, disabled, itemRender, onPreview, downloadRequest, accept }} actions={{
         upload: () => start(file), abort: () => abort(file.uid), remove: () => remove(file.uid), download: () => downloadUploadFile(file, downloadRequest),
         preview: () => {
           if (onPreview) onPreview(file);
-          else if ((file.type || file.originFileObj?.type)?.startsWith("image/") || /\.(png|jpe?g|gif|webp|avif|svg)$/i.test(file.name)) setPreview(file);
+          else if (isUploadImage(file, accept)) setPreview(file);
           else if (file.url || file.originFileObj) {
             // 非图片交给浏览器查看；此入口与强制下载完全独立。
             const url = file.url || URL.createObjectURL(file.originFileObj!);

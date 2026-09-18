@@ -16,7 +16,7 @@ export interface UploadFile {
   status?: UploadFileStatus;
   /** 上传百分比，范围 0–100。 */
   percent?: number;
-  /** 远程访问地址，用于预览及下载；默认下载会 fetch 为 Blob，跨域地址需要服务端允许 CORS。 */
+  /** 远程访问地址，用于预览及下载；图片通过 MIME、文件名或 URL 后缀识别，无类型及后缀时可用仅包含图片的 accept 声明启用缩略图和内置预览。默认下载会 fetch 为 Blob，跨域地址需要服务端允许 CORS。 */
   url?: string;
   /** 缩略图地址，优先于本地缩略图；预览优先使用 url。 */
   thumbUrl?: string;

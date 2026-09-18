@@ -3,6 +3,7 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "re
 import type { HTMLAttributes, KeyboardEvent, ReactNode } from "react";
 import { Dropdown } from "./Dropdown";
 import { Icon } from "./Icon";
+import { FloatingScrollbarProvider } from "./FloatingScrollbarProvider";
 import type { MenuClickInfo, MenuItem } from "./Navigation";
 import type { ControlSize } from "./shared";
 
@@ -72,7 +73,7 @@ export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChang
    * @defaultValue false
    */
   centered?: boolean;
-  /** 标签栏左侧标题，科技大屏型会附带装饰线；折线科技型横向布局按标题内容及装饰留白确定宽度，窄屏时标题独占一行。 */
+  /** 标签栏左侧标题，科技大屏型会附带装饰线；折线科技型横向布局按标题内容及装饰留白确定宽度，标签超宽时独立横向滚动并保持当前标签可见，窄屏时标题独占一行。 */
   tabBarTitle?: ReactNode;
   /** 标签栏与内容面板之间的间距，单位 px，支持 0；未指定时上下布局为 16px，左右布局为 20px。仅影响当前 Tabs，不传递给嵌套实例。 */
   contentGap?: number;
@@ -148,7 +149,13 @@ export function Tabs({
       if (!active) { indicator.style.visibility = "hidden"; return; }
       const listRect = list.getBoundingClientRect();
       const rect = active.getBoundingClientRect();
-      indicator.style.transform = `translate(${rect.left - listRect.left - list.clientLeft + list.scrollLeft}px, ${rect.top - listRect.top - list.clientTop + list.scrollTop}px)`;
+      // 标签栏只滚动自身，避免切换末尾标签时连带移动页面及内容区。
+      if (type === "tech-line" && resolvedOrientation === "horizontal") {
+        if (rect.left < listRect.left) list.scrollLeft += rect.left - listRect.left;
+        else if (rect.right > listRect.right) list.scrollLeft += rect.right - listRect.right;
+      }
+      const currentRect = active.getBoundingClientRect();
+      indicator.style.transform = `translate(${currentRect.left - listRect.left - list.clientLeft + list.scrollLeft}px, ${currentRect.top - listRect.top - list.clientTop + list.scrollTop}px)`;
       indicator.style.width = `${rect.width}px`;
       indicator.style.height = `${rect.height}px`;
       indicator.style.visibility = "visible";
@@ -224,6 +231,7 @@ export function Tabs({
       {...withTitleTooltip(props)}
     >
       <div className="sia-tabs__header">
+        <FloatingScrollbarProvider targetRef={listRef} disabled={type !== "tech-line" || resolvedOrientation !== "horizontal"} />
         {tabBarTitle ? <div className="sia-tabs__title">{tabBarTitle}{type === "tech-line" ? (
           <svg className="sia-tabs__title-connector" viewBox="0 0 32 40" aria-hidden="true">
             {/* 端点对齐两条 1.5px 横线的中心，而非上边缘，避免接点出现半像素尖刺。 */}
