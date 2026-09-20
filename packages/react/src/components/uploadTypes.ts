@@ -167,6 +167,8 @@ export interface UploadProps extends Omit<HTMLAttributes<HTMLDivElement>, "defau
   itemRender?: (node: ReactNode, file: UploadFile, fileList: readonly UploadFile[], actions: UploadItemActions) => ReactNode;
   /** 上传按钮内容，不应嵌套其他交互控件；外层负责点击和键盘操作。 */
   children?: ReactNode;
+  /** 点击或键盘激活上传入口时同步调用；返回 false 阻止打开系统文件选择器，可用于打开业务上传弹框。默认打开系统选择器。禁用或已达数量上限时不调用，不影响拖拽与粘贴。 */
+  onChoose?: () => boolean | void;
 }
 /** 拖拽区域继承全部 Upload 能力，ref 同样支持手动控制。 */
 export interface UploadDraggerProps extends UploadProps {

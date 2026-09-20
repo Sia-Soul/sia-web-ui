@@ -68,7 +68,7 @@ type UploadTask = { controller: AbortController; handle?: UploadRequestHandle; d
 /** 上传根实现：选择同步占位，校验和请求独立执行，防止多入口并发绕过数量上限。 */
 const UploadRoot = forwardRef<UploadRef, UploadProps>(function UploadRoot({ accept, multiple = false, directory = false, recursive = true, pastable = false,
   disabled = false, autoUpload = true, maxCount, fileList, defaultFileList = [], listType = "text", cardSize, showUploadList = true,
-  beforeUpload, request, customRequest, onChange, onRemove, onReject, onReadError, onPreview, downloadRequest, itemRender, children,
+  beforeUpload, request, customRequest, onChange, onRemove, onReject, onReadError, onPreview, downloadRequest, itemRender, children, onChoose,
   className = "", style, onDragOver, onDragLeave, onDrop, onPaste, tabIndex, ...props }, ref) {
   // 对无效尺寸回退，给极小卡片保留可点击的缩略图区域。
   const cardDimension = (value?: number) => value !== undefined && Number.isFinite(value) ? Math.max(48, value) : 112;
@@ -220,7 +220,10 @@ const UploadRoot = forwardRef<UploadRef, UploadProps>(function UploadRoot({ acce
   }
 
   const trigger = !(listType === "picture-card" && full) && <div className="sia-upload__trigger">
-    <Button className="sia-upload__choose" aria-label={compactCard ? (directory ? "选择文件夹" : "选择文件") : undefined} disabled={disabled || full} onClick={() => inputRef.current?.click()}>
+    <Button className="sia-upload__choose" aria-label={compactCard ? (directory ? "选择文件夹" : "选择文件") : undefined} disabled={disabled || full} onClick={() => {
+      // 入口复用同一原生按钮，业务接管后不再同时弹出系统选择器。
+      if (!disabled && !full && onChoose?.() !== false) inputRef.current?.click();
+    }}>
       {children ?? (listType === "picture-card" ? <><Icon name="plus" size={24} /><span>上传图片</span></> : <><Icon name="upload" size={16} />{directory ? "选择文件夹" : "选择文件"}</>)}
     </Button>
   </div>;

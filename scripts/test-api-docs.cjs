@@ -57,6 +57,8 @@ uploadRequest.signal;
 declare const uploadProps: UploadProps;
 uploadProps.downloadRequest;
 uploadProps.cardSize;
+// 业务接管上传入口时必须明确返回 false 的含义。
+uploadProps.onChoose;
 declare const uploadActions: UploadItemActions;
 uploadActions.download;
 const query = <QueryForm savedQueries={[]} onSaveQuery={async ({name,values})=>{}} onSearch={()=>{}} />;
@@ -92,6 +94,7 @@ cases.push(['checkboxGroupProps.columns', '等宽网格'], ['checkboxGroupProps.
 cases.push(['tabsProps.contentGap', '仅影响当前 Tabs'], ['tabsProps.deferContent', '保留旧面板'], ['tabsProps.onAfterChange', '连续切换']);
 cases.push(['uploadProps.downloadRequest', 'Blob'], ['uploadActions.download', '不打开新标签页']);
 cases.push(['uploadProps.cardSize', '卡片尺寸']);
+cases.push(['uploadProps.onChoose', '返回 false']);
 cases.push(['toolbarItem.title', '禁用时仍可显示']);
 cases.push(['cardProps.selectable', '非交互区域'], ['cardProps.onSelectedChange', '布尔状态'], ['cardProps.hoverActions', '滑入']);
 cases.push(['confirmProps.skipConfirm', '跳过气泡'], ['confirmProps.onConfirm', 'Promise'], ['confirmProps.onConfirmError', '原始错误'], ['confirmProps.arrow', 'pointAtCenter'], ['floatingProps.autoAdjustOverflow', '可视区域'], ['floatingArrow.pointAtCenter', '中心']);

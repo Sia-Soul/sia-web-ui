@@ -89,7 +89,11 @@ export function UploadPage() {
     { property: "itemRender / onPreview", description: "完全自定义列表项及预览；操作句柄支持预览、下载、取消和删除。图片默认弹层预览，其他文件交给浏览器查看", type: "回调", defaultValue: "默认列表 / 内置预览" },
     { property: "downloadRequest", description: "自定义获取 Blob，用于鉴权、OSS 签名或代理；默认请求 url，无 url 则使用本地原文件。通过 Blob 触发浏览器下载，不打开新标签页；跨域地址需支持 CORS，失败时提示错误", type: "(file: UploadFile) => Blob | Promise<Blob>", defaultValue: "内置下载" },
     { property: "onReject / onReadError", description: "文件类型、数量拒绝与目录读取失败通知", type: "回调", defaultValue: "-" },
+    { property: "onChoose", description: "点击或键盘激活上传入口时调用；返回 false 接管为业务弹框，不打开系统选择器", type: "() => boolean | void", defaultValue: "-" },
   ]}>
+    <DemoCard title="接管上传入口" description="复用原生上传卡片，由业务打开上传弹框；示例仅提示，不读取文件。返回 false 可阻止系统文件选择器。" code={'<Upload listType="picture-card" onChoose={() => { setUploadOpen(true); return false; }} />'}>
+      <Upload listType="picture-card" onChoose={() => { message.info("业务可在此打开上传弹框"); return false; }} />
+    </DemoCard>
     <DemoCard title="照片墙" description="悬停或键盘焦点进入卡片后，预览、下载与移除按钮居中浮动显示；触屏始终显示。下载按文件名保存，最多 6 张，新增文件使用本地模拟进度。" code={'<Upload listType="picture-card" accept="image/*" multiple maxCount={6} customRequest={yourUploader} />'}>
       <Upload aria-label="照片墙" listType="picture-card" accept="image/*" multiple maxCount={6} defaultFileList={initialPictures} customRequest={demoRequest} onReject={({ reason }) => message.warning(reason === "accept" ? "请选择图片" : "最多 6 张图片")} />
     </DemoCard>
