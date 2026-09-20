@@ -500,6 +500,8 @@ export function createCellSelectionPlugin<T extends Record<string, unknown>>(
       info,
     );
     if (exported !== undefined) return tableExportText(exported);
+    // 画布标签复制展示文本，避免只得到原始状态码。
+    if (column.canvasRender) return column.canvasRender(value, row.record, row.sourceIndex, info)?.text ?? "";
     // Editable columns are wrapped with an editor React element by the editable plugin.
     // Copy their underlying value unless the consumer explicitly supplied exportRender.
     if (column.editable) return tableExportCell(value, true);

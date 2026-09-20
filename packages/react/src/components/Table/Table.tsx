@@ -1,6 +1,8 @@
 import { withTitleTooltip } from "../titleTooltip";
 import { useScrollbarProximity } from "../useScrollbarProximity";
 import { TableCellContent } from "./TableCellContent";
+import { TableCanvasLayer } from "./TableCanvasLayer";
+import "./canvas.css";
 import { Fragment, forwardRef, isValidElement, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactElement, ReactNode, Ref } from "react";
 import { Tooltip } from "../FloatingDisplay";
@@ -125,6 +127,8 @@ function getTableHorizontalMetrics(viewport: HTMLElement, table: HTMLTableElemen
 }
 
 interface BodyRowProps<T> {
+  canvas: boolean;
+  visibleColumns: ReadonlySet<string>;
   row: TableRow<T>;
   rowIndex: number;
   columns: readonly TableColumn<T>[];
@@ -149,6 +153,8 @@ interface BodyRowProps<T> {
 }
 
 const TableBodyRow = memo(function TableBodyRow<T>({
+  canvas,
+  visibleColumns,
   row,
   rowIndex,
   columns,
@@ -173,6 +179,7 @@ const TableBodyRow = memo(function TableBodyRow<T>({
 }: BodyRowProps<T>) {
   return (
     <tr
+      data-canvas-row-index={canvas ? rowIndex : undefined}
       className={`sia-table__row${striped && rowIndex % 2 === 1 ? " sia-table__row--striped" : ""} ${className}`.trim()}
       style={{ height: rowHeight }}
       onClick={onClick}
@@ -180,7 +187,14 @@ const TableBodyRow = memo(function TableBodyRow<T>({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      {columns.map((column) => {
+      {columns.map((column, columnIndex) => {
+        // 离屏列合并为一个占位单元格，保留 colgroup 宽度，避免每行创建全部列的 DOM。
+        if (canvas && !visibleColumns.has(column.key)) {
+          if (columnIndex > 0 && !visibleColumns.has(columns[columnIndex - 1].key)) return null;
+          let count = 1;
+          while (columnIndex + count < columns.length && !visibleColumns.has(columns[columnIndex + count].key)) count++;
+          return <td key={`spacer-${column.key}`} colSpan={count} aria-hidden="true" style={{ padding: 0 }} />;
+        }
         const pluginCellProps = getCellProps(column);
         if (pluginCellProps.hidden) return null;
         const value = getTableValue(row.record, column.dataIndex, column.code ?? column.key);
@@ -197,6 +211,8 @@ const TableBodyRow = memo(function TableBodyRow<T>({
           <td
             key={column.key}
             data-column-key={column.key}
+            data-canvas-dom-ready={canvas && (pluginCellProps.content !== undefined || (!column.canvasRender && column.render)) ? "true" : undefined}
+            aria-label={canvas ? column.canvasRender?.(value, row.record, row.sourceIndex, { row, rowIndex, column })?.text ?? (value == null ? "" : String(value)) : undefined}
             rowSpan={pluginCellProps.rowSpan}
             colSpan={pluginCellProps.colSpan}
             className={`sia-table__cell sia-table__cell--${column.align ?? "left"}${fixed ? ` sia-table__cell--fixed sia-table__cell--fixed-${fixed}` : ""}${fixedEdgeClass}${autoWidthClass}${column.ellipsis !== false ? " sia-table__cell--ellipsis" : ""} ${cellClass} ${pluginCellProps.className ?? ""}`.trim()}
@@ -208,14 +224,14 @@ const TableBodyRow = memo(function TableBodyRow<T>({
             onPointerDown={(event) => onCellPointerDown(column, event)}
             onPointerMove={(event) => onCellPointerMove(column, event)}
           >
-            <TableCellContent
+            {(!canvas || (visibleColumns.has(column.key) && (pluginCellProps.content !== undefined || (!column.canvasRender && column.render)))) ? <TableCellContent
               ellipsis={column.ellipsis !== false}
               title={column.showTitle === true && column.ellipsis !== false && typeof value === "string" ? value : undefined}
             >
               {pluginCellProps.content !== undefined
                 ? pluginCellProps.content
                 : column.render ? column.render(value, row.record, row.sourceIndex, { row, rowIndex, column }) : value as ReactNode}
-            </TableCellContent>
+            </TableCellContent> : null}
           </td>
         );
       })}
@@ -240,6 +256,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     toolbarBordered = false,
     striped = true,
     virtual,
+    renderMode = "dom",
     virtualThreshold = 100,
     rowHeight = SIZE_ROW_HEIGHT[size],
     overscan = 6,
@@ -269,6 +286,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
   } | null>(null);
   const [internalLoading, setInternalLoading] = useState(false);
   const [scrollTop, setScrollTop] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(420);
   const [viewportWidth, setViewportWidth] = useState(0);
   const [autoColumnWidths, setAutoColumnWidths] = useState<Record<string, number>>({});
@@ -533,18 +551,28 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
   const rightFixedEdgeKey = leafColumns.find((column) => normalizeFixed(column.fixed) === "right")?.key;
 
   // 按筛选、分页及树展开后的实际渲染行数兜底，超过 100 行时不允许配置关闭窗口化。
-  const shouldVirtualize = pipeline.rows.length > 100
+  const canvas = renderMode === "canvas" && !sortedPlugins.some(plugin => plugin.disableVirtual);
+  const shouldVirtualize = canvas || pipeline.rows.length > 100
     || ((virtual ?? pipeline.rows.length >= virtualThreshold) && !sortedPlugins.some((plugin) => plugin.disableVirtual));
   const startIndex = shouldVirtualize ? Math.max(0, Math.floor(scrollTop / rowHeight) - overscan) : 0;
   const visibleCount = shouldVirtualize ? Math.ceil(viewportHeight / rowHeight) + overscan * 2 : pipeline.rows.length;
   const endIndex = shouldVirtualize ? Math.min(pipeline.rows.length, startIndex + visibleCount) : pipeline.rows.length;
   const renderedRows = pipeline.rows.slice(startIndex, endIndex);
+  // 仅为横向可见列挂载交互组件，固定列始终保留。
+  const visibleColumns = new Set<string>();
+  let columnLeft = 0;
+  for (const column of leafColumns) {
+    const width = columnWidths.get(column.key) ?? DEFAULT_WIDTH;
+    if (normalizeFixed(column.fixed) || (columnLeft + width >= scrollLeft && columnLeft <= scrollLeft + viewportWidth)) visibleColumns.add(column.key);
+    columnLeft += width;
+  }
   const topSpacer = shouldVirtualize ? startIndex * rowHeight : 0;
   const bottomSpacer = shouldVirtualize ? Math.max(0, (pipeline.rows.length - endIndex) * rowHeight) : 0;
   // 虚拟窗口移动时复用仍可见行的元素与事件闭包；数据、插件或列布局变化必须失效。
   const rowElements = useMemo(() => new Map<React.Key, ReactElement>(), [
     dataSource, baseColumns, sortedPlugins, pluginStates, autoColumnWidths,
     viewportWidth, rowHeight, striped, rowClassName, getRowKey,
+    canvas, scrollLeft,
     onRowClick, onRowDoubleClick, onCellContextMenu,
   ]);
   const toolbarStart = sortedPlugins.map((plugin) => {
@@ -576,8 +604,9 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     const element = event.currentTarget;
     // 同一行区间内无需重新渲染整张表，横向滚动也不应重建单元格。
     if (shouldVirtualize) setScrollTop(previous => Math.floor(previous / rowHeight) === Math.floor(element.scrollTop / rowHeight) ? previous : element.scrollTop);
+    if (canvas) setScrollLeft(element.scrollLeft);
     updateScrollMetrics();
-  }, [shouldVirtualize, rowHeight, updateScrollMetrics]);
+  }, [canvas, shouldVirtualize, rowHeight, updateScrollMetrics]);
 
   const handleScrollbarPointerDown = useCallback((axis: "x" | "y", event: React.PointerEvent<HTMLDivElement>, track = event.currentTarget) => {
     const element = scrollRef.current;
@@ -737,6 +766,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
       className={`sia-table sia-table--${size}${bordered ? " sia-table--bordered" : ""}${!rowBordered ? " sia-table--no-row-borders" : ""}${!columnBordered ? " sia-table--no-column-borders" : ""}${hasToolbar && !toolbarBordered ? " sia-table--borderless-toolbar" : ""} ${className}`.trim()}
       style={rootStyle}
       data-has-fixed-left={left > 0}
+      data-render-mode={canvas ? "canvas" : "dom"}
       data-has-fixed-right={right > 0}
       data-scrolled-left="false"
       data-scrolled-right="true"
@@ -814,6 +844,8 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
               const pluginClasses = sortedPlugins.map((plugin) => plugin.getRowClassName?.(row, getContext(plugin))).filter(Boolean).join(" ");
               const customClass = typeof rowClassName === "function" ? rowClassName(row.record, row.sourceIndex) : rowClassName ?? "";
               const element = <TableBodyRow
+                canvas={canvas}
+                visibleColumns={visibleColumns}
                 key={row.key}
                 row={row}
                 rowIndex={rowIndex}
@@ -865,6 +897,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
         </table>
         </div>
         {pipeline.rows.length === 0 ? <div className="sia-table__empty" role="status">{emptyText}</div> : null}
+        {canvas ? <TableCanvasLayer viewport={scrollRef} rows={pipeline.rows} columns={leafColumns} widths={columnWidths} rowHeight={rowHeight} headerHeight={headerRows.length * rowHeight} /> : null}
         <div className="sia-scrollbar-track sia-table__scrollbar sia-table__scrollbar--horizontal" aria-hidden="true"
           onPointerDown={(event) => handleScrollbarPointerDown("x", event)}
           onClick={(event) => event.stopPropagation()}

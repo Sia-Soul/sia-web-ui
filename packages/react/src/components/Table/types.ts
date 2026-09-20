@@ -9,6 +9,16 @@ export type TableAlign = "left" | "center" | "right";
 /** 表格行高和字号的尺寸等级。 */
 export type TableSize = "small" | "medium" | "large";
 
+/** Canvas 单元格的绘制内容，不创建 React 子树。 */
+export interface TableCanvasCell {
+  /** 单行显示文本；超出列宽时自动省略。 */
+  text: string;
+  /** 文本颜色；默认使用表格主题文字色。 */
+  color?: string;
+  /** 标签背景色；设置后以圆角标签绘制，未设置时绘制普通文本。 */
+  background?: string;
+}
+
 /** 经过表格插件处理的行数据及其层级和索引信息。 */
 export interface TableRow<T> {
   /** 唯一标识；同一集合内应保持唯一且稳定，用于定位、渲染和状态关联。 */
@@ -103,6 +113,8 @@ export interface TableColumn<T = Record<string, unknown>> {
   children?: readonly TableColumn<T>[];
   /** 自定义数据单元格内容，接收该列的值、行数据和单元格上下文。 */
   render?: (value: unknown, record: T, index: number, info: TableCellRenderInfo<T>) => ReactNode;
+  /** Canvas 模式的纯绘制回调；返回 null 不绘制内容。未提供时，普通值直接绘制，自定义 render 仍以可见区域内的 Sia/React 组件显示。 */
+  canvasRender?: (value: unknown, record: T, index: number, info: TableCellRenderInfo<T>) => TableCanvasCell | null;
   /** 自定义列头内容，接收当前列及插件上下文；外层保持单行省略，悬停提示从 title 提取文本，无法提取时回退到 name 或 key。 */
   renderHeader?: (column: TableColumn<T>, context: TablePluginContext<T, any>) => ReactNode;
   /** 数据单元格的 CSS 类名，也可按单元格计算。 */
@@ -305,6 +317,8 @@ export interface TableProps<T extends Record<string, unknown> = Record<string, u
   striped?: boolean;
   /** 是否启用窗口化渲染；未指定时按 virtualThreshold 判断。筛选、分页及树展开后的实际展示行数超过 100 时强制启用，优先于 false 和插件的 disableVirtual。 */
   virtual?: boolean;
+  /** 内容渲染方式，默认 dom；canvas 使用画布绘制文本，并保留可见交互组件及 DOM 单元格语义。Canvas 强制固定行高和行虚拟化；不支持虚拟化的插件自动回退 DOM。 */
+  renderMode?: "dom" | "canvas";
   /** 自动启用虚拟滚动的展示行数阈值（含该值），默认 100；仅在未指定 virtual 时使用，实际展示超过 100 行始终强制启用。 */
   virtualThreshold?: number;
   /** 行高度，单位为 px，虚拟滚动用其计算行位置；默认随 size 取 small 28、medium 36、large 46。自定义内容应适配行高，避免撑高后导致虚拟滚动位置偏差。 */

@@ -1,5 +1,5 @@
 import { withTitleTooltip } from "./titleTooltip";
-import { cloneElement, isValidElement, useEffect, useRef, useState } from "react";
+import { cloneElement, isValidElement, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, MouseEvent, ReactNode } from "react";
 import { Button } from "./Button";
 import type { ButtonProps } from "./Button";
@@ -33,7 +33,7 @@ export interface DropdownMenuProps extends Pick<
 export interface DropdownProps extends Omit<HTMLAttributes<HTMLSpanElement>, "children" | "onOpenChange"> {
   /** 菜单项、选中状态与点击回调 */
   menu: DropdownMenuProps;
-  /** 子内容；组件嵌套内容或当前节点的子项。 */
+  /** 触发内容；菜单默认跟随触发按钮的实际字号，无按钮时使用首个触发元素或外层容器的字号。 */
   children: ReactNode;
   /**
    * 触发显示的交互方式。
@@ -86,7 +86,7 @@ export interface DropdownProps extends Omit<HTMLAttributes<HTMLSpanElement>, "ch
    * @defaultValue ""
    */
   popupClassName?: string;
-  /** 弹出面板的内联样式。 */
+  /** 弹出面板的内联样式；fontSize 可覆盖默认跟随触发按钮的菜单字号。 */
   popupStyle?: CSSProperties;
   /** 自定义菜单浮层内容 */
   popupRender?: (menu: ReactNode) => ReactNode;
@@ -139,6 +139,21 @@ function DropdownRoot({
   const visible = open ?? internalOpen;
   const triggerSet = new Set(trigger);
   const pointAtCenter = typeof arrow === "object" && arrow.pointAtCenter;
+  const [triggerFontSize, setTriggerFontSize] = useState<string>();
+
+  // Portal 脱离触发器的样式继承链，需读取按钮最终字号，并在按钮尺寸变化时同步。
+  useLayoutEffect(() => {
+    if (!visible || !rootRef.current) return;
+    const root = rootRef.current;
+    const target = root.querySelector<HTMLElement>("button, [role='button'], a")
+      ?? (root.firstElementChild !== contextAnchorRef.current ? root.firstElementChild : null) ?? root;
+    /** 读取计算后的 CSS 像素字号，兼容按钮尺寸、继承样式与自定义字号。 */
+    const syncFontSize = () => setTriggerFontSize(getComputedStyle(target).fontSize);
+    syncFontSize();
+    const observer = new ResizeObserver(syncFontSize);
+    observer.observe(target);
+    return () => observer.disconnect();
+  });
 
   function clearTimer(ref: typeof openTimerRef) {
     if (ref.current === undefined) return;
@@ -323,7 +338,7 @@ function DropdownRoot({
       placement={contextPoint ? "bottom-start" : placementMap[placement]}
       offset={contextPoint ? 2 : 6}
       className={`sia-dropdown__popup${visible ? " is-open" : " is-closing"}${arrow ? " sia-dropdown__popup--arrow" : ""}${pointAtCenter ? " sia-dropdown__popup--arrow-center" : ""} ${popupClassName}`.trim()}
-      style={popupStyle}
+      style={{ fontSize: triggerFontSize, ...popupStyle }}
       onMouseEnter={() => {
         clearTimer(closeTimerRef);
         if (!disabled && triggerSet.has("hover")) clearTimer(openTimerRef);

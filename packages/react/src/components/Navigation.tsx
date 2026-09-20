@@ -1,6 +1,6 @@
 import { withTitleTooltip } from "./titleTooltip";
 import { useControlSize } from "./shared";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { HTMLAttributes, KeyboardEvent, ReactNode, RefObject } from "react";
 import { Icon } from "./Icon";
 import { PopupPortal } from "./PopupPortal";
@@ -138,6 +138,18 @@ function MenuPopup({
   onMouseLeave?: () => void;
 }) {
   const [mounted, setMounted] = useState(open);
+  const [fontSize, setFontSize] = useState<string>();
+  // 子菜单也通过 Portal 渲染，沿用父菜单项字号以保持多级菜单文字一致。
+  useLayoutEffect(() => {
+    const anchor = anchorRef.current;
+    if (!mounted || !anchor) return;
+    /** 同步父级菜单项的实际字号，避免子菜单回退到页面默认字号。 */
+    const syncFontSize = () => setFontSize(getComputedStyle(anchor).fontSize);
+    syncFontSize();
+    const observer = new ResizeObserver(syncFontSize);
+    observer.observe(anchor);
+    return () => observer.disconnect();
+  });
   useEffect(() => {
     if (open) {
       setMounted(true);
@@ -153,6 +165,7 @@ function MenuPopup({
     placement={placement}
     offset={4}
     className={`sia-menu__popup sia-menu--${theme}${open ? " is-open" : " is-closing"}`}
+    style={{ fontSize }}
     data-sia-menu-owner={menuId}
     onMouseEnter={onMouseEnter}
     onMouseLeave={onMouseLeave}

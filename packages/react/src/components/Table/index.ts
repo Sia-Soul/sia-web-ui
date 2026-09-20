@@ -79,3 +79,4 @@ export type {
   TableSortInfo,
   TableSummaryRow,
 } from "./types";
+export type { TableCanvasCell } from "./types";

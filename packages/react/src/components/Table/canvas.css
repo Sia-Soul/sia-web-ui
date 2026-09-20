@@ -1,0 +1,3 @@
+/* 画布只绘制内容，DOM 语义层继续处理选区、表头及交互组件。 */
+.sia-table__canvas-layer { position: absolute; top: 0; left: 0; z-index: 3; pointer-events: none; }
+.sia-table[data-render-mode="canvas"] .sia-table__head { z-index: 5; }

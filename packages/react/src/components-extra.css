@@ -559,6 +559,8 @@
 .sia-dropdown__popup.is-open { animation: sia-dropdown-popup-in 160ms cubic-bezier(.2, 0, 0, 1) both; }
 .sia-dropdown__popup.is-closing { pointer-events: none; animation: sia-dropdown-popup-out 150ms cubic-bezier(.4, 0, 1, 1) both; }
 .sia-dropdown__menu { min-width: 0; padding: 0; background: transparent; border: 0; }
+/* 菜单按钮继承浮层传递的触发字号；子菜单沿用父菜单字号，不受原生 button 默认字体影响。 */
+.sia-dropdown__menu .sia-menu__item, .sia-menu__popup .sia-menu__item { font-size: inherit; }
 .sia-dropdown__menu > .sia-menu__entry:first-child { margin-top: 0; }
 .sia-dropdown__menu > .sia-menu__entry:last-child { margin-bottom: 0; }
 .sia-editor-control__context-popup { min-width: 188px; }
