@@ -3,6 +3,7 @@ import { createContext, forwardRef, useCallback, useContext, useEffect, useId, u
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { Icon } from "./Icon";
+import { FloatingScrollbarProvider } from "./FloatingScrollbarProvider";
 import { OverlayPortal, useOverlayLifecycle } from "./Overlay";
 import type { OverlayApiHandle } from "./Modal";
 import type { OverlayContainer } from "./Overlay";
@@ -25,7 +26,7 @@ export interface DrawerProps extends Omit<HTMLAttributes<HTMLDivElement>, "title
   open: boolean;
   /** 标题内容，可传入文本或 React 节点。 */
   title?: ReactNode;
-  /** 子内容；组件嵌套内容或当前节点的子项。 */
+  /** 抽屉主体内容；溢出时默认使用不占布局空间的浮动滚动条，标题及底部操作区保持固定。 */
   children?: ReactNode;
   /** 主体之外的补充内容或操作区。 */
   extra?: ReactNode;
@@ -124,6 +125,7 @@ const DrawerRoot = forwardRef<HTMLDivElement, DrawerProps>(function Drawer(
   forwardedRef,
 ) {
   const localRef = useRef<HTMLDivElement | null>(null);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
   const titleId = useId();
   const drawerId = useId();
   const parentStack = useContext(DrawerStackContext);
@@ -227,7 +229,9 @@ const DrawerRoot = forwardRef<HTMLDivElement, DrawerProps>(function Drawer(
             </div>
             {extra ? <div className="sia-drawer__extra">{extra}</div> : null}
           </div>
-          <div className="sia-drawer__body">{children}</div>
+          <div ref={bodyRef} className="sia-drawer__body">{children}</div>
+          {/* 主体独立接入框架浮动滚动条，使普通、嵌套和静态 API 抽屉均无需全局 Provider。 */}
+          <FloatingScrollbarProvider targetRef={bodyRef} />
           {footer ? <div className="sia-drawer__footer">{footer}</div> : null}
         </div>
       </div>
@@ -291,7 +295,7 @@ function openDrawer(config: DrawerOpenConfig): OverlayApiHandle<DrawerOpenConfig
   return handle;
 }
 
-/** 抽屉组件。 */
+/** 从屏幕边缘展开的抽屉；主体默认使用浮动滚动条，支持四个方向、嵌套推移及静态 API 调用。 */
 export const Drawer = Object.assign(DrawerRoot, {
   /** 直接打开实例，返回可用于更新或关闭的操作句柄。 */
   open: openDrawer,

@@ -18,7 +18,8 @@ export default function Demo() {
       <Button key={value} onClick={() => { setPlacement(value); setOpen(true); }}>{value}</Button>
     ))}
     <Drawer open={open} placement={placement} title={placement + " 抽屉"} onOpenChange={setOpen}>
-      这里可以承载表单、详情信息或分步任务。
+      {/* 长内容溢出时由抽屉自动提供浮动滚动条，无需额外接入。 */}
+      {Array.from({ length: 20 }, (_, index) => <p key={index}>抽屉内容第 {index + 1} 项</p>)}
     </Drawer>
   </>;
 }`;
@@ -98,10 +99,10 @@ export function DrawerPage() {
   }
 
   return <>
-    <PageHeader eyebrow="组件 / 反馈 / Drawer" title="Drawer 抽屉" description="从屏幕边缘滑出的任务面板，支持四个方向和静态 API。" />
+    <PageHeader eyebrow="组件 / 反馈 / Drawer" title="Drawer 抽屉" description="从屏幕边缘滑出的任务面板，支持四个方向和静态 API，主体默认使用不占布局空间的浮动滚动条。" />
     <DocsTabs activeKey={tab} onChange={setTab} />
     {tab === "examples" ? <div className="demo-stack">
-      <DemoCard title="出现方向" description="左、右、上、下四个方向共用一致的交互能力。" code={placementCode}>
+      <DemoCard title="出现方向" description="四个方向默认使用浮动滚动条；滚动长内容时，标题和底部操作区保持固定。" code={placementCode}>
         <Space wrap>
           {(["left", "right", "top", "bottom"] as DrawerPlacement[]).map((value) => <Button key={value} onClick={() => showDrawer(value)}>{value}</Button>)}
         </Space>
@@ -125,6 +126,8 @@ export function DrawerPage() {
       >
         <p>这里可以承载表单、详情信息或分步任务。</p>
         <Input aria-label="抽屉中的名称" placeholder="请输入名称" />
+        {/* 使用长内容展示主体默认的浮动滚动条及固定的头尾操作区。 */}
+        {Array.from({ length: 20 }, (_, index) => <p key={index}>抽屉内容第 {index + 1} 项</p>)}
       </Drawer>
       <Drawer
         open={parentOpen}
