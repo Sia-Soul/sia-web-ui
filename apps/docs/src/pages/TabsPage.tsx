@@ -224,10 +224,10 @@ export function TabsPage() {
           <Tabs type="pill" items={variantItems} />
         </div>
       </DemoCard>
-      <DemoCard title="圆角胶囊导航" description="白色圆角外框搭配浅色选中胶囊，切换时以 240ms 滑动到目标项并适应宽度，通过 --sia-tabs-accent 和 --sia-tabs-selection-bg 自定义颜色。" code={capsuleCode}>
+      <DemoCard title="圆角胶囊导航" description="白色圆角外框搭配浅色选中胶囊，切换时以 180ms 滑动到目标项并适应宽度，通过 --sia-tabs-accent 和 --sia-tabs-selection-bg 自定义颜色。" code={capsuleCode}>
         <Tabs type="capsule" defaultActiveKey="motion" items={[
           { key: "design", label: "设计", children: <p>设计规范：统一界面中的视觉语言。</p> },
-          { key: "motion", label: "动效", children: <div style={{ background: "var(--sia-color-primary-light)", padding: 24, borderRadius: 16 }}><h3>动效规范</h3><p>标签栏、内容面板、选中态可以通过外部样式定制。</p><span>Duration: 240ms</span></div> },
+          { key: "motion", label: "动效", children: <div style={{ background: "var(--sia-color-primary-light)", padding: 24, borderRadius: 16 }}><h3>动效规范</h3><p>标签栏、内容面板、选中态可以通过外部样式定制。</p><span>Duration: 180ms</span></div> },
           { key: "tokens", label: "令牌", children: <p>通过设计令牌统一颜色、间距和圆角。</p> },
         ]} />
       </DemoCard>
@@ -238,14 +238,24 @@ export function TabsPage() {
           { key: "archive", label: "归档", disabled: true },
         ]} />
       </DemoCard>
-      <DemoCard title="科技大屏样式" description="选中背景以 240ms 滑动切换，使用框架主题实色，顶部装饰线由深到浅，并自动适配亮色与暗色模式。" code={techCode}>
+      <DemoCard title="科技大屏样式" description="选中背景以 180ms 滑动切换，使用框架主题实色，顶部装饰线由深到浅，并自动适配亮色与暗色模式。" code={techCode}>
         <Tabs type="tech" tabBarTitle="查看部门" items={techItems} defaultActiveKey="private" />
       </DemoCard>
-      <DemoCard title="折线科技大屏样式" description="导航栏最小高度为 50px，左右内边距为 12px；左侧宽度随标题内容自适应，超宽标签使用独立浮动滚动条，切换后当前标签保持可见；选中框在 300ms 内同步移动和伸缩，支持明暗主题。" code={techLineCode}>
+      <DemoCard title="折线科技大屏样式" description="导航栏最小高度为 50px，左右内边距为 12px；左侧宽度随标题内容自适应，空间不足时，剩余标签收起到末尾的更多菜单，悬停或点击省略号即可选择；选中框在 180ms 内同步移动和伸缩，支持明暗主题。" code={techLineCode}>
         <Tabs type="tech-line" tabBarTitle="今日销售分布" style={{ width: 636, maxWidth: "100%" }} items={[
           { key: "amount", label: "金额" },
           { key: "orders", label: "合作门店订单数" },
           { key: "quantity", label: "件数" },
+        ]} />
+      </DemoCard>
+      <DemoCard title="更多选项卡" description="横向空间不足时，剩余选项收起到省略号菜单；支持悬停、点击和键盘下方向键展开，禁用项不可选择。" code={'<Tabs style={{ width: 480, maxWidth: "100%" }} items={items} />'}>
+        <Tabs type="tech-line" style={{ width: 480, maxWidth: "100%" }} items={[
+          { key: "base", label: "基础设置", children: "基础设置内容" },
+          { key: "partner", label: "合作方管理", children: "合作方管理内容" },
+          { key: "store", label: "合作方店铺管理", children: "合作方店铺管理内容" },
+          { key: "distributor", label: "合作分销商管理", children: "合作分销商管理内容" },
+          { key: "job", label: "自动作业", disabled: true },
+          { key: "request", label: "补拉申请", children: "补拉申请内容" },
         ]} />
       </DemoCard>
       <DemoCard title="动画结束后切换内容" description="deferContent 让旧面板保持到动画结束；外部表格或路由应在 onAfterChange 中更新，onChange 仅同步标签状态。" code={`// 面板在 Tabs 内部：动画结束后才挂载目标组件。

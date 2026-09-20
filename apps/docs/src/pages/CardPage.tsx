@@ -47,6 +47,11 @@ export default function Demo() {
 }`;
 
 const apiRows = [
+  // 业务仅维护受控值，交互与动画由 Card 提供。
+  { property: "selectable / disabled", description: "启用整卡选择；disabled 仅禁用选择", type: "boolean", defaultValue: "false" },
+  { property: "selected / defaultSelected", description: "受控选中值与非受控初值", type: "boolean", defaultValue: "false" },
+  { property: "onSelectedChange", description: "用户切换时通知新值，内部按钮不触发", type: "(selected: boolean) => void", defaultValue: "-" },
+  { property: "hoverActions", description: "悬停或键盘聚焦时从底部滑入，触屏常显", type: "ReactNode", defaultValue: "-" },
   { property: "title / description / extra", description: "标题、说明与标题栏额外内容", type: "ReactNode", defaultValue: "-" },
   { property: "accent / accentColor", description: "标题左侧强调色或自定义色", type: "CardAccent | string", defaultValue: "-" },
   { property: "collapsible", description: "允许收起内容区域", type: "boolean", defaultValue: "false" },
@@ -58,10 +63,18 @@ const apiRows = [
 
 export function CardPage() {
   const [tab, setTab] = useState<"examples" | "api">("examples");
+  const [selected, setSelected] = useState(false);
+  const [detailCount, setDetailCount] = useState(0);
   return <>
     <PageHeader eyebrow="组件 / 数据展示 / Card" title="Card 卡片" description="把标题、说明、分割线和内容区域组织为统一的信息容器。" />
     <DocsTabs activeKey={tab} onChange={setTab} />
     {tab === "examples" ? <div className="demo-stack">
+      <DemoCard title="整卡选择与悬浮操作" description="选中时右上角显示三角勾选标记，重复点击取消选择；详情按钮不改变选中状态。" code={'<Card selectable selected={selected} onSelectedChange={setSelected} hoverActions={<Button>查看详情</Button>}>接口内容</Card>'}>
+        <Card selectable selected={selected} onSelectedChange={setSelected} aria-label="示例接口"
+          hoverActions={<Button variant="link" onClick={() => setDetailCount(count => count + 1)}>查看详情</Button>}>
+          <p>合作关系查询接口</p><p>点击卡片选中，再次点击取消。</p><p>详情查看次数：{detailCount}</p>
+        </Card>
+      </DemoCard>
       <DemoCard title="基础卡片" description="通过强调色快速建立卡片标题的视觉层级。" code={basicCode}>
         <Card accent="primary" title="基础卡片" description="标题、说明、分割线和内容区由 Card 统一组织。">
           <div className="card-demo-surface">这里是基础卡片的内容。</div>

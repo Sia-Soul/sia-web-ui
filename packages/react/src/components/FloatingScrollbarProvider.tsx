@@ -339,7 +339,18 @@ export function FloatingScrollbarProvider({ disabled = false, targetRef }: Float
 
     const scanTargets = () => {
       scanFrame = 0;
-      const candidates = (targetRef ? [targetRef.current] : [document.scrollingElement, ...document.querySelectorAll<HTMLElement>("*")])
+      // 表格视口拥有独立滚动条，不扫描其数万单元格；原生滚动区域同样由自身负责。
+      const managedSelector = ".sia-table__viewport, [data-sia-native-scrollbar], .sia-scrollbar-track, .sia-floating-scrollbar-layer";
+      const discovered: HTMLElement[] = [];
+      if (!targetRef) {
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT, {
+          acceptNode: node => (node as Element).matches(managedSelector) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
+        });
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          if (node instanceof HTMLElement) discovered.push(node);
+        }
+      }
+      const candidates = (targetRef ? [targetRef.current] : [document.scrollingElement, ...discovered])
         .filter((target): target is HTMLElement => target instanceof HTMLElement);
       const nextTargets = new Set<HTMLElement>();
 
@@ -361,9 +372,13 @@ export function FloatingScrollbarProvider({ disabled = false, targetRef }: Float
     };
 
     const mutationObserver = new MutationObserver((mutations) => {
-      if (mutations.some((mutation) => !layer.contains(mutation.target))) scheduleScan();
+      // 滚动条位置、虚拟行增删与单元格高亮均不改变外部滚动容器，不能触发全页扫描。
+      if (mutations.some((mutation) => {
+        const target = mutation.target instanceof Element ? mutation.target : mutation.target.parentElement;
+        return target && !layer.contains(target) && !target.closest(".sia-table__viewport, [data-sia-native-scrollbar], .sia-scrollbar-track");
+      })) scheduleScan();
     });
-    mutationObserver.observe(document.documentElement, { subtree: true, childList: true, attributes: true });
+    mutationObserver.observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ["class", "style", "hidden"] });
     window.addEventListener("resize", scheduleScan);
     window.addEventListener("scroll", scheduleUpdateAll, true);
     scheduleScan();

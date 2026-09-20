@@ -3,7 +3,7 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "re
 import type { HTMLAttributes, KeyboardEvent, ReactNode } from "react";
 import { Dropdown } from "./Dropdown";
 import { Icon } from "./Icon";
-import { FloatingScrollbarProvider } from "./FloatingScrollbarProvider";
+import { Button } from "./Button";
 import type { MenuClickInfo, MenuItem } from "./Navigation";
 import type { ControlSize } from "./shared";
 
@@ -73,7 +73,7 @@ export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChang
    * @defaultValue false
    */
   centered?: boolean;
-  /** 标签栏左侧标题，科技大屏型会附带装饰线；折线科技型横向布局按标题内容及装饰留白确定宽度，标签超宽时独立横向滚动并保持当前标签可见，窄屏时标题独占一行。 */
+  /** 标签栏左侧标题，支持文本或 React 节点；科技样式附带装饰线。 */
   tabBarTitle?: ReactNode;
   /** 标签栏与内容面板之间的间距，单位 px，支持 0；未指定时上下布局为 16px，左右布局为 20px。仅影响当前 Tabs，不传递给嵌套实例。 */
   contentGap?: number;
@@ -97,7 +97,7 @@ export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChang
   onTabContextMenuClick?: (info: TabsContextMenuClickInfo) => void;
 }
 
-/** 选项卡组件。 */
+/** 选项卡组件；横向空间不足时，剩余标签收起到末尾的更多菜单，支持悬停或点击展开。 */
 export function Tabs({
   items,
   activeKey,
@@ -133,6 +133,44 @@ export function Tabs({
   const sliding = ["capsule", "line", "underline", "tech", "tech-line"].includes(type);
   const listRef = useRef<HTMLDivElement>(null);
   const indicatorRef = useRef<HTMLSpanElement>(null);
+  const moreRef = useRef<HTMLButtonElement>(null);
+  const [overflow, setOverflow] = useState({ count: items.length, width: 0 });
+  const [moreOpen, setMoreOpen] = useState(false);
+  const visibleCount = resolvedOrientation === "horizontal" ? overflow.count : items.length;
+  const hiddenItems = items.slice(visibleCount);
+
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (!list || resolvedOrientation !== "horizontal") return;
+    // 保留隐藏项的自然宽度供测量，避免收起后尺寸变小导致反复展开、收起。
+    const entries = Array.from(list.children).filter((node): node is HTMLElement => node instanceof HTMLElement && node.hasAttribute("data-tab-entry"));
+    const measure = () => {
+      const css = getComputedStyle(list);
+      const gap = parseFloat(css.columnGap) || 0;
+      const padding = (parseFloat(css.paddingLeft) || 0) + (parseFloat(css.paddingRight) || 0);
+      const widths = entries.map(node => node.getBoundingClientRect().width);
+      const total = widths.reduce((sum, width) => sum + width, 0) + gap * Math.max(0, widths.length - 1);
+      const available = Math.max(0, list.clientWidth - padding);
+      let count = widths.length;
+      if (total > available + 0.5) {
+        const moreWidth = moreRef.current?.getBoundingClientRect().width ?? 36;
+        let used = moreWidth;
+        count = 0;
+        for (const width of widths) {
+          if (used + gap + width > available + 0.5) break;
+          used += gap + width;
+          count++;
+        }
+      }
+      const width = Math.ceil(total + padding + (parseFloat(css.borderLeftWidth) || 0) + (parseFloat(css.borderRightWidth) || 0));
+      setOverflow(previous => previous.count === count && previous.width === width ? previous : { count, width });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(list);
+    entries.forEach(entry => observer.observe(entry));
+    return () => observer.disconnect();
+  }, [items, type, size, closable, resolvedOrientation, tabBarTitle, tabBarExtraContent]);
   const [contentState, setContentState] = useState(() => ({ key: selectedKey, visited: new Set([selectedKey]) }));
   const settledKeyRef = useRef(selectedKey);
   const afterChangeRef = useRef(onAfterChange);
@@ -146,14 +184,9 @@ export function Tabs({
     function updateIndicator() {
       if (!list || !indicator) return;
       const active = list.querySelector<HTMLButtonElement>('[role="tab"][aria-selected="true"]');
-      if (!active) { indicator.style.visibility = "hidden"; return; }
+      if (!active || active.closest('[data-tab-hidden="true"]')) { indicator.style.visibility = "hidden"; return; }
       const listRect = list.getBoundingClientRect();
       const rect = active.getBoundingClientRect();
-      // 标签栏只滚动自身，避免切换末尾标签时连带移动页面及内容区。
-      if (type === "tech-line" && resolvedOrientation === "horizontal") {
-        if (rect.left < listRect.left) list.scrollLeft += rect.left - listRect.left;
-        else if (rect.right > listRect.right) list.scrollLeft += rect.right - listRect.right;
-      }
       const currentRect = active.getBoundingClientRect();
       indicator.style.transform = `translate(${currentRect.left - listRect.left - list.clientLeft + list.scrollLeft}px, ${currentRect.top - listRect.top - list.clientTop + list.scrollTop}px)`;
       indicator.style.width = `${rect.width}px`;
@@ -170,7 +203,7 @@ export function Tabs({
     observer.observe(list);
     list.querySelectorAll('[role="tab"]').forEach(tab => observer.observe(tab));
     return () => observer.disconnect();
-  }, [sliding, type, selectedKey, items, size, resolvedPosition, centered, closable]);
+  }, [sliding, type, selectedKey, items, size, resolvedPosition, centered, closable, visibleCount]);
 
   useEffect(() => {
     let cancelled = false;
@@ -207,7 +240,8 @@ export function Tabs({
 
   function focusAndSelect(key: string) {
     selectTab(key);
-    document.getElementById(`${baseId}-tab-${key}`)?.focus();
+    if (items.findIndex(item => item.key === key) >= visibleCount) moreRef.current?.focus();
+    else document.getElementById(`${baseId}-tab-${key}`)?.focus();
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>, key: string) {
@@ -231,22 +265,23 @@ export function Tabs({
       {...withTitleTooltip(props)}
     >
       <div className="sia-tabs__header">
-        <FloatingScrollbarProvider targetRef={listRef} disabled={type !== "tech-line" || resolvedOrientation !== "horizontal"} />
         {tabBarTitle ? <div className="sia-tabs__title">{tabBarTitle}{type === "tech-line" ? (
           <svg className="sia-tabs__title-connector" viewBox="0 0 32 40" aria-hidden="true">
             {/* 端点对齐两条 1.5px 横线的中心，而非上边缘，避免接点出现半像素尖刺。 */}
             <path d="M0 39.25 H5 Q8 39.25 10 35.25 L28 3.75 Q29 1.75 32 1.75" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
           </svg>
         ) : null}</div> : null}
-        <div ref={listRef} className={`sia-tabs__list${sliding ? " sia-tabs__list--sliding" : ""}`} role="tablist" aria-orientation={resolvedOrientation}>
+        <div ref={listRef} style={resolvedOrientation === "horizontal" && overflow.width ? { width: overflow.width } : undefined} className={`sia-tabs__list${sliding ? " sia-tabs__list--sliding" : ""}`} role="tablist" aria-orientation={resolvedOrientation}>
           {sliding ? <span key={type} ref={indicatorRef} className={`sia-tabs__indicator${type === "capsule" ? " sia-tabs__capsule-indicator" : ""}`} aria-hidden="true">
             {type === "tech-line" ? (                    <span className="sia-tabs__indicator-shape" aria-hidden="true" />) : null}
           </span> : null}
-          {items.map((item) => {
+          {items.map((item, index) => {
             const selected = item.key === selectedKey;
             const canClose = item.closable ?? closable;
+            const contextMenuItems = typeof tabContextMenu === "function" ? tabContextMenu(item) : tabContextMenu;
+            const entryProps = { "data-tab-entry": "", "data-tab-hidden": index >= visibleCount, "aria-hidden": index >= visibleCount || undefined };
             const tabNode = (
-              <span className={`sia-tabs__tab-wrap${canClose ? " is-closable" : ""}`} key={item.key}>
+              <span {...(!contextMenuItems?.length ? entryProps : {})} className={`sia-tabs__tab-wrap${canClose ? " is-closable" : ""}`} key={item.key}>
                 <button
                   id={`${baseId}-tab-${item.key}`}
                   type="button"
@@ -278,12 +313,10 @@ export function Tabs({
                 ) : null}
               </span>
             );
-            const contextMenuItems = typeof tabContextMenu === "function"
-              ? tabContextMenu(item)
-              : tabContextMenu;
             if (!contextMenuItems?.length) return tabNode;
             return (
               <Dropdown
+                {...entryProps}
                 key={item.key}
                 className="sia-tabs__tab-context-trigger"
                 popupClassName="sia-tabs__tab-context-menu"
@@ -299,6 +332,19 @@ export function Tabs({
               </Dropdown>
             );
           })}
+          {resolvedOrientation === "horizontal" ? <Dropdown
+            className="sia-tabs__more"
+            data-tab-hidden={!hiddenItems.length}
+            trigger={["hover", "click"]}
+            placement="bottomRight"
+            showTriggerIcon={false}
+            autoFocus
+            open={moreOpen && hiddenItems.length > 0}
+            onOpenChange={setMoreOpen}
+            menu={{ items: hiddenItems.map(item => ({ key: item.key, label: item.label, icon: item.icon, disabled: item.disabled })), selectedKeys: [selectedKey], onClick: info => selectTab(info.key) }}
+          >
+            <Button ref={moreRef} variant="text" icon={<Icon name="more-horizontal" />} aria-label="更多选项卡" onKeyDown={event => handleKeyDown(event, selectedKey)} className={hiddenItems.some(item => item.key === selectedKey) ? "is-active" : undefined} />
+          </Dropdown> : null}
         </div>
         {tabBarExtraContent ? <div className="sia-tabs__extra">{tabBarExtraContent}</div> : null}
       </div>

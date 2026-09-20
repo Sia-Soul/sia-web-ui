@@ -25,8 +25,8 @@ export const SIA_THEME = {
   controlHeight: 32,
   /** 默认布局间距，单位为像素。 */
   spacing: 16,
-  /** 默认字号，单位为像素。 */
-  fontSize: 16,
+  /** 默认基础字号为 13 像素，对应 --sia-font-size；业务可通过 CSS 变量覆盖。 */
+  fontSize: 13,
   /** 默认小号文字尺寸为 13 像素，对应 --sia-font-size-small；业务可通过 CSS 变量覆盖。 */
   fontSizeSmall: 13,
   /** 大号文字尺寸，单位为像素。 */

@@ -14,6 +14,27 @@ export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
   description?: ReactNode;
   /** 主体之外的补充内容或操作区。 */
   extra?: ReactNode;
+  /**
+   * 点击卡片非交互区域切换选中，支持 Enter 和空格键；选中时显示右上角三角勾选标记。
+   * @defaultValue false
+   */
+  selectable?: boolean;
+  /** 受控选中状态，需在 onSelectedChange 中更新。 */
+  selected?: boolean;
+  /**
+   * 非受控初始选中状态。
+   * @defaultValue false
+   */
+  defaultSelected?: boolean;
+  /**
+   * 禁止切换选中，不禁用卡片内独立操作。
+   * @defaultValue false
+   */
+  disabled?: boolean;
+  /** 用户切换选中时通知新的布尔状态；禁用时不触发。 */
+  onSelectedChange?: (selected: boolean) => void;
+  /** 鼠标移入或键盘聚焦卡片时从底部滑入的操作区；触屏设备始终显示。 */
+  hoverActions?: ReactNode;
   /** 强调装饰样式。 */
   accent?: CardAccent;
   /** 强调装饰的颜色。 */
@@ -48,6 +69,12 @@ export function Card({
   title,
   description,
   extra,
+  selectable = false,
+  selected,
+  defaultSelected = false,
+  disabled = false,
+  onSelectedChange,
+  hoverActions,
   accent,
   accentColor,
   collapsible = false,
@@ -60,9 +87,20 @@ export function Card({
   className = "",
   style,
   children,
+  onClick,
+  onKeyDown,
   ...props
 }: CardProps) {
   const [internalCollapsed, setInternalCollapsed] = useState(defaultCollapsed);
+  const [internalSelected, setInternalSelected] = useState(defaultSelected);
+  const isSelected = selected ?? internalSelected;
+  // 内部按钮、链接和表单控件有自己的行为，不应连带切换卡片选中。
+  function toggleSelected() {
+    if (!selectable || disabled) return;
+    const next = !isSelected;
+    if (selected === undefined) setInternalSelected(next);
+    onSelectedChange?.(next);
+  }
   const isCollapsed = collapsed ?? internalCollapsed;
   const hasHeader = title || extra || collapsible;
   const mergedStyle = accentColor ? ({ "--sia-card-accent": accentColor, ...style } as CSSProperties) : style;
@@ -84,7 +122,30 @@ export function Card({
   );
 
   return (
-    <section className={`sia-card${isCollapsed ? " sia-card--collapsed" : ""} ${className}`.trim()} style={mergedStyle} {...withTitleTooltip(props)}>
+    <section
+      className={`sia-card${isCollapsed ? " sia-card--collapsed" : ""}${selectable ? " sia-card--selectable" : ""}${selectable && isSelected ? " sia-card--selected" : ""}${hoverActions ? " sia-card--hover-actions" : ""} ${className}`.trim()}
+      style={mergedStyle}
+      role={selectable ? "checkbox" : undefined}
+      aria-checked={selectable ? isSelected : undefined}
+      aria-disabled={selectable ? disabled : undefined}
+      tabIndex={selectable && !disabled ? 0 : undefined}
+      {...withTitleTooltip(props)}
+      onClick={(event) => {
+        onClick?.(event);
+        const target = event.target as Element;
+        const interactive = target.closest('button, a, input, select, textarea, label, [role="button"], [role="checkbox"], [role="radio"], [role="switch"], [contenteditable="true"], [tabindex]');
+        if (!event.defaultPrevented && (!interactive || interactive === event.currentTarget)) toggleSelected();
+      }}
+      onKeyDown={(event) => {
+        onKeyDown?.(event);
+        if (!event.defaultPrevented && event.target === event.currentTarget && selectable && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault();
+          toggleSelected();
+        }
+      }}
+    >
+      {/* 选中角标不参与点击命中，点击角标仍可取消整卡选择。 */}
+      {selectable && isSelected ? <span className="sia-card__selected-corner" aria-hidden="true"><Icon name="check" size={16} /></span> : null}
       {hasHeader ? (
         <header className="sia-card__header">
           {collapsible ? (
@@ -100,6 +161,7 @@ export function Card({
         <>
           {description ? <p className="sia-card__description">{description}</p> : null}
           <div className={`sia-card__body ${bodyClassName}`.trim()} style={mergedBodyStyle}>{children}</div>
+          {hoverActions ? <div className="sia-card__hover-actions" onClick={(event) => event.stopPropagation()}>{hoverActions}</div> : null}
         </>
       ) : null}
     </section>

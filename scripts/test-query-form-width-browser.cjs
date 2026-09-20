@@ -11,9 +11,9 @@ const { chromium } = require(require('node:path').join(process.argv[2], 'playwri
       const { QueryForm, Form, Input, Select, DatePicker, TimePicker, Space } = await import('/@fs/C:/Users/12235/Documents/SiaWebUI/packages/react/src/index.ts');
       const host = document.createElement('div'); host.id = 'width-fixture'; host.style = 'position:absolute;top:0;left:0;width:1000px;background:white;z-index:9999'; document.body.append(host);
       const root = createRoot(host), h = R.createElement;
-      window.renderWidths = (fieldWidth = 200, gap = 12, childrenMode = false) => {
+      window.renderWidths = (fieldWidth = 200, gap = undefined, childrenMode = false) => {
         const controls = [h(Input), h(DatePicker.RangePicker), h(TimePicker.RangePicker), h(Space.Compact, { block: true }, h(Select, { options: [] }), h(Input)), h(DatePicker.RangePicker)];
-        root.render(h(QueryForm, { fieldWidth, style: { '--sia-query-field-gap': gap + 'px' }, onSearch() {}, ...(childrenMode ? { children: controls.slice(0,4).map((c,i)=>h(Form.Item,{key:i,name:'f'+i},c)) } : { fields: controls.map((children,i)=>({key:String(i),children,...(i===4?{width:330}:{})})) }) }));
+        root.render(h(QueryForm, { fieldWidth, style: gap === undefined ? {} : { '--sia-query-field-gap': gap + 'px' }, onSearch() {}, ...(childrenMode ? { children: controls.slice(0,4).map((c,i)=>h(Form.Item,{key:i,name:'f'+i},c)) } : { fields: controls.map((children,i)=>({key:String(i),children,...(i===4?{width:330}:{})})) }) }));
       };
       window.renderWidths();
     });
@@ -24,7 +24,11 @@ const { chromium } = require(require('node:path').join(process.argv[2], 'playwri
         return nodes.length === e.length && nodes.every((n,i)=>Math.abs(n.getBoundingClientRect().width-e[i])<1);
       }, expected);
     }
-    await widths([200,412,412,412,330]);
+    // 未覆盖变量时行列均为 6px，双列宽度同时包含默认间距。
+    await widths([200,406,406,406,330]);
+    assert.deepEqual(await page.locator('#width-fixture .sia-query-form__fields').evaluate(n => {
+      const style = getComputedStyle(n); return [style.rowGap, style.columnGap];
+    }), ['6px', '6px']);
     await page.evaluate(()=>window.renderWidths(240,16)); await widths([240,496,496,496,330]);
     await page.evaluate(()=>window.renderWidths(200,12,true)); await widths([200,412,412,412]);
     await page.locator('#width-fixture').getByRole('button',{name:/收起/}).click();

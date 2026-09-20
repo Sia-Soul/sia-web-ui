@@ -3,6 +3,7 @@ import { PageHeader } from "./PageHeader";
 
 const tokenRows = [
   // 字号令牌与框架 CSS 默认值同步，控件尺寸类仍可覆盖默认字号。
+  ["--sia-font-size", "默认基础字号", `${SIA_THEME.fontSize}px`, "使用基础字号的组件文字"],
   ["--sia-font-size-small", "默认小字号", `${SIA_THEME.fontSizeSmall}px`, "按钮、输入框等组件的基础文字"],
   ["--sia-control-font-size", "默认控件字号", "13px", "中号选择与日期控件；小号 12px、大号 16px"],
   ["--sia-color-primary", "主色", SIA_THEME.colorPrimary, "品牌色与主要操作"],

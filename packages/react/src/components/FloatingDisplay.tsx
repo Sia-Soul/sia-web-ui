@@ -9,15 +9,16 @@ import type { DropdownMenuProps } from "./Dropdown";
 import { Icon } from "./Icon";
 import { useControllableState } from "./shared";
 
-/** Floating的位置类型。 */
-export type FloatingPlacement = "top" | "top-start" | "top-end" | "bottom" | "bottom-start" | "bottom-end" | "left" | "right";
+/** 气泡十二个方向；start/end 为对应边的起点/终点对齐，同时支持 topLeft、leftTop 等驼峰别名。 */
+export type FloatingPlacement = "top" | "top-start" | "top-end" | "bottom" | "bottom-start" | "bottom-end" | "left" | "left-start" | "left-end" | "right" | "right-start" | "right-end"
+  | "topLeft" | "topRight" | "bottomLeft" | "bottomRight" | "leftTop" | "leftBottom" | "rightTop" | "rightBottom";
 /** 触发浮层显示的交互方式。 */
 export type FloatingTrigger = "hover" | "focus" | "click";
 /** 文字提示的属性配置。 */
 export interface TooltipProps {
   /** 标题内容，可传入文本或 React 节点。 */
   title?: ReactNode;
-  /** 子内容；组件嵌套内容或当前节点的子项。 */
+  /** 触发气泡的元素；定位以实际接收触发事件的 DOM 元素为准，初始打开时使用首个子元素。 */
   children: ReactElement;
   /** 相对于触发元素的弹出方向和对齐位置。 */
   placement?: FloatingPlacement;
@@ -33,8 +34,13 @@ export interface TooltipProps {
   mouseEnterDelay?: number;
   /** 鼠标移出后延迟隐藏的时间。 */
   mouseLeaveDelay?: number;
-  /** 显示箭头及是否指向触发器中心 */
-  arrow?: boolean;
+  /** 是否显示箭头，默认 true；对象配置可让箭头指向触发元素中心。 */
+  arrow?: boolean | {
+    /** 是否指向触发元素中心，默认 false；空间受限时箭头限制在气泡边缘内。 */
+    pointAtCenter?: boolean;
+  };
+  /** 是否自动翻转和贴边偏移，默认 true；滚动时始终跟随触发元素，目标完全离开可视区域时隐藏气泡。 */
+  autoAdjustOverflow?: boolean;
   /** 显示颜色，可使用 CSS 颜色值。 */
   color?: string;
   /** 附加到组件根节点的 CSS 类名。 */
@@ -51,6 +57,7 @@ type FloatingPosition = {
   placement: FloatingPlacement;
   arrowX?: number;
   arrowY?: number;
+  hidden?: boolean;
 };
 
 const FLOATING_GAP = 9;
@@ -62,54 +69,70 @@ function clampFloating(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), Math.max(min, max));
 }
 
-function resolveFloatingPosition(trigger: DOMRect, overlay: DOMRect, placement: FloatingPlacement): FloatingPosition {
+// 驼峰名称仅作为 API 别名，定位和样式统一使用方向加 start/end。
+function normalizeFloatingPlacement(placement: FloatingPlacement): FloatingPlacement {
+  const aliases: Partial<Record<FloatingPlacement, FloatingPlacement>> = {
+    topLeft: "top-start", topRight: "top-end", bottomLeft: "bottom-start", bottomRight: "bottom-end",
+    leftTop: "left-start", leftBottom: "left-end", rightTop: "right-start", rightBottom: "right-end",
+  };
+  return aliases[placement] ?? placement;
+}
+
+function resolveFloatingPosition(trigger: DOMRect, overlay: DOMRect, placement: FloatingPlacement, pointAtCenter: boolean, adjust: boolean): FloatingPosition {
   const viewportWidth = document.documentElement.clientWidth;
   const viewportHeight = document.documentElement.clientHeight;
-  let resolvedPlacement = placement;
-  if (placement.startsWith("top") && trigger.top - overlay.height - FLOATING_GAP < FLOATING_VIEWPORT_PADDING && trigger.bottom + overlay.height + FLOATING_GAP <= viewportHeight - FLOATING_VIEWPORT_PADDING) {
-    resolvedPlacement = placement.replace("top", "bottom") as FloatingPlacement;
-  } else if (placement.startsWith("bottom") && trigger.bottom + overlay.height + FLOATING_GAP > viewportHeight - FLOATING_VIEWPORT_PADDING && trigger.top - overlay.height - FLOATING_GAP >= FLOATING_VIEWPORT_PADDING) {
-    resolvedPlacement = placement.replace("bottom", "top") as FloatingPlacement;
-  } else if (placement === "left" && trigger.left - overlay.width - FLOATING_GAP < FLOATING_VIEWPORT_PADDING && trigger.right + overlay.width + FLOATING_GAP <= viewportWidth - FLOATING_VIEWPORT_PADDING) {
-    resolvedPlacement = "right";
-  } else if (placement === "right" && trigger.right + overlay.width + FLOATING_GAP > viewportWidth - FLOATING_VIEWPORT_PADDING && trigger.left - overlay.width - FLOATING_GAP >= FLOATING_VIEWPORT_PADDING) {
-    resolvedPlacement = "left";
+  let resolvedPlacement = normalizeFloatingPlacement(placement);
+  const side = resolvedPlacement.split("-")[0];
+  const available = { top: trigger.top, bottom: viewportHeight - trigger.bottom, left: trigger.left, right: viewportWidth - trigger.right };
+  const opposite = { top: "bottom", bottom: "top", left: "right", right: "left" } as const;
+  const preferred = side as keyof typeof opposite;
+  const other = opposite[preferred];
+  const needed = (side === "top" || side === "bottom" ? overlay.height : overlay.width) + FLOATING_GAP + FLOATING_VIEWPORT_PADDING;
+  if (adjust && available[preferred] < needed && available[other] > available[preferred]) {
+    resolvedPlacement = resolvedPlacement.replace(preferred, other) as FloatingPlacement;
   }
-
-  let top = trigger.top;
-  let left = trigger.left;
-  if (resolvedPlacement.startsWith("top") || resolvedPlacement.startsWith("bottom")) {
-    top = resolvedPlacement.startsWith("top") ? trigger.top - overlay.height - FLOATING_GAP : trigger.bottom + FLOATING_GAP;
-    left = resolvedPlacement.endsWith("-start")
-      ? trigger.left
-      : resolvedPlacement.endsWith("-end")
-        ? trigger.right - overlay.width
-        : trigger.left + (trigger.width - overlay.width) / 2;
-  } else {
-    top = trigger.top + (trigger.height - overlay.height) / 2;
-    left = resolvedPlacement === "left" ? trigger.left - overlay.width - FLOATING_GAP : trigger.right + FLOATING_GAP;
+  const vertical = resolvedPlacement.startsWith("top") || resolvedPlacement.startsWith("bottom");
+  const start = resolvedPlacement.endsWith("-start");
+  const end = resolvedPlacement.endsWith("-end");
+  let top = vertical
+    ? resolvedPlacement.startsWith("top") ? trigger.top - overlay.height - FLOATING_GAP : trigger.bottom + FLOATING_GAP
+    : start ? trigger.top : end ? trigger.bottom - overlay.height : trigger.top + (trigger.height - overlay.height) / 2;
+  let left = vertical
+    ? start ? trigger.left : end ? trigger.right - overlay.width : trigger.left + (trigger.width - overlay.width) / 2
+    : resolvedPlacement.startsWith("left") ? trigger.left - overlay.width - FLOATING_GAP : trigger.right + FLOATING_GAP;
+  // 只沿对齐轴贴边移动，保持弹层与触发器间距，避免滚动时浮层压住目标。
+  if (adjust) {
+    if (vertical) left = clampFloating(left, FLOATING_VIEWPORT_PADDING, viewportWidth - overlay.width - FLOATING_VIEWPORT_PADDING);
+    else top = clampFloating(top, FLOATING_VIEWPORT_PADDING, viewportHeight - overlay.height - FLOATING_VIEWPORT_PADDING);
   }
-
-  top = clampFloating(top, FLOATING_VIEWPORT_PADDING, viewportHeight - overlay.height - FLOATING_VIEWPORT_PADDING);
-  left = clampFloating(left, FLOATING_VIEWPORT_PADDING, viewportWidth - overlay.width - FLOATING_VIEWPORT_PADDING);
   const result: FloatingPosition = { top, left, placement: resolvedPlacement };
-  if (resolvedPlacement.startsWith("top") || resolvedPlacement.startsWith("bottom")) {
-    result.arrowX = resolvedPlacement.endsWith("-start")
-      ? clampFloating(FLOATING_ARROW_EDGE_OFFSET, 8, overlay.width - 16)
-      : resolvedPlacement.endsWith("-end")
-        ? clampFloating(overlay.width - FLOATING_ARROW_EDGE_OFFSET - 8, 8, overlay.width - 16)
-        : clampFloating(trigger.left + trigger.width / 2 - left - 4, 8, overlay.width - 16);
-  } else {
-    result.arrowY = clampFloating(trigger.top + trigger.height / 2 - top - 4, 8, overlay.height - 16);
-  }
+  const size = vertical ? trigger.width : trigger.height;
+  const anchorStart = vertical ? trigger.left : trigger.top;
+  const edge = Math.min(size / 2, FLOATING_ARROW_EDGE_OFFSET + 4);
+  const target = anchorStart + (pointAtCenter || (!start && !end) ? size / 2 : start ? edge : size - edge);
+  if (vertical) result.arrowX = clampFloating(target - left - 4, 8, overlay.width - 16);
+  else result.arrowY = clampFloating(target - top - 4, 8, overlay.height - 16);
   return result;
+}
+
+// Portal 不受滚动容器裁剪；目标离开祖先可视区后隐藏弹层，避免悬空停留。
+function isFloatingAnchorHidden(anchor: Element, rect: DOMRect) {
+  let left = 0, top = 0, right = document.documentElement.clientWidth, bottom = document.documentElement.clientHeight;
+  for (let parent = anchor.parentElement; parent; parent = parent.parentElement) {
+    const css = getComputedStyle(parent);
+    const bounds = parent.getBoundingClientRect();
+    if (/(auto|scroll|hidden|clip)/.test(css.overflowX)) { left = Math.max(left, bounds.left); right = Math.min(right, bounds.right); }
+    if (/(auto|scroll|hidden|clip)/.test(css.overflowY)) { top = Math.max(top, bounds.top); bottom = Math.min(bottom, bounds.bottom); }
+  }
+  return rect.right <= left || rect.left >= right || rect.bottom <= top || rect.top >= bottom;
 }
 
 function Floating({
   children, content, placement = "top", trigger = "hover", open, defaultOpen = false, mouseEnterDelay = .1, mouseLeaveDelay = .1,
-  arrow = true, color, className = "", overlayClassName = "", role = "tooltip", onOpenChange,
+  arrow = true, autoAdjustOverflow = true, color, className = "", overlayClassName = "", role = "tooltip", onOpenChange,
 }: TooltipProps & { content: ReactNode }) {
   const rootRef = useRef<HTMLSpanElement>(null);
+  const triggerElementRef = useRef<Element | null>(null);
   const overlayRef = useRef<HTMLSpanElement>(null);
   const enterTimer = useRef<number>();
   const leaveTimer = useRef<number>();
@@ -161,30 +184,44 @@ function Floating({
       setPosition(undefined);
       return;
     }
+    // 外层包装可能被 flex/grid 拉伸，定位应使用实际触发元素的边界。
+    const getAnchor = () => {
+      const root = rootRef.current;
+      const target = triggerElementRef.current;
+      return target && root?.contains(target) ? target : root?.firstElementChild ?? root;
+    };
     const update = () => {
       if (!rootRef.current || !overlayRef.current) return;
-      setPosition(resolveFloatingPosition(rootRef.current.getBoundingClientRect(), overlayRef.current.getBoundingClientRect(), placement));
+      const anchor = getAnchor();
+      if (anchor) {
+        const rect = anchor.getBoundingClientRect();
+        const next = resolveFloatingPosition(rect, overlayRef.current.getBoundingClientRect(), placement, typeof arrow === "object" && !!arrow.pointAtCenter, autoAdjustOverflow);
+        next.hidden = isFloatingAnchorHidden(anchor, rect);
+        setPosition(next);
+      }
     };
     update();
     window.addEventListener("resize", update);
     window.addEventListener("scroll", update, true);
     const observer = new ResizeObserver(update);
     if (rootRef.current) observer.observe(rootRef.current);
+    const anchor = getAnchor();
+    if (anchor) observer.observe(anchor);
     if (overlayRef.current) observer.observe(overlayRef.current);
     return () => {
       window.removeEventListener("resize", update);
       window.removeEventListener("scroll", update, true);
       observer.disconnect();
     };
-  }, [children, content, placement, visible]);
+  }, [children, content, placement, visible, autoAdjustOverflow, typeof arrow === "object" && arrow.pointAtCenter]);
   useEffect(() => () => {
     clearTimers();
     if (activeTooltipClose === closeSelfRef.current) activeTooltipClose = undefined;
   }, []);
   const child = cloneElement(children, {
-    ...(triggers.includes("hover") ? { onMouseEnter: (event: React.MouseEvent) => { children.props.onMouseEnter?.(event); show(mouseEnterDelay); }, onMouseLeave: (event: React.MouseEvent) => { children.props.onMouseLeave?.(event); hide(mouseLeaveDelay); } } : {}),
-    ...(triggers.includes("focus") ? { onFocus: (event: React.FocusEvent) => { children.props.onFocus?.(event); show(); }, onBlur: (event: React.FocusEvent) => { children.props.onBlur?.(event); hide(); } } : {}),
-    ...(triggers.includes("click") ? { onClick: (event: React.MouseEvent) => { children.props.onClick?.(event); if (visible) closeNow(); else openNow(); } } : {}),
+    ...(triggers.includes("hover") ? { onMouseEnter: (event: React.MouseEvent) => { triggerElementRef.current = event.currentTarget; children.props.onMouseEnter?.(event); show(mouseEnterDelay); }, onMouseLeave: (event: React.MouseEvent) => { children.props.onMouseLeave?.(event); hide(mouseLeaveDelay); } } : {}),
+    ...(triggers.includes("focus") ? { onFocus: (event: React.FocusEvent) => { triggerElementRef.current = event.currentTarget; children.props.onFocus?.(event); show(); }, onBlur: (event: React.FocusEvent) => { children.props.onBlur?.(event); hide(); } } : {}),
+    ...(triggers.includes("click") ? { onClick: (event: React.MouseEvent) => { triggerElementRef.current = event.currentTarget; children.props.onClick?.(event); if (visible) closeNow(); else openNow(); } } : {}),
     "aria-describedby": visible ? contentId : undefined,
   });
   const overlay = visible && content !== null && content !== undefined && typeof document !== "undefined"
@@ -194,14 +231,14 @@ function Floating({
         id={contentId}
         role={role}
         data-custom-color={color ? "" : undefined}
-        className={`sia-floating__overlay sia-floating__overlay--${position?.placement ?? placement} ${overlayClassName}`.trim()}
+        className={`sia-floating__overlay sia-floating__overlay--${position?.placement ?? normalizeFloatingPlacement(placement)} ${overlayClassName}`.trim()}
         style={{
           "--sia-floating-color": color,
           "--sia-floating-arrow-x": position?.arrowX == null ? undefined : `${position.arrowX}px`,
           "--sia-floating-arrow-y": position?.arrowY == null ? undefined : `${position.arrowY}px`,
           top: position?.top ?? 0,
           left: position?.left ?? 0,
-          visibility: position ? "visible" : "hidden",
+          visibility: position && !position.hidden ? "visible" : "hidden",
         } as CSSProperties}
         onMouseEnter={triggers.includes("hover") ? () => show() : undefined}
         onMouseLeave={triggers.includes("hover") ? () => hide(mouseLeaveDelay) : undefined}

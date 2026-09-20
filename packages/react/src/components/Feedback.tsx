@@ -5,13 +5,13 @@ import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { Button } from "./Button";
 import { Icon } from "./Icon";
-import type { FloatingPlacement } from "./FloatingDisplay";
+import type { FloatingPlacement, TooltipProps } from "./FloatingDisplay";
 import { Popover } from "./FloatingDisplay";
 import { useControllableState } from "./shared";
 
 /** 气泡确认的属性配置。 */
 export interface PopconfirmProps {
-  /** 子内容；组件嵌套内容或当前节点的子项。 */
+  /** 触发确认框的元素；默认在该元素上方居中显示，空间不足时自动避让。 */
   children: ReactElement;
   /** 标题内容，可传入文本或 React 节点。 */
   title: ReactNode;
@@ -36,6 +36,12 @@ export interface PopconfirmProps {
    * @defaultValue "top"
    */
   placement?: FloatingPlacement;
+  /** 是否显示箭头，默认 true；设置 { pointAtCenter: true } 时指向触发元素中心。 */
+  arrow?: TooltipProps["arrow"];
+  /** 是否自动翻转和贴边偏移，默认 true；滚动时跟随目标，目标完全离开可视区域时隐藏。 */
+  autoAdjustOverflow?: boolean;
+  /** 是否跳过气泡直接确认，默认 false；为 true 时仅点击触发元素会调用 onConfirm，disabled 优先，异步执行期间忽略重复点击。 */
+  skipConfirm?: boolean;
   /**
    * 触发显示的交互方式。
    * @defaultValue "click"
@@ -60,9 +66,11 @@ export interface PopconfirmProps {
   showCancel?: boolean;
   /** 显示在内容旁的图标节点，建议使用 Icon 组件。 */
   icon?: ReactNode;
-  /** 用户确认时调用；支持异步返回值，具体签名见类型。 */
-  onConfirm?: (event?: React.MouseEvent) => void | boolean | Promise<void | boolean>;
-  /** 用户取消或通过关闭入口退出时调用。 */
+  /** 点击确定或跳过确认时调用，参数为点击事件；返回 false 保持打开，其余同步结果关闭。返回 Promise 时显示加载状态，成功且结果不为 false 时关闭；抛错或拒绝时保持打开并调用 onConfirmError。受控模式通过 onOpenChange 请求关闭，需外部更新 open。 */
+  onConfirm?: (event?: React.MouseEvent) => void | boolean | PromiseLike<void | boolean>;
+  /** 确认回调抛错或 Promise 拒绝时调用，参数为原始错误；可用于展示失败提示，默认保持气泡并恢复按钮，不自动展示错误文案。 */
+  onConfirmError?: (error: unknown) => void;
+  /** 点击取消按钮时调用，参数为点击事件；点击外部关闭不会触发此回调。 */
   onCancel?: (event?: React.MouseEvent) => void;
   /** 打开状态改变时触发，参数为新的打开状态。 */
   onOpenChange?: (open: boolean) => void;
@@ -72,23 +80,60 @@ export interface PopconfirmProps {
 export function Popconfirm({
   children, title, description, okText = "确定", cancelText = "取消", okButtonProps, cancelButtonProps, placement = "top",
   trigger = "click", open, defaultOpen = false, disabled = false, showCancel = true, icon = <Icon name="question" variant="filled" />,
-  onConfirm, onCancel, onOpenChange,
+  onConfirm, onConfirmError, onCancel, onOpenChange, arrow = true, autoAdjustOverflow = true, skipConfirm = false,
 }: PopconfirmProps) {
   const [visible, setVisible] = useControllableState({ value: open, defaultValue: defaultOpen, onChange: onOpenChange });
   const [loading, setLoading] = useState(false);
+  const pendingRef = useRef(false);
+  const requestRef = useRef(0);
+  function changeVisible(next: boolean) {
+    if (!next) {
+      // 关闭后作废旧请求，避免其完成时关闭后来重新打开的气泡。
+      requestRef.current++;
+      pendingRef.current = false;
+      setLoading(false);
+    }
+    setVisible(next);
+  }
+  useEffect(() => {
+    if (!visible) { requestRef.current++; pendingRef.current = false; setLoading(false); }
+    return () => { requestRef.current++; };
+  }, [visible]);
+  async function confirm(event: React.MouseEvent) {
+    if (disabled || pendingRef.current || okButtonProps?.loading || okButtonProps?.disabled) return;
+    pendingRef.current = true;
+    const request = ++requestRef.current;
+    try {
+      const result = onConfirm?.(event);
+      if (result && typeof result === "object" && typeof result.then === "function") setLoading(true);
+      const resolved = await result;
+      if (request === requestRef.current && resolved !== false && visible) changeVisible(false);
+    } catch (error) {
+      if (request === requestRef.current) onConfirmError?.(error);
+    } finally {
+      if (request === requestRef.current) { pendingRef.current = false; setLoading(false); }
+    }
+  }
   const content = <div className="sia-popconfirm">
     <div className="sia-popconfirm__message"><span>{icon}</span><div><strong>{title}</strong>{description ? <p>{description}</p> : null}</div></div>
     <div className="sia-popconfirm__actions">
-      {showCancel ? <Button size="small" {...cancelButtonProps} onClick={(event) => { cancelButtonProps?.onClick?.(event); onCancel?.(event); setVisible(false); }}>{cancelText}</Button> : null}
-      <Button size="small" variant="primary" {...okButtonProps} loading={loading || okButtonProps?.loading} onClick={async (event) => {
+      {showCancel ? <Button size="small" {...cancelButtonProps} onClick={(event) => {
+        cancelButtonProps?.onClick?.(event);
+        if (event.defaultPrevented) return;
+        onCancel?.(event);
+        changeVisible(false);
+      }}>{cancelText}</Button> : null}
+      <Button size="small" variant="primary" {...okButtonProps} loading={loading || okButtonProps?.loading} onClick={(event) => {
         okButtonProps?.onClick?.(event);
-        const result = onConfirm?.(event);
-        if (result instanceof Promise) { setLoading(true); try { if (await result !== false) setVisible(false); } finally { setLoading(false); } }
-        else if (result !== false) setVisible(false);
+        if (!event.defaultPrevented) void confirm(event);
       }}>{okText}</Button>
     </div>
   </div>;
-  return <Popover content={content} placement={placement} trigger={disabled ? [] : trigger} open={visible} onOpenChange={setVisible}>{children}</Popover>;
+  const target = skipConfirm ? cloneElement(children, { onClick: (event: React.MouseEvent) => {
+    children.props.onClick?.(event);
+    if (!event.defaultPrevented) void confirm(event);
+  } }) : children;
+  return <Popover content={content} placement={placement} arrow={arrow} autoAdjustOverflow={autoAdjustOverflow} trigger={disabled || skipConfirm ? [] : trigger} open={visible && !skipConfirm && !disabled} onOpenChange={changeVisible}>{target}</Popover>;
 }
 
 /** 进度的状态类型。 */

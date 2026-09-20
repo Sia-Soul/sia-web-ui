@@ -80,13 +80,14 @@ function TypographyContent({ as: Tag = "span", type, disabled, strong, italic, u
   useEffect(() => () => clearTimeout(timer.current), []);
   useLayoutEffect(() => {
     const element = contentRef.current;
-    if (!element || !ellipsis || editing || expanded) return;
+    // 普通省略由 CSS 完成，只有提供展开操作时才需要检测溢出。
+    if (!element || !ellipsis || !expandable || editing || expanded) return;
     const measure = () => setOverflow(element.scrollHeight > element.clientHeight + 1 || element.scrollWidth > element.clientWidth + 1);
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(element);
     return () => observer.disconnect();
-  }, [content, ellipsis, rows, editing, expanded]);
+  }, [content, ellipsis, rows, expandable, editing, expanded]);
   async function copy() {
     try {
       const text = typeof copyable === "object" ? copyable.text ?? contentRef.current?.textContent ?? "" : contentRef.current?.textContent ?? "";

@@ -439,7 +439,8 @@
 .sia-form > fieldset { display: contents; min-width: 0; margin: 0; padding: 0; border: 0; }
 /* 表单项统一保留 6px 下外边距，避免相邻字段的标签与上一项控件紧贴。 */
 .sia-form-item { display: grid; grid-template-columns: minmax(90px, 140px) minmax(0, 1fr); gap: 8px 14px; margin-bottom: 6px; color: var(--sia-color-text); }
-.sia-form-item__label { padding-top: 8px; text-align: right; line-height: 1.45; }
+/* 表单项标签默认使用 13px 字号。 */
+.sia-form-item__label { padding-top: 8px; text-align: right; font-size: 13px; line-height: 1.45; }
 /* 必填色只作用于框架生成的星号，不能匹配用户标签或 Tooltip 的 span。 */
 .sia-form-item__required-mark { margin-right: 4px; color: var(--sia-color-error); }
 .sia-form-item__control { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; min-width: 0; }
@@ -795,8 +796,8 @@ body > .sia-popup-portal[data-sia-popup-layer] { position: fixed; z-index: 1080;
 .sia-floating__arrow { position: absolute; box-sizing: border-box; width: 8px; height: 8px; background: inherit; border: 0 solid var(--sia-floating-arrow-border); transform: rotate(45deg); }
 .sia-floating__overlay--top .sia-floating__arrow, .sia-floating__overlay--top-start .sia-floating__arrow, .sia-floating__overlay--top-end .sia-floating__arrow { bottom: -4px; left: var(--sia-floating-arrow-x, calc(50% - 4px)); border-right-width: 1px; border-bottom-width: 1px; }
 .sia-floating__overlay--bottom .sia-floating__arrow, .sia-floating__overlay--bottom-start .sia-floating__arrow, .sia-floating__overlay--bottom-end .sia-floating__arrow { top: -4px; left: var(--sia-floating-arrow-x, calc(50% - 4px)); border-top-width: 1px; border-left-width: 1px; }
-.sia-floating__overlay--left .sia-floating__arrow { top: var(--sia-floating-arrow-y, calc(50% - 4px)); right: -4px; border-top-width: 1px; border-right-width: 1px; }
-.sia-floating__overlay--right .sia-floating__arrow { top: var(--sia-floating-arrow-y, calc(50% - 4px)); left: -4px; border-bottom-width: 1px; border-left-width: 1px; }
+.sia-floating__overlay--left .sia-floating__arrow, .sia-floating__overlay--left-start .sia-floating__arrow, .sia-floating__overlay--left-end .sia-floating__arrow { top: var(--sia-floating-arrow-y, calc(50% - 4px)); right: -4px; border-top-width: 1px; border-right-width: 1px; }
+.sia-floating__overlay--right .sia-floating__arrow, .sia-floating__overlay--right-start .sia-floating__arrow, .sia-floating__overlay--right-end .sia-floating__arrow { top: var(--sia-floating-arrow-y, calc(50% - 4px)); left: -4px; border-bottom-width: 1px; border-left-width: 1px; }
 .sia-floating__overlay.sia-popover { --sia-floating-arrow-border: var(--sia-color-border); min-width: 190px; padding: 12px; color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid var(--sia-floating-arrow-border); }
 .sia-popover__title, .sia-popover__content { display: block; }
 .sia-popover__title { margin-bottom: 6px; }

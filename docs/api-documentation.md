@@ -56,11 +56,12 @@ pnpm test:api-docs
 ## 查询表单布局变量
 
 - `QueryForm.fieldWidth`：单列宽度，默认 `220px`；日期／时间区间与横向组合字段默认为两倍单列宽度加列间距。
-- `--sia-query-field-gap`：字段间距，默认 `12px`，使用 CSS 长度值；双列宽度计算使用同一个变量，可在 QueryForm 的 `style` 或 `className` 中覆盖。
+- `--sia-query-field-gap`：字段横向与纵向间距，默认 `6px`，使用 CSS 长度值；双列宽度计算使用同一个变量，可在 QueryForm 的 `style` 或 `className` 中覆盖。
 - `fields[].width`：显式指定单个字段宽度时优先于自动双列规则；窄屏展开布局仍适配容器宽度。
 
 ## 默认字号变量
 
+- `--sia-font-size`：默认 `13px`，用于组件基础文字；单位为 CSS 长度，可通过容器或组件上的同名变量覆盖，组件自身显式设置的字号优先。
 - `--sia-font-size-small`：默认 `13px`，用于按钮、输入框等组件的小字号文本；单位为 CSS 长度，业务可在组件或容器上覆盖。
 - `--sia-control-font-size`：默认 `13px`，用于选择及日期控件字号；尺寸类在控件上分别指定 small `12px`、medium `13px`、large `16px`，优先于父级继承值；组件内联变量可覆盖尺寸类。
 
@@ -77,6 +78,8 @@ pnpm test:api-docs
 框架中已提供 `allowClear` 的组件统一默认启用（`true`），显式传入 `allowClear={false}` 可关闭对应清空入口或再次点击取消选择的能力。包括 Input、InputSelect、Select、Cascader、TreeSelect、ColorPicker、DatePicker、TimePicker 和 Rate；日期／时间区间继承对应配置。新增带有该属性的组件也应遵守此约定。各组件保留原有清空值及回调语义，禁用状态下仍遵循原有交互限制。
 
 ## Form 标签与必填标记
+
+`Form.Item` 标签默认字号为 `13px`，适用于水平、垂直和行内布局。
 
 `Form.Item.label` 支持文本和包含 Tooltip 的 React 节点。必填星号使用独立类名 `sia-form-item__required-mark`，红色仅标识星号，不表示字段已校验失败，也不应改变自定义标签的颜色。只有用户交互触发校验或提交校验时，才按原有规则显示字段错误。
 

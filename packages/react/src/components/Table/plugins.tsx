@@ -906,7 +906,7 @@ export interface TableRowSpanPluginOptions<T> {
   columns?: readonly string[];
   /** 自定义两个值的相等性判断。 */
   equals?: (left: unknown, right: unknown, column: TableColumn<T>) => boolean;
-  /** 是否禁用虚拟渲染。 */
+  /** 是否禁用虚拟渲染，默认 true；仅在展示行数不超过 100 时生效，超过 100 行由表格强制启用。 */
   disableVirtual?: boolean;
 }
 
@@ -2022,7 +2022,7 @@ export interface TableIndexPluginOptions {
   /** 序号列的起始编号。 */
   startIndex?: number;
 }
-/** 创建表格序号列插件。Table 默认内置；显式加入 plugins 可覆盖标题、宽度和起始编号，不重复加载。Table 的 showIndex=false 时禁用。 */
+/** 创建表格序号列插件。Table 默认内置；显式加入 plugins 可覆盖标题、宽度和起始编号，不重复加载。Table 的 showIndex=false 时禁用。序号固定在业务列之前（有勾选列时位于其后），不参与列设置。 */
 export function createIndexPlugin<T extends Record<string, unknown>>(
   options: TableIndexPluginOptions = {},
 ): TablePlugin<T, undefined> {
@@ -2740,11 +2740,17 @@ export interface TableColumnSettingApi {
   apply: (settings: readonly TableColumnSettingItem[]) => void;
 }
 
+/** 框架附加列不参与业务列的显隐、固定位置和排序配置。 */
+function isTableAuxiliaryColumn<T>(column: TableColumn<T>) {
+  return column.meta?.plugin === "index" || column.meta?.plugin === "selection"
+    || column.key === "__index__" || column.key === "__selection__";
+}
+
 function createColumnSettingItems<T>(
   columns: readonly TableColumn<T>[],
   visibleKeys?: readonly string[],
 ): TableColumnSettingItem[] {
-  return flattenTableColumns(columns).map((column, order) => ({
+  return flattenTableColumns(columns).filter((column) => !isTableAuxiliaryColumn(column)).map((column, order) => ({
     key: column.key,
     width: column.width,
     fixed: normalizeFixed(column.fixed),
@@ -2764,6 +2770,8 @@ function applyColumnSettingsToTree<T>(
   ): Array<{ column: TableColumn<T>; order: number }> =>
     source
       .flatMap((column, sourceOrder) => {
+        // 即便上游已插入附加列，也保持勾选列、序号列领先于业务列，忽略旧配置。
+        if (isTableAuxiliaryColumn(column)) return [{ column, order: column.meta?.plugin === "selection" || column.key === "__selection__" ? -2 : -1 }];
         if (column.children?.length) {
           const children = walk(column.children);
           if (children.length === 0) return [];
@@ -3122,14 +3130,19 @@ function ColumnSettingPanel<T extends Record<string, unknown>>({
 
 const columnSettingLoadTokens = new WeakMap<object, symbol>();
 
-/** 创建表格列设置和持久化插件。将返回值加入 Table 的 plugins 后生效。 */
+/** 创建表格列设置和持久化插件。将返回值加入 Table 的 plugins 后生效；序号和勾选附加列不显示在设置中，不参与业务列排序、显隐、固定位置与宽度配置，旧存储中的附加列配置会被忽略。 */
 export function createColumnSettingPlugin<T extends Record<string, unknown>>(
   options: TableColumnSettingPluginOptions<T> = {},
 ): TablePlugin<T, ColumnSettingState, TableColumnSettingApi> {
   const baseItems = (context: TablePluginContext<T, ColumnSettingState>) =>
     createColumnSettingItems(context.baseColumns, options.defaultVisibleKeys);
+  // 历史存储和外部 apply 可能包含附加列或已移除列，只接收当前业务列的配置。
+  const editableItems = (items: readonly TableColumnSettingItem[], context: TablePluginContext<T, ColumnSettingState>) => {
+    const keys = new Set(baseItems(context).map((item) => item.key));
+    return items.filter((item) => keys.has(item.key));
+  };
   const currentItems = (context: TablePluginContext<T, ColumnSettingState>) =>
-    context.state.items?.length ? context.state.items : baseItems(context);
+    context.state.items?.length ? editableItems(context.state.items, context) : baseItems(context);
   const save = (snapshot: TableSettingsSnapshot) =>
     options.adapter && options.scope
       ? options.adapter.save(options.scope, snapshot).catch(() => undefined)
@@ -3140,7 +3153,7 @@ export function createColumnSettingPlugin<T extends Record<string, unknown>>(
     persist = true,
   ) {
     const normalized = orderColumnSettings(
-      [...items].sort((a, b) => a.order - b.order),
+      editableItems(items, context).sort((a, b) => a.order - b.order),
     );
     context.setState((state) => ({ ...state, items: normalized, open: false }));
     const columnMap = new Map(

@@ -29,7 +29,8 @@
   --sia-control-height-large: 38px;
   --sia-control-height: var(--sia-control-height-medium);
   --sia-spacing: 16px;
-  --sia-font-size: 16px;
+  /* 基础字号默认 13px，可通过容器或组件上的同名变量覆盖。 */
+  --sia-font-size: 13px;
   /* 默认小字号与控件字号均为 13px；组件尺寸类及业务局部样式可覆盖。 */
   --sia-font-size-small: 13px;
   --sia-control-font-size: 13px;
@@ -505,6 +506,22 @@
 .sia-card__collapse-trigger:hover { color: var(--sia-color-primary-text); }
 .sia-card__collapse-trigger:focus-visible { outline: none; border-radius: var(--sia-radius); }
 .sia-card--collapsed .sia-card__header { border-bottom-color: transparent; }
+/* 卡片统一处理选择反馈及悬浮操作，业务不需要复制动画样式。 */
+.sia-card--selectable { position: relative; cursor: pointer; }
+/* 右上角三角形使用主题色，白色勾选明确表达选中状态。 */
+.sia-card__selected-corner { position: absolute; top: 0; right: 0; width: 40px; height: 40px; background: var(--sia-color-primary); color: white; clip-path: polygon(0 0, 100% 0, 100% 100%); border-top-right-radius: var(--sia-radius); pointer-events: none; z-index: 1; }
+/* Icon 外层是 span，定位整个图标，并让其边界完整位于三角形内部。 */
+.sia-card__selected-corner > .sia-icon { position: absolute; top: 4px; right: 4px; }
+.sia-card--selectable[aria-disabled="true"] { cursor: default; }
+.sia-card.sia-card--selected { border-color: var(--sia-color-primary); box-shadow: inset 0 0 0 1px var(--sia-color-primary); }
+.sia-card--selectable:focus-visible { outline: 2px solid var(--sia-color-primary); outline-offset: 2px; }
+.sia-card--hover-actions { position: relative; overflow: hidden; }
+.sia-card__hover-actions { position: absolute; inset: auto 0 0; padding: 8px 16px; background: var(--sia-color-surface); border-top: 1px solid var(--sia-color-border); transform: translateY(100%); visibility: hidden; transition: transform 180ms ease, visibility 180ms; }
+.sia-card--hover-actions:hover > .sia-card__hover-actions,
+.sia-card--hover-actions:has(:focus-visible) > .sia-card__hover-actions,
+.sia-card--hover-actions:focus-visible > .sia-card__hover-actions { transform: translateY(0); visibility: visible; }
+@media (hover: none) { .sia-card__hover-actions { position: static; transform: none; visibility: visible; } }
+@media (prefers-reduced-motion: reduce) { .sia-card__hover-actions { transition: none; } }
 
 .sia-alert { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; color: var(--sia-color-text); font: 400 var(--sia-font-size-small)/1.5 system-ui, sans-serif; border: 1px solid transparent; border-radius: var(--sia-radius); }
 .sia-alert__icon { display: grid; place-items: center; flex: 0 0 auto; width: 20px; height: 20px; color: var(--sia-color-primary-text); background: transparent; }
@@ -660,9 +677,9 @@
 .sia-tabs--tech-line > .sia-tabs__header .sia-tabs__title::after { position: absolute; content: ""; bottom: 0; left: 0; right: 1px; height: 1.5px; background: linear-gradient(90deg, transparent, var(--sia-tabs-line-accent)); }
 .sia-tabs--tech-line > .sia-tabs__header .sia-tabs__title::before { position: absolute; content: ""; right: 5px; bottom: 9px; width: 20px; height: 19px; background: var(--sia-tabs-line-accent); opacity: .55; clip-path: polygon(0 100%, 35% 32%, 46% 32%, 12% 100%, 35% 100%, 80% 0, 93% 0, 49% 100%, 69% 100%, 100% 30%, 100% 54%, 82% 100%); }
 .sia-tabs--tech-line > .sia-tabs__header .sia-tabs__title-connector { position: absolute; right: -31px; top: 6px; width: 32px; height: 40px; overflow: visible; color: var(--sia-tabs-line-accent); }
-.sia-tabs--tech-line > .sia-tabs__header .sia-tabs__list { position: relative; flex: 0 1 auto; gap: 0; align-items: flex-start; padding-top: 13px; padding-right: 40px; }
+.sia-tabs--tech-line > .sia-tabs__header .sia-tabs__list { position: relative; flex: 0 1 auto; gap: 0; align-items: flex-start; padding-top: 13px; padding-right: 0; }
 /* 依据实际容器宽度收纳标签，不能仅在手机断点处理，否则带标题的后台导航会撑宽页面。 */
-.sia-tabs--tech-line.sia-tabs--horizontal > .sia-tabs__header .sia-tabs__list { overflow-x: auto; overflow-y: hidden; }
+.sia-tabs--tech-line.sia-tabs--horizontal > .sia-tabs__header .sia-tabs__list { overflow-x: clip; overflow-y: clip; }
 .sia-tabs--tech-line > .sia-tabs__header .sia-tabs__list::before { position: absolute; content: ""; top: 7px; left: 3px; right: -8px; height: 1.5px; background: linear-gradient(90deg, var(--sia-tabs-line-accent), transparent); }
 .sia-tabs--tech-line > .sia-tabs__header .sia-tabs__tab-wrap, .sia-tabs--tech-line > .sia-tabs__header .sia-tabs__tab-context-trigger { flex: 0 0 auto; }
 .sia-tabs--tech-line > .sia-tabs__header .sia-tabs__tab { isolation: isolate; height: 34px; min-width: 0; padding: 0 24px; color: var(--sia-tabs-line-text); font-size: 18px; font-weight: 600; }
@@ -688,14 +705,13 @@
   .sia-tabs--tech-line.sia-tabs--horizontal > .sia-tabs__header { flex-wrap: wrap; gap: 0; }
   .sia-tabs--tech-line.sia-tabs--horizontal > .sia-tabs__header .sia-tabs__title { flex-basis: 100%; }
   .sia-tabs--tech-line.sia-tabs--horizontal > .sia-tabs__header .sia-tabs__title-connector { display: none; }
-  .sia-tabs--tech-line.sia-tabs--horizontal > .sia-tabs__header .sia-tabs__list { max-width: 100%; overflow-x: auto; padding: 8px 0; }
+  .sia-tabs--tech-line.sia-tabs--horizontal > .sia-tabs__header .sia-tabs__list { max-width: 100%; padding: 8px 0; }
   .sia-tabs--tech-line.sia-tabs--horizontal > .sia-tabs__header .sia-tabs__list::before { display: none; }
 }
 
 @media (max-width: 640px) {
   .sia-tabs--tech.sia-tabs--horizontal > .sia-tabs__header { flex-wrap: wrap; gap: 4px 8px; }
   .sia-tabs--tech.sia-tabs--horizontal > .sia-tabs__header .sia-tabs__title { width: 100%; max-width: none; min-height: 32px; }
-  .sia-tabs--tech.sia-tabs--horizontal > .sia-tabs__header .sia-tabs__list { overflow-x: auto; }
   .sia-tabs--tech.sia-tabs--horizontal > .sia-tabs__header .sia-tabs__tab-wrap { min-width: 96px; }
 }
 
@@ -945,14 +961,14 @@
 /* 圆角胶囊与紧凑下划线标签，共用 Tabs 的键盘和面板行为。 */
 .sia-tabs--capsule, .sia-tabs--underline { --sia-tabs-accent: var(--sia-color-primary); --sia-tabs-selection-bg: var(--sia-color-primary-light); }
 .sia-tabs--capsule > .sia-tabs__header .sia-tabs__list { position: relative; isolation: isolate; flex: 0 1 auto; gap: 4px; padding: 5px; border: 1px solid var(--sia-color-border); border-radius: 999px; background: var(--sia-color-surface); box-shadow: 0 3px 7px -3px rgb(0 0 0 / 24%); }
-.sia-tabs--capsule > .sia-tabs__header .sia-tabs__tab { height: 34px; padding-inline: 22px; border-radius: 999px; transition: background-color 240ms ease, color 240ms ease; }
+.sia-tabs--capsule > .sia-tabs__header .sia-tabs__tab { height: 34px; padding-inline: 22px; border-radius: 999px; transition: background-color 180ms ease, color 180ms ease; }
 .sia-tabs--capsule > .sia-tabs__header .sia-tabs__tab[aria-selected="true"] { color: var(--sia-tabs-accent); background: transparent; font-weight: 500; }
 .sia-tabs--capsule.sia-tabs--small > .sia-tabs__header .sia-tabs__tab { height: 26px; padding-inline: 16px; }
 .sia-tabs--capsule.sia-tabs--large > .sia-tabs__header .sia-tabs__tab { height: 42px; padding-inline: 26px; }
 .sia-tabs--capsule.sia-tabs--centered > .sia-tabs__header { justify-content: center; }
 .sia-tabs--capsule.sia-tabs--vertical > .sia-tabs__header .sia-tabs__list { border-radius: 24px; }
 .sia-tabs--underline > .sia-tabs__header .sia-tabs__list { gap: 0; }
-.sia-tabs--underline > .sia-tabs__header .sia-tabs__tab { padding-inline: 22px; transition: color 240ms ease; }
+.sia-tabs--underline > .sia-tabs__header .sia-tabs__tab { padding-inline: 22px; transition: color 180ms ease; }
 .sia-tabs--underline > .sia-tabs__header .sia-tabs__tab[aria-selected="true"] { color: var(--sia-tabs-accent); font-weight: 500; }
 .sia-tabs--underline > .sia-tabs__header .sia-tabs__tab[aria-selected="true"]::after { background: var(--sia-tabs-accent); }
 .sia-tabs--underline > .sia-tabs__header .sia-tabs__tab .sia-badge { margin-inline-end: 8px; }
@@ -960,14 +976,14 @@
 @media (prefers-reduced-motion: reduce) { .sia-tabs--capsule > .sia-tabs__header .sia-tabs__tab, .sia-tabs--underline > .sia-tabs__header .sia-tabs__tab { transition: none; } }
 
 .sia-tabs__capsule-indicator { position: absolute; top: 0; left: 0; z-index: -1; visibility: hidden; border-radius: 999px; background: var(--sia-tabs-selection-bg); pointer-events: none; }
-.sia-tabs__capsule-indicator[data-ready="true"] { transition: transform 240ms ease, width 240ms ease, height 240ms ease; }
+.sia-tabs__capsule-indicator[data-ready="true"] { transition: transform 180ms ease, width 180ms ease, height 180ms ease; }
 @media (prefers-reduced-motion: reduce) { .sia-tabs__capsule-indicator[data-ready="true"] { transition: none; } }
 
 .sia-tabs__list--sliding { position: relative; isolation: isolate; }
 .sia-tabs__indicator { position: absolute; top: 0; left: 0; z-index: -1; visibility: hidden; pointer-events: none; }
-.sia-tabs__indicator[data-ready="true"] { transition: transform 240ms ease, width 240ms ease, height 240ms ease; }
-/* 折线选中框统一位移和尺寸的时长、曲线及零延迟，让伸缩贯穿移动过程。 */
-.sia-tabs--tech-line > .sia-tabs__header .sia-tabs__indicator[data-ready="true"] { transition: transform 300ms cubic-bezier(.4, 0, .2, 1), width 300ms cubic-bezier(.4, 0, .2, 1), height 300ms cubic-bezier(.4, 0, .2, 1); }
+.sia-tabs__indicator[data-ready="true"] { transition: transform 180ms ease, width 180ms ease, height 180ms ease; }
+/* 选中框以 180ms 同步完成位移与尺寸变化，伸缩贯穿整个移动过程。 */
+.sia-tabs--tech-line > .sia-tabs__header .sia-tabs__indicator[data-ready="true"] { transition: transform 180ms cubic-bezier(.4, 0, .2, 1), width 180ms cubic-bezier(.4, 0, .2, 1), height 180ms cubic-bezier(.4, 0, .2, 1); }
 .sia-tabs--line > .sia-tabs__header .sia-tabs__tab[aria-selected="true"]::after { display: none; }
 .sia-tabs--line > .sia-tabs__header .sia-tabs__indicator::after { position: absolute; content: ""; background: var(--sia-tabs-accent, var(--sia-color-primary)); }
 .sia-tabs--line.sia-tabs--top > .sia-tabs__header .sia-tabs__indicator::after { bottom: -1px; left: 0; right: 0; height: 2px; border-radius: 2px 2px 0 0; }
@@ -993,10 +1009,11 @@
 @media (prefers-reduced-motion: reduce) { .sia-table-settings__list.is-sorting .sia-table-settings__item { transition: none; } }
 
 .sia-query-form { min-width: 0; width: 100%; }
-.sia-query-form__fields { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sia-query-field-gap, 12px); padding-top: 8px; }
+/* 查询字段行列间距默认 6px；容器上的 --sia-query-field-gap（CSS 长度）可覆盖，并同步用于双列宽度计算。 */
+.sia-query-form__fields { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sia-query-field-gap, 6px); padding-top: 8px; }
 .sia-query-form__field { --sia-query-item-width: var(--sia-query-field-width, 220px); flex: 0 1 var(--sia-query-item-width); width: var(--sia-query-item-width); min-width: 0; max-width: 100%; }
 /* 区间和横向组合字段占两列，包含普通字段之间的间距；字段内联 width 优先。 */
-.sia-query-form__field:has(.sia-picker-range-control, .sia-time-range, .sia-select-date-range, .sia-space-compact:not(.sia-space-compact--vertical) > :nth-child(2)) { --sia-query-item-width: calc(var(--sia-query-field-width, 220px) + var(--sia-query-field-width, 220px) + var(--sia-query-field-gap, 12px)); }
+.sia-query-form__field:has(.sia-picker-range-control, .sia-time-range, .sia-select-date-range, .sia-space-compact:not(.sia-space-compact--vertical) > :nth-child(2)) { --sia-query-item-width: calc(var(--sia-query-field-width, 220px) + var(--sia-query-field-width, 220px) + var(--sia-query-field-gap, 6px)); }
 .sia-query-form__field :is(.sia-picker-range-control, .sia-time-range, .sia-select-date-range, .sia-space-compact:not(.sia-space-compact--vertical)) { width: 100%; }
 .sia-query-form__field[hidden] { display: none; }
 .sia-query-form__field > .sia-input-control, .sia-query-form__field > .sia-select, .sia-query-form__field > .sia-picker, .sia-query-form__field > .sia-input-number, .sia-query-form__field > .sia-cascader, .sia-query-form__field > .sia-tree-select, .sia-query-form__field > .sia-select-date-range { width: 100%; }
@@ -1033,3 +1050,11 @@
 .sia-toolbar__item--hidden { position: absolute; top: 0; left: 0; visibility: hidden; pointer-events: none; }
 .sia-table__toolbar > div:first-child { flex: 1; min-width: 0; }
 .sia-table__toolbar > div:last-child { flex-shrink: 0; flex-wrap: nowrap; }
+
+/* 横向标签保持自然宽度；收起项脱离布局但保留测量尺寸，不产生滚动区域。 */
+.sia-tabs--horizontal > .sia-tabs__header > .sia-tabs__list { position: relative; box-sizing: border-box; overflow: clip; min-width: 0; }
+.sia-tabs--horizontal > .sia-tabs__header > .sia-tabs__list > [data-tab-entry] { flex: 0 0 auto; width: max-content; }
+.sia-tabs--horizontal > .sia-tabs__header > .sia-tabs__list > [data-tab-hidden="true"] { position: absolute; left: 0; top: 0; visibility: hidden; pointer-events: none; }
+.sia-tabs__more { display: inline-flex; flex: 0 0 auto; align-items: center; align-self: center; }
+.sia-tabs__more > .sia-button { width: 36px; height: 34px; padding: 0; }
+.sia-tabs__more > .sia-button.is-active { color: var(--sia-color-primary); background: var(--sia-color-primary-light); }

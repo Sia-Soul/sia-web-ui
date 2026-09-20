@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import {
-  Alert, Button, Card, Divider, Icon, Popconfirm, Progress, Space, Spin, Tour, Watermark, message, notification,
+  Alert, Button, Card, Divider, Icon, Popconfirm, Progress, Space, Spin, Switch, Tour, Watermark, message, notification,
 } from "@sia.soul/sia-react-ui";
 import { ComponentDocPage } from "./ComponentDocPage";
 import { DemoCard } from "./DemoCard";
@@ -34,16 +34,64 @@ export function AlertPage() {
 
 export function PopconfirmPage() {
   const [count, setCount] = useState(3);
+  const [skipConfirm, setSkipConfirm] = useState(false);
+  const [pointAtCenter, setPointAtCenter] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualLoading, setManualLoading] = useState(false);
+  const placements = ["topLeft", "top", "topRight", "leftTop", "left", "leftBottom", "rightTop", "right", "rightBottom", "bottomLeft", "bottom", "bottomRight"] as const;
+  const positions = [[1, 2], [1, 3], [1, 4], [2, 1], [3, 1], [4, 1], [2, 5], [3, 5], [4, 5], [5, 2], [5, 3], [5, 4]];
   return <ComponentDocPage eyebrow="组件 / 反馈 / Popconfirm" title="Popconfirm 气泡确认框" description="在当前操作附近请求二次确认，支持异步确认和受控显示。" name="Popconfirm" apiRows={[
     { property: "title / description", description: "确认标题和说明", type: "ReactNode", defaultValue: "-" },
-    { property: "onConfirm / onCancel", description: "确认与取消回调，可返回 Promise", type: "function", defaultValue: "-" },
+    { property: "onConfirm / onCancel", description: "确认回调支持 Promise 和返回 false；取消回调在点击取消按钮时触发", type: "function", defaultValue: "-" },
     { property: "okText / cancelText", description: "按钮文本", type: "ReactNode", defaultValue: "确定 / 取消" },
-    { property: "open / placement / trigger", description: "显示状态、位置与触发方式", type: "boolean / placement / trigger", defaultValue: "-" },
+    { property: "open / onOpenChange", description: "受控显示及变更回调，手动关闭时更新 open", type: "boolean / (open: boolean) => void", defaultValue: "-" },
+    { property: "placement", description: "十二方向，支持 top-start / left-end 等名称及 topLeft / leftBottom 等别名", type: "FloatingPlacement", defaultValue: "top" },
+    { property: "arrow", description: "显示箭头或配置指向目标中心", type: "boolean | { pointAtCenter?: boolean }", defaultValue: "true" },
+    { property: "autoAdjustOverflow", description: "空间不足时翻转、贴边偏移并调整箭头；目标滚出可视区域后隐藏", type: "boolean", defaultValue: "true" },
+    { property: "skipConfirm", description: "点击时跳过气泡直接执行 onConfirm，disabled 优先", type: "boolean", defaultValue: "false" },
+    { property: "onConfirmError", description: "同步抛错或 Promise 拒绝时接收原始错误，保留气泡以便重试", type: "(error: unknown) => void", defaultValue: "-" },
   ]}>
     <DemoCard title="删除确认" description={`当前还有 ${count} 条记录`} code={`<Popconfirm title="确定删除吗？" onConfirm={() => remove()}><Button danger>删除</Button></Popconfirm>`}>
       <Popconfirm title="确定删除这条记录吗？" description="删除后不可恢复。" onConfirm={() => { setCount((value) => Math.max(0, value - 1)); message.success("已删除"); }}>
         <Button danger icon={<Icon name="trash" />}>删除记录</Button>
       </Popconfirm>
+    </DemoCard>
+    <DemoCard title="名称上方确认" description="在整行布局中，气泡以名称按钮为定位目标；窗口边缘自动避让，箭头仍指向名称。" code={'<Popconfirm title="确认切换品牌方？" description="dev品牌方"><Button variant="link">dev品牌方</Button></Popconfirm>'}>
+      <div style={{ display: "grid", justifyItems: "stretch" }}>
+        <Popconfirm title="确认切换品牌方？" description="dev品牌方" okText="切换"><Button variant="link">dev品牌方</Button></Popconfirm>
+      </div>
+    </DemoCard>
+    <DemoCard title="十二个方向" description="支持四边居中和两端对齐，pointAtCenter 让箭头指向目标中心。" code={'<Popconfirm placement="leftTop" arrow={{ pointAtCenter: true }} title="确认操作？"><Button>左上</Button></Popconfirm>'}>
+      <Switch checked={pointAtCenter} onChange={event => setPointAtCenter(event.target.checked)} label="箭头指向中心" />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 8, maxWidth: 680, margin: "24px auto" }}>
+        {placements.map((placement, index) => <div key={placement} style={{ gridRow: positions[index][0], gridColumn: positions[index][1] }}>
+          <Popconfirm placement={placement} arrow={{ pointAtCenter }} title="确认执行此操作？" description="请核对操作内容。"><Button style={{ width: "100%" }}>{placement}</Button></Popconfirm>
+        </div>)}
+      </div>
+    </DemoCard>
+    <DemoCard title="条件触发" description="根据业务条件设置 skipConfirm：开启时点击直接执行，关闭时先弹出确认。" code={'<Popconfirm skipConfirm={direct} title="确认删除？" onConfirm={remove}><Button danger>删除</Button></Popconfirm>'}>
+      <Space><Popconfirm skipConfirm={skipConfirm} title="确认删除？" onConfirm={() => { message.success("已执行删除"); }}><Button danger>删除任务</Button></Popconfirm><Switch checked={skipConfirm} onChange={event => setSkipConfirm(event.target.checked)} label="直接执行" /></Space>
+    </DemoCard>
+    <DemoCard title="手动异步关闭" description="通过 open 和 okButtonProps.loading 管理显示及加载状态；onConfirm 返回 false，完成后自行关闭。" code={`<Popconfirm open={open} onOpenChange={setOpen} okButtonProps={{ loading }} title="提交审核？" onConfirm={() => {
+  setLoading(true);
+  submit().then(() => setOpen(false)).finally(() => setLoading(false));
+  return false;
+}}><Button>提交</Button></Popconfirm>`}>
+      <Popconfirm open={manualOpen} onOpenChange={setManualOpen} okButtonProps={{ loading: manualLoading }} title="提交审核？" onConfirm={() => {
+        setManualLoading(true);
+        window.setTimeout(() => { setManualLoading(false); setManualOpen(false); }, 800);
+        return false;
+      }}><Button>手动管理异步关闭</Button></Popconfirm>
+    </DemoCard>
+    <DemoCard title="贴边与滚动" description="弹层贴近窗口边缘时偏移并调整箭头；滚动容器中的目标完全离开可视区域后，弹层随之隐藏，滚回时恢复。" code={'<Popconfirm autoAdjustOverflow arrow={{ pointAtCenter: true }} title="确认操作？"><Button>滚动查看</Button></Popconfirm>'}>
+      <div style={{ overflow: "auto", maxWidth: 700, height: 240, border: "1px solid var(--sia-color-border)", borderRadius: 6 }}>
+        <div style={{ width: 1100, height: 500, padding: "140px 0 0 440px", boxSizing: "border-box" }}>
+          <Popconfirm title="确认执行此操作？" arrow={{ pointAtCenter: true }}><Button>滚动查看气泡跟随</Button></Popconfirm>
+        </div>
+      </div>
+    </DemoCard>
+    <DemoCard title="异步失败" description="请求拒绝时恢复按钮并保留气泡；使用 onConfirmError 展示业务错误信息。" code={'<Popconfirm title="提交？" onConfirm={submit} onConfirmError={() => message.error("提交失败，请重试")}><Button>提交</Button></Popconfirm>'}>
+      <Popconfirm title="提交？" onConfirm={() => new Promise<void>((_, reject) => window.setTimeout(() => reject(new Error("模拟请求失败")), 600))} onConfirmError={() => message.error("提交失败，请重试")}><Button>模拟请求失败</Button></Popconfirm>
     </DemoCard>
     <DemoCard title="异步确认" description="Promise 完成前确认按钮保持加载。" code={`<Popconfirm title="提交审核？" onConfirm={() => submitAsync()}><Button>提交</Button></Popconfirm>`}>
       <Popconfirm title="提交审核？" description="确认后将模拟 800ms 异步请求。" onConfirm={() => new Promise<void>((resolve) => window.setTimeout(resolve, 800))}><Button>异步提交</Button></Popconfirm>

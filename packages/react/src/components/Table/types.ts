@@ -200,7 +200,7 @@ export interface TablePlugin<T, S = unknown, Api = unknown> {
   id: string;
   /** 排序位置或排序方向。 */
   order?: number;
-  /** 是否禁用虚拟渲染。 */
+  /** 是否禁用虚拟渲染；仅在实际展示行数不超过 100 时生效，超过 100 行由表格强制启用。 */
   disableVirtual?: boolean;
   /** 插件或功能初始化时的状态。 */
   initialState?: S | (() => S);
@@ -303,9 +303,9 @@ export interface TableProps<T extends Record<string, unknown> = Record<string, u
   toolbarBordered?: boolean;
   /** 是否显示隔行背景。 */
   striped?: boolean;
-  /** 长列表启用窗口化渲染 */
+  /** 是否启用窗口化渲染；未指定时按 virtualThreshold 判断。筛选、分页及树展开后的实际展示行数超过 100 时强制启用，优先于 false 和插件的 disableVirtual。 */
   virtual?: boolean;
-  /** 启用虚拟滚动的选项数量 */
+  /** 自动启用虚拟滚动的展示行数阈值（含该值），默认 100；仅在未指定 virtual 时使用，实际展示超过 100 行始终强制启用。 */
   virtualThreshold?: number;
   /** 行高度，单位为 px，虚拟滚动用其计算行位置；默认随 size 取 small 28、medium 36、large 46。自定义内容应适配行高，避免撑高后导致虚拟滚动位置偏差。 */
   rowHeight?: number;
@@ -320,6 +320,7 @@ export interface TableProps<T extends Record<string, unknown> = Record<string, u
   cellSelection?: boolean;
   /**
    * 是否显示序号列，默认从 1 开始；搭配分页插件时按页码连续编号，存在勾选列时放在其后。
+   * 序号列固定在业务列之前（勾选列之后），不参与列设置中的排序、显隐和固定位置调整。
    * 显式传入 createIndexPlugin 可自定义标题、宽度和起始编号，不会重复生成序号列；false 时禁用序号插件（包括显式传入的插件）。
    * @defaultValue true
    */

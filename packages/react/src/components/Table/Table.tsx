@@ -92,12 +92,12 @@ function resolveInitialState<T>(plugin: AnyTablePlugin<T>): unknown {
   return typeof plugin.initialState === "function" ? plugin.initialState() : plugin.initialState;
 }
 
-function measureTableCellContentWidth(cell: HTMLElement): number {
+/** 批量准备测量节点，调用方统一写入后读取，避免每个单元格触发一次强制布局。 */
+function prepareTableCellMeasurement(cell: HTMLElement): HTMLElement | undefined {
   const content = cell.querySelector<HTMLElement>(":scope > .sia-table__cell-content");
   const target = cell.classList.contains("sia-table__header-cell")
     ? cell.querySelector<HTMLElement>(".sia-table__resizable-header > span:first-child, .sia-table__header-label-content")
     : content;
-  let contentWidth = cell.scrollWidth;
   if (target) {
     const measurement = target.cloneNode(true) as HTMLElement;
     Object.assign(measurement.style, {
@@ -115,15 +115,8 @@ function measureTableCellContentWidth(cell: HTMLElement): number {
     });
     measurement.setAttribute("aria-hidden", "true");
     cell.appendChild(measurement);
-    contentWidth = Math.max(measurement.scrollWidth, measurement.getBoundingClientRect().width);
-    measurement.remove();
+    return measurement;
   }
-  const style = window.getComputedStyle(cell);
-  return contentWidth
-    + (Number.parseFloat(style.paddingLeft) || 0)
-    + (Number.parseFloat(style.paddingRight) || 0)
-    + (Number.parseFloat(style.borderLeftWidth) || 0)
-    + (Number.parseFloat(style.borderRightWidth) || 0);
 }
 
 function getTableHorizontalMetrics(viewport: HTMLElement, table: HTMLTableElement | null) {
@@ -388,10 +381,17 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     if (element.scrollLeft > maxLeft) element.scrollLeft = maxLeft > 1 ? maxLeft : 0;
     const logicalScrollLeft = Math.min(element.scrollLeft, maxLeft);
     const maxTop = Math.max(0, element.scrollHeight - element.clientHeight);
-    root.dataset.overflowX = String(maxLeft > 1);
-    root.dataset.overflowY = String(maxTop > 1);
-    const horizontalTrack = root.querySelector<HTMLElement>(".sia-table__scrollbar--horizontal")?.clientWidth ?? 0;
-    const verticalTrack = root.querySelector<HTMLElement>(".sia-table__scrollbar--vertical")?.clientHeight ?? 0;
+    // 同值属性写入仍可能触发整棵表格的样式失效，仅在边界状态变化时更新。
+    const setFlag = (key: string, value: boolean) => {
+      const next = String(value);
+      if (root.dataset[key] !== next) root.dataset[key] = next;
+    };
+    setFlag("overflowX", maxLeft > 1);
+    setFlag("overflowY", maxTop > 1);
+    const horizontalTrackElement = root.querySelector<HTMLElement>(".sia-table__scrollbar--horizontal");
+    const verticalTrackElement = root.querySelector<HTMLElement>(".sia-table__scrollbar--vertical");
+    const horizontalTrack = horizontalTrackElement?.clientWidth ?? 0;
+    const verticalTrack = verticalTrackElement?.clientHeight ?? 0;
     const horizontalThumb = maxLeft > 1
       ? Math.min(horizontalTrack, Math.max(36, horizontalTrack * element.clientWidth / horizontalContentWidth))
       : 0;
@@ -405,10 +405,8 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
       ? element.scrollTop / maxTop * Math.max(0, verticalTrack - verticalThumb)
       : 0;
 
-    root.dataset.scrolledLeft = String(logicalScrollLeft > 1);
-    root.dataset.scrolledRight = String(maxLeft > 1 && logicalScrollLeft < maxLeft - 1);
-    root.dataset.overflowX = String(maxLeft > 1);
-    root.dataset.overflowY = String(maxTop > 1);
+    setFlag("scrolledLeft", logicalScrollLeft > 1);
+    setFlag("scrolledRight", maxLeft > 1 && logicalScrollLeft < maxLeft - 1);
     const viewportRect = element.getBoundingClientRect();
     const leftEdge = root.querySelector<HTMLElement>(".sia-table__header-cell.sia-table__cell--fixed-left-edge");
     const rightEdge = root.querySelector<HTMLElement>(".sia-table__header-cell.sia-table__cell--fixed-right-edge");
@@ -420,10 +418,11 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
       const rightEdgeRect = rightEdge.getBoundingClientRect();
       root.style.setProperty("--sia-table-fixed-right-width", `${Math.max(0, viewportRect.right - rightEdgeRect.left)}px`);
     }
-    root.style.setProperty("--sia-table-scrollbar-x-size", `${horizontalThumb}px`);
-    root.style.setProperty("--sia-table-scrollbar-x-position", `${horizontalPosition}px`);
-    root.style.setProperty("--sia-table-scrollbar-y-size", `${verticalThumb}px`);
-    root.style.setProperty("--sia-table-scrollbar-y-position", `${verticalPosition}px`);
+    // 滚动条变量只影响轨道；放在表格根节点会逐帧使所有单元格重新计算继承样式。
+    horizontalTrackElement?.style.setProperty("--sia-table-scrollbar-x-size", `${horizontalThumb}px`);
+    horizontalTrackElement?.style.setProperty("--sia-table-scrollbar-x-position", `${horizontalPosition}px`);
+    verticalTrackElement?.style.setProperty("--sia-table-scrollbar-y-size", `${verticalThumb}px`);
+    verticalTrackElement?.style.setProperty("--sia-table-scrollbar-y-position", `${verticalPosition}px`);
   }, []);
 
   useEffect(() => {
@@ -448,19 +447,39 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
   const leafColumns = useMemo(() => flattenTableColumns(orderedColumns), [orderedColumns]);
   const headerRows = useMemo(() => buildHeaderRows(orderedColumns), [orderedColumns]);
 
+  // 滚动和悬停不改变已有内容宽度；仅新挂载的单元格需要测量。
+  const measuredCells = useRef(new WeakSet<HTMLElement>());
+  const autoWidthSignature = leafColumns.map(column => `${column.key}:${column.autoWidth}:${resizedWidths[column.key] ?? ""}`).join("|");
+  useEffect(() => {
+    measuredCells.current = new WeakSet();
+    // 换数据或列配置后重新计算，避免上一页的长内容永久撑宽当前页。
+    setAutoColumnWidths({});
+  }, [dataSource, baseColumns, size, autoWidthSignature]);
+
   useEffect(() => {
     const autoWidthColumns = leafColumns.filter((column) => column.autoWidth && resizedWidths[column.key] === undefined);
     const root = rootRef.current;
     if (!root || autoWidthColumns.length === 0) return;
     const frame = window.requestAnimationFrame(() => {
       const measurements: Record<string, number> = {};
-      const cells = root.querySelectorAll<HTMLElement>("[data-column-key]");
+      const columnsByKey = new Map(autoWidthColumns.map(column => [column.key, column]));
+      const cells = [...root.querySelectorAll<HTMLElement>("th[data-column-key], td[data-column-key]")]
+        .filter(cell => columnsByKey.has(cell.dataset.columnKey!) && !measuredCells.current.has(cell));
+      if (cells.length === 0) return;
+      // 先完成所有 DOM 写入，再批量读尺寸，最后统一移除临时节点。
+      const prepared = cells.map(cell => ({ cell, node: prepareTableCellMeasurement(cell) }));
+      for (const { cell, node } of prepared) {
+        const key = cell.dataset.columnKey!;
+        const style = window.getComputedStyle(cell);
+        const padding = (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0)
+          + (Number.parseFloat(style.borderLeftWidth) || 0) + (Number.parseFloat(style.borderRightWidth) || 0);
+        measurements[key] = Math.max(measurements[key] ?? 0, node ? Math.max(node.scrollWidth, node.getBoundingClientRect().width) + padding : cell.scrollWidth);
+        measuredCells.current.add(cell);
+      }
+      prepared.forEach(({ node }) => node?.remove());
       for (const column of autoWidthColumns) {
-        let width = column.minWidth ?? 56;
-        for (const cell of cells) {
-          if (cell.dataset.columnKey !== column.key) continue;
-          width = Math.max(width, measureTableCellContentWidth(cell));
-        }
+        if (measurements[column.key] === undefined) continue;
+        const width = Math.max(column.minWidth ?? 56, autoColumnWidths[column.key] ?? 0, measurements[column.key]);
         measurements[column.key] = Math.ceil(Math.min(column.maxWidth ?? Number.POSITIVE_INFINITY, width));
       }
       setAutoColumnWidths((previous) => {
@@ -513,13 +532,21 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
   const leftFixedEdgeKey = [...leafColumns].reverse().find((column) => normalizeFixed(column.fixed) === "left")?.key;
   const rightFixedEdgeKey = leafColumns.find((column) => normalizeFixed(column.fixed) === "right")?.key;
 
-  const shouldVirtualize = (virtual ?? pipeline.rows.length >= virtualThreshold) && !sortedPlugins.some((plugin) => plugin.disableVirtual);
+  // 按筛选、分页及树展开后的实际渲染行数兜底，超过 100 行时不允许配置关闭窗口化。
+  const shouldVirtualize = pipeline.rows.length > 100
+    || ((virtual ?? pipeline.rows.length >= virtualThreshold) && !sortedPlugins.some((plugin) => plugin.disableVirtual));
   const startIndex = shouldVirtualize ? Math.max(0, Math.floor(scrollTop / rowHeight) - overscan) : 0;
   const visibleCount = shouldVirtualize ? Math.ceil(viewportHeight / rowHeight) + overscan * 2 : pipeline.rows.length;
   const endIndex = shouldVirtualize ? Math.min(pipeline.rows.length, startIndex + visibleCount) : pipeline.rows.length;
   const renderedRows = pipeline.rows.slice(startIndex, endIndex);
   const topSpacer = shouldVirtualize ? startIndex * rowHeight : 0;
   const bottomSpacer = shouldVirtualize ? Math.max(0, (pipeline.rows.length - endIndex) * rowHeight) : 0;
+  // 虚拟窗口移动时复用仍可见行的元素与事件闭包；数据、插件或列布局变化必须失效。
+  const rowElements = useMemo(() => new Map<React.Key, ReactElement>(), [
+    dataSource, baseColumns, sortedPlugins, pluginStates, autoColumnWidths,
+    viewportWidth, rowHeight, striped, rowClassName, getRowKey,
+    onRowClick, onRowDoubleClick, onCellContextMenu,
+  ]);
   const toolbarStart = sortedPlugins.map((plugin) => {
     const content = plugin.renderToolbarStart?.(getContext(plugin));
     return content ? <Fragment key={`toolbar-start-${plugin.id}`}>{content}</Fragment> : null;
@@ -547,9 +574,10 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
 
   const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     const element = event.currentTarget;
-    if (shouldVirtualize) setScrollTop(element.scrollTop);
+    // 同一行区间内无需重新渲染整张表，横向滚动也不应重建单元格。
+    if (shouldVirtualize) setScrollTop(previous => Math.floor(previous / rowHeight) === Math.floor(element.scrollTop / rowHeight) ? previous : element.scrollTop);
     updateScrollMetrics();
-  }, [shouldVirtualize, updateScrollMetrics]);
+  }, [shouldVirtualize, rowHeight, updateScrollMetrics]);
 
   const handleScrollbarPointerDown = useCallback((axis: "x" | "y", event: React.PointerEvent<HTMLDivElement>, track = event.currentTarget) => {
     const element = scrollRef.current;
@@ -780,10 +808,12 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
           <tbody>
             {topSpacer > 0 ? <tr aria-hidden="true"><td colSpan={leafColumns.length} style={{ height: topSpacer, padding: 0, border: 0 }} /></tr> : null}
             {renderedRows.map((row, offset) => {
+              const cached = rowElements.get(row.key);
+              if (cached) return cached;
               const rowIndex = startIndex + offset;
               const pluginClasses = sortedPlugins.map((plugin) => plugin.getRowClassName?.(row, getContext(plugin))).filter(Boolean).join(" ");
               const customClass = typeof rowClassName === "function" ? rowClassName(row.record, row.sourceIndex) : rowClassName ?? "";
-              return <TableBodyRow
+              const element = <TableBodyRow
                 key={row.key}
                 row={row}
                 rowIndex={rowIndex}
@@ -826,6 +856,8 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
                   for (const plugin of sortedPlugins) plugin.onCellPointerMove?.(row, column, event, getContext(plugin));
                 }}
               />;
+              rowElements.set(row.key, element);
+              return element;
             })}
             {bottomSpacer > 0 ? <tr aria-hidden="true"><td colSpan={leafColumns.length} style={{ height: bottomSpacer, padding: 0, border: 0 }} /></tr> : null}
           </tbody>
