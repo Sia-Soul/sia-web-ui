@@ -1,7 +1,7 @@
 import { useControlSize } from "./shared";
 import { useFloatingPlaceholder } from "./FloatingPlaceholder";
 import type { InputPlaceholderMode } from "./shared";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { InputHTMLAttributes, ReactNode } from "react";
 import { Icon } from "./Icon";
 import { PopupPortal } from "./PopupPortal";
@@ -392,7 +392,7 @@ export function DatePicker({
   </span>;
 }
 
-/** 日期范围选择；纯日期按两次点击组成范围，带时间时使用单面板分步设置起止值并确认提交。 */
+/** 日期范围选择；纯日期按两次点击组成范围，带时间时使用单面板分步设置起止值并确认提交，活动底线随编辑端点平滑移动。 */
 function DateRangePicker({
   value,
   defaultValue = ["", ""],
@@ -432,6 +432,27 @@ function DateRangePicker({
   const [visible, setVisible] = useControllableState({ value: open, defaultValue: defaultOpen, onChange: onOpenChange });
   const [draftValue, setDraftValue] = useState<readonly [string, string]>(currentValue);
   const [activeIndex, setActiveIndex] = useState<0 | 1>(endpointDisabled[0] || currentValue[0] && !currentValue[1] ? 1 : 0);
+  const indicatorRef = useRef<HTMLSpanElement>(null);
+  // 共用底线按实际输入区域定位，兼容自定义分隔符及容器尺寸变化，避免切换时重建动画节点。
+  useLayoutEffect(() => {
+    const field = rootRef.current?.querySelector<HTMLElement>(`[data-range-endpoint="${activeIndex}"]`);
+    const indicator = indicatorRef.current;
+    if (!field || !indicator) return;
+    /** 将底线对齐当前输入区域；偏移与宽度均为相对触发按钮的 CSS 像素。 */
+    const alignIndicator = () => {
+      indicator.style.transform = `translateX(${field.offsetLeft}px)`;
+      indicator.style.width = `${field.offsetWidth}px`;
+    };
+    alignIndicator();
+    const observer = new ResizeObserver(alignIndicator);
+    // 同时观察分隔符，确保只改变分隔符宽度时也能更新底线位置。
+    const trigger = field.parentElement;
+    if (trigger) {
+      observer.observe(trigger);
+      for (const child of trigger.children) if (child !== indicator) observer.observe(child);
+    }
+    return () => observer.disconnect();
+  });
   // 每次打开独立记录已确认端点，使从开始或结束进入都先确认本端、再确认另一端。
   const [confirmedIndex, setConfirmedIndex] = useState<0 | 1 | null>(null);
   // 快捷范围一次提供两端，无需逐端确认；重新手动编辑后恢复分步确认。
@@ -705,6 +726,7 @@ function DateRangePicker({
       <span className={`sia-picker-range-control__value${displayValue[1] ? "" : " is-placeholder"}`}>{displayValue[1] ? formatValue(displayValue[1]) : placeholder[1]}</span>
         {endFloating.label}
       </span>
+      <span ref={indicatorRef} className="sia-picker-range-control__indicator" aria-hidden="true" />
 
       <span className="sia-picker__icon" aria-hidden="true">{suffixIcon ?? <Icon name="calendar" size={16} />}</span>
     </button>

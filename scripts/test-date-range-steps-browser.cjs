@@ -50,6 +50,22 @@ window.mountRange = (props) => {
       await panel.getByRole('listbox', { name: '开始时间秒', exact: true }).getByRole('option', { name: '12', exact: true }).click();
       assert.deepEqual(await committed(), []);
       await next();
+      // 暂停真实 CSS 位移动画并采样中点，确认底线经过两个输入区之间，而非直接跳到终点。
+      const slide = await page.locator('.sia-picker-range-control__indicator').evaluate(el => {
+        const animation = el.getAnimations().find(item => item.transitionProperty === 'transform');
+        if (!animation) return null;
+        animation.pause();
+        animation.currentTime = 110;
+        const fields = el.parentElement.querySelectorAll('[data-range-endpoint]');
+        const result = {
+          left: el.getBoundingClientRect().left,
+          start: fields[0].getBoundingClientRect().left,
+          end: fields[1].getBoundingClientRect().left,
+        };
+        animation.finish();
+        return result;
+      });
+      assert(slide && slide.left > slide.start && slide.left < slide.end, '底线应平滑经过两个输入区域之间');
       assert.equal(await panel.locator('.sia-date-panel__calendar').count(), 1);
       assert.equal(await date('2026-09-18').count(), 1);
       assert.equal(await date('2026-09-07').isDisabled(), true);
@@ -71,11 +87,11 @@ window.mountRange = (props) => {
     await fields.nth(1).click();
     assert.equal(await panel.locator('[aria-label="结束日期时间"]').count(), 1);
     assert.equal(await panel.getByRole('button', { name: '下一步', exact: true }).count(), 0);
-    assert.equal(await fields.nth(1).evaluate(el => getComputedStyle(el, '::after').height), '3px');
+    assert.equal(await page.locator('.sia-picker-range-control__indicator').evaluate(el => getComputedStyle(el).height), '3px');
     await date('2026-10-20').click();
     await fields.nth(0).click();
     assert.equal(await panel.locator('[aria-label="开始日期时间"]').count(), 1);
-    assert.equal(await fields.nth(0).evaluate(el => getComputedStyle(el, '::after').height), '3px');
+    assert.equal(await page.locator('.sia-picker-range-control__indicator').evaluate(el => getComputedStyle(el).visibility), 'visible');
     assert.equal(await fields.nth(1).evaluate(el => el.classList.contains('is-active')), false);
     await date('2026-09-08').click();
     await fields.nth(1).click();
@@ -86,6 +102,7 @@ window.mountRange = (props) => {
     await panel.waitFor({ state: 'hidden' });
     assert.deepEqual(await committed(), [['2026-09-08 08:00:00', '2026-10-20 18:00:00']]);
     assert.equal(await page.locator('.sia-picker-range-control__field.is-active').count(), 0);
+    assert.equal(await page.locator('.sia-picker-range-control__indicator').evaluate(el => getComputedStyle(el).visibility), 'hidden');
 
     // 空范围先设置结束时间也可确认进入开始端；旧开始值不会限制首次选择结束日期。
     for (const initial of [['', ''], ['2026-09-25 08:00:00', '2026-09-28 18:00:00']]) {

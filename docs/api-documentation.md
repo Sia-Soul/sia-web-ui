@@ -67,6 +67,7 @@ pnpm test:api-docs
 
 ## 框架交互默认行为
 
+- 日期范围选择器的活动底线在开始、结束输入区域之间以 220ms 平滑移动，包括带时间时点击“确定”进入另一端及手动切换端点；关闭面板后隐藏，系统启用减少动态效果时直接定位。
 - TextArea 默认正文及浮动占位字号为 `14px`，small / medium / large 分别为 `12 / 14 / 16px`。
 - Checkbox、Radio、Switch 默认标签字号为 `13px`，small / medium / large 分别为 `12 / 13 / 16px`，不改变勾选框、圆点或开关的图形尺寸。
 

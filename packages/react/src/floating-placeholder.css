@@ -43,8 +43,12 @@ fieldset:disabled .sia-placeholder-floating > .sia-floating-placeholder { backgr
 fieldset:disabled .sia-input-control__floating-placeholder, fieldset:disabled .sia-input-number__floating-placeholder { background: var(--sia-color-control-hover); }
 
 .sia-picker-range-control__field { position: relative; display: flex; align-items: center; flex: 1; min-width: 0; height: 100%; }
-/* 活动端点使用 3px 底线覆盖原边框，不占布局空间；切换面板时跟随当前编辑端点。 */
-.sia-picker-range-control__field.is-active::after { content: ""; position: absolute; right: 0; bottom: -1px; left: 0; height: 3px; background: var(--sia-color-primary); pointer-events: none; }
+/* 共用 3px 底线覆盖原边框，不占布局空间；端点切换时在实际输入区域间滑动。 */
+.sia-picker-range-control > .sia-picker__trigger { position: relative; }
+.sia-picker-range-control__indicator { position: absolute; bottom: -1px; left: 0; height: 3px; background: var(--sia-color-primary); pointer-events: none; visibility: hidden; }
+.sia-picker-range-control.is-open .sia-picker-range-control__indicator { visibility: visible; transition: transform 220ms ease, width 220ms ease; }
+/* 尊重系统减少动态效果的设置，保留活动端点标识但关闭滑动。 */
+@media (prefers-reduced-motion: reduce) { .sia-picker-range-control.is-open .sia-picker-range-control__indicator { transition: none; } }
 .sia-picker-range-control__field.sia-placeholder-floating > .is-placeholder { color: transparent; }
 .sia-picker-range-control__field > .sia-floating-placeholder { left: -4px; max-width: 100%; }
 .sia-picker-range-control__field.sia-placeholder-floating--filled > .sia-floating-placeholder,
