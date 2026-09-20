@@ -438,7 +438,10 @@
 
 .sia-form > fieldset { display: contents; min-width: 0; margin: 0; padding: 0; border: 0; }
 /* 表单项统一保留 6px 下外边距，避免相邻字段的标签与上一项控件紧贴。 */
-.sia-form-item { display: grid; grid-template-columns: minmax(90px, 140px) minmax(0, 1fr); gap: 8px 14px; margin-bottom: 6px; color: var(--sia-color-text); }
+/* --sia-form-label-width 为标签列宽，支持 CSS 长度；未设置时使用本表单测得的最大标签宽度（px，初始 0px）。显式列宽优先于自动测量值。 */
+.sia-form-item { display: grid; grid-template-columns: var(--sia-form-label-width, var(--sia-form-auto-label-width, 0px)) minmax(0, 1fr); gap: 8px 14px; margin-bottom: 6px; color: var(--sia-color-text); }
+/* 内部测量值 --sia-form-auto-label-width 由 Form 写入，单位 px；自然宽度独立于标签列，避免测量结果被上一轮列宽限制。 */
+.sia-form-item__label-content { display: inline-block; width: max-content; }
 /* 表单项标签默认使用 13px 字号。 */
 .sia-form-item__label { padding-top: 8px; text-align: right; font-size: 13px; line-height: 1.45; }
 /* 必填色只作用于框架生成的星号，不能匹配用户标签或 Tooltip 的 span。 */
@@ -458,7 +461,7 @@
 .sia-form--vertical .sia-form-item__label { padding-top: 0; text-align: left; }
 .sia-form--inline > fieldset { display: flex; align-items: start; flex-wrap: wrap; gap: 12px; }
 .sia-form--inline .sia-form-item { display: flex; align-items: start; gap: 8px; }
-.sia-form--inline .sia-form-item__label { text-align: left; }
+.sia-form--inline .sia-form-item__label { flex: 0 0 var(--sia-form-label-width, var(--sia-form-auto-label-width, 0px)); text-align: left; }
 .sia-form-error-list { display: grid; gap: 3px; font-size: 12px; }
 
 @media (max-width: 650px) {

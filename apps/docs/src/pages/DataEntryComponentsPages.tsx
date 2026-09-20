@@ -277,7 +277,8 @@ export default function Demo() {
 export function FormPage() {
   const [form] = Form.useForm();
   const [result, setResult] = useState("尚未提交");
-  return <DocPage eyebrow="组件 / 数据录入 / Form" title="Form 表单" description="统一管理字段值、校验、气泡错误提示、提交和动态字段；Form.Item 默认保留 6px 下外边距。" name="Form" apiRows={[
+  // 默认标签列按当前表单最宽标签对齐，动态字段增删时自动更新。
+  return <DocPage eyebrow="组件 / 数据录入 / Form" title="Form 表单" description="统一管理字段值、校验、气泡错误提示、提交和动态字段；水平及行内布局默认按同一表单最宽标签对齐，可通过 --sia-form-label-width 显式指定列宽；Form.Item 默认保留 6px 下外边距。" name="Form" apiRows={[
     { property: "form / Form.useForm", description: "表单实例与命令式 API", type: "FormInstance", defaultValue: "自动创建" },
     { property: "size", description: "统一子组件尺寸；small / medium / large 的单行控件高度为 22 / 30 / 38px。组件自身 size 优先，Checkbox.Group 和 Radio.Group 可覆盖组内默认尺寸", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
     { property: "placeholderMode", description: "统一设置输入和选择组件的占位符模式；组件自身的同名属性优先", type: "'default' | 'floating'", defaultValue: "'default'" },

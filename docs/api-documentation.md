@@ -82,6 +82,10 @@ pnpm test:api-docs
 
 `Form.Item` 标签默认字号为 `13px`，适用于水平、垂直和行内布局。
 
+水平和行内布局默认按同一 Form 内最宽的可见标签统一列宽，包含必填星号和自定义 React 节点；标签文字、字体或可见项变化后重新计算，移除最长标签时列宽同步缩小，各表单独立测量。垂直布局及窄屏水平布局保留上下排列。
+
+`--sia-form-label-width` 可在 Form 或单个 Form.Item 的 CSS 类中指定标签列宽，接受 CSS 长度值，例如 `120px`，优先于自动测量值；未设置时使用内部 `--sia-form-auto-label-width`（单位 px，测量前为 `0px`），无需业务手动维护。
+
 `Form.Item.label` 支持文本和包含 Tooltip 的 React 节点。必填星号使用独立类名 `sia-form-item__required-mark`，红色仅标识星号，不表示字段已校验失败，也不应改变自定义标签的颜色。只有用户交互触发校验或提交校验时，才按原有规则显示字段错误。
 
 ## Upload 已上传图片回填

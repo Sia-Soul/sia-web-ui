@@ -1,5 +1,5 @@
 import { withTitleTooltip } from "./titleTooltip";
-import { Children, cloneElement, createContext, forwardRef, isValidElement, useContext, useEffect, useId, useMemo, useRef, useSyncExternalStore } from "react";
+import { Children, cloneElement, createContext, forwardRef, isValidElement, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import type { ChangeEventHandler, FormHTMLAttributes, InputHTMLAttributes, ReactElement, ReactNode } from "react";
 import { ControlSizeContext, PlaceholderModeContext, useControlSize, usePlaceholderMode } from "./shared";
 import type { ControlSize, InputPlaceholderMode } from "./shared";
@@ -359,7 +359,7 @@ export interface FormProps extends Omit<FormHTMLAttributes<HTMLFormElement>, "on
   /** 表单初始值 */
   initialValues?: FormValues;
   /**
-   * 布局方式。
+   * 布局方式；horizontal 与 inline 默认按当前表单内最宽标签对齐，vertical 保持标签在控件上方。
    * @defaultValue "horizontal"
    */
   layout?: "horizontal" | "vertical" | "inline";
@@ -408,8 +408,40 @@ function FormRoot({
   const instance = internalForm as InternalFormInstance;
   instance.configure(initialValues, { onFinish, onFinishFailed, onValuesChange });
   const context = useMemo(() => instance, [instance]);
+  const formRef = useRef<HTMLFormElement>(null);
+  // 每个表单独立测量真实标签内容，包含必填标记和自定义节点；动态增删后重新计算最大值。
+  useLayoutEffect(() => {
+    const root = formRef.current;
+    if (!root) return;
+    let frame = 0;
+    const observed = new Set<HTMLElement>();
+    /** 汇总当前表单中可见标签的自然宽度，排除嵌套表单，允许最长标签移除后缩小。 */
+    const measure = () => {
+      frame = 0;
+      const labels = [...root.querySelectorAll<HTMLElement>(".sia-form-item__label-content")]
+        .filter(label => label.closest(".sia-form") === root);
+      const next = new Set(labels);
+      observed.forEach(label => { if (!next.has(label)) { resizeObserver.unobserve(label); observed.delete(label); } });
+      let width = 0;
+      labels.forEach(label => {
+        if (!observed.has(label)) { resizeObserver.observe(label); observed.add(label); }
+        if (label.getClientRects().length) width = Math.max(width, label.offsetWidth);
+      });
+      const value = `${Math.ceil(width)}px`;
+      if (root.style.getPropertyValue("--sia-form-auto-label-width") !== value) root.style.setProperty("--sia-form-auto-label-width", value);
+    };
+    /** 合并内容及布局变化的测量请求，避免一次更新中重复读取布局。 */
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(measure); };
+    const resizeObserver = new ResizeObserver(schedule);
+    resizeObserver.observe(root);
+    const mutations = new MutationObserver(schedule);
+    mutations.observe(root, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["class", "style", "hidden"] });
+    measure();
+    return () => { resizeObserver.disconnect(); mutations.disconnect(); if (frame) cancelAnimationFrame(frame); };
+  }, []);
   return <FormContext.Provider value={context}><PlaceholderModeContext.Provider value={resolvedPlaceholderMode}><ControlSizeContext.Provider value={size}>
     <form
+      ref={formRef}
       {...withTitleTooltip(props)}
       className={`sia-form sia-form--${layout} sia-form--${size}${disabled ? " is-disabled" : ""} ${className}`.trim()}
       data-required-mark={requiredMark}
@@ -424,7 +456,7 @@ function FormRoot({
 export interface FormItemProps {
   /** 绑定到表单值的字段名或嵌套路径，例如 ["user", "name"]。 */
   name?: NamePath;
-  /** 字段标签，支持文本或 React 节点。 */
+  /** 字段标签，支持文本或 React 节点；横向及行内布局未指定标签列宽时，与同一 Form 内最宽的可见标签对齐，测量包含必填标记。 */
   label?: ReactNode;
   /**
    * 字段的校验规则，按配置执行。
@@ -559,7 +591,7 @@ function FormItem({
   const inputWrap = <div className="sia-form-item__input-wrap">{content}</div>;
   const hasError = status === "error" && Boolean(helpContent);
   return <div ref={itemRef} className={`sia-form-item${status ? ` sia-form-item--${status}` : ""} ${className}`.trim()} data-sia-form-field={key || undefined}>
-    {label ? <div id={labelId} className="sia-form-item__label">{ruleRequired ? <span className="sia-form-item__required-mark" aria-hidden="true">*</span> : null}{label}</div> : null}
+    {label ? <div id={labelId} className="sia-form-item__label"><span className="sia-form-item__label-content">{ruleRequired ? <span className="sia-form-item__required-mark" aria-hidden="true">*</span> : null}{label}</span></div> : null}
     <div className="sia-form-item__control">
       <Tooltip
         title={hasError ? <span id={errorId} className="sia-form-item__error-content">
