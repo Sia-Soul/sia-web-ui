@@ -533,6 +533,7 @@ export default function Demo() {
       menuItems: [{
         key: "custom-report",
         label: "生成报表",
+        title: "根据当前表格数据生成报表",
         icon: <Icon name="file" size={18} />,
         onClick: () => {
           // 在这里调用业务报表接口，或打开报表配置弹窗。
@@ -788,7 +789,7 @@ const apiRows = [
   { property: "showIndex", description: "默认显示序号列，从 1 开始；分页连续编号。序号固定在业务列之前、勾选列之后，不参与列设置。false 隐藏序号，显式 createIndexPlugin 可自定义且不会重复加载", type: "boolean", defaultValue: "true" },
   { property: "cellSelection", description: "默认启用单元格选择、跨单元格框选和复制，同一单元格内支持文字选择，点击表格空白处或外部清除选区（保留行勾选）；false 时禁用，包括显式传入的插件", type: "boolean", defaultValue: "true" },
   { property: "createCellSelectionPlugin", description: "Table 默认内置；显式传入可自定义回调和选择规则，不重复加载。支持框选、序号整行选择、列头整列选择及 Ctrl+C 复制", type: "TableCellSelectionPluginOptions<T>", defaultValue: "默认启用" },
-  { property: "createColumnSettingPlugin.menuItems", description: "追加设置菜单操作，支持 key、label、icon、disabled、hidden、danger、onClick(context)", type: "readonly TableToolbarItem<T>[]", defaultValue: "[]" },
+  { property: "createColumnSettingPlugin.menuItems", description: "追加设置菜单操作，支持 key、label、title、icon、disabled、hidden、danger、onClick(context)；title 停留 600ms 后显示，禁用项也可提示不可用原因", type: "readonly TableToolbarItem<T>[]", defaultValue: "[]" },
   { property: "createColumnSettingPlugin.showExport", description: "显示表格导出；优先使用已配置的导出插件，否则导出当前可见数据为 CSV", type: "boolean", defaultValue: "true" },
   { property: "createColumnSettingPlugin.buttonProps", description: "设置按钮完整属性，支持样式、图标、文字、disabled、loading、onClick 等；disabled/loading 同时禁用菜单触发", type: "ButtonProps", defaultValue: "small / text / 设置图标" },
   { property: "createColumnSettingPlugin.showButton", description: "控制是否显示表格设置下拉按钮；悬停展开导出、列设置和自定义操作", type: "boolean", defaultValue: "true" },

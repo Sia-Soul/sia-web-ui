@@ -3311,6 +3311,8 @@ export function createColumnSettingPlugin<T extends Record<string, unknown>>(
               ...customItems.map((item) => ({
                 key: "custom:" + item.key,
                 label: item.label,
+                // 设置菜单复用菜单项提示，禁用操作也需说明不可用原因。
+                title: item.title,
                 icon: item.icon,
                 danger: item.danger,
                 disabled:
@@ -3408,6 +3410,8 @@ export interface TableToolbarItem<T> {
   key: string;
   /** 展示给用户的名称，可传入文本或 React 节点。 */
   label: ReactNode;
+  /** 操作的悬停提示文字；普通工具栏按钮和设置菜单项均支持，禁用时仍可显示，停留 600ms 后出现。 */
+  title?: string;
   /** 显示在内容旁的图标节点，建议使用 Icon 组件。 */
   icon?: ReactNode;
   /** 显示位置或定位配置。 */
@@ -3457,6 +3461,7 @@ function ToolbarItems<T extends Record<string, unknown>>({
             key={item.key}
             size="small"
             danger={item.danger}
+            title={item.title}
             icon={item.icon}
             disabled={disabled}
             onClick={() => void item.onClick?.(context)}

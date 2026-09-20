@@ -64,10 +64,10 @@ export function QueryFormPage() {
       { property: "quickQueries[].count / badgeProps", description: "快捷条件对应数据总量，由业务接口提供；0 默认显示，badgeProps 可配置颜色、大小、overflowCount 和 showZero 等", type: "number / BadgeProps", defaultValue: "未传 count 则不显示徽标" },
       { property: "savedQueries", description: "底部已保存快捷查询标签，支持 status 配色；收起时隐藏", type: "QueryFormShortcut[]", defaultValue: "[]" },
       { property: "onSaveQuery / onRemoveQuery", description: "保存接收 {name, values}，删除接收快捷项；业务端负责持久化并更新 savedQueries，失败提示且保留弹窗", type: "callbacks (支持 Promise)", defaultValue: "不配置时隐藏对应操作" },
-      { property: "collapsed / defaultCollapsed / onCollapsedChange", description: "受控或非受控展开收起，隐藏字段仍保持挂载和表单值", type: "boolean / boolean / callback", defaultValue: "false" },
+      { property: "collapsed / defaultCollapsed / onCollapsedChange", description: "默认展开全部条件，多行时也不自动收起；显式设置收起状态或点击收起后才折叠，隐藏字段仍保持挂载和表单值", type: "boolean / boolean / callback", defaultValue: "false" },
       // 字段间距与双列控件宽度共用同一变量，覆盖时保持列边缘对齐。
       { property: "--sia-query-field-gap", description: "字段横向及纵向间距，使用 CSS 长度；可在 style 或 className 中覆盖，双列字段宽度同步计算", type: "CSS 长度", defaultValue: "6px" },
-      { property: "collapsedCount / collapsible / fieldWidth", description: "收起时字段数上限、是否可收起和默认单列宽度（区间和组合字段自动占双列，字段 width 可覆盖）；收起按宽度自动减少字段，预留按钮空间并保持单行", type: "number / boolean / number | string", defaultValue: "3 / true / 220" },
+      { property: "collapsedCount / collapsible / fieldWidth", description: "收起时字段数上限、是否可收起和默认单列宽度（区间和组合字段自动占双列，字段 width 可覆盖）；全部字段及操作能单行显示时隐藏展开/收起并展示全部字段，否则收起时预留按钮空间", type: "number / boolean / number | string", defaultValue: "3 / true / 220" },
       { property: "loading / shortcutsLoading", description: "查询加载、快捷查询加载状态；阻止重复操作", type: "boolean", defaultValue: "false" },
       { property: "resetSearch", description: "重置为 initialValues 后立即查询", type: "boolean", defaultValue: "true" },
       { property: "searchText / resetText / saveText / actionsExtra", description: "按钮文案与额外操作区", type: "ReactNode", defaultValue: "查询 / 重置 / 另存为快捷查询" },

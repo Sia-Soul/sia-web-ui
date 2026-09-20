@@ -21,7 +21,7 @@ export type MenuItem = {
   icon?: ReactNode;
   /** 主体之外的补充内容或操作区。 */
   extra?: ReactNode;
-  /** 标题内容，可传入文本或 React 节点。 */
+  /** 菜单项的悬停提示文字，停留 600ms 后显示，禁用项同样支持；收起的图标菜单未设置时使用纯文本 label。 */
   title?: string;
   /** 是否禁用交互。 */
   disabled?: boolean;

@@ -26,6 +26,15 @@ const { chromium } = require(require('node:path').join(process.argv[2], 'playwri
     }
     // 未覆盖变量时行列均为 6px，双列宽度同时包含默认间距。
     await widths([200,406,406,406,330]);
+    // 默认多行也必须完整展开，只有用户点击或显式配置后才允许收起。
+    assert.equal(await page.locator('#width-fixture .sia-query-form__field[hidden]').count(), 0);
+    assert.equal(await page.locator('#width-fixture').getByRole('button', { name: /收起/ }).getAttribute('aria-expanded'), 'true');
+    // 即使字段数超过 collapsedCount，宽容器能完整放下时也不应显示折叠入口。
+    await page.locator('#width-fixture').evaluate(n => n.style.width = '2200px');
+    await page.waitForFunction(() => document.querySelector('#width-fixture .sia-query-form__actions [aria-expanded]')?.closest('span[hidden]'));
+    assert.equal(await page.locator('#width-fixture .sia-query-form__field[hidden]').count(), 0);
+    await page.locator('#width-fixture').evaluate(n => n.style.width = '1000px');
+    await page.locator('#width-fixture').getByRole('button', { name: /收起/ }).waitFor();
     assert.deepEqual(await page.locator('#width-fixture .sia-query-form__fields').evaluate(n => {
       const style = getComputedStyle(n); return [style.rowGap, style.columnGap];
     }), ['6px', '6px']);
@@ -34,6 +43,11 @@ const { chromium } = require(require('node:path').join(process.argv[2], 'playwri
     await page.locator('#width-fixture').getByRole('button',{name:/收起/}).click();
     const rects = await fields.evaluateAll(nodes=>nodes.filter(n=>!n.hidden).map(n=>n.getBoundingClientRect().top));
     assert(rects.every(top=>Math.abs(top-rects[0])<1));
+    // 收起期间加宽容器，自动恢复所有字段；再次变窄后仍能展开，不能遗留不可访问的隐藏字段。
+    await page.locator('#width-fixture').evaluate(n => n.style.width = '2200px');
+    await page.waitForFunction(() => !document.querySelector('#width-fixture .sia-query-form__field[hidden]'));
+    assert.equal(await page.locator('#width-fixture').getByRole('button', { name: /展开|收起/ }).count(), 0);
+    await page.locator('#width-fixture').evaluate(n => n.style.width = '1000px');
     await page.locator('#width-fixture').getByRole('button',{name:/展开/}).click();
     await page.setViewportSize({width:500,height:1000});
     await page.locator('#width-fixture').evaluate(n=>n.style.width='460px');

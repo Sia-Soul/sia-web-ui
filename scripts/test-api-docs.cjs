@@ -8,6 +8,10 @@ const filename = path.join(packageRoot, '__api-doc-consumer__.tsx').replaceAll('
 // 上传新增的命令式句柄、OSS 配置及自定义渲染同样从发布产物检查悬停。
 const source = `import { Upload, type UploadRef, type UploadHttpRequest, type UploadRequestOptions, QueryForm, Select, Modal, message, Form, createColumnSettingPlugin, type TableSettingsAdapter, type BarChartProps, type SelectModalConfig, type QueryFormProps, type TableProps } from '@sia.soul/sia-react-ui';
 import type { CardProps, TagProps, CheckboxGroupProps, TabsProps, UploadProps, UploadItemActions, PopconfirmProps, TooltipProps } from '@sia.soul/sia-react-ui';
+// 设置菜单和工具栏的提示属性必须保留禁用项提示约定。
+import type { TableToolbarItem } from '@sia.soul/sia-react-ui';
+declare const toolbarItem: TableToolbarItem<Record<string, unknown>>;
+toolbarItem.title;
 // 卡片交互说明必须随发布声明保留。
 declare const cardProps: CardProps;
 cardProps.selectable;
@@ -88,6 +92,7 @@ cases.push(['checkboxGroupProps.columns', '等宽网格'], ['checkboxGroupProps.
 cases.push(['tabsProps.contentGap', '仅影响当前 Tabs'], ['tabsProps.deferContent', '保留旧面板'], ['tabsProps.onAfterChange', '连续切换']);
 cases.push(['uploadProps.downloadRequest', 'Blob'], ['uploadActions.download', '不打开新标签页']);
 cases.push(['uploadProps.cardSize', '卡片尺寸']);
+cases.push(['toolbarItem.title', '禁用时仍可显示']);
 cases.push(['cardProps.selectable', '非交互区域'], ['cardProps.onSelectedChange', '布尔状态'], ['cardProps.hoverActions', '滑入']);
 cases.push(['confirmProps.skipConfirm', '跳过气泡'], ['confirmProps.onConfirm', 'Promise'], ['confirmProps.onConfirmError', '原始错误'], ['confirmProps.arrow', 'pointAtCenter'], ['floatingProps.autoAdjustOverflow', '可视区域'], ['floatingArrow.pointAtCenter', '中心']);
 for(const[needle,expected]of cases){const offset=needle.includes('.')?needle.lastIndexOf('.')+1:0;const pos=source.indexOf(needle)+offset+1;const info=service.getQuickInfoAtPosition(filename,pos);const text=ts.displayPartsToString(info?.documentation);assert(text.includes(expected),`${needle}: expected ${expected}, got ${JSON.stringify(text)}`);console.log(`PASS hover ${needle}: ${text.slice(0,70)}`);}

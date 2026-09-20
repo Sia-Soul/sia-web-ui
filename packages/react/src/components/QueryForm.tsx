@@ -65,19 +65,19 @@ export interface QueryFormProps<T extends FormValues = FormValues> extends Omit<
    */
   fieldWidth?: number | string;
   /**
-   是否显示展开和收起入口；false 时始终展示全部字段。
+   * 是否允许展开和收起；仅全部字段与操作区无法在一行内显示时提供入口，false 时始终展示全部字段。
    * @defaultValue true
    */
   collapsible?: boolean;
-  /** 受控收起状态，需在 onCollapsedChange 中更新。收起时保留字段挂载和值，只隐藏放不下的字段和底部快捷标签。 */
+  /** 受控收起状态，需在 onCollapsedChange 中更新；全部字段能单行显示时不执行收起。收起时保留字段挂载和值，只隐藏放不下的字段和底部快捷标签。 */
   collapsed?: boolean;
   /**
-   * 非受控模式的初始收起状态。
+   * 非受控模式的初始收起状态；默认展开全部查询条件，即使条件超过一行也不自动收起。显式传 true 时才初始收起。
    * @defaultValue false
    */
   defaultCollapsed?: boolean;
   /**
-   * 收起时最多保留的字段数；实际数量会根据可用宽度减少，以保持单行。
+   * 需要折叠时最多保留的字段数；实际数量会根据可用宽度减少，以保持单行。全部字段能单行显示时不限制字段数。
    * @defaultValue 3
    */
   collapsedCount?: number;
@@ -149,7 +149,8 @@ export function QueryForm<T extends FormValues = FormValues>({
 }: QueryFormProps<T>) {
   const [form] = useForm(providedForm);
   const [internalCollapsed, setInternalCollapsed] = useState(defaultCollapsed);
-  const collapsed = collapsible && (controlledCollapsed ?? internalCollapsed);
+  const [needsCollapse, setNeedsCollapse] = useState(false);
+  const collapsed = collapsible && needsCollapse && (controlledCollapsed ?? internalCollapsed);
   const [searching, setSearching] = useState(false);
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -170,15 +171,30 @@ export function QueryForm<T extends FormValues = FormValues>({
   const limit = Math.max(1, Math.floor(collapsedCount));
   const rowRef = useRef<HTMLDivElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
+  const toggleRef = useRef<HTMLSpanElement>(null);
   const [fittingCount, setFittingCount] = useState(limit);
   useLayoutEffect(() => {
-    if (!collapsed) return;
     const row = rowRef.current;
     const actions = actionsRef.current;
     if (!row || !actions) return;
     function measure() {
       if (!row || !actions) return;
       const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
+      const allFields = Array.from(row.querySelectorAll<HTMLElement>(":scope > .sia-query-form__field"));
+      const hiddenFields = allFields.filter(field => field.hidden);
+      const wasCollapsed = row.classList.contains("is-collapsed");
+      const toggle = toggleRef.current;
+      const toggleHidden = toggle?.hidden;
+      // 按“全部字段展开且没有切换按钮”的布局测量，避免按钮自身挤出第二行后永远无法隐藏。
+      row.classList.remove("is-collapsed");
+      hiddenFields.forEach(field => { field.hidden = false; });
+      if (toggle) toggle.hidden = true;
+      const requiredWidth = allFields.reduce((total, field) => total + field.getBoundingClientRect().width + gap, actions.getBoundingClientRect().width);
+      setNeedsCollapse(allFields.length > 0 && requiredWidth > row.clientWidth + .5);
+      if (toggle) toggle.hidden = Boolean(toggleHidden);
+      hiddenFields.forEach(field => { field.hidden = true; });
+      row.classList.toggle("is-collapsed", wasCollapsed);
+      if (!collapsed) return;
       let remaining = row.clientWidth - actions.getBoundingClientRect().width;
       let count = 0;
       for (const field of Array.from(row.querySelectorAll<HTMLElement>(":scope > .sia-query-form__field")).slice(0, limit)) {
@@ -194,7 +210,7 @@ export function QueryForm<T extends FormValues = FormValues>({
     observer.observe(row); observer.observe(actions);
     row.querySelectorAll(":scope > .sia-query-form__field").forEach(field => observer.observe(field));
     return () => observer.disconnect();
-  }, [collapsed, limit, fieldWidth, fields, children]);
+  }, [collapsed, needsCollapse, collapsible, limit, fieldWidth, fields, children, actionsExtra, onSaveQuery, searchText, resetText, saveText]);
 
   async function search(values: FormValues) {
     const info = source.current;
@@ -252,8 +268,8 @@ export function QueryForm<T extends FormValues = FormValues>({
             <Button disabled={busy} onClick={reset}>{resetText}</Button>
             {onSaveQuery ? <Button disabled={shortcutBusy} onClick={() => { snapshot.current = form.getFieldsValue() as T; setSaveName(""); setSaveError(""); setSaveOpen(true); }}>{saveText}</Button> : null}
           </Space.Compact>
-          {collapsible && entries.length > 0 ? <Button variant="link" aria-expanded={!collapsed} icon={<Icon name={collapsed ? "chevron-down" : "chevron-up"} />} iconPosition="end"
-            onClick={() => { setInternalCollapsed(!collapsed); onCollapsedChange?.(!collapsed); }}>{collapsed ? "展开" : "收起"}</Button> : null}
+          {collapsible && entries.length > 0 ? <span ref={toggleRef} hidden={!needsCollapse}><Button variant="link" aria-expanded={!collapsed} icon={<Icon name={collapsed ? "chevron-down" : "chevron-up"} />} iconPosition="end"
+            onClick={() => { setInternalCollapsed(!collapsed); onCollapsedChange?.(!collapsed); }}>{collapsed ? "展开" : "收起"}</Button></span> : null}
           {actionsExtra}
         </div>
       </div>
