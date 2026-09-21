@@ -30,6 +30,21 @@ import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
 import { PageHeader } from "./PageHeader";
 
+/** 演示固定容器内的剩余高度测量，查询区变化不需要业务重新计算表格高度。 */
+function RemainingHeightDemo() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const fillRemaining = useMemo(() => ({ container: () => containerRef.current, bottomOffset: 6 }), []);
+  return <div ref={containerRef} className="remaining-height-demo" style={{ height: 420, padding: 12, boxSizing: "border-box" }}>
+    <Button onClick={() => setExpanded(value => !value)}>切换查询区高度</Button>
+    <div style={{ height: expanded ? 120 : 30 }}>查询条件区域</div>
+    <Table className="remaining-height-table" fillRemaining={fillRemaining}
+      columns={[{ key: "name", name: "名称", dataIndex: "name" }]}
+      dataSource={Array.from({ length: 150 }, (_, id) => ({ id, name: `记录 ${id + 1}` }))}
+      plugins={[createPaginationPlugin({ defaultPageSize: 100 })]} />
+  </div>;
+}
+
 interface ProductRow extends Record<string, unknown> {
   id: number;
   name: string;
@@ -799,6 +814,7 @@ const apiRows = [
   { property: "createSelectionPlugin.selectionPanelMaxCount", description: "已选项面板点击“展示全部”前最多渲染的记录数", type: "number", defaultValue: "100" },
   { property: "virtual / virtualThreshold", description: "虚拟滚动开关与自动启用阈值；实际展示超过 100 行强制开启，优先于 virtual=false、较大阈值和插件禁用设置", type: "boolean / number", defaultValue: "行数 ≥ 100" },
   { property: "height / rowHeight / overscan", description: "滚动视口、固定行高和预渲染行数", type: "number | string / number / number", defaultValue: "- / 按尺寸 / 6" },
+  { property: "fillRemaining", description: "填充表格顶部到视口或指定固定高度容器底部的空间，自动响应查询区和显隐变化；height / tableHeight 优先。container 返回容器，bottomOffset / minHeight 单位 px，默认 0。容器高度不能依赖表格自身", type: "boolean | { container?, bottomOffset?, minHeight? }", defaultValue: "false" },
   { property: "size", description: "省略时为 medium；small / medium / large 默认行高为 28 / 36 / 46px。单元格文字行高不继承页面设置，small / medium 行内链接按钮适配为 20 / 24px；其他较高内容仍可撑高数据行", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
   { property: "toolbarBordered", description: "工具栏是否纳入表格边框；默认无边框，主体边框仍由 bordered 控制", type: "boolean", defaultValue: "false" },
   { property: "bordered / striped / stickyHeader", description: "边框、斑马纹和粘性表头", type: "boolean", defaultValue: "true" },
@@ -904,6 +920,9 @@ export function TablePage() {
     <PageHeader eyebrow="组件 / 数据展示 / Table" title="Table 表格" description="高性能基础表格，通过插件按需组合选择、排序、分页、编辑、树形、列设置等能力。" />
     <DocsTabs activeKey={tab} onChange={setTab} />
     {tab === "examples" ? <div className="demo-stack">
+      <DemoCard title="填充剩余高度" description="表格原生测量剩余空间，包含工具栏与分页。默认使用视口；此例指定独立高度的容器。" code={'<Table fillRemaining={{ container: () => containerRef.current, bottomOffset: 6 }} />'}>
+        <RemainingHeightDemo />
+      </DemoCard>
       <DemoCard title="基础表格" description="核心负责数据、列、分组表头、固定列、滚动和渲染，并默认支持行悬停高亮和拖拽调整列宽。" code={basicCode}>
         <Table className="table-demo" rowKey="id" columns={basicColumns} dataSource={basicData} plugins={basicPlugins} height={350} />
       </DemoCard>

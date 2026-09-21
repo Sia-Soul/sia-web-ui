@@ -296,6 +296,19 @@ export interface TableProps<T extends Record<string, unknown> = Record<string, u
   emptyText?: ReactNode;
   /** 高度；数值按像素处理，字符串可使用 CSS 尺寸。 */
   height?: number | string;
+  /**
+   * 自动填充从表格顶部到可视区域底部的剩余高度，包含工具栏和分页；true 使用当前窗口视口。
+   * 查询区尺寸、祖先布局、窗口尺寸及隐藏页签显示后自动重测。height / tableHeight 显式设置时优先。
+   * 默认关闭；不要同时使用依赖表格自身高度的容器或垂直居中布局。
+   */
+  fillRemaining?: boolean | {
+    /** 返回具有独立确定高度的容器，按其内边距内侧底边计算；默认使用窗口视口，返回 null 时等待容器就绪。 */
+    container?: () => HTMLElement | null;
+    /** 从可用高度中额外扣除的底部留白，单位 px，默认 0；不自动预留表格之后的兄弟内容。 */
+    bottomOffset?: number;
+    /** 最小总高度，单位 px，默认 0；超过可用空间时允许溢出，以保证最低可操作区域。 */
+    minHeight?: number;
+  };
   /** 表格滚动区域的高度。 */
   tableHeight?: number | string;
   /**

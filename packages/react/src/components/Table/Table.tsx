@@ -1,6 +1,7 @@
 import { withTitleTooltip } from "../titleTooltip";
 import { useScrollbarProximity } from "../useScrollbarProximity";
 import { TableCellContent } from "./TableCellContent";
+import { useRemainingHeight } from "./useRemainingHeight";
 import { TableCanvasLayer } from "./TableCanvasLayer";
 import "./canvas.css";
 import { Fragment, forwardRef, isValidElement, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
@@ -249,6 +250,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     emptyText = "暂无数据",
     height,
     tableHeight,
+    fillRemaining,
     size = "medium",
     bordered = true,
     rowBordered = true,
@@ -274,6 +276,8 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     ...htmlProps
   } = props;
   const rootRef = useRef<HTMLDivElement>(null);
+  // 显式高度保持旧优先级；未指定时由框架统一测量剩余空间。
+  const remainingHeight = useRemainingHeight(rootRef, height == null && tableHeight == null ? fillRemaining : false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
   useScrollbarProximity();
@@ -593,7 +597,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     return content ? <Fragment key={`overlay-${plugin.id}`}>{content}</Fragment> : null;
   }).filter(Boolean);
   const hasToolbar = toolbarStart.length > 0 || toolbarEnd.length > 0;
-  const effectiveHeight = height ?? tableHeight ?? (shouldVirtualize ? 420 : undefined);
+  const effectiveHeight = height ?? tableHeight ?? remainingHeight ?? (shouldVirtualize ? 420 : undefined);
   const rootStyle = {
     ...style,
     height: effectiveHeight,

@@ -80,6 +80,11 @@ queryProps.fieldWidth;
 declare const tableProps: TableProps;
 tableProps.cellSelection;
 tableProps.showIndex;
+tableProps.fillRemaining;
+declare const remaining: Exclude<NonNullable<TableProps['fillRemaining']>, boolean>;
+remaining.container;
+remaining.bottomOffset;
+remaining.minHeight;
 `;
 const options={target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext,moduleResolution:ts.ModuleResolutionKind.Bundler,jsx:ts.JsxEmit.ReactJSX,strict:true,skipLibCheck:true,noEmit:true,esModuleInterop:true};
 const host={getScriptFileNames:()=>[filename],getScriptVersion:()=> '0',getScriptSnapshot:file=>file===filename?ts.ScriptSnapshot.fromString(source):fs.existsSync(file)?ts.ScriptSnapshot.fromString(fs.readFileSync(file,'utf8')):undefined,getCurrentDirectory:()=>packageRoot,getCompilationSettings:()=>options,getDefaultLibFileName:ts.getDefaultLibFilePath,fileExists:file=>file===filename||ts.sys.fileExists(file),readFile:file=>file===filename?source:ts.sys.readFile(file),readDirectory:ts.sys.readDirectory,directoryExists:ts.sys.directoryExists,getDirectories:ts.sys.getDirectories};
@@ -95,6 +100,8 @@ cases.push(['tabsProps.contentGap', '仅影响当前 Tabs'], ['tabsProps.deferCo
 cases.push(['uploadProps.downloadRequest', 'Blob'], ['uploadActions.download', '不打开新标签页']);
 cases.push(['uploadProps.cardSize', '卡片尺寸']);
 cases.push(['uploadProps.onChoose', '返回 false']);
+// 剩余高度的优先级与容器约束必须随发布声明提供给业务使用者。
+cases.push(['tableProps.fillRemaining', '剩余高度'], ['remaining.container', '独立确定高度'], ['remaining.bottomOffset', 'px'], ['remaining.minHeight', '最小总高度']);
 cases.push(['toolbarItem.title', '禁用时仍可显示']);
 cases.push(['cardProps.selectable', '非交互区域'], ['cardProps.onSelectedChange', '布尔状态'], ['cardProps.hoverActions', '滑入']);
 cases.push(['confirmProps.skipConfirm', '跳过气泡'], ['confirmProps.onConfirm', 'Promise'], ['confirmProps.onConfirmError', '原始错误'], ['confirmProps.arrow', 'pointAtCenter'], ['floatingProps.autoAdjustOverflow', '可视区域'], ['floatingArrow.pointAtCenter', '中心']);
