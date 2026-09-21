@@ -1018,6 +1018,8 @@ export function createRowSpanPlugin<T extends Record<string, unknown>>(
 export type TableSelectionMode = "single" | "multiple" | "row";
 /** TableSelection的插件配置。 */
 export interface TableSelectionPluginOptions<T> {
+  /** 是否显示多选模式的表头全选框，默认 true；false 仅隐藏全选入口，不影响行勾选、已选状态及选择 API。 */
+  showSelectAll?: boolean;
   /** 展示或交互模式；可选值见类型定义。 */
   mode?: TableSelectionMode;
   /** 当前选中项目的标识集合；传入后由外部控制。 */
@@ -1312,7 +1314,7 @@ export function createSelectionPlugin<T extends Record<string, unknown>>(
         ellipsis: false,
         meta: { plugin: "selection" },
         renderHeader: () => {
-          if (mode !== "multiple") return null;
+          if (mode !== "multiple" || options.showSelectAll === false) return null;
           const enabledRows = context.rows.filter(
             (row) => !options.getCheckboxDisabled?.(row.record),
           );
