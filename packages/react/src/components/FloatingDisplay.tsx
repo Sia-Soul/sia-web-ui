@@ -14,7 +14,7 @@ export type FloatingPlacement = "top" | "top-start" | "top-end" | "bottom" | "bo
   | "topLeft" | "topRight" | "bottomLeft" | "bottomRight" | "leftTop" | "leftBottom" | "rightTop" | "rightBottom";
 /** 触发浮层显示的交互方式。 */
 export type FloatingTrigger = "hover" | "focus" | "click";
-/** 文字提示的属性配置。 */
+/** 文字提示的属性配置；弹框或抽屉内的提示遵循所属容器的层级，不覆盖后续打开的子弹层。 */
 export interface TooltipProps {
   /** 标题内容，可传入文本或 React 节点。 */
   title?: ReactNode;
@@ -140,6 +140,12 @@ function Floating({
   const triggers = Array.isArray(trigger) ? trigger : [trigger];
   const [visible, setVisible] = useControllableState({ value: open, defaultValue: defaultOpen, onChange: onOpenChange });
   const [position, setPosition] = useState<FloatingPosition>();
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
+  // 挂到弹层根节点而非动画面板，既保留 fixed 的视口定位，又让气泡受父弹层堆叠上下文约束。
+  useLayoutEffect(() => {
+    if (!visible) return;
+    setPortalContainer(rootRef.current?.closest<HTMLElement>(".sia-modal-root, .sia-drawer-root") ?? document.body);
+  });
   const setVisibleRef = useRef(setVisible);
   setVisibleRef.current = setVisible;
   const closeSelfRef = useRef<() => void>();
@@ -203,6 +209,9 @@ function Floating({
     update();
     window.addEventListener("resize", update);
     window.addEventListener("scroll", update, true);
+    // 弹框/抽屉的 transform 动画不会触发 ResizeObserver，结束后重新校准锚点可见性和视口坐标。
+    window.addEventListener("animationend", update, true);
+    window.addEventListener("transitionend", update, true);
     const observer = new ResizeObserver(update);
     if (rootRef.current) observer.observe(rootRef.current);
     const anchor = getAnchor();
@@ -211,9 +220,11 @@ function Floating({
     return () => {
       window.removeEventListener("resize", update);
       window.removeEventListener("scroll", update, true);
+      window.removeEventListener("animationend", update, true);
+      window.removeEventListener("transitionend", update, true);
       observer.disconnect();
     };
-  }, [children, content, placement, visible, autoAdjustOverflow, typeof arrow === "object" && arrow.pointAtCenter]);
+  }, [children, content, placement, visible, portalContainer, autoAdjustOverflow, typeof arrow === "object" && arrow.pointAtCenter]);
   useEffect(() => () => {
     clearTimers();
     if (activeTooltipClose === closeSelfRef.current) activeTooltipClose = undefined;
@@ -245,7 +256,7 @@ function Floating({
       >
         {content}{arrow ? <span className="sia-floating__arrow" /> : null}
       </span>,
-      document.body,
+      portalContainer ?? document.body,
     )
     : null;
   return <>

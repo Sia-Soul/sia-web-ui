@@ -1,5 +1,9 @@
 # 弹框遮罩动画与层级
 
+Tooltip、Popover（包括 Form.Item 的校验错误提示）挂载到锚点所在的 Modal/Drawer 根节点，与该弹层共享堆叠上下文。父级气泡不会越过后续子弹层的遮罩；子级提示仍显示在子弹层上方。挂载目标避开有 transform 动画的内容面板，保持 fixed 定位基于视口，并避免内容滚动区裁切。普通页面中的气泡仍挂载到 body。子弹层关闭后，父表单的校验状态和提示继续保留。
+
+回归入口 `apps/docs/tests/floating-overlay-layer.html`，文档服务端口为 4189 时执行 `node scripts/test-floating-overlay-layer.cjs [Playwright模块路径]`，覆盖自定义高 zIndex、Modal/Drawer 父级提示、子级提示及反复开关恢复。此修复随框架正式发布后由业务升级依赖生效。
+
 <!-- 记录框架层的动画约束，避免业务页面重复覆盖遮罩样式。 -->
 
 Modal 的遮罩由根节点的 `::before` 绘制，使用透明度动画，与弹窗内容同时挂载、同时退出，时长均为 220ms。遮罩不再对背景色执行逐帧动画，减少页面主线程繁忙时背景重绘落后于弹窗合成动画的问题。
