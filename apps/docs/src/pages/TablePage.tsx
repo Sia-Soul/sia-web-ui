@@ -686,6 +686,7 @@ const treeCode = `import { Table, createTreePlugin } from "@sia.soul/sia-react-u
 const plugins = [createTreePlugin({
   ignoreChildrenColumn: false,
   defaultExpandAllRows: true,
+  showLine: true,
 })];
 
 export default function Demo() {
@@ -900,7 +901,8 @@ export function TablePage() {
     }),
     createExportPlugin<ProductRow>({ scope: "visible", fileName: "商品列表.csv" }),
   ], [storageAdapter]);
-  const treePlugins = useMemo<readonly AnyTablePlugin<ProductRow>[]>(() => [createTreePlugin<ProductRow>({ ignoreChildrenColumn: false, defaultExpandAllRows: true })], []);
+  // 树形示例开启连接线，方便核对多层级分支的展开和收口。
+  const treePlugins = useMemo<readonly AnyTablePlugin<ProductRow>[]>(() => [createTreePlugin<ProductRow>({ ignoreChildrenColumn: false, defaultExpandAllRows: true, showLine: true })], []);
   const virtualPlugins = useMemo<readonly AnyTablePlugin<ProductRow>[]>(() => [createSelectionPlugin<ProductRow>({ mode: "row" }), createIndexPlugin<ProductRow>(), createSortPlugin<ProductRow>()], []);
   const cellSelectionPlugins = useMemo<readonly AnyTablePlugin<ProductRow>[]>(() => [
     createCellSelectionPlugin<ProductRow>({

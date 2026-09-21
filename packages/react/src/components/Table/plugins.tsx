@@ -2074,6 +2074,8 @@ export function createIndexPlugin<T extends Record<string, unknown>>(
 // Tree plugin
 /** TableTree的插件配置。 */
 export interface TableTreePluginOptions<T> {
+  /** 显示树形层级连接线；仅在 ignoreChildrenColumn=false 时生效，默认 false。 */
+  showLine?: boolean;
   /** 行数据中存放子行的字段名。 */
   childrenColumnName?: string;
   /** 是否忽略数据内的子行字段。 */
@@ -2146,8 +2148,10 @@ export function createTreePlugin<T extends Record<string, unknown>>(
     transformRows(rows, context) {
       if (options.ignoreChildrenColumn ?? true) return rows;
       const result: TableRow<T>[] = [];
-      const walk = (items: readonly TableRow<T>[], depth: number) => {
-        for (const row of items) {
+      // 保存祖先后续兄弟信息，虚拟滚动时每行独立绘制，末级分支不会连到下一棵树。
+      const walk = (items: readonly TableRow<T>[], depth: number, guides: boolean[]) => {
+        for (const [rowIndex, row] of items.entries()) {
+          const hasNextSibling = rowIndex < items.length - 1;
           const children = row.record[childKey];
           const hasChildren =
             Array.isArray(children) &&
@@ -2156,7 +2160,7 @@ export function createTreePlugin<T extends Record<string, unknown>>(
           result.push({
             ...row,
             depth,
-            meta: { ...row.meta, treeHasChildren: hasChildren },
+            meta: { ...row.meta, treeHasChildren: hasChildren, treeGuides: guides, treeHasNextSibling: hasNextSibling },
           });
           if (hasChildren && current(context).includes(row.key)) {
             walk(
@@ -2168,11 +2172,12 @@ export function createTreePlugin<T extends Record<string, unknown>>(
                 meta: {},
               })),
               depth + 1,
+              depth > 0 ? [...guides, hasNextSibling] : guides,
             );
           }
         }
       };
-      walk(rows, 0);
+      walk(rows, 0, []);
       return result;
     },
     transformColumns(columns, context) {
@@ -2184,11 +2189,20 @@ export function createTreePlugin<T extends Record<string, unknown>>(
         const previousRender = column.render;
         return {
           ...column,
+          ...(options.showLine ? { ellipsis: false, meta: { ...column.meta, treeLines: true } } : {}),
           render: (value, record, index, info) => (
             <span
-              className="sia-table__tree-cell"
-              style={{ paddingLeft: info.row.depth * 18 }}
+              className={`sia-table__tree-cell${options.showLine ? " sia-table__tree-cell--lines" : ""}`}
+              style={options.showLine ? undefined : { paddingLeft: info.row.depth * 18 }}
             >
+              {options.showLine && info.row.depth > 0 && <>
+                {(info.row.meta.treeGuides as boolean[]).map((continued, level) =>
+                  <span key={level} aria-hidden="true" className={`sia-table__tree-guide${continued ? " sia-table__tree-guide--continued" : ""}`} />)}
+                <span aria-hidden="true" className={`sia-table__tree-guide sia-table__tree-guide--branch${info.row.meta.treeHasNextSibling ? " sia-table__tree-guide--continued" : ""}`} />
+              </>}
+              <span className={options.showLine ? "sia-table__tree-node" : undefined} style={options.showLine ? undefined : { display: "contents" }}>
+              {options.showLine && !!info.row.meta.treeHasChildren && current(context).includes(info.row.key) &&
+                <span aria-hidden="true" className="sia-table__tree-stem" />}
               {info.row.meta.treeHasChildren ? (
                 <button
                   type="button"
@@ -2216,6 +2230,7 @@ export function createTreePlugin<T extends Record<string, unknown>>(
               ) : (
                 <span className="sia-table__tree-placeholder" />
               )}
+              </span>
               {previousRender
                 ? previousRender(value, record, index, info)
                 : (value as ReactNode)}
@@ -2223,6 +2238,12 @@ export function createTreePlugin<T extends Record<string, unknown>>(
           ),
         };
       });
+    },
+    getCellProps(_row, column) {
+      // 连接线占满数据行高度，不受单元格默认上下内边距截断。
+      return column.meta?.treeLines
+        ? { className: "sia-table__cell--tree-lines" }
+        : undefined;
     },
     getApi: (context) => ({
       getExpandedKeys: () => current(context),

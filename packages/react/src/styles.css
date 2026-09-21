@@ -861,6 +861,16 @@
 .sia-table__editor > .sia-select.is-open > .sia-select__trigger,
 .sia-table__editor > .sia-select > .sia-select__trigger:focus-visible { outline: none; }
 .sia-table__tree-cell { display: flex; align-items: center; min-width: 0; }
+/* 连线由各虚拟行独立绘制；末尾分支只延伸到本行中线，祖先分支按兄弟关系延续。 */
+.sia-table__cell--tree-lines { padding-block: 0; }
+.sia-table__cell--tree-lines > .sia-table__cell-content { position: absolute; inset: 0 12px; }
+.sia-table__tree-cell--lines { height: 100%; }
+.sia-table__tree-guide { position: relative; align-self: stretch; flex: 0 0 18px; width: 18px; }
+.sia-table__tree-guide--branch::before, .sia-table__tree-guide--continued::before { position: absolute; content: ""; left: 10px; top: 0; height: 50%; border-left: 1px solid var(--sia-color-border); }
+.sia-table__tree-guide--continued::before { height: 100%; }
+.sia-table__tree-guide--branch::after { position: absolute; content: ""; left: 10px; right: 0; top: 50%; border-top: 1px solid var(--sia-color-border); }
+.sia-table__tree-node { position: relative; align-self: stretch; display: inline-flex; align-items: center; flex: 0 0 20px; }
+.sia-table__tree-stem { position: absolute; left: 10px; top: calc(50% + 10px); bottom: 0; border-left: 1px solid var(--sia-color-border); }
 .sia-table__tree-toggle, .sia-table__tree-placeholder { display: inline-grid; place-items: center; flex: 0 0 20px; width: 20px; height: 20px; }
 .sia-table__tree-toggle { padding: 0; color: var(--sia-color-text-secondary); cursor: pointer; background: transparent; border: 0; border-radius: 4px; }
 .sia-table__tree-toggle:hover { color: var(--sia-color-primary-text); background: var(--sia-color-control-hover); }

@@ -10,6 +10,10 @@ const source = `import { Upload, type UploadRef, type UploadHttpRequest, type Up
 import type { CardProps, TagProps, CheckboxGroupProps, TabsProps, UploadProps, UploadItemActions, PopconfirmProps, TooltipProps } from '@sia.soul/sia-react-ui';
 // 设置菜单和工具栏的提示属性必须保留禁用项提示约定。
 import type { TableToolbarItem } from '@sia.soul/sia-react-ui';
+// 树形连接线开关的默认值与启用条件必须保留在发布声明中。
+import type { TableTreePluginOptions } from '@sia.soul/sia-react-ui';
+declare const treeOptions: TableTreePluginOptions<Record<string, unknown>>;
+treeOptions.showLine;
 declare const toolbarItem: TableToolbarItem<Record<string, unknown>>;
 toolbarItem.title;
 // 卡片交互说明必须随发布声明保留。
@@ -103,6 +107,7 @@ cases.push(['uploadProps.onChoose', '返回 false']);
 // 剩余高度的优先级与容器约束必须随发布声明提供给业务使用者。
 cases.push(['tableProps.fillRemaining', '剩余高度'], ['remaining.container', '独立确定高度'], ['remaining.bottomOffset', 'px'], ['remaining.minHeight', '最小总高度']);
 cases.push(['toolbarItem.title', '禁用时仍可显示']);
+cases.push(['treeOptions.showLine', 'ignoreChildrenColumn=false']);
 cases.push(['cardProps.selectable', '非交互区域'], ['cardProps.onSelectedChange', '布尔状态'], ['cardProps.hoverActions', '滑入']);
 cases.push(['confirmProps.skipConfirm', '跳过气泡'], ['confirmProps.onConfirm', 'Promise'], ['confirmProps.onConfirmError', '原始错误'], ['confirmProps.arrow', 'pointAtCenter'], ['floatingProps.autoAdjustOverflow', '可视区域'], ['floatingArrow.pointAtCenter', '中心']);
 for(const[needle,expected]of cases){const offset=needle.includes('.')?needle.lastIndexOf('.')+1:0;const pos=source.indexOf(needle)+offset+1;const info=service.getQuickInfoAtPosition(filename,pos);const text=ts.displayPartsToString(info?.documentation);assert(text.includes(expected),`${needle}: expected ${expected}, got ${JSON.stringify(text)}`);console.log(`PASS hover ${needle}: ${text.slice(0,70)}`);}
