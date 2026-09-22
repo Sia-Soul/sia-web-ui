@@ -22,6 +22,11 @@ export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
   /** 受控选中状态，需在 onSelectedChange 中更新。 */
   selected?: boolean;
   /**
+   * 是否显示选中卡片右上角的三角勾选标记。仅在 selectable 且已选中时生效；false 保留选中边框和键盘交互。
+   * @defaultValue true
+   */
+  showSelectedIndicator?: boolean;
+  /**
    * 非受控初始选中状态。
    * @defaultValue false
    */
@@ -71,6 +76,7 @@ export function Card({
   extra,
   selectable = false,
   selected,
+  showSelectedIndicator = true,
   defaultSelected = false,
   disabled = false,
   onSelectedChange,
@@ -145,7 +151,7 @@ export function Card({
       }}
     >
       {/* 选中角标不参与点击命中，点击角标仍可取消整卡选择。 */}
-      {selectable && isSelected ? <span className="sia-card__selected-corner" aria-hidden="true"><Icon name="check" size={16} /></span> : null}
+      {selectable && isSelected && showSelectedIndicator ? <span className="sia-card__selected-corner" aria-hidden="true"><Icon name="check" size={16} /></span> : null}
       {hasHeader ? (
         <header className="sia-card__header">
           {collapsible ? (

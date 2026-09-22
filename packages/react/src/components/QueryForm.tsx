@@ -17,7 +17,7 @@ import type { TagStatus } from "./Tag";
 export interface QueryFormField extends FormItemProps {
   /** 字段布局的稳定唯一标识；用于 React 渲染，不替代 Form.Item 的 name 字段路径。 */
   key: string;
-  /** 字段占用宽度，优先于自动布局。未指定时普通控件占一列，日期／时间区间及横向组合控件占两列（含列间距）。 */
+  /** 字段占用宽度，优先于自动布局。未指定时普通控件占一列，日期／时间区间及横向组合控件占两列，SelectDateRange 占三列，均包含跨列间距。 */
   width?: number | string;
 }
 /** 预设或已保存的快捷查询，包含名称、条件、颜色和可选数量徽标。 */
@@ -60,7 +60,7 @@ export interface QueryFormProps<T extends FormValues = FormValues> extends Omit<
    */
   loading?: boolean;
   /**
-   * 单列查询字段的默认宽度，数值单位为像素，可传 CSS 尺寸字符串。区间及横向组合控件默认为两倍此宽度加列间距；行列间距可通过 --sia-query-field-gap 调整（默认 6px）。
+   * 单列查询字段的默认宽度，数值单位为像素，可传 CSS 尺寸字符串。区间及横向组合控件默认占两列，SelectDateRange 占三列，均包含跨列间距；行列间距可通过 --sia-query-field-gap 调整（默认 6px）。
    * @defaultValue 220
    */
   fieldWidth?: number | string;

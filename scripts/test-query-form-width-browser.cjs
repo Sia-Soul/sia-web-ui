@@ -8,7 +8,7 @@ const { chromium } = require(require('node:path').join(process.argv[2], 'playwri
     await page.evaluate(async () => {
       const { default: R } = await import('/node_modules/.vite/deps/react.js');
       const { default: { createRoot } } = await import('/node_modules/.vite/deps/react-dom_client.js');
-      const { QueryForm, Form, Input, Select, DatePicker, TimePicker, Space } = await import('/@fs/C:/Users/12235/Documents/SiaWebUI/packages/react/src/index.ts');
+      const { QueryForm, Form, Input, Select, DatePicker, TimePicker, Space, SelectDateRange } = await import('/@fs/C:/Users/12235/Documents/SiaWebUI/packages/react/src/index.ts');
       const host = document.createElement('div'); host.id = 'width-fixture'; host.style = 'position:absolute;top:0;left:0;width:1000px;background:white;z-index:9999'; document.body.append(host);
       const root = createRoot(host), h = R.createElement;
       window.renderWidths = (fieldWidth = 200, gap = undefined, childrenMode = false) => {
@@ -16,6 +16,13 @@ const { chromium } = require(require('node:path').join(process.argv[2], 'playwri
         root.render(h(QueryForm, { fieldWidth, style: gap === undefined ? {} : { '--sia-query-field-gap': gap + 'px' }, onSearch() {}, ...(childrenMode ? { children: controls.slice(0,4).map((c,i)=>h(Form.Item,{key:i,name:'f'+i},c)) } : { fields: controls.map((children,i)=>({key:String(i),children,...(i===4?{width:330}:{})})) }) }));
       };
       window.renderWidths();
+      // 三列组合和普通字段共享宽度、间距，显式字段宽度仍需优先。
+      window.renderTriple = (fieldWidth = 220, gap = 6, childrenMode = false) => {
+        const controls = [h(Input), h(Input), h(Input), h(SelectDateRange, { options: [] }), h(SelectDateRange, { options: [] })];
+        root.render(h(QueryForm, { fieldWidth, style: { '--sia-query-field-gap': gap + 'px' }, onSearch() {}, ...(childrenMode
+          ? { children: controls.slice(0, 4).map((c, i) => h(Form.Item, { key: i, noStyle: true }, c)) }
+          : { fields: controls.map((children, i) => ({ key: String(i), children, ...(i === 4 ? { width: 330 } : {}) })) }) }));
+      };
     });
     const fields = page.locator('#width-fixture .sia-query-form__field');
     async function widths(expected) {
@@ -49,6 +56,14 @@ const { chromium } = require(require('node:path').join(process.argv[2], 'playwri
     assert.equal(await page.locator('#width-fixture').getByRole('button', { name: /展开|收起/ }).count(), 0);
     await page.locator('#width-fixture').evaluate(n => n.style.width = '1000px');
     await page.locator('#width-fixture').getByRole('button',{name:/展开/}).click();
+    await page.setViewportSize({width:500,height:1000});
+    await page.locator('#width-fixture').evaluate(n=>n.style.width='460px');
+    await widths([460,460,460,460]);
+    await page.setViewportSize({width:1600,height:1000});
+    await page.locator('#width-fixture').evaluate(n=>n.style.width='1000px');
+    await page.evaluate(()=>window.renderTriple()); await widths([220,220,220,672,330]);
+    await page.evaluate(()=>window.renderTriple(240,16)); await widths([240,240,240,752,330]);
+    await page.evaluate(()=>window.renderTriple(200,12,true)); await widths([200,200,200,624]);
     await page.setViewportSize({width:500,height:1000});
     await page.locator('#width-fixture').evaluate(n=>n.style.width='460px');
     await widths([460,460,460,460]);

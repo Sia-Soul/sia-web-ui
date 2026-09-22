@@ -1027,6 +1027,8 @@
 .sia-query-form__field { --sia-query-item-width: var(--sia-query-field-width, 220px); flex: 0 1 var(--sia-query-item-width); width: var(--sia-query-item-width); min-width: 0; max-width: 100%; }
 /* 区间和横向组合字段占两列，包含普通字段之间的间距；字段内联 width 优先。 */
 .sia-query-form__field:has(.sia-picker-range-control, .sia-time-range, .sia-select-date-range, .sia-space-compact:not(.sia-space-compact--vertical) > :nth-child(2)) { --sia-query-item-width: calc(var(--sia-query-field-width, 220px) + var(--sia-query-field-width, 220px) + var(--sia-query-field-gap, 6px)); }
+/* 类型选择加起止日期占三列，包含两处列间距；字段内联指定的宽度仍优先。 */
+.sia-query-form .sia-query-form__fields > .sia-query-form__field:has(.sia-select-date-range) { --sia-query-item-width: calc(var(--sia-query-field-width, 220px) * 3 + var(--sia-query-field-gap, 6px) * 2); }
 .sia-query-form__field :is(.sia-picker-range-control, .sia-time-range, .sia-select-date-range, .sia-space-compact:not(.sia-space-compact--vertical)) { width: 100%; }
 .sia-query-form__field[hidden] { display: none; }
 .sia-query-form__field > .sia-input-control, .sia-query-form__field > .sia-select, .sia-query-form__field > .sia-picker, .sia-query-form__field > .sia-input-number, .sia-query-form__field > .sia-cascader, .sia-query-form__field > .sia-tree-select, .sia-query-form__field > .sia-select-date-range { width: 100%; }

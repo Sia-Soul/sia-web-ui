@@ -47,6 +47,7 @@ export default function Demo() {
 }`;
 
 const apiRows = [
+  { property: "showSelectedIndicator", description: "是否显示选中角标；关闭后保留边框及选择交互", type: "boolean", defaultValue: "true" },
   // 业务仅维护受控值，交互与动画由 Card 提供。
   { property: "selectable / disabled", description: "启用整卡选择；disabled 仅禁用选择", type: "boolean", defaultValue: "false" },
   { property: "selected / defaultSelected", description: "受控选中值与非受控初值", type: "boolean", defaultValue: "false" },
@@ -74,6 +75,9 @@ export function CardPage() {
           hoverActions={<Button variant="link" onClick={() => setDetailCount(count => count + 1)}>查看详情</Button>}>
           <p>合作关系查询接口</p><p>点击卡片选中，再次点击取消。</p><p>详情查看次数：{detailCount}</p>
         </Card>
+      </DemoCard>
+      <DemoCard title="仅边框选中" description="筛选卡片可关闭右上角勾选标记，保留选中边框及键盘操作。" code={'<Card selectable showSelectedIndicator={false}>库存紧张</Card>'}>
+        <Card selectable showSelectedIndicator={false} defaultSelected aria-label="库存紧张筛选示例">库存紧张</Card>
       </DemoCard>
       <DemoCard title="基础卡片" description="通过强调色快速建立卡片标题的视觉层级。" code={basicCode}>
         <Card accent="primary" title="基础卡片" description="标题、说明、分割线和内容区由 Card 统一组织。">

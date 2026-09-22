@@ -67,7 +67,7 @@ export interface SelectDateRangeProps extends Omit<HTMLAttributes<HTMLDivElement
   onChange?: (value: SelectDateRangeValue) => void;
 }
 
-/** 类型与日期区间组合选择组件。 */
+/** 类型与日期区间组合选择组件；默认宽度为三个查询字段宽度加两处列间距（默认 672px），不超过容器宽度，可通过 style.width 覆盖。 */
 export function SelectDateRange({
   options,
   value,
