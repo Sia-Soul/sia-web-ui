@@ -253,7 +253,7 @@
 
 
 /* 默认占三个 220px 查询列及两处 6px 间距；查询表单内跟随列宽和间距，显式 width 优先。 */
-.sia-select-date-range { --sia-select-date-range-height: var(--sia-control-height); box-sizing: border-box; display: inline-flex; align-items: stretch; width: min(calc(var(--sia-query-field-width, 220px) * 3 + var(--sia-query-field-gap, 6px) * 2), 100%); min-width: 0; vertical-align: middle; }
+.sia-select-date-range { --sia-select-date-range-height: var(--sia-control-height); box-sizing: border-box; display: inline-flex; align-items: stretch; width: min(calc(var(--sia-query-field-width, 220px) * 3 + var(--sia-query-field-gap, 8px) * 2), 100%); min-width: 0; vertical-align: middle; }
 .sia-select-date-range--small { --sia-select-date-range-height: var(--sia-control-height-small); }
 .sia-select-date-range--large { --sia-select-date-range-height: var(--sia-control-height-large); }
 .sia-select-date-range__select { flex: 0 0 var(--sia-select-date-range-select-width, 180px); width: var(--sia-select-date-range-select-width, 180px); min-width: 0; }
