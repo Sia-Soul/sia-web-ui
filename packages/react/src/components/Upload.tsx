@@ -28,7 +28,7 @@ function useThumbnail(file?: UploadFile, accept?: string) {
   return file?.thumbUrl || local || (isUploadImage(file, accept) ? file?.url : undefined);
 }
 
-/** 列表缩略图及状态；自定义渲染仍可复用默认节点和受限操作。 */
+/** 列表缩略图及状态；文字卡片区分已选择和上传完成，自定义渲染仍可复用默认节点和受限操作。 */
 function UploadItem({ file, files, props, actions }: { file: UploadFile; files: readonly UploadFile[]; props: UploadProps; actions: UploadItemActions }) {
   const source = useThumbnail(file, props.accept);
   const [failed, setFailed] = useState(false);
@@ -49,7 +49,7 @@ function UploadItem({ file, files, props, actions }: { file: UploadFile; files: 
   const node = <div className={`sia-upload__item sia-upload__item--${file.status ?? "ready"}`}>
     {props.listType !== "text" ? <Button variant="text" className="sia-upload__thumbnail" aria-label={`预览缩略图 ${file.name}`} onClick={actions.preview} disabled={!canPreview}>
       {source && !failed ? <img src={source} alt={file.name} onError={() => setFailed(true)} /> : <Icon name={file.type?.startsWith("image/") ? "image" : "file"} size={28} />}
-    </Button> : <Icon name={file.status === "done" ? "circle-check" : "file"} size={16} />}
+    </Button> : <span className="sia-upload__file-icon"><Icon name={file.status === "done" ? "circle-check" : "file"} size={24} /></span>}
     <span className="sia-upload__name" {...withTitleTooltip({ title: file.relativePath || file.name })}>{file.url ? <a href={file.url} target="_blank" rel="noreferrer">{file.name}</a> : file.name}</span>
     <span className="sia-upload__actions">
       <Button variant="text" title="预览" aria-label={`预览 ${file.name}`} disabled={!canPreview} onClick={actions.preview}><Icon name="eye" size={14} /></Button>
@@ -58,6 +58,7 @@ function UploadItem({ file, files, props, actions }: { file: UploadFile; files: 
     </span>
     {file.status === "uploading" && <div className="sia-upload__uploading"><span>上传中 {Math.round(file.percent ?? 0)}%</span><span className="sia-upload__progress" role="progressbar" aria-label={`${file.name} 上传进度`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={file.percent ?? 0}><span style={{ width: `${file.percent ?? 0}%` }} /></span></div>}
     {file.status === "error" && <span className="sia-upload__error">上传失败</span>}
+    {props.listType === "text" && (file.status === undefined || file.status === "ready" || file.status === "done") && <span className="sia-upload__status">{file.status === "done" ? "上传完成" : "已选择"}</span>}
   </div>;
   return <>{props.itemRender ? props.itemRender(node, file, files, actions) : node}</>;
 }
@@ -237,6 +238,8 @@ const UploadRoot = forwardRef<UploadRef, UploadProps>(function UploadRoot({ acce
       {...(directory ? { webkitdirectory: "", directory: "" } : {})}
       onChange={event => { ingest([...(event.currentTarget.files ?? [])].map(file => ({ file, path: file.webkitRelativePath || file.name }))); event.currentTarget.value = ""; }} />
     {listType !== "picture-card" && trigger}
+    {/* 数量标题只随内置文字列表显示，隐藏列表或清空后不保留占位。 */}
+    {showUploadList && listType === "text" && files.length > 0 && <div className="sia-upload__list-heading" role="status">已选文件 <span className="sia-upload__count">{files.length}</span></div>}
     <div className="sia-upload__list">
       {showUploadList && files.map(file => <UploadItem key={file.uid} file={file} files={files} props={{ listType, disabled, itemRender, onPreview, downloadRequest, accept }} actions={{
         upload: () => start(file), abort: () => abort(file.uid), remove: () => remove(file.uid), download: () => downloadUploadFile(file, downloadRequest),
@@ -257,16 +260,16 @@ const UploadRoot = forwardRef<UploadRef, UploadProps>(function UploadRoot({ acce
   </div>;
 });
 
-/** 拖拽入口与普通上传共享列表、请求、取消和校验流程。 */
+/** 拖拽入口与普通上传共享列表、请求、取消和校验流程；默认拖拽内容在文字或图片列表可见且非空时收紧，清空后恢复。 */
 const UploadDragger = forwardRef<UploadRef, UploadDraggerProps>(function UploadDragger({ hint = "支持单个或批量上传", children, className = "", ...props }, ref) {
   return <UploadRoot {...props} ref={ref} className={`sia-upload-dragger ${className}`.trim()}>
     {children ?? <span className="sia-upload-dragger__content"><Icon name="upload" size={32} /><strong>点击或拖拽{props.directory ? "文件夹" : "文件"}到此区域上传</strong><span>{hint}</span>{props.pastable && <span>聚焦此区域后按 Ctrl / ⌘ + V 粘贴文件或截图</span>}</span>}
   </UploadRoot>;
 });
 
-/** 上传组件，支持图片列表、照片墙、目录、粘贴与完全受控请求；未配置请求时仅选择文件。 */
+/** 上传组件，默认以带数量标题和状态的文字卡片展示已选文件；支持图片列表、照片墙、目录、粘贴与完全受控请求，未配置请求时仅选择文件。 */
 export const Upload = Object.assign(UploadRoot, {
-  /** 可点击、键盘操作和拖拽的上传区域，ref 支持手动上传、取消及移除。 */
+  /** 可点击、键盘操作和拖拽的上传区域，ref 支持手动上传、取消及移除；默认内容在文字或图片列表非空且可见时收紧高度，清空后恢复。 */
   Dragger: UploadDragger,
   /** beforeUpload 返回时移除该文件，不进行上传。 */
   LIST_IGNORE,

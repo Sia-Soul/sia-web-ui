@@ -47,7 +47,9 @@ export default function Demo() {
 }`;
 
 const apiRows = [
-  { property: "showSelectedIndicator", description: "是否显示选中角标；关闭后保留边框及选择交互", type: "boolean", defaultValue: "true" },
+  // 无边框模式统一取消卡片内部留白，业务可通过 bodyStyle 显式调整正文间距。
+  { property: "bordered", description: "是否显示外边框及默认内部留白；false 同时移除选中描边、标题左右留白和说明、正文、悬浮操作区内边距，保留内部分割线", type: "boolean", defaultValue: "true" },
+  { property: "showSelectedIndicator", description: "是否显示选中角标；关闭后保留选择交互，选中边框仅在 bordered 为 true 时显示", type: "boolean", defaultValue: "true" },
   // 业务仅维护受控值，交互与动画由 Card 提供。
   { property: "selectable / disabled", description: "启用整卡选择；disabled 仅禁用选择", type: "boolean", defaultValue: "false" },
   { property: "selected / defaultSelected", description: "受控选中值与非受控初值", type: "boolean", defaultValue: "false" },
@@ -70,6 +72,10 @@ export function CardPage() {
     <PageHeader eyebrow="组件 / 数据展示 / Card" title="Card 卡片" description="把标题、说明、分割线和内容区域组织为统一的信息容器。" />
     <DocsTabs activeKey={tab} onChange={setTab} />
     {tab === "examples" ? <div className="demo-stack">
+      {/* 展示无边框正文直接贴合容器，背景、圆角与标题分割线仍由 Card 管理。 */}
+      <DemoCard title="无边框卡片" description="bordered={false} 同时移除外边框和内部留白；标题分割线仍保留，可通过 bodyStyle 自定义正文间距。" code={'<Card bordered={false} title="无边框卡片" description="说明与正文均无默认内边距。">这里是卡片内容。</Card>'}>
+        <Card bordered={false} title="无边框卡片" description="说明与正文均无默认内边距。">这里是卡片内容。</Card>
+      </DemoCard>
       <DemoCard title="整卡选择与悬浮操作" description="选中时右上角显示三角勾选标记，重复点击取消选择；详情按钮不改变选中状态。" code={'<Card selectable selected={selected} onSelectedChange={setSelected} hoverActions={<Button>查看详情</Button>}>接口内容</Card>'}>
         <Card selectable selected={selected} onSelectedChange={setSelected} aria-label="示例接口"
           hoverActions={<Button variant="link" onClick={() => setDetailCount(count => count + 1)}>查看详情</Button>}>

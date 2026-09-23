@@ -4,7 +4,7 @@ Upload、Upload.Dragger、Button、图片预览均使用 SiaWebUI 框架实现�
 
 ## 展示与输入
 
-- `listType="text"`：文件名列表，默认值。
+- `listType="text"`：文字卡片列表，默认值。选择文件后显示“已选文件”数量标题，每项使用至少 72px 高的卡片，展示文件图标、文件名和状态；仅选择时显示“已选择”，实际上传成功才显示“上传完成”。窄屏操作按钮另起一行，长文件名省略并可通过提示查看完整名称。
 - `listType="picture"`：带缩略图的图片行，显示进度与失败状态。
 - `listType="picture-card"`：照片墙，支持本地缩略图及预览；达到 `maxCount` 后隐藏添加入口，移除后恢复。
 - `multiple`：允许每批多个文件，默认 false；`directory` 模式始终读取多文件。
@@ -14,6 +14,8 @@ Upload、Upload.Dragger、Button、图片预览均使用 SiaWebUI 框架实现�
 - `accept` 对点击、拖拽、粘贴均生效；数量上限包含 ready、uploading、done 和 error 项。拒绝文件通过 `onReject` 通知，目录读取失败通过 `onReadError` 通知。
 
 文件夹选择依赖浏览器的 `webkitdirectory`，拖入文件夹依赖目录条目 API。不支持目录条目的浏览器只能处理其 `DataTransfer.files` 提供的文件。剪贴板普通文本不会被当作文件上传。
+
+Upload.Dragger 的默认拖拽内容在文字或图片列表非空且可见时，将最小高度从 170px 收紧到 104px，同时缩小图标、内边距和间距，让已选文件更突出；清空文件或隐藏列表后恢复。长提示可自然撑高区域，自定义 children 由业务控制布局。
 
 ## 完全受控与手动上传
 

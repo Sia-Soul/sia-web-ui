@@ -8,6 +8,12 @@ export type CardAccent = "primary" | "success" | "warning" | "error";
 
 /** 卡片的属性配置。 */
 export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
+  /**
+   * 是否显示外边框并保留默认内部留白。false 移除外边框、选中描边、标题区左右留白及说明、正文、悬浮操作区的内边距；保留背景、圆角、内部分割线和键盘焦点提示。
+   * 无边框时仍可通过 bodyStyle.padding 自定义正文内边距。
+   * @defaultValue true
+   */
+  bordered?: boolean;
   /** 标题内容，可传入文本或 React 节点。 */
   title?: ReactNode;
   /** 补充说明内容。 */
@@ -22,7 +28,7 @@ export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
   /** 受控选中状态，需在 onSelectedChange 中更新。 */
   selected?: boolean;
   /**
-   * 是否显示选中卡片右上角的三角勾选标记。仅在 selectable 且已选中时生效；false 保留选中边框和键盘交互。
+   * 是否显示选中卡片右上角的三角勾选标记。仅在 selectable 且已选中时生效；false 保留键盘交互，选中边框仅在 bordered 为 true 时显示。
    * @defaultValue true
    */
   showSelectedIndicator?: boolean;
@@ -71,6 +77,7 @@ export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
 
 /** 卡片组件。 */
 export function Card({
+  bordered = true,
   title,
   description,
   extra,
@@ -129,7 +136,7 @@ export function Card({
 
   return (
     <section
-      className={`sia-card${isCollapsed ? " sia-card--collapsed" : ""}${selectable ? " sia-card--selectable" : ""}${selectable && isSelected ? " sia-card--selected" : ""}${hoverActions ? " sia-card--hover-actions" : ""} ${className}`.trim()}
+      className={`sia-card${!bordered ? " sia-card--borderless" : ""}${isCollapsed ? " sia-card--collapsed" : ""}${selectable ? " sia-card--selectable" : ""}${selectable && isSelected ? " sia-card--selected" : ""}${hoverActions ? " sia-card--hover-actions" : ""} ${className}`.trim()}
       style={mergedStyle}
       role={selectable ? "checkbox" : undefined}
       aria-checked={selectable ? isSelected : undefined}

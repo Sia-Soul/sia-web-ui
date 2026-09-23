@@ -21,6 +21,8 @@ declare const cardProps: CardProps;
 cardProps.selectable;
 cardProps.onSelectedChange;
 cardProps.hoverActions;
+// 无边框的留白规则必须随发布声明提供。
+cardProps.bordered;
 import type { TagVariant as CoreTagVariant } from '@sia.soul/sia-react-ui/core';
 import type { TagSize as CoreTagSize } from '@sia.soul/sia-react-ui/core';
 // 确认气泡的条件触发与异步失败约定应出现在编辑器提示中。
@@ -109,6 +111,8 @@ cases.push(['tableProps.fillRemaining', '剩余高度'], ['remaining.container',
 cases.push(['toolbarItem.title', '禁用时仍可显示']);
 cases.push(['treeOptions.showLine', 'ignoreChildrenColumn=false']);
 cases.push(['cardProps.selectable', '非交互区域'], ['cardProps.onSelectedChange', '布尔状态'], ['cardProps.hoverActions', '滑入']);
+// 验证新增属性的编辑器提示，而非仅检查源码注释存在。
+cases.push(['cardProps.bordered', '内边距']);
 cases.push(['confirmProps.skipConfirm', '跳过气泡'], ['confirmProps.onConfirm', 'Promise'], ['confirmProps.onConfirmError', '原始错误'], ['confirmProps.arrow', 'pointAtCenter'], ['floatingProps.autoAdjustOverflow', '可视区域'], ['floatingArrow.pointAtCenter', '中心']);
 for(const[needle,expected]of cases){const offset=needle.includes('.')?needle.lastIndexOf('.')+1:0;const pos=source.indexOf(needle)+offset+1;const info=service.getQuickInfoAtPosition(filename,pos);const text=ts.displayPartsToString(info?.documentation);assert(text.includes(expected),`${needle}: expected ${expected}, got ${JSON.stringify(text)}`);console.log(`PASS hover ${needle}: ${text.slice(0,70)}`);}
 for(const entry of ['index.d.ts','index.d.cts']){

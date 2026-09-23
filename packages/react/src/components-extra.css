@@ -400,6 +400,25 @@
 .sia-upload__actions > .sia-button { width: 26px; height: 26px; min-width: 0; padding: 0; }
 .sia-upload__item--error { border-color: var(--sia-color-error); }
 .sia-upload__item--error .sia-upload__remove { color: var(--sia-color-error); }
+/* 文字列表常驻卡片边界和文件图标，避免选择结果淹没在较大的拖拽入口下。 */
+.sia-upload__list-heading { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 14px; font-weight: 600; }
+.sia-upload__count { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 6px; box-sizing: border-box; color: var(--sia-color-primary-text); background: var(--sia-color-control-hover); border-radius: 12px; font-size: 12px; }
+.sia-upload--text .sia-upload__list { gap: 8px; }
+.sia-upload--text .sia-upload__item { box-sizing: border-box; min-height: 72px; padding: 12px; column-gap: 12px; row-gap: 4px; border: 1px solid var(--sia-color-border); border-radius: 8px; background: var(--sia-color-control-hover); }
+.sia-upload--text .sia-upload__name { font-size: 14px; font-weight: 500; }
+.sia-upload__file-icon { display: grid; place-items: center; grid-column: 1; grid-row: 1 / 3; width: 40px; height: 40px; color: var(--sia-color-primary-text); background: var(--sia-color-surface); border-radius: 8px; }
+.sia-upload__status { grid-column: 2; font-size: 12px; color: var(--sia-color-text-secondary); }
+.sia-upload--text .sia-upload__actions { grid-row: 1 / 3; gap: 4px; }
+.sia-upload--text .sia-upload__actions > .sia-button { width: 30px; height: 30px; }
+.sia-upload--text .sia-upload__uploading, .sia-upload--text .sia-upload__error { grid-column: 2; }
+.sia-upload--text .sia-upload__item--done .sia-upload__file-icon, .sia-upload--text .sia-upload__item--done .sia-upload__status { color: var(--sia-color-success); }
+.sia-upload--text .sia-upload__item--error { border-color: var(--sia-color-error); }
+.sia-upload--text .sia-upload__item--error .sia-upload__file-icon { color: var(--sia-color-error); }
+/* 窄屏把操作移至第二行之后，优先为文件名保留可读宽度。 */
+@media (max-width: 480px) {
+  .sia-upload--text .sia-upload__item { grid-template-columns: auto minmax(0, 1fr); }
+  .sia-upload--text .sia-upload__actions { grid-column: 2; grid-row: 3; justify-self: end; }
+}
 .sia-upload__thumbnail.sia-button { display: grid; place-items: center; width: 60px; height: 60px; padding: 0; color: inherit; background: var(--sia-color-control-hover); border-radius: 5px; }
 .sia-upload__thumbnail img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .sia-upload__thumbnail > span { display: grid; place-items: center; width: 100%; height: 100%; }
@@ -431,6 +450,9 @@
 .sia-upload-dragger .sia-upload__choose > span { display: block; width: 100%; }
 .sia-upload-dragger__content { box-sizing: border-box; }
 .sia-upload-dragger__content > .sia-icon { color: var(--sia-color-primary); }
+/* 仅在内置列表可见且有内容时收紧入口；清空或隐藏列表后自动恢复完整拖拽区。 */
+.sia-upload-dragger:not(.sia-upload--picture-card):has(.sia-upload__list:not(:empty)) .sia-upload-dragger__content { min-height: 104px; padding: 16px; gap: 6px; }
+.sia-upload-dragger:not(.sia-upload--picture-card):has(.sia-upload__list:not(:empty)) .sia-upload-dragger__content > .sia-icon { width: 24px; height: 24px; font-size: 24px; }
 .sia-upload.is-dragging .sia-upload__choose { outline: 2px solid var(--sia-color-primary); outline-offset: 2px; }
 .sia-upload.is-disabled .sia-upload-dragger__content { cursor: not-allowed; }
 /* 无悬停能力的触屏直接显示工具条，避免操作入口不可达。 */

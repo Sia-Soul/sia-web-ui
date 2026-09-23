@@ -75,7 +75,7 @@ export function UploadPage() {
   const [files, setFiles] = useState<readonly UploadFile[]>([]);
   const [paths, setPaths] = useState<readonly UploadFile[]>([]);
   return <ComponentDocPage eyebrow="组件 / 数据录入 / Upload" title="Upload 上传" description="照片墙、图片列表、拖拽粘贴、目录上传与完全受控的 OSS 请求。" name="Upload" apiRows={[
-    { property: "listType", description: "文件列表、图片行或照片墙；照片墙满额隐藏添加按钮", type: "text | picture | picture-card", defaultValue: "text" },
+    { property: "listType", description: "带数量标题和状态的文字卡片、图片行或照片墙；照片墙满额隐藏添加按钮", type: "text | picture | picture-card", defaultValue: "text" },
     { property: "cardSize", description: "照片墙卡片宽高，单位 px；数字为正方形，对象分别设置宽高。每边最小 48px，宽或高小于 88px 时隐藏文件名", type: "number | { width?: number; height?: number }", defaultValue: "112" },
     { property: "multiple / maxCount / accept", description: "批量、总数量和类型限制；拖拽、粘贴同样校验，超限触发 onReject", type: "boolean / number / string", defaultValue: "false / 不限 / 不限" },
     { property: "directory / recursive", description: "目录上传及是否包含子文件夹，路径保存在 relativePath", type: "boolean / boolean", defaultValue: "false / true" },
@@ -91,6 +91,10 @@ export function UploadPage() {
     { property: "onReject / onReadError", description: "文件类型、数量拒绝与目录读取失败通知", type: "回调", defaultValue: "-" },
     { property: "onChoose", description: "点击或键盘激活上传入口时调用；返回 false 接管为业务弹框，不打开系统选择器", type: "() => boolean | void", defaultValue: "-" },
   ]}>
+    {/* 仅选择的场景直接展示文件卡片与收紧后的入口，移除后可对比空态高度。 */}
+    <DemoCard title="已选文件反馈" description="选择后显示数量和文件卡片，同时收紧拖拽区；移除全部文件后恢复完整高度。此示例仅选择 Excel 文件，不发送上传请求。" code={'<Upload.Dragger accept=".xls,.xlsx" autoUpload={false} maxCount={1} hint="支持 xls、xlsx 格式，单次选择一个文件" />'}>
+      <Upload.Dragger aria-label="已选文件反馈" accept=".xls,.xlsx" autoUpload={false} maxCount={1} hint="支持 xls、xlsx 格式，单次选择一个文件" defaultFileList={[{ uid: "selected-spreadsheet", name: "一品一审_标准导入数据_100条.xlsx", status: "ready" }]} />
+    </DemoCard>
     <DemoCard title="接管上传入口" description="复用原生上传卡片，由业务打开上传弹框；示例仅提示，不读取文件。返回 false 可阻止系统文件选择器。" code={'<Upload listType="picture-card" onChoose={() => { setUploadOpen(true); return false; }} />'}>
       <Upload listType="picture-card" onChoose={() => { message.info("业务可在此打开上传弹框"); return false; }} />
     </DemoCard>
