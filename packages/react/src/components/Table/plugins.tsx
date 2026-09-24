@@ -1024,6 +1024,8 @@ export interface TableSelectionPluginOptions<T> {
   mode?: TableSelectionMode;
   /** 当前选中项目的标识集合；传入后由外部控制。 */
   selectedKeys?: readonly TableKey[];
+  /** 跨页保留时补充已选行数据，用于弹框重新挂载后恢复已选明细；按 Table.rowKey 匹配，仅缓存当前已选标识对应的行，当前数据源的同键行优先。不会添加选择或改变当前页列表。 */
+  selectedRows?: readonly T[];
   /** 非受控模式下初始选中的项目标识集合。 */
   defaultSelectedKeys?: readonly TableKey[];
   /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
@@ -1216,6 +1218,11 @@ export function createSelectionPlugin<T extends Record<string, unknown>>(
       ),
     );
     if (preserving(context)) {
+      // 新表格实例没有历史页缓存，由业务传入已选明细回填，再用当前页最新数据覆盖。
+      (options.selectedRows ?? []).forEach((record, index) => {
+        const key = context.getRowKey(record, index);
+        if (keys.includes(key)) preservedRows.set(key, record);
+      });
       for (const key of keys) {
         const entry = currentRows.get(key);
         if (entry) preservedRows.set(key, entry.record);
@@ -1404,6 +1411,8 @@ export function createSelectionPlugin<T extends Record<string, unknown>>(
       if (!options.showSelectedCount) return null;
       const keys = selected(context);
       const entries = entriesForKeys(keys, context);
+      // 分页数据可能尚未加载到已选行；跨页数量以标识为准，不用当前能解析的行数代替。
+      const selectedCount = preserving(context) ? new Set(keys).size : entries.length;
       const columns = flattenTableColumns(context.columns)
         .filter(
           (column) => !column.hidden && column.meta?.plugin !== "selection",
@@ -1441,7 +1450,7 @@ export function createSelectionPlugin<T extends Record<string, unknown>>(
               variant="link"
               disabled={entries.length === 0}
             >
-              已选 {entries.length} 条
+              已选 {selectedCount} 条
             </Button>
           </Popover>
           {mode === "multiple" &&
