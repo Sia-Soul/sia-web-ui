@@ -13,6 +13,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+chrono = { version = "0.4", features = ["clock"] }
 keyring = { version = "3.6.3", features = ["windows-native"] }
 rfd = "0.15"
 serde = { version = "1", features = ["derive"] }

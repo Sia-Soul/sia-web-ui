@@ -1046,7 +1046,9 @@ export interface TableSelectionPluginOptions<T> {
   childrenColumnName?: string;
 }
 /** 行勾选和已选面板状态。 */
-interface SelectionState {
+interface SelectionState<T> {
+  /** 当前表格独立保存的跨页行缓存，重建插件时保留，表格卸载后释放。 */
+  preservedRows: Map<TableKey, T>;
   /** 当前选中的行标识。 */
   selectedKeys: readonly TableKey[];
   /** 是否跨页保留选中行。 */
@@ -1179,25 +1181,26 @@ function TableSelectedItemsPanel<T extends Record<string, unknown>>({
   );
 }
 
-/** 创建表格行勾选插件。将返回值加入 Table 的 plugins 后生效。 */
+/** 创建表格行勾选插件。将返回值加入 Table 的 plugins 后生效；跨页行缓存属于表格实例，重新创建插件不会清空缓存，不同表格互不共享。 */
 export function createSelectionPlugin<T extends Record<string, unknown>>(
   options: TableSelectionPluginOptions<T> = {},
-): TablePlugin<T, SelectionState, TableSelectionApi<T>> {
+): TablePlugin<T, SelectionState<T>, TableSelectionApi<T>> {
   const { mode = "multiple", childrenColumnName = "children" } = options;
-  const preservedRows = new Map<TableKey, T>();
-  function selected(context: TablePluginContext<T, SelectionState>) {
+
+  function selected(context: TablePluginContext<T, SelectionState<T>>) {
     return options.selectedKeys ?? context.state.selectedKeys ?? [];
   }
-  function preserving(context: TablePluginContext<T, SelectionState>) {
+  function preserving(context: TablePluginContext<T, SelectionState<T>>) {
     return context.state.preserveSelectedRowKeys;
   }
-  function allRecords(context: TablePluginContext<T, SelectionState>) {
+  function allRecords(context: TablePluginContext<T, SelectionState<T>>) {
     return flattenRecords(context.sourceData, childrenColumnName);
   }
   function entriesForKeys(
     keys: readonly TableKey[],
-    context: TablePluginContext<T, SelectionState>,
+    context: TablePluginContext<T, SelectionState<T>>,
   ) {
+    const preservedRows = context.state.preservedRows;
     const records = allRecords(context);
     const currentRows = new Map(
       records.map(
@@ -1239,15 +1242,15 @@ export function createSelectionPlugin<T extends Record<string, unknown>>(
   }
   function rowsForKeys(
     keys: readonly TableKey[],
-    context: TablePluginContext<T, SelectionState>,
+    context: TablePluginContext<T, SelectionState<T>>,
   ) {
     return entriesForKeys(keys, context).map((entry) => entry.record);
   }
   function setKeys(
     keys: readonly TableKey[],
-    context: TablePluginContext<T, SelectionState>,
+    context: TablePluginContext<T, SelectionState<T>>,
   ) {
-    if (keys.length === 0) preservedRows.clear();
+    if (keys.length === 0) context.state.preservedRows.clear();
     context.setState((state) => ({
       ...state,
       selectedKeys: keys,
@@ -1257,7 +1260,7 @@ export function createSelectionPlugin<T extends Record<string, unknown>>(
   }
   function setPreserving(
     preserve: boolean,
-    context: TablePluginContext<T, SelectionState>,
+    context: TablePluginContext<T, SelectionState<T>>,
   ) {
     if (preserve === preserving(context)) return;
     if (!preserve) {
@@ -1266,7 +1269,7 @@ export function createSelectionPlugin<T extends Record<string, unknown>>(
         pageKeys.has(key),
       );
       setKeys(currentPageKeys, context);
-      preservedRows.clear();
+      context.state.preservedRows.clear();
     }
     context.setState((state) => ({
       ...state,
@@ -1277,7 +1280,7 @@ export function createSelectionPlugin<T extends Record<string, unknown>>(
   function toggle(
     key: TableKey,
     record: T,
-    context: TablePluginContext<T, SelectionState>,
+    context: TablePluginContext<T, SelectionState<T>>,
     checked?: boolean,
   ) {
     if (options.getCheckboxDisabled?.(record)) return;
@@ -1295,11 +1298,13 @@ export function createSelectionPlugin<T extends Record<string, unknown>>(
   return {
     id: "selection",
     order: 20,
-    initialState: {
+    // 用工厂给每个表格创建独立缓存，避免同一插件对象被多个表格复用时串数据。
+    initialState: () => ({
+      preservedRows: new Map<TableKey, T>(),
       selectedKeys: options.defaultSelectedKeys ?? [],
       preserveSelectedRowKeys: options.preserveSelectedRowKeys ?? false,
       panelOpen: false,
-    },
+    }),
     transformColumns(columns, context) {
       if (mode === "row") return columns;
       const selectionColumn: TableColumn<T> = {
@@ -1461,7 +1466,7 @@ export function createSelectionPlugin<T extends Record<string, unknown>>(
           const record =
             records.find((item, index) =>
               Object.is(context.getRowKey(item, index), key),
-            ) ?? preservedRows.get(key);
+            ) ?? context.state.preservedRows.get(key);
           if (record) toggle(key, record, context, checked);
         },
         getSelectedRows: () => rowsForKeys(selected(context), context),

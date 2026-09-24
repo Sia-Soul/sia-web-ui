@@ -375,7 +375,7 @@ export interface FormProps extends Omit<FormHTMLAttributes<HTMLFormElement>, "on
    * @defaultValue true
    */
   requiredMark?: boolean | "optional";
-  /** 提交并且校验通过时调用，参数为完整的表单字段值。 */
+  /** 当前表单提交并且校验通过时调用，参数为完整的表单字段值；提交事件不会冒泡触发祖先表单，包含 Portal 内的子表单。 */
   onFinish?: (values: FormValues) => void;
   /** 表单提交校验失败时调用，参数包含字段值和错误列表。 */
   onFinishFailed?: (info: {
@@ -445,7 +445,12 @@ function FormRoot({
       {...withTitleTooltip(props)}
       className={`sia-form sia-form--${layout} sia-form--${size}${disabled ? " is-disabled" : ""} ${className}`.trim()}
       data-required-mark={requiredMark}
-      onSubmit={(event) => { event.preventDefault(); instance.submit(); }}
+      onSubmit={(event) => {
+        event.preventDefault();
+        // Portal 保留 React 事件冒泡路径；每个表单独立处理提交，避免子查询触发祖先表单保存。
+        event.stopPropagation();
+        instance.submit();
+      }}
     >
       <fieldset disabled={disabled}>{children}</fieldset>
     </form>

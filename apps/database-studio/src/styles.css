@@ -250,6 +250,15 @@ dt {
   border-radius: 4px;
 }
 
+/* 左侧对象树使用紧凑间距，减少展开箭头、操作图标、类型图标与标题之间的无效留白。 */
+.connection-tree-scroll .sia-tree__context-content {
+  gap: 2px;
+}
+
+.connection-tree-scroll .sia-tree__title {
+  padding-inline: 3px;
+}
+
 .connection-context-trigger {
   display: flex;
   flex: 1;
@@ -299,7 +308,7 @@ dt {
 .connection-database-title {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
   min-width: 0;
 }
 
@@ -318,8 +327,8 @@ dt {
 }
 
 .tree-favorite-button.sia-button {
-  min-width: 24px;
-  width: 24px;
+  min-width: 20px;
+  width: 20px;
   height: 24px;
   padding: 0;
   color: var(--sia-color-text-tertiary);
@@ -936,6 +945,13 @@ dt {
 .connection-form .sia-input-number,
 .connection-form .sia-select {
   width: 100%;
+}
+
+/* MCP 配置使用等宽字体，便于核对 command、args 和连接 URI 的 JSON 结构。 */
+.connection-mcp-config .sia-textarea {
+  min-height: 210px;
+  font-family: "Cascadia Code", Consolas, monospace;
+  line-height: 1.55;
 }
 
 .connection-form .sia-form-item {

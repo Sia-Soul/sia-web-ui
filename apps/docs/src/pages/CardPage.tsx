@@ -85,7 +85,8 @@ export function CardPage() {
       <DemoCard title="仅边框选中" description="筛选卡片可关闭右上角勾选标记，保留选中边框及键盘操作。" code={'<Card selectable showSelectedIndicator={false}>库存紧张</Card>'}>
         <Card selectable showSelectedIndicator={false} defaultSelected aria-label="库存紧张筛选示例">库存紧张</Card>
       </DemoCard>
-      <DemoCard title="基础卡片" description="通过强调色快速建立卡片标题的视觉层级。" code={basicCode}>
+      {/* 展示默认紧凑间距，正文左右留白仍跟随框架间距配置。 */}
+      <DemoCard title="基础卡片" description="标题区最小高度为 40px，正文上下内边距为 6px，左右沿用框架间距；通过强调色区分标题层级。" code={basicCode}>
         <Card accent="primary" title="基础卡片" description="标题、说明、分割线和内容区由 Card 统一组织。">
           <div className="card-demo-surface">这里是基础卡片的内容。</div>
         </Card>

@@ -71,7 +71,7 @@ export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
    * @defaultValue ""
    */
   bodyClassName?: string;
-  /** 内容区域的内联样式。 */
+  /** 内容区域的内联样式，可覆盖默认内边距：上下 6px，左右使用 --sia-spacing；bordered 为 false 时默认内边距为 0。 */
   bodyStyle?: CSSProperties;
 }
 

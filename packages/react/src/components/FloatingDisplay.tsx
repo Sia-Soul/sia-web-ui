@@ -4,6 +4,7 @@ import { cloneElement, useEffect, useId, useLayoutEffect, useMemo, useRef, useSt
 import type { CSSProperties, HTMLAttributes, ReactElement, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Checkbox } from "./Checkbox";
+import { FloatingScrollbarProvider } from "./FloatingScrollbarProvider";
 import { Dropdown } from "./Dropdown";
 import type { DropdownMenuProps } from "./Dropdown";
 import { Icon } from "./Icon";
@@ -379,7 +380,7 @@ export interface TreeNode {
   children?: readonly TreeNode[];
   [key: string]: unknown;
 }
-/** 树的属性配置。 */
+/** 树的属性配置；通过 style 或 className 设置高度限制及 overflow: auto 后，溢出内容使用不占布局空间的浮动滚动条。 */
 export interface TreeProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSelect" | "onDrop"> {
   /** 树形节点数据 */
   treeData: readonly TreeNode[];
@@ -470,6 +471,21 @@ export interface TreeProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSelec
    */
   stickyRowHeight?: number;
   /**
+   * 是否允许组件在可见节点达到阈值且自身形成滚动视口时自动启用虚拟滚动；关闭后始终渲染全部已展开节点。
+   * @defaultValue true
+   */
+  virtual?: boolean;
+  /**
+   * 自动启用虚拟滚动所需的最少可见节点数；小于该数量时保留完整 DOM，避免为小树增加额外计算。
+   * @defaultValue 100
+   */
+  virtualThreshold?: number;
+  /**
+   * 虚拟滚动模式下每一行的固定高度，单位为像素；未传入时使用 stickyRowHeight 的值。
+   * @defaultValue stickyRowHeight
+   */
+  virtualItemHeight?: number;
+  /**
    * 是否允许拖拽。
    * @defaultValue false
    */
@@ -513,19 +529,95 @@ function collectKeys(nodes: readonly TreeNode[], branchOnly = false, result: Tre
   return result;
 }
 
-/** 树组件。 */
+/** 虚拟滚动使用的扁平节点，仅包含当前已经展开且真实可见的层级。 */
+interface FlatTreeNode {
+  node: TreeNode;
+  depth: number;
+  ancestorKeys: readonly TreeKey[];
+  index: number;
+  positionInSet: number;
+  setSize: number;
+}
+
+/** 将展开分支拍平成稳定顺序，避免虚拟窗口仍递归创建全部 React 节点。 */
+function flattenVisibleTree(nodes: readonly TreeNode[], expandedKeys: ReadonlySet<TreeKey>, depth = 0, ancestorKeys: readonly TreeKey[] = [], result: FlatTreeNode[] = []) {
+  nodes.forEach((node, siblingIndex) => {
+    result.push({ node, depth, ancestorKeys, index: result.length, positionInSet: siblingIndex + 1, setSize: nodes.length });
+    if (expandedKeys.has(node.key) && node.children?.length) {
+      flattenVisibleTree(node.children, expandedKeys, depth + 1, [...ancestorKeys, node.key], result);
+    }
+  });
+  return result;
+}
+
+/** 树形控件，支持选择、勾选与异步加载；自身容器可滚动时默认接入浮动滚动条，无需全局 Provider。 */
 export function Tree({
   treeData, selectedKeys, defaultSelectedKeys = [], expandedKeys, defaultExpandedKeys = [], defaultExpandAll = false, checkedKeys, defaultCheckedKeys = [], loadingKeys = [],
   checkable = false, checkStrictly = false, multiple = false, selectable = true, showLine = false, showIcon = false, blockNode = false,
   indentSize = 20, switcherWidth = 24, stickyAncestors = false, stickyRowHeight = 34,
+  virtual = true, virtualThreshold = 100, virtualItemHeight,
   draggable = false, loadData, onSelect, onCheck, onExpand, onDrop, className = "", ...props
 }: TreeProps) {
+  // 仅接管当前树的滚动容器，复用框架轨道的显隐、拖拽和尺寸更新逻辑。
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useControllableState<readonly TreeKey[]>({ value: selectedKeys, defaultValue: defaultSelectedKeys });
   const [expanded, setExpanded] = useControllableState<readonly TreeKey[]>({ value: expandedKeys, defaultValue: defaultExpandAll ? collectKeys(treeData, true) : defaultExpandedKeys });
   const [checked, setChecked] = useControllableState<readonly TreeKey[]>({ value: checkedKeys, defaultValue: defaultCheckedKeys });
   const [loading, setLoading] = useState<Set<TreeKey>>(new Set());
   const controlledLoading = useMemo(() => new Set(loadingKeys), [loadingKeys]);
   const selectedKeySet = useMemo(() => new Set(selected), [selected]);
+  const expandedKeySet = useMemo(() => new Set(expanded), [expanded]);
+  const flatNodes = useMemo(() => flattenVisibleTree(treeData, expandedKeySet), [expandedKeySet, treeData]);
+  const normalizedVirtualThreshold = Math.max(1, Math.floor(virtualThreshold));
+  const normalizedVirtualItemHeight = Math.max(1, virtualItemHeight ?? stickyRowHeight);
+  const wantsVirtualScroll = virtual && flatNodes.length >= normalizedVirtualThreshold;
+  const [virtualViewport, setVirtualViewport] = useState({ height: 0, scrollTop: 0, ownsScroll: true });
+
+  useLayoutEffect(() => {
+    if (!wantsVirtualScroll) return undefined;
+    const element = scrollRef.current;
+    if (!element) return undefined;
+    let animationFrame = 0;
+    // Tree 只有在自身承担纵向滚动时才能稳定计算窗口；外部滚动容器继续使用完整渲染。
+    const updateViewport = () => {
+      animationFrame = 0;
+      const overflowY = window.getComputedStyle(element).overflowY;
+      const ownsScroll = overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay";
+      const next = { height: element.clientHeight, scrollTop: element.scrollTop, ownsScroll };
+      setVirtualViewport((current) => current.height === next.height && current.scrollTop === next.scrollTop && current.ownsScroll === next.ownsScroll ? current : next);
+    };
+    const scheduleViewportUpdate = () => {
+      if (!animationFrame) animationFrame = window.requestAnimationFrame(updateViewport);
+    };
+    updateViewport();
+    element.addEventListener("scroll", scheduleViewportUpdate, { passive: true });
+    const resizeObserver = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(scheduleViewportUpdate);
+    resizeObserver?.observe(element);
+    return () => {
+      element.removeEventListener("scroll", scheduleViewportUpdate);
+      resizeObserver?.disconnect();
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+    };
+  }, [className, props.style, wantsVirtualScroll]);
+
+  const virtualEnabled = wantsVirtualScroll && virtualViewport.ownsScroll;
+  const virtualWindow = useMemo(() => {
+    if (!virtualEnabled) return { start: 0, end: flatNodes.length };
+    const overscan = 8;
+    const viewportHeight = virtualViewport.height || normalizedVirtualItemHeight * 12;
+    const maxStart = Math.max(0, flatNodes.length - 1);
+    const start = Math.min(maxStart, Math.max(0, Math.floor(virtualViewport.scrollTop / normalizedVirtualItemHeight) - overscan));
+    const end = Math.min(flatNodes.length, Math.ceil((virtualViewport.scrollTop + viewportHeight) / normalizedVirtualItemHeight) + overscan);
+    return { start, end };
+  }, [flatNodes.length, normalizedVirtualItemHeight, virtualEnabled, virtualViewport.height, virtualViewport.scrollTop]);
+  const flatNodeByKey = useMemo(() => new Map(flatNodes.map((item) => [item.node.key, item])), [flatNodes]);
+  const virtualStickyNodes = useMemo(() => {
+    if (!virtualEnabled || !stickyAncestors || !flatNodes.length) return [];
+    const anchorIndex = Math.min(flatNodes.length - 1, Math.max(0, Math.floor(virtualViewport.scrollTop / normalizedVirtualItemHeight)));
+    return flatNodes[anchorIndex].ancestorKeys
+      .map((key) => flatNodeByKey.get(key))
+      .filter((item): item is FlatTreeNode => Boolean(item));
+  }, [flatNodeByKey, flatNodes, normalizedVirtualItemHeight, stickyAncestors, virtualEnabled, virtualViewport.scrollTop]);
   const selectedAncestorKeys = useMemo(() => {
     const ancestors = new Set<TreeKey>();
     const visit = (nodes: readonly TreeNode[], parentKeys: readonly TreeKey[]) => {
@@ -644,71 +736,128 @@ export function Tree({
     dragNodeRef.current = undefined;
     setDragOver(undefined);
   }
-  function render(nodes: readonly TreeNode[], depth = 0): ReactNode {
-    return nodes.map((node) => {
-      const open = expanded.includes(node.key);
-      const isSelected = selected.includes(node.key);
-      const isSelectedAncestor = selectedAncestorKeys.has(node.key);
-      const isChecked = checkState.checked.has(node.key);
-      const isHalfChecked = checkState.halfChecked.has(node.key);
-      const hasChildren = Boolean(node.children?.length || node.isLeaf === false);
-      const nodeLoading = loading.has(node.key) || controlledLoading.has(node.key);
-      const sticky = stickyAncestors && hasChildren && open;
-      const canDrag = draggable && node.draggable !== false && !node.disabled;
-      const { className: rowClassName = "", style: rowStyle, onClick: onRowClick, ...rowProps } = node.rowProps ?? {};
-      const unloaded = hasChildren && node.loaded === false;
-      const dropPosition = dragOver?.key === node.key ? dragOver.position : undefined;
-      return <div className={`sia-tree__node${isSelected ? " is-selected" : ""}${isSelectedAncestor ? " is-selected-ancestor" : ""}${dropPosition ? ` is-drag-over-${dropPosition}` : ""}${node.disabled ? " is-disabled" : ""}${unloaded ? " is-unloaded" : ""}`} role="treeitem" aria-expanded={hasChildren ? open : undefined} aria-selected={isSelected} key={node.key}>
-        <div {...withTitleTooltip(rowProps)} className={`sia-tree__row${blockNode ? " sia-tree__row--block" : ""}${sticky ? " sia-tree__row--sticky" : ""} ${rowClassName}`.trim()} style={{
-          ...rowStyle,
-          paddingInlineStart: depth * Math.max(0, indentSize),
-          top: sticky ? depth * Math.max(1, stickyRowHeight) : rowStyle?.top,
-          zIndex: sticky ? Math.max(1, 100 - depth) : rowStyle?.zIndex,
+  function renderNode(node: TreeNode, depth: number, options: {
+    reactKey?: TreeKey | string;
+    children?: ReactNode;
+    virtualTop?: number;
+    stickySlot?: number;
+    positionInSet?: number;
+    setSize?: number;
+  } = {}) {
+    const open = expandedKeySet.has(node.key);
+    const isSelected = selected.includes(node.key);
+    const isSelectedAncestor = selectedAncestorKeys.has(node.key);
+    const isChecked = checkState.checked.has(node.key);
+    const isHalfChecked = checkState.halfChecked.has(node.key);
+    const hasChildren = Boolean(node.children?.length || node.isLeaf === false);
+    const nodeLoading = loading.has(node.key) || controlledLoading.has(node.key);
+    const virtualizedNode = options.virtualTop !== undefined || options.stickySlot !== undefined;
+    const sticky = !virtualizedNode && stickyAncestors && hasChildren && open;
+    const canDrag = draggable && node.draggable !== false && !node.disabled;
+    const { className: rowClassName = "", style: rowStyle, onClick: onRowClick, ...rowProps } = node.rowProps ?? {};
+    const unloaded = hasChildren && node.loaded === false;
+    const dropPosition = dragOver?.key === node.key ? dragOver.position : undefined;
+    const virtualNodeClassName = options.stickySlot !== undefined ? " sia-tree__virtual-sticky-node" : options.virtualTop !== undefined ? " sia-tree__virtual-node" : "";
+    const virtualNodeStyle: CSSProperties | undefined = options.stickySlot !== undefined
+      ? { top: options.stickySlot * normalizedVirtualItemHeight, height: normalizedVirtualItemHeight }
+      : options.virtualTop !== undefined
+        ? { transform: `translateY(${options.virtualTop}px)`, height: normalizedVirtualItemHeight }
+        : undefined;
+    return <div
+      className={`sia-tree__node${virtualNodeClassName}${isSelected ? " is-selected" : ""}${isSelectedAncestor ? " is-selected-ancestor" : ""}${dropPosition ? ` is-drag-over-${dropPosition}` : ""}${node.disabled ? " is-disabled" : ""}${unloaded ? " is-unloaded" : ""}`}
+      style={virtualNodeStyle}
+      role="treeitem"
+      aria-expanded={hasChildren ? open : undefined}
+      aria-selected={isSelected}
+      aria-level={depth + 1}
+      aria-posinset={options.positionInSet}
+      aria-setsize={options.setSize}
+      key={options.reactKey ?? node.key}
+    >
+      {/* 扁平虚拟节点不再拥有 children 包装层，按深度补绘连接线。 */}
+      {virtualizedNode && showLine && depth > 0 ? <span className="sia-tree__virtual-guides" aria-hidden="true">
+        {Array.from({ length: depth }, (_, guideDepth) => <span className="sia-tree__virtual-guide" style={{ insetInlineStart: (guideDepth + 1) * Math.max(0, indentSize) }} key={guideDepth} />)}
+      </span> : null}
+      <div {...withTitleTooltip(rowProps)} className={`sia-tree__row${blockNode ? " sia-tree__row--block" : ""}${sticky ? " sia-tree__row--sticky" : ""} ${rowClassName}`.trim()} style={{
+        ...rowStyle,
+        height: virtualizedNode ? "100%" : rowStyle?.height,
+        paddingInlineStart: depth * Math.max(0, indentSize),
+        top: sticky ? depth * Math.max(1, stickyRowHeight) : rowStyle?.top,
+        zIndex: sticky ? Math.max(1, 100 - depth) : rowStyle?.zIndex,
+      }}
+        aria-busy={nodeLoading || undefined}
+        data-sia-tree-drop-key={String(node.key)}
+        data-sia-tree-draggable={canDrag || undefined}
+        onClick={(event) => {
+          onRowClick?.(event);
+          if (event.defaultPrevented || suppressClickRef.current || node.disabled) return;
+          select(node, event);
+          if (hasChildren) void toggleExpand(node);
         }}
-          aria-busy={nodeLoading || undefined}
-          data-sia-tree-drop-key={String(node.key)}
-          data-sia-tree-draggable={canDrag || undefined}
-          onClick={(event) => {
-            onRowClick?.(event);
-            if (event.defaultPrevented || suppressClickRef.current || node.disabled) return;
-            select(node, event);
-            if (hasChildren) void toggleExpand(node);
-          }}
-        >
-          {(() => {
-            const content = <span className="sia-tree__context-content">
-              {hasChildren ? <button type="button" className="sia-tree__switcher" aria-label={open ? "收起节点" : "展开节点"} aria-expanded={open} style={{ width: normalizedSwitcherWidth, flexBasis: normalizedSwitcherWidth }} disabled={node.disabled} onClick={(event) => { event.stopPropagation(); void toggleExpand(node); }}>{nodeLoading ? <Icon name="loader" className="sia-spin-icon" size={13} /> : <Icon name={open ? "chevron-down" : "chevron-right"} size={13} />}</button> : <span className="sia-tree__switcher" aria-label={open ? "收起节点" : "展开节点"} aria-expanded={open} style={{ width: normalizedSwitcherWidth, flexBasis: normalizedSwitcherWidth }} aria-hidden="true" />}
-              {checkable || node.checkable ? <span onClick={(event) => event.stopPropagation()}><Checkbox checked={isChecked} indeterminate={isHalfChecked} disabled={node.disabled || node.disableCheckbox} onChange={() => check(node)} /></span> : null}
-              {node.prefix ? <span className="sia-tree__prefix" onClick={(event) => event.stopPropagation()}>{node.prefix}</span> : null}
-              {showIcon ? <span className="sia-tree__icon">{node.icon ?? <Icon name={hasChildren ? "folder" : "file"} size={15} />}</span> : null}
-              <button
-                type="button"
-                className="sia-tree__title"
-                disabled={node.disabled}
-                onPointerDown={canDrag ? (event) => beginPointerDrag(node, event) : undefined}
-                onPointerMove={canDrag ? movePointerDrag : undefined}
-                onPointerUp={canDrag ? finishPointerDrag : undefined}
-                onPointerCancel={canDrag ? cancelPointerDrag : undefined}
-              >
-                {node.title}
-              </button>
-              {nodeLoading ? <span className="sia-tree__loading-text" role="status">{node.loadingText ?? "正在加载…"}</span> : null}
-              {node.extra ? <span className="sia-tree__extra" onClick={(event) => event.stopPropagation()}>{node.extra}</span> : null}
-            </span>;
-            return node.contextMenu ? <Dropdown
-              className="sia-tree__context-trigger"
-              popupClassName={node.contextMenuPopupClassName}
-              trigger={["contextMenu"]}
-              menu={node.contextMenu}
-              onContextMenu={(event) => selectForContextMenu(node, event)}
+      >
+        {(() => {
+          const content = <span className="sia-tree__context-content">
+            {hasChildren ? <button type="button" className="sia-tree__switcher" aria-label={open ? "收起节点" : "展开节点"} aria-expanded={open} style={{ width: normalizedSwitcherWidth, flexBasis: normalizedSwitcherWidth }} disabled={node.disabled} onClick={(event) => { event.stopPropagation(); void toggleExpand(node); }}>{nodeLoading ? <Icon name="loader" className="sia-spin-icon" size={13} /> : <Icon name={open ? "chevron-down" : "chevron-right"} size={13} />}</button> : <span className="sia-tree__switcher" aria-label={open ? "收起节点" : "展开节点"} aria-expanded={open} style={{ width: normalizedSwitcherWidth, flexBasis: normalizedSwitcherWidth }} aria-hidden="true" />}
+            {checkable || node.checkable ? <span onClick={(event) => event.stopPropagation()}><Checkbox checked={isChecked} indeterminate={isHalfChecked} disabled={node.disabled || node.disableCheckbox} onChange={() => check(node)} /></span> : null}
+            {node.prefix ? <span className="sia-tree__prefix" onClick={(event) => event.stopPropagation()}>{node.prefix}</span> : null}
+            {showIcon ? <span className="sia-tree__icon">{node.icon ?? <Icon name={hasChildren ? "folder" : "file"} size={15} />}</span> : null}
+            <button
+              type="button"
+              className="sia-tree__title"
+              disabled={node.disabled}
+              onPointerDown={canDrag ? (event) => beginPointerDrag(node, event) : undefined}
+              onPointerMove={canDrag ? movePointerDrag : undefined}
+              onPointerUp={canDrag ? finishPointerDrag : undefined}
+              onPointerCancel={canDrag ? cancelPointerDrag : undefined}
             >
-              {content}
-            </Dropdown> : content;
-          })()}
-        </div>
-        {open && node.children?.length ? <div className="sia-tree__children" role="group">{render(node.children, depth + 1)}</div> : null}
-      </div>;
-    });
+              {node.title}
+            </button>
+            {nodeLoading ? <span className="sia-tree__loading-text" role="status">{node.loadingText ?? "正在加载…"}</span> : null}
+            {node.extra ? <span className="sia-tree__extra" onClick={(event) => event.stopPropagation()}>{node.extra}</span> : null}
+          </span>;
+          return node.contextMenu ? <Dropdown
+            className="sia-tree__context-trigger"
+            popupClassName={node.contextMenuPopupClassName}
+            trigger={["contextMenu"]}
+            menu={node.contextMenu}
+            onContextMenu={(event) => selectForContextMenu(node, event)}
+          >
+            {content}
+          </Dropdown> : content;
+        })()}
+      </div>
+      {options.children}
+    </div>;
   }
-  return <div className={`sia-tree${showLine ? " sia-tree--line" : ""}${stickyAncestors ? " sia-tree--sticky-ancestors" : ""} ${className}`.trim()} role="tree" aria-multiselectable={multiple || undefined} {...withTitleTooltip(props)}>{render(treeData)}</div>;
+  function render(nodes: readonly TreeNode[], depth = 0): ReactNode {
+    return nodes.map((node, siblingIndex) => renderNode(node, depth, {
+      positionInSet: siblingIndex + 1,
+      setSize: nodes.length,
+      children: expandedKeySet.has(node.key) && node.children?.length
+        ? <div className="sia-tree__children" role="group">{render(node.children, depth + 1)}</div>
+        : null,
+    }));
+  }
+  const stickyVirtualKeySet = new Set(virtualStickyNodes.map((item) => item.node.key));
+  const virtualContent = virtualEnabled ? <div className="sia-tree__virtual-space" style={{ height: flatNodes.length * normalizedVirtualItemHeight }}>
+    {virtualStickyNodes.length ? <div className="sia-tree__virtual-sticky-layer">
+      {virtualStickyNodes.map((item, stickySlot) => renderNode(item.node, item.depth, {
+        reactKey: `sticky-${String(item.node.key)}`,
+        stickySlot,
+        positionInSet: item.positionInSet,
+        setSize: item.setSize,
+      }))}
+    </div> : null}
+    {flatNodes.slice(virtualWindow.start, virtualWindow.end).filter((item) => !stickyVirtualKeySet.has(item.node.key)).map((item) => renderNode(item.node, item.depth, {
+      reactKey: `virtual-${String(item.node.key)}`,
+      virtualTop: item.index * normalizedVirtualItemHeight,
+      positionInSet: item.positionInSet,
+      setSize: item.setSize,
+    }))}
+  </div> : render(treeData);
+  return <div ref={scrollRef} className={`sia-tree${showLine ? " sia-tree--line" : ""}${stickyAncestors ? " sia-tree--sticky-ancestors" : ""}${virtualEnabled ? " sia-tree--virtual" : ""} ${className}`.trim()} role="tree" aria-multiselectable={multiple || undefined} data-sia-tree-virtualized={virtualEnabled || undefined} {...withTitleTooltip(props)}>
+    {virtualContent}
+    {/* Provider 不生成树内 DOM，保留节点层级和祖先吸顶布局。 */}
+    <FloatingScrollbarProvider targetRef={scrollRef} />
+  </div>;
 }

@@ -6,7 +6,7 @@ const ts = require('typescript');
 const packageRoot = path.resolve(__dirname, '../packages/react');
 const filename = path.join(packageRoot, '__api-doc-consumer__.tsx').replaceAll('\\', '/');
 // 上传新增的命令式句柄、OSS 配置及自定义渲染同样从发布产物检查悬停。
-const source = `import { Upload, type UploadRef, type UploadHttpRequest, type UploadRequestOptions, QueryForm, Select, Modal, message, Form, createColumnSettingPlugin, type TableSettingsAdapter, type BarChartProps, type SelectModalConfig, type QueryFormProps, type TableProps } from '@sia.soul/sia-react-ui';
+const source = `import { Upload, type UploadRef, type UploadHttpRequest, type UploadRequestOptions, QueryForm, Select, Modal, message, Form, createColumnSettingPlugin, type TableSettingsAdapter, type BarChartProps, type SelectModalConfig, type QueryFormProps, type TableProps, type TreeProps } from '@sia.soul/sia-react-ui';
 import type { CardProps, TagProps, CheckboxGroupProps, TabsProps, UploadProps, UploadItemActions, PopconfirmProps, TooltipProps } from '@sia.soul/sia-react-ui';
 // 设置菜单和工具栏的提示属性必须保留禁用项提示约定。
 import type { TableToolbarItem } from '@sia.soul/sia-react-ui';
@@ -14,6 +14,11 @@ import type { TableToolbarItem } from '@sia.soul/sia-react-ui';
 import type { TableTreePluginOptions } from '@sia.soul/sia-react-ui';
 declare const treeOptions: TableTreePluginOptions<Record<string, unknown>>;
 treeOptions.showLine;
+// Tree 大数据虚拟滚动的自动启用条件与固定行高约定必须保留在发布声明中。
+declare const treeProps: TreeProps;
+treeProps.virtual;
+treeProps.virtualThreshold;
+treeProps.virtualItemHeight;
 declare const toolbarItem: TableToolbarItem<Record<string, unknown>>;
 toolbarItem.title;
 // 卡片交互说明必须随发布声明保留。
@@ -110,6 +115,7 @@ cases.push(['uploadProps.onChoose', '返回 false']);
 cases.push(['tableProps.fillRemaining', '剩余高度'], ['remaining.container', '独立确定高度'], ['remaining.bottomOffset', 'px'], ['remaining.minHeight', '最小总高度']);
 cases.push(['toolbarItem.title', '禁用时仍可显示']);
 cases.push(['treeOptions.showLine', 'ignoreChildrenColumn=false']);
+cases.push(['treeProps.virtual', '自动启用虚拟滚动'], ['treeProps.virtualThreshold', '最少可见节点数'], ['treeProps.virtualItemHeight', '固定高度']);
 cases.push(['cardProps.selectable', '非交互区域'], ['cardProps.onSelectedChange', '布尔状态'], ['cardProps.hoverActions', '滑入']);
 // 验证新增属性的编辑器提示，而非仅检查源码注释存在。
 cases.push(['cardProps.bordered', '内边距']);

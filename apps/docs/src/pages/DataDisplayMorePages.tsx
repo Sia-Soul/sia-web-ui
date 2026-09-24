@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Badge, Button, Calendar, Card, Carousel, Collapse, Icon, Image as SiaImage, ImagePreview, Popover, Rate, Space, Tag, TextArea, Timeline, Tooltip, Tree,
 } from "@sia.soul/sia-react-ui";
@@ -354,7 +354,9 @@ const treeData: readonly TreeNode[] = [
 export function TreePage() {
   const [selected, setSelected] = useState<TreeKey[]>(["admin"]);
   const [checked, setChecked] = useState<TreeKey[]>(["frontend"]);
-  return <ComponentDocPage eyebrow="组件 / 数据展示 / Tree" title="Tree 树形控件" description="展示和操作层级数据，支持展开、选择、勾选、异步加载与拖拽。" name="Tree" apiRows={[
+  // 大数据示例保持引用稳定，用于验证滚动时只更新虚拟窗口而不重新构造节点数据。
+  const virtualTreeData = useMemo<readonly TreeNode[]>(() => Array.from({ length: 20_000 }, (_, index) => ({ key: `virtual-${index}`, title: `虚拟节点 ${index + 1}` })), []);
+  return <ComponentDocPage eyebrow="组件 / 数据展示 / Tree" title="Tree 树形控件" description="展示和操作层级数据，支持展开、选择、勾选、异步加载、拖拽与大数据虚拟滚动。" name="Tree" apiRows={[
     { property: "treeData", description: "树形节点数据", type: "TreeNode[]", defaultValue: "[]" },
     { property: "selectedKeys / expandedKeys / checkedKeys", description: "选择、展开和勾选键", type: "Key[]", defaultValue: "[]" },
     { property: "loadingKeys", description: "由外部控制正在异步加载的节点", type: "Key[]", defaultValue: "[]" },
@@ -362,10 +364,19 @@ export function TreePage() {
     { property: "onCheck", description: "切换时返回联动后的完整选中键，以及 info.halfCheckedKeys 半选键；受控模式需更新 checkedKeys", type: "(keys, info) => void", defaultValue: "-" },
     { property: "loadData / draggable / onDrop", description: "异步节点与拖拽", type: "function / boolean / function", defaultValue: "-" },
     { property: "stickyAncestors / stickyRowHeight", description: "滚动时按层级吸顶已展开的祖先节点及其行高", type: "boolean / number", defaultValue: "false / 34" },
+    { property: "virtual / virtualThreshold / virtualItemHeight", description: "Tree 自身形成滚动视口且可见节点达到阈值时自动启用虚拟滚动；自定义行高时需同步指定固定高度", type: "boolean / number / number", defaultValue: "true / 100 / stickyRowHeight" },
     { property: "TreeNode.loadingText", description: "异步加载节点时显示的状态文案", type: "ReactNode", defaultValue: "正在加载…" },
     { property: "TreeNode.loaded", description: "标记子级数据是否已经加载；false 时节点标题使用次级文字色", type: "boolean", defaultValue: "-" },
     { property: "TreeNode.rowProps", description: "传递到节点整行容器的原生属性，可用于右键菜单与测试标识", type: "HTMLAttributes<HTMLDivElement>", defaultValue: "-" },
   ]}>
+    {/* 在树本身设置滚动视口，浮动轨道由 Tree 自动接管，不占用内容宽度。 */}
+    <DemoCard title="浮动滚动条" description="通过 style 限制高度并设置 overflow: auto，Tree 自动使用浮动滚动条，无需全局 Provider；支持滚轮和滑块拖拽。" code={'<Tree treeData={nodes} style={{ maxHeight: 180, overflow: "auto" }} blockNode />'}>
+      <Tree treeData={Array.from({ length: 40 }, (_, index) => ({ key: `scroll-${index}`, title: `树节点 ${index + 1}` }))} style={{ maxHeight: 180, overflow: "auto" }} blockNode />
+    </DemoCard>
+    {/* 两万条数据用于展示自动虚拟化，DOM 中只保留视口附近的少量节点。 */}
+    <DemoCard title="大数据虚拟滚动" description="可见节点超过 100 条时自动启用，仅渲染视口附近的节点；无需额外配置。" code={'<Tree treeData={largeNodes} style={{ height: 240, overflow: "auto" }} blockNode />'}>
+      <Tree treeData={virtualTreeData} style={{ height: 240, overflow: "auto" }} blockNode />
+    </DemoCard>
     <DemoCard title="选择与勾选" description={`初始勾选前端组，研发中心显示半选；勾选后端组后父节点自动全选，点击父节点可取消整组。选择 ${selected.length} 项，勾选 ${checked.length} 项`} code={`<Tree
   treeData={treeData}
   selectedKeys={selected}

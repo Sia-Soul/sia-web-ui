@@ -240,21 +240,23 @@ export function ConnectionRail({
       user.name === treeContext.userName && (user.host ?? "") === (treeContext.userHost ?? ""))
     : undefined;
   const contextMenuItems = useMemo<MenuItem[]>(() => {
+    // MCP 数据库连接按只读模式展示，写入类菜单保留但不可触发。
+    const mcpReadOnly = contextProfile?.connectionMode === "mcp";
     if (treeContext.type === "users") {
       return [
         {
           key: "user-new",
           label: "新建",
           icon: <Icon name="plus" size={15} />,
-          disabled: contextProfile?.kind === "sqlite",
+          disabled: contextProfile?.kind === "sqlite" || mcpReadOnly,
         },
       ];
     }
 
     if (treeContext.type === "user") {
       return [
-        { key: "user-edit", label: "编辑", icon: <Icon name="edit" size={15} /> },
-        { key: "user-delete", label: "删除", icon: <Icon name="trash" size={15} />, danger: true },
+        { key: "user-edit", label: "编辑", icon: <Icon name="edit" size={15} />, disabled: mcpReadOnly },
+        { key: "user-delete", label: "删除", icon: <Icon name="trash" size={15} />, danger: true, disabled: mcpReadOnly },
       ];
     }
 
@@ -262,8 +264,8 @@ export function ConnectionRail({
       return [
         { key: "database-open", label: "打开数据库", icon: <Icon name="database" size={15} /> },
         { key: "database-edit", label: "编辑数据库…", icon: <Icon name="edit" size={15} /> },
-        { key: "database-create", label: "新建数据库…", icon: <Icon name="plus" size={15} /> },
-        { key: "database-delete", label: "删除数据库", icon: <Icon name="trash" size={15} />, danger: true },
+        { key: "database-create", label: "新建数据库…", icon: <Icon name="plus" size={15} />, disabled: mcpReadOnly },
+        { key: "database-delete", label: "删除数据库", icon: <Icon name="trash" size={15} />, danger: true, disabled: mcpReadOnly },
         { key: "database-divider-1", type: "divider" },
         { key: "database-new-query", label: "新建查询", icon: <Icon name="code" size={15} /> },
         { key: "database-run-sql-file", label: "运行 SQL 文件…", icon: <Icon name="file" size={15} />, disabled: true },
@@ -275,22 +277,22 @@ export function ConnectionRail({
     if (treeContext.type === "table") {
       return [
         { key: "table-open", label: "打开表", icon: <Icon name="table" size={15} /> },
-        { key: "table-design", label: "设计表", icon: <Icon name="edit" size={15} /> },
-        { key: "table-create", label: "新建表", icon: <Icon name="plus" size={15} /> },
-        { key: "table-delete", label: "删除表", icon: <Icon name="trash" size={15} />, danger: true },
-        { key: "table-clear", label: "清空表", danger: true },
-        { key: "table-truncate", label: "截断表", danger: true },
+        { key: "table-design", label: "设计表", icon: <Icon name="edit" size={15} />, disabled: mcpReadOnly },
+        { key: "table-create", label: "新建表", icon: <Icon name="plus" size={15} />, disabled: mcpReadOnly },
+        { key: "table-delete", label: "删除表", icon: <Icon name="trash" size={15} />, danger: true, disabled: mcpReadOnly },
+        { key: "table-clear", label: "清空表", danger: true, disabled: mcpReadOnly },
+        { key: "table-truncate", label: "截断表", danger: true, disabled: mcpReadOnly },
         {
           key: "table-copy",
           label: "复制表",
           children: [
-            { key: "table-copy-structure", label: "仅复制结构" },
-            { key: "table-copy-data", label: "复制结构和数据" },
+            { key: "table-copy-structure", label: "仅复制结构", disabled: mcpReadOnly },
+            { key: "table-copy-data", label: "复制结构和数据", disabled: mcpReadOnly },
           ],
         },
-        { key: "table-permissions", label: "设置权限" },
+        { key: "table-permissions", label: "设置权限", disabled: mcpReadOnly },
         { key: "table-divider-1", type: "divider" },
-        { key: "table-import", label: "导入向导…" },
+        { key: "table-import", label: "导入向导…", disabled: mcpReadOnly },
         { key: "table-export", label: "导出向导…" },
         { key: "table-divider-2", type: "divider" },
         {
@@ -313,7 +315,7 @@ export function ConnectionRail({
           ],
         },
         { key: "table-copy-name", label: "复制", icon: <Icon name="copy" size={15} /> },
-        { key: "table-rename", label: "重命名" },
+        { key: "table-rename", label: "重命名", disabled: mcpReadOnly },
         { key: "table-create-shortcut", label: "创建打开表快捷方式…" },
         { key: "table-divider-4", type: "divider" },
         { key: "table-refresh", label: "刷新", icon: <Icon name="refresh" size={15} /> },
@@ -349,7 +351,7 @@ export function ConnectionRail({
       { key: "connection-divider-2", type: "divider" },
       { key: "refresh", label: "刷新", icon: <Icon name="refresh" size={15} /> },
     ];
-  }, [connectingId, contextProfile?.connected, contextProfile?.id, contextProfile?.kind, profiles.length, treeContext.type]);
+  }, [connectingId, contextProfile?.connected, contextProfile?.connectionMode, contextProfile?.id, contextProfile?.kind, profiles.length, treeContext.type]);
 
   const nodes = useMemo<TreeNode[]>(() => {
     const normalized = query.trim().toLowerCase();
@@ -477,6 +479,7 @@ export function ConnectionRail({
         title: (
           <span className="connection-tree-title">
             <span>{profile.name}</span>
+            {profile.connectionMode === "mcp" ? <Tag status="processing">MCP</Tag> : null}
             {connectingId === profile.id
               ? <Icon name="loader" size={14} spin label="正在连接" />
               : <i className={`connection-dot${profile.connected ? " is-online" : ""}`} title={profile.connected ? "已连接" : "未连接"} />}
@@ -595,53 +598,53 @@ export function ConnectionRail({
           onSelect(profileId);
         }}
       >
-        <div className="connection-tree-scroll">
-          <Tree
-            treeData={nodes}
-            selectedKeys={[connectionKey(activeId)]}
-            expandedKeys={query.trim() ? collectBranchKeys(nodes) : expandedKeys}
-            loadingKeys={[...databaseLoadingKeys]}
-            onExpand={(keys, info) => {
-              void handleExpand(keys, info);
-            }}
-            loadData={(node) => {
-              const profileId = typeof node.profileId === "string" ? node.profileId : "";
-              const databaseName = typeof node.databaseName === "string" ? node.databaseName : "";
-              if (node.key === connectionKey(profileId) && profileId) return onLoadConnection(profileId);
-              if (node.nodeType === "databases" && profileId) return onLoadDatabases(profileId);
-              if (node.nodeType === "users" && profileId) return onLoadUsers(profileId);
-              if (node.nodeType === "database" && profileId && databaseName) {
-                return onLoadDatabase(profileId, databaseName);
-              }
-              if (node.nodeType === "category" && profileId && databaseName && typeof node.category === "string") {
-                return onLoadDatabaseCategory(profileId, databaseName, node.category as DatabaseObjectCategory);
-              }
-              if ((node.nodeType === "table" || node.nodeType === "view")
-                && profileId
-                && databaseName
-                && typeof node.tableName === "string") {
-                return onLoadDatabaseObject(
-                  profileId,
-                  databaseName,
-                  node.tableName,
-                  typeof node.schemaName === "string" ? node.schemaName : undefined,
-                );
-              }
-              return Promise.resolve();
-            }}
-            onSelect={(_keys, info) => {
-              const profileId = info.node.profileId;
-              if (typeof profileId === "string") onSelect(profileId);
-            }}
-            showIcon
-            showLine
-            blockNode
-            indentSize={12}
-            switcherWidth={18}
-            stickyAncestors
-            stickyRowHeight={30}
-          />
-        </div>
+        {/* Tree 自身作为滚动视口，节点数量很大时可自动计算并启用虚拟滚动。 */}
+        <Tree
+          className="connection-tree-scroll"
+          treeData={nodes}
+          selectedKeys={[connectionKey(activeId)]}
+          expandedKeys={query.trim() ? collectBranchKeys(nodes) : expandedKeys}
+          loadingKeys={[...databaseLoadingKeys]}
+          onExpand={(keys, info) => {
+            void handleExpand(keys, info);
+          }}
+          loadData={(node) => {
+            const profileId = typeof node.profileId === "string" ? node.profileId : "";
+            const databaseName = typeof node.databaseName === "string" ? node.databaseName : "";
+            if (node.key === connectionKey(profileId) && profileId) return onLoadConnection(profileId);
+            if (node.nodeType === "databases" && profileId) return onLoadDatabases(profileId);
+            if (node.nodeType === "users" && profileId) return onLoadUsers(profileId);
+            if (node.nodeType === "database" && profileId && databaseName) {
+              return onLoadDatabase(profileId, databaseName);
+            }
+            if (node.nodeType === "category" && profileId && databaseName && typeof node.category === "string") {
+              return onLoadDatabaseCategory(profileId, databaseName, node.category as DatabaseObjectCategory);
+            }
+            if ((node.nodeType === "table" || node.nodeType === "view")
+              && profileId
+              && databaseName
+              && typeof node.tableName === "string") {
+              return onLoadDatabaseObject(
+                profileId,
+                databaseName,
+                node.tableName,
+                typeof node.schemaName === "string" ? node.schemaName : undefined,
+              );
+            }
+            return Promise.resolve();
+          }}
+          onSelect={(_keys, info) => {
+            const profileId = info.node.profileId;
+            if (typeof profileId === "string") onSelect(profileId);
+          }}
+          showIcon
+          showLine
+          blockNode
+          indentSize={12}
+          switcherWidth={18}
+          stickyAncestors
+          stickyRowHeight={30}
+        />
       </Dropdown>
     </aside>
   );

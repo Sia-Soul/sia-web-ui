@@ -25,7 +25,7 @@ type HostQueryResult = {
 
 type DatabaseHostRequest = {
   operation: "test" | "query" | "update-cell" | "audit-list" | "user-create" | "user-update" | "user-delete";
-  profile: Pick<ConnectionProfile, "id" | "name" | "kind" | "host" | "port" | "database" | "username" | "password" | "sslMode">;
+  profile: Pick<ConnectionProfile, "id" | "name" | "kind" | "connectionMode" | "mcp" | "host" | "port" | "database" | "username" | "password" | "sslMode">;
   sql?: string;
   parameters?: Record<string, unknown>;
   table?: string;
@@ -64,6 +64,8 @@ function hostProfile(profile: ConnectionProfile): DatabaseHostRequest["profile"]
     id: profile.id,
     name: profile.name,
     kind: profile.kind,
+    connectionMode: profile.connectionMode ?? "direct",
+    mcp: profile.mcp,
     host: profile.host,
     port: profile.port,
     database: profile.database,
@@ -87,14 +89,96 @@ export async function connect(profile: ConnectionProfile) {
   return testConnection(profile);
 }
 
-export async function disconnect(_profileId: string) {
-  // FreeSql sidecar 按请求创建并释放连接池，不在 Tauri 进程内保留密码或数据库会话。
+export async function disconnect(profileId: string) {
+  // 直连服务按请求释放连接池；MCP 模式需要显式结束复用的 stdio 子进程。
+  const invoke = window.__TAURI__?.core?.invoke;
+  if (invoke) await invoke("disconnect_mcp_connection", { profileId });
 }
 
 function isReadStatement(sql: string) {
-  const normalized = sql.trim();
+  // 查询页默认会保留说明注释，判断语句类型前先跳过开头的行注释和块注释。
+  let normalized = sql.trimStart();
+  while (normalized.startsWith("--") || normalized.startsWith("/*")) {
+    if (normalized.startsWith("--")) {
+      const lineEnd = normalized.indexOf("\n");
+      normalized = lineEnd >= 0 ? normalized.slice(lineEnd + 1).trimStart() : "";
+    } else {
+      const commentEnd = normalized.indexOf("*/", 2);
+      normalized = commentEnd >= 0 ? normalized.slice(commentEnd + 2).trimStart() : "";
+    }
+  }
   if (/^with\b/i.test(normalized) && /\b(update|delete|insert|merge)\b/i.test(normalized)) return false;
   return /^(select|with|show|describe|desc|explain|pragma)\b/i.test(normalized);
+}
+
+/**
+ * 检查 MCP 查询是否只有一条语句。
+ * 官方 PostgreSQL MCP 服务已停止维护，因此客户端额外阻止可绕过只读事务的堆叠语句。
+ */
+function isSingleMcpStatement(sql: string) {
+  let quote = "";
+  let dollarTag = "";
+  let lineComment = false;
+  let blockComment = false;
+  let statementEnded = false;
+  for (let index = 0; index < sql.length; index += 1) {
+    const character = sql[index];
+    const next = sql[index + 1];
+    if (lineComment) {
+      if (character === "\n") lineComment = false;
+      continue;
+    }
+    if (blockComment) {
+      if (character === "*" && next === "/") {
+        blockComment = false;
+        index += 1;
+      }
+      continue;
+    }
+    if (dollarTag) {
+      if (sql.startsWith(dollarTag, index)) {
+        index += dollarTag.length - 1;
+        dollarTag = "";
+      }
+      continue;
+    }
+    if (quote) {
+      if (character === quote) {
+        if (next === quote && quote !== "]") index += 1;
+        else quote = "";
+      }
+      continue;
+    }
+    if (character === "-" && next === "-") {
+      lineComment = true;
+      index += 1;
+      continue;
+    }
+    if (character === "/" && next === "*") {
+      blockComment = true;
+      index += 1;
+      continue;
+    }
+    if (character === "'" || character === "\"" || character === "`" || character === "[") {
+      quote = character === "[" ? "]" : character;
+      continue;
+    }
+    if (character === "$") {
+      const match = sql.slice(index).match(/^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/);
+      if (match) {
+        dollarTag = match[0];
+        index += dollarTag.length - 1;
+        continue;
+      }
+    }
+    if (character === ";") {
+      if (statementEnded) return false;
+      statementEnded = true;
+      continue;
+    }
+    if (statementEnded && !/\s/.test(character)) return false;
+  }
+  return true;
 }
 
 async function queryRows(profile: ConnectionProfile, sql: string) {
@@ -156,6 +240,12 @@ export async function executeSql(
   safety: SqlSafetyOptions = {},
 ): Promise<QueryResult> {
   const startedAt = performance.now();
+  if (profile.connectionMode === "mcp" && !isReadStatement(sql)) {
+    throw new Error("当前 MCP 数据库连接按只读模式运行，只允许执行查询语句。");
+  }
+  if (profile.connectionMode === "mcp" && !isSingleMcpStatement(sql)) {
+    throw new Error("MCP 只读连接不允许一次执行多条 SQL，请只保留一条查询语句后重试。");
+  }
   if (!isDesktopRuntime) {
     await new Promise((resolve) => window.setTimeout(resolve, 520));
     const highRisk = highRiskOperation(sql);
@@ -239,6 +329,7 @@ export async function updateResultCell(
   value: unknown,
   safety: SqlSafetyOptions = {},
 ) {
+  if (profile.connectionMode === "mcp") throw new Error("MCP 数据库连接为只读模式，不能直接编辑结果单元格。");
   const editable = result.editable;
   const row = result.rows[rowIndex];
   if (!editable || !row) throw new Error("当前结果无法安全定位到数据库表。");
@@ -289,7 +380,8 @@ export async function loadExecutionHistory(profile: ConnectionProfile, limit = 2
   }
   return requestDatabaseHost<ExecutionHistoryPage>({
     operation: "audit-list",
-    profile: hostProfile(profile),
+    // 审计记录读取不需要启动 MCP 服务器，避免把敏感启动参数传给 FreeSql sidecar。
+    profile: { ...hostProfile(profile), mcp: undefined },
     limit,
     offset,
   });
@@ -341,6 +433,18 @@ export async function loadConnectionObjectSummary(profile: ConnectionProfile) {
       databaseCount: new Set([defaultName, ...DEMO_SCHEMA.databases.map((database) => database.name)]).size,
       userCount: demoUsers(profile).length,
     };
+  }
+
+  // stdio MCP 服务器通常只绑定一个数据库，因此不枚举同一实例上的其他数据库。
+  if (profile.connectionMode === "mcp") {
+    if (profile.kind === "sqlite") return { databaseCount: 1, userCount: 0 };
+    const userSql = profile.kind === "postgres"
+      ? "SELECT COUNT(*) AS user_count FROM pg_catalog.pg_user"
+      : profile.kind === "sqlserver"
+        ? "SELECT COUNT(*) AS user_count FROM sys.server_principals WHERE type IN ('S', 'U', 'G', 'E', 'X') AND name NOT LIKE '##%'"
+        : "SELECT COUNT(*) AS user_count FROM mysql.user";
+    const [row] = await queryRows(profile, userSql) as ConnectionObjectCountRow[];
+    return { databaseCount: 1, userCount: numericCount(row?.user_count) };
   }
 
   let sql: string;
@@ -401,6 +505,7 @@ async function manageDatabaseUser(
   safety: SqlSafetyOptions = {},
 ) {
   if (profile.kind === "sqlite") throw new Error("SQLite 不支持数据库用户管理。");
+  if (profile.connectionMode === "mcp") throw new Error("MCP 数据库连接为只读模式，不支持新建、编辑或删除用户。");
   if (!isDesktopRuntime) {
     await new Promise((resolve) => window.setTimeout(resolve, 320));
     const users = demoUsers(profile);
@@ -716,6 +821,16 @@ export async function loadSchema(profile: ConnectionProfile): Promise<SchemaSnap
       database: defaultName,
       databases: names.map((name) => ({ name, nodes: [], loaded: false })),
       databaseCount: names.length,
+      databasesLoaded: true,
+    };
+  }
+
+  // 一个 stdio MCP 配置对应一个数据库，展开连接时只建立默认数据库节点。
+  if (profile.connectionMode === "mcp") {
+    return {
+      database: defaultName,
+      databases: [{ name: defaultName, nodes: [], loaded: false }],
+      databaseCount: 1,
       databasesLoaded: true,
     };
   }

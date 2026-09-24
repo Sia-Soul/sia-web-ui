@@ -849,6 +849,19 @@ body > .sia-popup-portal[data-sia-popup-layer] { position: fixed; z-index: 1080;
 .sia-timeline--alternate .sia-timeline__item--right .sia-timeline__content, .sia-timeline--right .sia-timeline__content { grid-column: 3; }
 
 .sia-tree { display: grid; color: var(--sia-color-text); }
+/* 虚拟树使用总高度占位，只把视口附近的节点定位到滚动平面中。 */
+.sia-tree--virtual { position: relative; display: block; }
+.sia-tree__virtual-space { position: relative; min-width: 100%; }
+.sia-tree__virtual-node,
+.sia-tree__virtual-sticky-node { position: absolute; right: 0; left: 0; box-sizing: border-box; contain: layout style; }
+.sia-tree__virtual-node { top: 0; will-change: transform; }
+.sia-tree__virtual-node > .sia-tree__row,
+.sia-tree__virtual-sticky-node > .sia-tree__row { position: relative; z-index: 1; min-height: 0; }
+/* 吸顶层高度为零，不改变滚动总高度；其中的祖先行仍保留点击、右键与展开能力。 */
+.sia-tree__virtual-sticky-layer { position: sticky; z-index: 120; top: 0; height: 0; overflow: visible; }
+.sia-tree__virtual-sticky-node > .sia-tree__row { background: var(--sia-color-surface); }
+.sia-tree__virtual-guides { position: absolute; z-index: 0; inset: 0; pointer-events: none; }
+.sia-tree__virtual-guide { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--sia-color-border); }
 .sia-tree__row { display: flex; align-items: center; gap: 6px; min-height: 34px; border-radius: 5px; }
 .sia-tree__row:hover { background: var(--sia-color-control-hover); }
 .sia-tree__context-trigger.sia-dropdown, .sia-tree__context-content { display: flex; align-items: center; min-width: 0; flex: 1; gap: 6px; }

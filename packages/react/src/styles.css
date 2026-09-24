@@ -496,7 +496,8 @@
 .sia-message__close { width: 24px; height: 24px; margin-right: -5px; }
 
 .sia-card { --sia-card-accent: var(--sia-color-primary); color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: var(--sia-radius); }
-.sia-card__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 56px; margin-inline: 16px; border-bottom: 1px solid var(--sia-color-border); }
+/* 标题区最小高度为 40px，较高的标题或操作内容仍可自然撑开。 */
+.sia-card__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 40px; margin-inline: 16px; border-bottom: 1px solid var(--sia-color-border); }
 .sia-card__heading { display: flex; align-items: center; min-width: 0; gap: 12px; }
 .sia-card__accent { display: block; flex: 0 0 auto; width: 5px; height: 26px; background: var(--sia-card-accent); border-radius: 999px; }
 .sia-card__accent--success { --sia-card-accent: var(--sia-color-success); }
@@ -504,7 +505,8 @@
 .sia-card__accent--error { --sia-card-accent: var(--sia-color-error); }
 .sia-card__title { min-width: 0; margin: 0; overflow-wrap: anywhere; font-size: var(--sia-font-size-large); line-height: 1.35; }
 .sia-card__description { margin: 0; padding: 12px 16px 0; color: var(--sia-color-text-secondary); font-size: var(--sia-font-size-small); line-height: 1.55; }
-.sia-card__body { padding: var(--sia-spacing); }
+/* 正文上下内边距为 6px，左右沿用框架间距；无边框模式由后续规则归零。 */
+.sia-card__body { padding: 6px var(--sia-spacing); }
 .sia-card__collapse-trigger { display: flex; align-items: center; justify-content: space-between; align-self: stretch; min-width: 0; flex: 1; padding: 0; color: inherit; cursor: pointer; background: transparent; border: 0; text-align: left; }
 .sia-card__collapse-trigger:hover { color: var(--sia-color-primary-text); }
 .sia-card__collapse-trigger:focus-visible { outline: none; border-radius: var(--sia-radius); }
