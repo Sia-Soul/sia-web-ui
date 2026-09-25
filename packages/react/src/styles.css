@@ -453,7 +453,8 @@
 .sia-modal__close { width: 28px; height: 28px; margin: -4px -6px 0 0; }
 .sia-modal__close:hover, .sia-drawer__close:hover, .sia-message__close:hover { color: var(--sia-color-text); background: var(--sia-color-control-active); }
 .sia-modal__close:focus-visible, .sia-drawer__close:focus-visible, .sia-message__close:focus-visible { outline: none; }
-.sia-modal__body { padding: 4px 20px 20px; color: var(--sia-color-text-secondary); line-height: 1.65; }
+/* 弹框正文默认 13px，仅作用于正文继承字号，标题、按钮及自带字号的子组件保持原样。 */
+.sia-modal__body { padding: 4px 20px 20px; color: var(--sia-color-text-secondary); font-size: 13px; line-height: 1.65; }
 .sia-modal__body > :first-child { margin-top: 0; }
 .sia-modal__body > :last-child { margin-bottom: 0; }
 .sia-modal__footer { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 20px 18px; }

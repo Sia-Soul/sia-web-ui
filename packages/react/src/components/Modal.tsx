@@ -19,7 +19,7 @@ export interface ModalProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"
   open: boolean;
   /** 标题 */
   title?: ReactNode;
-  /** 子内容；组件嵌套内容或当前节点的子项。 */
+  /** 弹框正文内容，默认字号为 13px；子元素可通过自身字号样式覆盖。 */
   children?: ReactNode;
   /** 自定义底部操作区，传 null 隐藏 */
   footer?: ReactNode | null;
