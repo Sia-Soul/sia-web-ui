@@ -63,6 +63,10 @@ pnpm test:api-docs
 - `--sia-query-field-gap`：字段横向与纵向间距，默认 `8px`，使用 CSS 长度值；双列和三列宽度计算使用同一个变量，可在 QueryForm 的 `style` 或 `className` 中覆盖。
 - `fields[].width`：显式指定单个字段宽度时优先于自动双列／三列规则；窄屏展开布局仍适配容器宽度。
 
+## 默认布局间距
+
+布局间距变量 `--sia-spacing` 默认值为 `8px`，主题令牌 `SIA_THEME.spacing` 同步为 `8`（单位 px）。容器或组件可覆盖同名变量；组件显式设置的内边距优先于变量。有边框 Card 正文四周使用该变量，无边框正文使用 `8px 0`。
+
 ## 默认字号变量
 
 - `--sia-font-size`：默认 `13px`，用于组件基础文字；单位为 CSS 长度，可通过容器或组件上的同名变量覆盖，组件自身显式设置的字号优先。
@@ -99,3 +103,24 @@ Form 的提交只作用于当前表单：点击提交按钮或回车时，阻止
 回填记录可使用 `{ uid, name, url, status: "done" }`。Upload 统一按 `thumbUrl`、图片 MIME、文件名或 URL 路径后缀判断缩略图与内置预览；URL 的查询参数和 hash 不影响后缀识别。没有 MIME 和后缀的远程图片，在 `accept="image/*"` 等纯图片限制下尝试加载；混合文件场景应提供准确的 `type` 或 `thumbUrl`，已知非图片 MIME 保持文件预览。
 
 Upload 会在选择、进度和完成时通知 `onChange`。若业务要求“上传完成”才算合法，应通过 `Form.Item validateTrigger={[]}` 在提交时验证，避免进度变化被当作用户填写错误；上传完成后可对该字段单独校验，清除先前提交的错误。
+
+
+## Dropdown.Button 两侧独立禁用
+
+主操作与菜单有不同权限时，使用 `buttonDisabled` 控制主操作，使用 `dropdownDisabled` 控制箭头入口。`disabled` 为 true 时优先禁用整组，两侧属性不能重新启用它。省略新属性时保持原有行为。`buttonProps` 继续统一控制两段的颜色与尺寸，业务无需拼接按钮或覆盖箭头宽度。
+
+```tsx
+// 核销和反核销具有独立权限，加载时统一禁用。
+<Dropdown.Button
+  disabled={loading}
+  buttonDisabled={!canVerify}
+  dropdownDisabled={!canUnverify}
+  buttonProps={{ variant: "primary" }}
+  menu={{ items: [{ key: "unverify", label: "批量反核销" }], onClick: unverify }}
+  onClick={verify}
+>
+  批量核销
+</Dropdown.Button>
+```
+
+此能力需随框架正式发布后由业务升级依赖接入；不能通过修改已安装包替代发布。

@@ -9,7 +9,7 @@ export type CardAccent = "primary" | "success" | "warning" | "error";
 /** 卡片的属性配置。 */
 export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
   /**
-   * 是否显示外边框并保留默认内部留白。false 移除外边框、选中描边、标题区左右留白及说明、正文、悬浮操作区的内边距；保留背景、圆角、内部分割线和键盘焦点提示。
+   * 是否显示外边框并保留默认内部留白。false 移除外边框、选中描边、标题区左右留白及说明、悬浮操作区的内边距，正文内边距改为上下 8px、左右 0；保留背景、圆角、内部分割线和键盘焦点提示。
    * 无边框时仍可通过 bodyStyle.padding 自定义正文内边距。
    * @defaultValue true
    */
@@ -71,7 +71,7 @@ export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
    * @defaultValue ""
    */
   bodyClassName?: string;
-  /** 内容区域的内联样式，可覆盖默认内边距：上下 6px，左右使用 --sia-spacing；bordered 为 false 时默认内边距为 0。 */
+  /** 内容区域的内联样式，可覆盖默认内边距：四周均使用 --sia-spacing；bordered 为 false 时默认内边距为上下 8px、左右 0。 */
   bodyStyle?: CSSProperties;
 }
 

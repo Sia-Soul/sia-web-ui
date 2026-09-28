@@ -455,6 +455,8 @@ export default function App() {
   const [activeMarkdownOutlineKey, setActiveMarkdownOutlineKey] = useState<TreeKey | null>(null);
   const [markdownOutlineExpandedKeys, setMarkdownOutlineExpandedKeys] = useState<TreeKey[]>([]);
   const [windowMaximized, setWindowMaximized] = useState(false);
+  // 置顶状态仅在原生窗口确认切换成功后更新，避免按钮状态与窗口层级不一致。
+  const [windowAlwaysOnTop, setWindowAlwaysOnTop] = useState(false);
   const notesRef = useRef(notes);
   const saveGeneration = useRef(0);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -1609,6 +1611,21 @@ export default function App() {
     }
   }
 
+  /** 切换主窗口置顶状态，并使用原生窗口返回的最终状态更新按钮。 */
+  async function toggleWindowAlwaysOnTop() {
+    if (!window.__TAURI__?.core?.invoke) {
+      // 浏览器预览环境没有原生窗口，仍保留可交互状态以便调试标题栏。
+      setWindowAlwaysOnTop((current) => !current);
+      return;
+    }
+    try {
+      const nextAlwaysOnTop = await window.__TAURI__.core.invoke<boolean>("toggle_notepad_always_on_top");
+      setWindowAlwaysOnTop(nextAlwaysOnTop);
+    } catch (error) {
+      message.error(`窗口置顶操作失败：${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   const characterCount = activeNote?.content.length ?? 0;
   const wordCount = activeNote?.content.trim()
     ? activeNote.content.trim().split(/\s+/u).filter(Boolean).length
@@ -2200,6 +2217,18 @@ export default function App() {
             <Icon name={saveState === "error" ? "warning" : saveState === "saving" ? "loader" : "cloud"} size={14} spin={saveState === "saving"} />
             {saveLabel}
           </span>
+          {/* 置顶按钮使用真实窗口状态呈现，激活后再次点击即可取消置顶。 */}
+          <Tooltip title={windowAlwaysOnTop ? "取消窗口置顶" : "窗口置顶"}>
+            <Button
+              className={`window-pin-button${windowAlwaysOnTop ? " is-active" : ""}`}
+              size="small"
+              variant="text"
+              icon={<Icon name={windowAlwaysOnTop ? "pin" : "pin-off"} size={14} />}
+              aria-label={windowAlwaysOnTop ? "取消窗口置顶" : "窗口置顶"}
+              aria-pressed={windowAlwaysOnTop}
+              onClick={() => { void toggleWindowAlwaysOnTop(); }}
+            />
+          </Tooltip>
           <Tooltip title="切换明暗主题">
             <ThemeSwitch checked={darkMode} onCheckedChange={setDarkMode} />
           </Tooltip>

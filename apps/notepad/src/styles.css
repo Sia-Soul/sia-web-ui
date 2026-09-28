@@ -73,6 +73,20 @@ textarea {
   gap: 9px;
 }
 
+/* 置顶按钮沿用标题栏控件尺寸，激活态用主题主色标识当前窗口层级。 */
+.window-pin-button.sia-button {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--sia-color-text-secondary, #707070);
+}
+
+.window-pin-button.sia-button.is-active {
+  color: var(--sia-color-primary, #1677ff);
+  background: color-mix(in srgb, var(--sia-color-primary, #1677ff) 12%, transparent);
+}
+
 .notepad-titlebar .sia-theme-switch {
   width: 54px;
   height: 28px;

@@ -1207,6 +1207,21 @@ fn notepad_window_action(app: AppHandle, action: String) -> Result<(), String> {
     .map_err(|error| error.to_string())
 }
 
+/// 切换记事本主窗口的置顶状态，并返回原生窗口最终采用的状态。
+#[tauri::command]
+fn toggle_notepad_always_on_top(app: AppHandle) -> Result<bool, String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "找不到记事本主窗口".to_string())?;
+    let next_always_on_top = !window
+        .is_always_on_top()
+        .map_err(|error| error.to_string())?;
+    window
+        .set_always_on_top(next_always_on_top)
+        .map_err(|error| error.to_string())?;
+    Ok(next_always_on_top)
+}
+
 pub fn run() {
     #[cfg(target_os = "windows")]
     if let Err(error) = register_windows_file_associations() {
@@ -1258,6 +1273,7 @@ pub fn run() {
             pick_text_files,
             pick_folder,
             notepad_window_action,
+            toggle_notepad_always_on_top,
         ])
         .run(tauri::generate_context!())
         .expect("启动 Sia 记事本失败");

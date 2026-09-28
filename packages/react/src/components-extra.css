@@ -302,18 +302,23 @@
 .sia-date-panel__weekdays { margin-bottom: 6px; }
 .sia-date-panel__weekdays span { display: grid; place-items: center; height: 32px; color: var(--sia-color-text-secondary); }
 .sia-date-panel__cell { position: relative; display: grid; place-items: center; min-width: 0; height: 32px; }
-.sia-date-panel__cell.is-in-range { background: color-mix(in srgb, var(--sia-color-primary) 12%, transparent); }
-.sia-date-panel__cell.is-range-start { background: linear-gradient(90deg, transparent 50%, color-mix(in srgb, var(--sia-color-primary) 12%, transparent) 50%); }
-.sia-date-panel__cell.is-range-end { background: linear-gradient(90deg, color-mix(in srgb, var(--sia-color-primary) 12%, transparent) 50%, transparent 50%); }
-.sia-date-panel__cell.is-range-start.is-range-end { background: transparent; }
-.sia-date-panel__cell.is-range-start button { border-radius: 7px 0 0 7px; }
-.sia-date-panel__cell.is-range-end button { border-radius: 0 7px 7px 0; }
-.sia-date-panel__cell.is-range-start.is-range-end button { border-radius: 7px; }
+/* 范围内统一使用实色主题背景；端点背景由按钮绘制。 */
+.sia-date-panel__cell.is-in-range { background: var(--sia-color-primary); }
+.sia-date-panel__cell.is-range-start, .sia-date-panel__cell.is-range-end { background: transparent; }
+/* 范围内日期、起止端点及悬停预览统一使用直角，包括起止为同一天的情况。 */
+.sia-date-panel__cell.is-in-range button, .sia-date-panel__cell.is-range-start button, .sia-date-panel__cell.is-range-end button { border-radius: 0; }
 .sia-date-panel__cell button { position: relative; z-index: 1; display: grid; place-items: center; width: 100%; height: 100%; padding: 0; color: inherit; cursor: pointer; background: transparent; border: 1px solid transparent; border-radius: 7px; font: inherit; }
 .sia-date-panel__cell button:hover { color: var(--sia-color-primary-text); background: var(--sia-color-control-hover); }
 .sia-date-panel__cell.is-outside button { color: color-mix(in srgb, var(--sia-color-text-secondary) 48%, transparent); }
 .sia-date-panel__cell.is-today button { color: var(--sia-color-primary-text); border-color: var(--sia-color-primary); }
-.sia-date-panel__cell.is-selected button, .sia-date-panel__cell.is-range-start button, .sia-date-panel__cell.is-range-end button { color: #fff; background: var(--sia-color-primary); border-color: var(--sia-color-primary); }
+/* 未选中的今天使用 32px 等宽高圆形描边；已选日期及范围端点沿用选区形状，避免切断连续范围。 */
+.sia-date-panel__cell.is-today:not(.is-selected):not(.is-in-range):not(.is-range-start):not(.is-range-end) button {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+/* 范围数字统一为白色，悬停和跨月日期沿用选区配色，禁用日期由后续规则覆盖。 */
+.sia-date-panel__cell.is-in-range button, .sia-date-panel__cell.is-selected button, .sia-date-panel__cell.is-range-start button, .sia-date-panel__cell.is-range-end button { color: #fff; background: var(--sia-color-primary); border-color: var(--sia-color-primary); }
 .sia-date-panel__cell button:disabled { color: color-mix(in srgb, var(--sia-color-text-secondary) 42%, transparent); cursor: not-allowed; background: var(--sia-color-control-hover); border-color: transparent; }
 .sia-date-panel__time { display: grid; grid-template-rows: 52px minmax(0, 1fr); flex: 0 0 auto; min-width: 0; border-inline-start: 1px solid var(--sia-color-border); }
 .sia-date-panel__time > strong { display: grid; place-items: center; border-bottom: 1px solid var(--sia-color-border); }

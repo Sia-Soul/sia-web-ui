@@ -79,6 +79,7 @@ type CalendarMonthProps = {
 
 const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
 
+/** 渲染单月日期网格；range 表示已选端点，previewEnd 仅用于悬停预览，不补全已选范围。 */
 export function CalendarMonth({
   month,
   selectedDates = [],

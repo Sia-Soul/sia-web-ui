@@ -364,6 +364,10 @@ export interface DropdownButtonProps extends Omit<DropdownProps, "children" | "c
   className?: string;
   /** 透传给触发按钮的 Button 属性，可配置样式、尺寸和事件。 */
   buttonProps?: Omit<ButtonProps, "children" | "onClick" | "disabled">;
+  /** 仅禁用主操作按钮；整组 disabled 为 true 时仍优先禁用两侧。 */
+  buttonDisabled?: boolean;
+  /** 仅禁用下拉入口；用于主操作与菜单具有不同业务权限的场景。 */
+  dropdownDisabled?: boolean;
   /** 点击时触发，参数为当前点击事件或项目上下文。 */
   onClick?: ButtonProps["onClick"];
 }
@@ -374,16 +378,18 @@ function DropdownButton({
   buttonProps,
   onClick,
   disabled,
+  buttonDisabled,
+  dropdownDisabled,
   trigger = ["click"],
   ...dropdownProps
 }: DropdownButtonProps) {
   return <span className={`sia-dropdown-button ${className}`.trim()}>
-    <Button {...buttonProps} disabled={disabled} onClick={onClick}>{children}</Button>
-    <DropdownRoot {...dropdownProps} disabled={disabled} trigger={trigger} showTriggerIcon={false}>
+    <Button {...buttonProps} disabled={disabled || buttonDisabled} onClick={onClick}>{children}</Button>
+    <DropdownRoot {...dropdownProps} disabled={disabled || dropdownDisabled} trigger={trigger} showTriggerIcon={false}>
       <Button
         {...buttonProps}
         className={`sia-dropdown-button__arrow ${buttonProps?.className ?? ""}`.trim()}
-        disabled={disabled}
+        disabled={disabled || dropdownDisabled}
         icon={<Icon name="chevron-down" size={14} />}
         aria-label="展开下拉菜单"
       />
