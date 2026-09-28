@@ -59,6 +59,8 @@ pnpm test:api-docs
 
 ## 查询表单布局变量
 
+QueryForm 收起时默认预留操作区宽度，按字段实际宽度依次保留单行能容纳的条件，不再默认限制为 3 个字段。`collapsedCount` 默认 `Infinity`，业务显式指定时作为数量上限；空间不足仍会减少显示数量。隐藏字段保留挂载和值，窗口宽度变化后重新计算，全部字段与操作区能单行显示时不执行收起。
+
 - `QueryForm.fieldWidth`：单列宽度，默认 `220px`；日期／时间区间与横向组合字段默认为两倍单列宽度加列间距，SelectDateRange 为三倍单列宽度加两处列间距，默认 `672px`。
 - `--sia-query-field-gap`：字段横向与纵向间距，默认 `8px`，使用 CSS 长度值；双列和三列宽度计算使用同一个变量，可在 QueryForm 的 `style` 或 `className` 中覆盖。
 - `fields[].width`：显式指定单个字段宽度时优先于自动双列／三列规则；窄屏展开布局仍适配容器宽度。

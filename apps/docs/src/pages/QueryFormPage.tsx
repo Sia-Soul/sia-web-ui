@@ -37,6 +37,7 @@ import type { QueryFormShortcut } from "@sia.soul/sia-react-ui";
 export default function Demo() {
   const [form] = Form.useForm();
   const [saved, setSaved] = useState<QueryFormShortcut[]>([]);
+  // 收起后默认按宽度尽量填满一行；需要固定数量上限时可显式传入 collapsedCount。
   return <QueryForm
     form={form}
     initialValues={{ status: [], labels: { searchType: 1, value: [] } }}
@@ -167,9 +168,9 @@ export function QueryFormPage() {
         {
           property: "collapsedCount / collapsible / fieldWidth",
           description:
-            "收起时字段数上限、是否可收起和默认单列宽度（区间和组合字段自动占双列，SelectDateRange 占三列并包含两处间距，字段 width 可覆盖）；全部字段及操作能单行显示时隐藏展开/收起并展示全部字段，否则收起时预留按钮空间",
+            "收起时默认预留按钮空间并按可用宽度填满一行，显式设置 collapsedCount 才限制字段数；collapsible 控制是否可收起，fieldWidth 指定单列宽度（区间及组合字段占双列，SelectDateRange 占三列，字段 width 可覆盖）；全部字段及操作能单行显示时隐藏展开/收起入口",
           type: "number / boolean / number | string",
-          defaultValue: "3 / true / 220",
+          defaultValue: "Infinity（按宽度自适应） / true / 220",
         },
         {
           property: "loading / shortcutsLoading",

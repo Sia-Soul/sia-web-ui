@@ -80,8 +80,8 @@ export interface QueryFormProps<T extends FormValues = FormValues> extends Omit<
    */
   defaultCollapsed?: boolean;
   /**
-   * 需要折叠时最多保留的字段数；实际数量会根据可用宽度减少，以保持单行。全部字段能单行显示时不限制字段数。
-   * @defaultValue 3
+   * 收起时最多保留的字段数；默认按可用宽度自动填满一行，并预留操作区宽度。显式指定时作为数量上限，空间不足会进一步减少；全部字段能单行显示时不限制字段数。
+   * @defaultValue Infinity
    */
   collapsedCount?: number;
   /** 收起状态变化回调 */
@@ -152,7 +152,7 @@ export function QueryForm<T extends FormValues = FormValues>({
   collapsible = true,
   collapsed: controlledCollapsed,
   defaultCollapsed = false,
-  collapsedCount = 3,
+  collapsedCount = Infinity,
   onCollapsedChange,
   quickQueries = [],
   quickQuerySize = "small",
@@ -237,17 +237,18 @@ export function QueryForm<T extends FormValues = FormValues>({
         allFields.length > 0 && requiredWidth > row.clientWidth + 0.5,
       );
       if (toggle) toggle.hidden = Boolean(toggleHidden);
+      row.classList.toggle("is-collapsed", wasCollapsed);
+      // 隐藏前按收起布局测量实际宽度，避免 display:none 下的 calc/百分比宽度被误算成单列。
+      const widths = collapsed
+        ? allFields.slice(0, limit).map((field) => field.getBoundingClientRect().width)
+        : [];
+      let remaining = row.clientWidth - actions.getBoundingClientRect().width;
       hiddenFields.forEach((field) => {
         field.hidden = true;
       });
-      row.classList.toggle("is-collapsed", wasCollapsed);
       if (!collapsed) return;
-      let remaining = row.clientWidth - actions.getBoundingClientRect().width;
       let count = 0;
-      for (const field of Array.from(
-        row.querySelectorAll<HTMLElement>(":scope > .sia-query-form__field"),
-      ).slice(0, limit)) {
-        const width = parseFloat(getComputedStyle(field).width) || 220;
+      for (const width of widths) {
         if (remaining + 0.5 < width + gap) break;
         remaining -= width + gap;
         count++;

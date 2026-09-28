@@ -88,6 +88,8 @@ selection.extraValues;
 selection.onConfirm;
 declare const queryProps: QueryFormProps;
 queryProps.fieldWidth;
+// 确认发布声明保留收起字段默认按可用宽度排列的说明。
+queryProps.collapsedCount;
 declare const tableProps: TableProps;
 tableProps.cellSelection;
 tableProps.showIndex;
@@ -103,6 +105,8 @@ const service=ts.createLanguageService(host);
 const errors=service.getSemanticDiagnostics(filename).filter(d=>d.category===ts.DiagnosticCategory.Error);
 assert.equal(errors.length,0,ts.formatDiagnosticsWithColorAndContext(errors,{getCurrentDirectory:()=>packageRoot,getCanonicalFileName:f=>f,getNewLine:()=> '\n'}));
 const cases=[['savedQueries', '业务方'],['onSaveQuery','快照'],['allowClear','清空'],['modalThreshold','阈值'],['Modal.open','打开'],['message.success','成功'],['Form.useForm','表单实例'],['createColumnSettingPlugin({','列设置'],['adapter.save','保存'],['chart.barCategoryGap','间距'],['selection.maxHeight','像素'],['selection.extraValues','浅拷贝'],['selection.onConfirm','取消'],['queryProps.fieldWidth','列间距'],['tableProps.cellSelection','单元格选择'],['tableProps.showIndex','序号列']];
+// 验证默认自适应排列及显式数量上限都能在编辑器悬停正文中读取。
+cases.push(['queryProps.collapsedCount', '自动填满一行'], ['queryProps.collapsedCount', '显式指定时作为数量上限']);
 cases.push(['recursive', '子文件夹'], ['pastable', '粘贴'], ['autoUpload', '手动'], ['itemRender', '自定义'], ['uploadRef.upload', '取消'], ['httpUpload.body', '二进制'], ['uploadRequest.signal', '取消']);
 // Tag 主入口属性注释与 core 配色类型都必须在发布后可用。
 cases.push(['tagProps.color', 'CSS 颜色'], ['tagProps.variant', '边框'], ['tagProps.closeOnHover', '向右扩展'], ['tagProps.size', '继承 Form']);
