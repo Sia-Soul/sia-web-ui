@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, Input, Modal, Space, message } from "@sia.soul/sia-react-ui";
 import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
@@ -70,8 +70,15 @@ export function ModalPage() {
     });
   }
 
+  const confirmation = useRef<ReturnType<typeof Modal.confirm>>();
+  useEffect(() => () => confirmation.current?.destroy(), []);
   function openConfirm() {
-    Modal.confirm({
+    // 阻止重复打开，必须等关闭动画完成后释放句柄，使下一次点击可以重新打开。
+    if (confirmation.current) return;
+    const handle = Modal.confirm({
+      afterOpenChange: (visible) => {
+        if (!visible && confirmation.current === handle) confirmation.current = undefined;
+      },
       title: "确认删除项目？",
       children: <p>删除后无法恢复，请确认已经备份重要数据。</p>,
       okText: "确认删除",
@@ -81,6 +88,7 @@ export function ModalPage() {
         message.success("项目已删除");
       },
     });
+    confirmation.current = handle;
   }
 
   return <>
@@ -91,7 +99,7 @@ export function ModalPage() {
       <DemoCard title="基础对话框" description="通过 open 属性控制，支持遮罩、Esc、焦点管理和异步确认。" code={basicCode}>
         <Space wrap><Button variant="primary" onClick={() => setOpen(true)}>打开基础 Modal</Button></Space>
       </DemoCard>
-      <DemoCard title="API 调用" description="适合跨组件反馈、一次性对话和确认操作。" code={apiCode}>
+      <DemoCard title="API 调用" description="适合跨组件反馈、一次性对话和确认操作。确认框关闭完成后释放句柄，可反复取消、重新打开。" code={apiCode}>
         <Space wrap>
           <Button onClick={openApiDialog}>打开对话框</Button>
           <Button onClick={() => Modal.info({ children: "这是一条需要用户关注的信息。" })}>提示框</Button>

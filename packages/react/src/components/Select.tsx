@@ -102,8 +102,9 @@ export interface SelectProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
    */
   loading?: boolean;
   /**
-   是否显示搜索输入框。
-   * @defaultValue false
+   * 是否显示下拉搜索输入框。未设置时，options 总数超过 15 项自动显示；显式值优先。
+   * 弹框始终提供搜索，allowInput 仍会显示输入框；此规则独立于 modalThreshold。
+   * @defaultValue options.length > 15
    */
   showSearch?: boolean;
   /** 在选项名称下方显示对应的 value。 */
@@ -182,7 +183,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
     status = "default",
     allowClear = true,
     loading = false,
-    showSearch = false,
+    showSearch: showSearchProp,
     showValue = false,
     allowInput = false,
     inputMaxLength,
@@ -206,6 +207,8 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
   },
   forwardedRef,
 ) {
+  // 按原始候选项总数启用搜索，显式下拉或提高弹框阈值也不影响大列表检索。
+  const showSearch = showSearchProp ?? options.length > 15;
   const size = useControlSize(sizeProp);
   const fallbackId = useId();
   const selectId = id ?? fallbackId;

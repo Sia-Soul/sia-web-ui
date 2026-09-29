@@ -276,12 +276,11 @@ function openModal(config: ModalOpenConfig): OverlayApiHandle<ModalOpenConfig> {
   let currentConfig = config;
   let currentOpen = true;
   let destroyed = false;
-  let cleanupTimer: number | undefined;
+  let mounted = false;
 
   function cleanup() {
     if (destroyed) return;
     destroyed = true;
-    if (cleanupTimer !== undefined) window.clearTimeout(cleanupTimer);
     root.unmount();
     container.remove();
     modalHandles.delete(handle);
@@ -291,14 +290,29 @@ function openModal(config: ModalOpenConfig): OverlayApiHandle<ModalOpenConfig> {
     if (destroyed || !currentOpen) return;
     currentOpen = false;
     render();
-    cleanupTimer = window.setTimeout(cleanup, MODAL_MOTION_DURATION);
+  }
+
+  function ModalInstance() {
+    useEffect(() => {
+      mounted = true;
+      // 创建后立即 destroy 也先建立关闭生命周期，不能跳过完成回调而遗留宿主。
+      if (!currentOpen) render();
+    }, []);
+    return <ModalRoot {...currentConfig} open={!mounted || currentOpen} onOpenChange={(nextOpen) => {
+      currentConfig.onOpenChange?.(nextOpen);
+      if (!nextOpen) closeWithMotion();
+    }} afterOpenChange={(nextOpen) => {
+      // 命令式弹框必须先通知关闭完成，再释放根节点，避免业务关闭句柄永远不能清理。
+      try {
+        currentConfig.afterOpenChange?.(nextOpen);
+      } finally {
+        if (!nextOpen) queueMicrotask(cleanup);
+      }
+    }} />;
   }
 
   function render() {
-    root.render(<ModalRoot {...currentConfig} open={currentOpen} onOpenChange={(nextOpen) => {
-      currentConfig.onOpenChange?.(nextOpen);
-      if (!nextOpen) closeWithMotion();
-    }} />);
+    root.render(<ModalInstance />);
   }
 
   const handle: OverlayApiHandle<ModalOpenConfig> = {
@@ -328,7 +342,7 @@ function preset(type: Exclude<ModalType, "default">, defaults: Partial<ModalOpen
 
 /** 模态框组件。 */
 export const Modal = Object.assign(ModalRoot, {
-  /** 直接打开实例，返回可用于更新或关闭的操作句柄。 */
+  /** 直接打开实例，返回更新和关闭句柄；关闭动画完成后先调用 afterOpenChange(false)，再卸载实例。 */
   open: openModal,
   /** 显示普通信息提示。 */
   info: preset("info", { title: "提示" }),

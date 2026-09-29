@@ -132,3 +132,8 @@ Upload 会在选择、进度和完成时通知 `onChange`。若业务要求“�
 - NumberRange 复用 InputNumber 的失焦、Enter 和方向键提交规则，两端为 `[number | null, number | null]`，0 为有效值，空端点表示未填写；组件不自动交换上下限，业务通过表单规则校验。
 - 单一边框和波浪线分隔，宽度默认跟随容器；QueryForm 自动分配两列，不需要业务设置宽度。收起 QueryForm 后底部已保存快捷查询始终保留。
 - `pnpm test:number-range` 检查空端点、0、精度、禁用/只读和清空入口；`pnpm test:api-docs` 检查区间值、回调及清空能力的发布声明。这些检查不替代浏览器交互验收。
+
+
+## Modal 命令式关闭生命周期
+
+`Modal.confirm`、`Modal.open` 及其余静态提示弹框在取消、确认成功或调用 `destroy()` 后，等待组件自身关闭动画结束，先调用 `afterOpenChange(false)`，再卸载宿主。业务可在该回调释放防重复打开的句柄；返回 false 的确认不关闭，也不触发关闭完成回调。创建后立即 destroy 同样完成关闭通知和宿主清理。

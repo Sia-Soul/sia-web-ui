@@ -65,7 +65,7 @@ export default function Demo() {
     options={options}
     value={value}
     onChange={(nextValue) => setValue(Array.isArray(nextValue) ? nextValue : [])}
-    showSearch
+    // 大于 15 项时默认提供搜索。
     showSelectAll
     allowClear
     maxTagCount={3}
@@ -159,7 +159,7 @@ const apiRows = [
   { property: "defaultValue", description: "初始选中值", type: "string | number | null", defaultValue: "null" },
   { property: "placeholder", description: "未选择时的提示", type: "ReactNode", defaultValue: "'请选择'" },
   { property: "allowClear", description: "允许清空当前选择，传入 false 可关闭", type: "boolean", defaultValue: "true" },
-  { property: "showSearch", description: "显示选项搜索框", type: "boolean", defaultValue: "false" },
+  { property: "showSearch", description: "下拉搜索：未设置时总选项超过 15 项自动显示，显式值优先；独立于弹框阈值，弹框始终支持搜索", type: "boolean", defaultValue: "options.length > 15" },
   { property: "allowInput", description: "允许将搜索内容作为自定义选项提交", type: "boolean", defaultValue: "false" },
   { property: "inputMaxLength", description: "手动输入内容的最大长度", type: "number", defaultValue: "-" },
   { property: "maxTagCount", description: "最多显示的选中标签数；按可用宽度自动继续折叠并预留 +N 空间，始终保持单行", type: "number", defaultValue: "2" },
@@ -266,7 +266,7 @@ export function SelectPage() {
             <span className="demo-result">当前值：{customValues.map(String).join("、") || "（未选择）"}</span>
           </div>
         </DemoCard>
-        <DemoCard title="搜索、多选与虚拟滚动" description="示例包含 1000 个选项，DOM 中只渲染当前可视区域。支持全选和一键清除。" code={multipleCode}>
+        <DemoCard title="搜索、多选与虚拟滚动" description="示例包含 1000 个选项，显式下拉仍默认启用搜索，无需传 showSearch；DOM 中只渲染可视区域。支持全选和一键清除。" code={multipleCode}>
           <div className="component-demo component-demo--column">
             <Select
               className="large-select-demo"
@@ -276,7 +276,7 @@ export function SelectPage() {
               options={memberOptions}
               value={members}
               onChange={(nextValue) => setMembers(asMultipleValue(nextValue))}
-              showSearch
+              // 大列表默认启用搜索，不要求业务重复配置。
               showSelectAll
               allowClear
               maxTagCount={3}
