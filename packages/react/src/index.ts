@@ -133,3 +133,7 @@ export * from './components/InputSelect';
 
 export { QueryForm } from "./components/QueryForm";
 export type { QueryFormProps, QueryFormField, QueryFormShortcut, QueryFormSearchInfo } from "./components/QueryForm";
+
+// 数字区间复用数字输入交互，通过统一入口提供给业务查询表单。
+export { NumberRange } from "./components/NumberRange";
+export type { NumberRangeProps, NumberRangeValue } from "./components/NumberRange";

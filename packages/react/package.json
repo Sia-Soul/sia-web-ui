@@ -1,6 +1,6 @@
 {
   "name": "@sia.soul/sia-react-ui",
-  "version": "0.1.70",
+  "version": "0.1.73",
   "description": "Sia Design components and tokens for React",
   "publishConfig": {
     "access": "public",

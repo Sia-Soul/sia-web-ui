@@ -44,6 +44,7 @@ const navItemIcons: Readonly<Record<string, IconName>> = {
   "/components/editor": "code",
   "/components/rich-text-editor": "bold",
   "/components/markdown-editor": "file",
+  "/components/number-range": "calculator",
   "/components/input-number": "calculator",
   "/components/select": "chevron-down",
   "/components/cascader": "branches",
@@ -176,6 +177,8 @@ export const navGroups: readonly NavGroup[] = [
       { label: "Editor 编辑器", path: "/components/editor", eyebrow: "组件 / 数据录入", title: "Editor 编辑器", description: "基于 Monaco 封装的通用文本与代码编辑器。" },
       { label: "RichTextEditor 富文本", path: "/components/rich-text-editor", eyebrow: "组件 / 数据录入", title: "RichTextEditor 富文本编辑器", description: "编辑 HTML 或 Markdown 富文本内容。" },
       { label: "MarkdownEditor 编辑器", path: "/components/markdown-editor", eyebrow: "组件 / 数据录入", title: "MarkdownEditor Markdown 编辑器", description: "支持所见即所得、即时渲染和源码模式的 Markdown 编辑器。" },
+      // 与数字输入相邻展示区间组件。
+      { label: "NumberRange 数字区间", path: "/components/number-range", eyebrow: "组件 / 数据录入", title: "NumberRange 数字区间", description: "以波浪线分隔的双数字输入。" },
       { label: "InputNumber 数字输入框", path: "/components/input-number", eyebrow: "组件 / 数据录入", title: "InputNumber 数字输入框", description: "通过输入或步进按钮录入有边界的数值。" },
       { label: "Select 选择器", path: "/components/select", eyebrow: "组件 / 数据录入", title: "Select 选择器", description: "从候选项中选择一个或多个值。" },
       { label: "Cascader 级联选择", path: "/components/cascader", eyebrow: "组件 / 数据录入", title: "Cascader 级联选择", description: "从关联的多级选项中选择路径。" },

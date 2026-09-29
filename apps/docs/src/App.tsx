@@ -19,6 +19,7 @@ import { BadgePage, CalendarPage, CarouselPage, CollapsePage, ImagePage, Popover
 import { AlertPage, NotificationPage, PopconfirmPage, ProgressPage, SpinPage, TourPage, WatermarkPage } from "./pages/FeedbackMorePages";
 import { DrawerPage } from "./pages/DrawerPage";
 import { IconPage } from "./pages/IconPage";
+import { NumberRangePage } from "./pages/NumberRangePage";
 import { InputNumberPage } from "./pages/InputNumberPage";
 import { InputPage } from "./pages/InputPage";
 import { TextAreaPage } from "./pages/TextAreaPage";
@@ -156,6 +157,8 @@ export default function App() {
             <Route path="/components/editor" element={<EditorPage />} />
             <Route path="/components/rich-text-editor" element={<RichTextEditorPage />} />
             <Route path="/components/markdown-editor" element={<MarkdownEditorPage />} />
+            {/* 数字区间提供独立文档入口，便于查询表单直接接入。 */}
+            <Route path="/components/number-range" element={<NumberRangePage />} />
             <Route path="/components/input-number" element={<InputNumberPage />} />
             <Route path="/components/cascader" element={<CascaderPage />} />
             <Route path="/components/checkbox" element={<CheckboxPage />} />

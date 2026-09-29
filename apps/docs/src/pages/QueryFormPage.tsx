@@ -139,7 +139,7 @@ export function QueryFormPage() {
         },
         {
           property: "savedQueries",
-          description: "底部已保存快捷查询标签，支持 status 配色；收起时隐藏",
+          description: "底部已保存快捷查询标签，支持 status 配色；收起查询条件后仍显示",
           type: "QueryFormShortcut[]",
           defaultValue: "[]",
         },

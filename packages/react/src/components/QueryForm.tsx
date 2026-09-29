@@ -72,7 +72,7 @@ export interface QueryFormProps<T extends FormValues = FormValues> extends Omit<
    * @defaultValue true
    */
   collapsible?: boolean;
-  /** 受控收起状态，需在 onCollapsedChange 中更新；全部字段能单行显示时不执行收起。收起时保留字段挂载和值，只隐藏放不下的字段和底部快捷标签。 */
+  /** 受控收起状态，需在 onCollapsedChange 中更新；全部字段能单行显示时不执行收起。收起时保留字段挂载和值，只隐藏放不下的字段，底部快捷标签始终保留。 */
   collapsed?: boolean;
   /**
    * 非受控模式的初始收起状态；默认展开全部查询条件，即使条件超过一行也不自动收起。显式传 true 时才初始收起。
@@ -97,7 +97,7 @@ export interface QueryFormProps<T extends FormValues = FormValues> extends Omit<
    */
   quickQuerySize?: ButtonSize;
   /**
-   * 底部已保存快捷查询标签。点击回填该项条件并查询；收起时隐藏。业务方负责加载数据，并在保存或删除成功后更新此数组。
+   * 底部已保存快捷查询标签。点击回填该项条件并查询；收起时仍可使用。业务方负责加载数据，并在保存或删除成功后更新此数组。
    * @defaultValue []
    */
   savedQueries?: readonly QueryFormShortcut<T>[];
@@ -481,7 +481,8 @@ export function QueryForm<T extends FormValues = FormValues>({
             {actionsExtra}
           </div>
         </div>
-        {savedQueries.length && !collapsed ? (
+        {/* 快捷查询是独立操作入口，不随查询字段收起而隐藏。 */}
+        {savedQueries.length ? (
           <div className="sia-query-form__saved" aria-label="已保存快捷查询">
             {savedQueries.map((query, index) => (
               <Tag

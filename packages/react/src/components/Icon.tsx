@@ -6,6 +6,8 @@ import { extendedIconPaths } from "./IconCatalog";
 const coreIconPaths = {
   search: <><circle cx="10.8" cy="10.8" r="6.8" /><path d="m15.8 15.8 5.2 5.2" /></>,
   plus: <path d="M12 4v16M4 12h16" />,
+  // 数字区间用波浪线表达范围，避免箭头暗示跳转方向。
+  tilde: <path d="M3 14c3-8 6-4 9-2s6 4 9-2" />,
   minus: <path d="M4 12h16" />,
   close: <path d="m5 5 14 14M19 5 5 19" />,
   check: <path d="m4 12.5 5.2 5L20 6.5" />,

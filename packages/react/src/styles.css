@@ -1037,10 +1037,10 @@
 .sia-query-form__fields { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sia-query-field-gap, 8px); padding-top: 8px; }
 .sia-query-form__field { --sia-query-item-width: var(--sia-query-field-width, 220px); flex: 0 1 var(--sia-query-item-width); width: var(--sia-query-item-width); min-width: 0; max-width: 100%; }
 /* 区间和横向组合字段占两列，包含普通字段之间的间距；字段内联 width 优先。 */
-.sia-query-form__field:has(.sia-picker-range-control, .sia-time-range, .sia-select-date-range, .sia-space-compact:not(.sia-space-compact--vertical) > :nth-child(2)) { --sia-query-item-width: calc(var(--sia-query-field-width, 220px) + var(--sia-query-field-width, 220px) + var(--sia-query-field-gap, 8px)); }
+.sia-query-form__field:has(.sia-number-range, .sia-picker-range-control, .sia-time-range, .sia-select-date-range, .sia-space-compact:not(.sia-space-compact--vertical) > :nth-child(2)) { --sia-query-item-width: calc(var(--sia-query-field-width, 220px) + var(--sia-query-field-width, 220px) + var(--sia-query-field-gap, 8px)); }
 /* 类型选择加起止日期占三列，包含两处列间距；字段内联指定的宽度仍优先。 */
 .sia-query-form .sia-query-form__fields > .sia-query-form__field:has(.sia-select-date-range) { --sia-query-item-width: calc(var(--sia-query-field-width, 220px) * 3 + var(--sia-query-field-gap, 8px) * 2); }
-.sia-query-form__field :is(.sia-picker-range-control, .sia-time-range, .sia-select-date-range, .sia-space-compact:not(.sia-space-compact--vertical)) { width: 100%; }
+.sia-query-form__field :is(.sia-number-range, .sia-picker-range-control, .sia-time-range, .sia-select-date-range, .sia-space-compact:not(.sia-space-compact--vertical)) { width: 100%; }
 .sia-query-form__field[hidden] { display: none; }
 .sia-query-form__field > .sia-input-control, .sia-query-form__field > .sia-select, .sia-query-form__field > .sia-picker, .sia-query-form__field > .sia-input-number, .sia-query-form__field > .sia-cascader, .sia-query-form__field > .sia-tree-select, .sia-query-form__field > .sia-select-date-range { width: 100%; }
 .sia-query-form__field > .sia-space-compact { width: 100%; }
@@ -1084,3 +1084,18 @@
 .sia-tabs__more { display: inline-flex; flex: 0 0 auto; align-items: center; align-self: center; }
 .sia-tabs__more > .sia-button { width: 36px; height: 34px; padding: 0; }
 .sia-tabs__more > .sia-button.is-active { color: var(--sia-color-primary); background: var(--sia-color-primary-light); }
+
+/* 数字区间使用单一外框与等分输入，宽度由容器决定，查询布局自动占两列。 */
+.sia-number-range { display: inline-flex; align-items: center; box-sizing: border-box; width: 100%; min-width: 0; height: var(--sia-control-height); border: 1px solid var(--sia-color-border); border-radius: var(--sia-radius); background: var(--sia-color-surface); color: var(--sia-color-text); }
+.sia-number-range--small { height: var(--sia-control-height-small); }
+.sia-number-range--large { height: var(--sia-control-height-large); }
+.sia-number-range:hover:not(.is-disabled) { border-color: var(--sia-color-primary-hover); }
+.sia-number-range:focus-within:not(.is-disabled) { border-color: var(--sia-color-primary); }
+.sia-number-range--warning { border-color: var(--sia-color-warning); }
+.sia-number-range--error, .sia-number-range--error:hover:not(.is-disabled), .sia-number-range--error:focus-within:not(.is-disabled) { border-color: var(--sia-color-error); }
+.sia-number-range.is-disabled { background: var(--sia-color-control-hover); color: var(--sia-color-text-secondary); cursor: not-allowed; }
+.sia-number-range > .sia-input-number { flex: 1 1 0; width: 0; min-width: 0; height: 100%; border: 0; background: transparent; box-shadow: none; }
+/* 仅弱化数字区间分隔符，不影响公共图标和其他控件的对比度。 */
+.sia-number-range__separator { flex: 0 0 auto; color: var(--sia-color-text-secondary); opacity: 0.65; }
+.sia-number-range__clear { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 24px; align-self: stretch; padding: 0; border: 0; background: transparent; color: var(--sia-color-text-secondary); cursor: pointer; }
+.sia-number-range__clear:hover { color: var(--sia-color-text); }
