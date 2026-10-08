@@ -794,12 +794,12 @@ const apiRows = [
   { property: "TableColumn.rowSpan", description: "加载 RowSpan 插件后合并连续相同值的单元格", type: "boolean / data path / function", defaultValue: "false" },
   { property: "TableColumn.mergeSticky", description: "合并单元格滚动越过表头时保持内容可见", type: "boolean / config", defaultValue: "false" },
   { property: "TableColumn.description", description: "列头说明；悬停说明图标后以页面级 Tooltip 展示", type: "ReactNode", defaultValue: "-" },
-  // 列头始终单行并提供完整标题提示，以下两个开关只控制数据单元格。
+  // 列头单行省略时才提供完整标题提示，以下两个开关只控制数据单元格。
   // 排序状态通过箭头方向和底色区分，悬停还可查看下一次点击的操作。
   { property: "TableColumn.sortable / createSortPlugin", description: "启用列排序；未排序显示双箭头，升序／降序显示高亮向上／向下单箭头，悬停提示当前状态与下一步操作", type: "boolean / TableSortPluginOptions", defaultValue: "false / -" },
-  { property: "TableColumn.title", description: "列头单行显示，超宽自动省略；悬停通过框架 title 提示展示完整文本，React 节点无法提取文本时回退到 name 或 key", type: "ReactNode", defaultValue: "name / key" },
+  { property: "TableColumn.title", description: "列头单行显示，超宽自动省略；仅实际省略时悬停提示完整文本，完整显示时不提示。React 节点无法提取文本时回退到 name 或 key", type: "ReactNode", defaultValue: "name / key" },
   { property: "TableColumn.ellipsis", description: "数据单元格默认单行省略，含 Space 标签组；false 允许数据多行，列头仍单行省略", type: "boolean", defaultValue: "true" },
-  { property: "TableColumn.showTitle", description: "默认不显示数据单元格提示；true 时使用 Sia Tooltip 展示完整文本。列头始终提供标题提示", type: "boolean", defaultValue: "false" },
+  { property: "TableColumn.showTitle", description: "默认不显示数据单元格提示；true 时使用 Sia Tooltip 展示完整文本。列头提示独立按文字是否实际省略决定", type: "boolean", defaultValue: "false" },
   { property: "TableColumn.exportable / exportRender", description: "控制导出列及自定义导出内容", type: "boolean / function", defaultValue: "true / 原始值" },
   { property: "TableColumn.filterable / createFilterPlugin", description: "为列头增加文本筛选面板，支持自定义匹配函数和受控筛选值", type: "boolean / TableFilterPluginOptions<T>", defaultValue: "false / -" },
   { property: "showIndex", description: "默认显示序号列，从 1 开始；分页连续编号。序号固定在业务列之前、勾选列之后，不参与列设置。false 隐藏序号，显式 createIndexPlugin 可自定义且不会重复加载", type: "boolean", defaultValue: "true" },

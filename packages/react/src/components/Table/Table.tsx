@@ -698,11 +698,11 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     return fixed === "left" ? { left: leftOffsets.get(column.key) } : fixed === "right" ? { right: rightOffsets.get(column.key) } : undefined;
   }
 
-  /** 在各表头插件外统一约束文字宽度，提示只使用原始标题，避免混入排序、筛选操作文案。 */
+  /** 在各表头插件外统一约束文字宽度；仅文案实际省略时提示原始标题，避免混入排序、筛选操作文案。 */
   function renderHeaderContent(column: TableColumn<T>, content: ReactNode) {
     const title = getHeaderTitleText(column.title ?? column.name) || column.name || column.key;
     return <span className="sia-table__header-label">
-      <span className="sia-table__header-label-content" {...withTitleTooltip({ title })}>{content}</span>
+      <span className="sia-table__header-label-content" data-sia-title-overflow-only {...withTitleTooltip({ title })}>{content}</span>
       {column.description != null && <Tooltip title={column.description} placement="top" trigger={["hover", "focus"]}>
         <button type="button" className="sia-table__header-description" aria-label={`${column.name ?? column.key}列说明`} onClick={(event) => event.stopPropagation()}>
           <Icon name="info" size={14} />

@@ -27,11 +27,21 @@ function installTitleTooltips(doc: Document) {
   let observer: MutationObserver | undefined;
   let tooltipId = "";
 
+  /** 按需检查省略标记；同时检查插件内部的文字容器，避免排序、筛选包裹层遮蔽真实溢出。 */
+  const canShow = (element: Element) => {
+    if (!element.hasAttribute("data-sia-title-overflow-only")) return true;
+    return [element, ...element.querySelectorAll("*")].some(node => {
+      if (node.clientWidth <= 0 || node.scrollWidth <= node.clientWidth) return false;
+      const style = doc.defaultView?.getComputedStyle(node);
+      return style?.textOverflow === "ellipsis" && (style.overflowX === "hidden" || style.overflowX === "clip");
+    });
+  };
+
   const candidate = (target: EventTarget | null) => {
     if (!(target instanceof Element)) return null;
     const element = target.closest("[data-sia-title]");
     // An explicit Tooltip/Popover owns the interaction and must not show twice.
-    return element?.getAttribute("data-sia-title") && !element.closest(".sia-floating") ? element : null;
+    return element?.getAttribute("data-sia-title") && !element.closest(".sia-floating") && canShow(element) ? element : null;
   };
   const hasExplicitTooltip = (target: EventTarget | null) => target instanceof Element && Boolean(target.closest(".sia-floating"));
   const hide = () => {
@@ -49,7 +59,8 @@ function installTitleTooltips(doc: Document) {
   };
   const render = () => {
     const text = active?.getAttribute("data-sia-title");
-    if (!active?.isConnected || !text) { hide(); return; }
+    // 延迟期间列宽或文字可能变化，显示前再次确认仍有省略。
+    if (!active?.isConnected || !text || !canShow(active)) { hide(); return; }
     if (!root) {
       const host = doc.createElement("div");
       host.setAttribute("data-sia-title-tooltip-host", "");

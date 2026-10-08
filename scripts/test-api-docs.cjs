@@ -8,6 +8,10 @@ const filename = path.join(packageRoot, '__api-doc-consumer__.tsx').replaceAll('
 // 上传新增的命令式句柄、OSS 配置及自定义渲染同样从发布产物检查悬停。
 const source = `import type { NumberRangeProps, DatePickerProps } from '@sia.soul/sia-react-ui';
 import type { InputProps } from '@sia.soul/sia-react-ui';
+import type { TableColumn } from '@sia.soul/sia-react-ui';
+// 列头提示仅在实际省略时显示的约定必须保留到发布声明。
+declare const headerColumn: TableColumn;
+headerColumn.title;
 // 展开编辑的确认回填约定必须保留到发布声明。
 declare const expandableInputProps: InputProps;
 expandableInputProps.expandable;
@@ -139,6 +143,7 @@ cases.push(['checkboxGroupProps.columns', '等宽网格'], ['checkboxGroupProps.
 cases.push(['tabsProps.contentGap', '仅影响当前 Tabs'], ['tabsProps.deferContent', '保留旧面板'], ['tabsProps.onAfterChange', '连续切换']);
 cases.push(['uploadProps.downloadRequest', 'Blob'], ['uploadActions.download', '不打开新标签页']);
 cases.push(['uploadProps.cardSize', '卡片尺寸']);
+cases.push(['headerColumn.title', '完整显示时不提示']);
 cases.push(['uploadProps.maxCount', '隐藏上传入口'], ['uploadProps.maxCount', '低于上限后恢复']);
 cases.push(['uploadProps.onChoose', '返回 false']);
 // 剩余高度的优先级与容器约束必须随发布声明提供给业务使用者。

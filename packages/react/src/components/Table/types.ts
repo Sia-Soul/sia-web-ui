@@ -67,7 +67,7 @@ export interface TableColumn<T = Record<string, unknown>> {
   code?: string;
   /** 名称或字段标识。 */
   name?: string;
-  /** 列头内容，可传入文本或 React 节点；默认单行显示，超宽省略，并通过框架 title 提示展示完整文本。节点无法提取文本时使用 name 或 key。 */
+  /** 列头内容，可传入文本或 React 节点；默认单行显示，仅文字实际超宽省略时通过框架 title 提示展示完整文本，完整显示时不提示。节点无法提取文本时使用 name 或 key。 */
   title?: ReactNode;
   /** 补充说明内容。 */
   description?: ReactNode;
@@ -91,7 +91,7 @@ export interface TableColumn<T = Record<string, unknown>> {
   hidden?: boolean;
   /** 数据单元格默认单行显示并省略溢出内容（含 Space 标签组）；设为 false 允许多行，不影响列头始终单行省略。 */
   ellipsis?: boolean;
-  /** 数据单元格是否使用 Sia Tooltip 显示完整文本；默认 false，不生成浏览器原生 title。列头始终提供完整标题提示，不受此属性影响。 */
+  /** 数据单元格是否使用 Sia Tooltip 显示完整文本；默认 false，不生成浏览器原生 title。列头仅在文字实际省略时提示完整标题，不受此属性影响。 */
   showTitle?: boolean;
   /** 是否允许该列排序；配合排序插件显示按钮，依次切换升序、降序、未排序，当前排序方向以高亮单箭头显示。 */
   sortable?: boolean;
