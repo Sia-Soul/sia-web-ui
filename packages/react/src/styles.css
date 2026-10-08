@@ -186,11 +186,19 @@
 .sia-input-control--error:focus-within:not(.is-disabled) { border-color: var(--sia-color-error); }
 .sia-input-control.is-disabled { color: var(--sia-color-text-secondary); cursor: not-allowed; background: var(--sia-color-control-hover); }
 .sia-input-control__affix { display: inline-flex; align-items: center; flex: 0 0 auto; color: var(--sia-color-text-secondary); }
-.sia-input-control__count { flex: 0 0 auto; color: var(--sia-color-text-secondary); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* 计数仅按实际文字宽度占位，不伸展或预留固定字符数；抵消一半容器 gap，使左侧间距为 4px。 */
+.sia-input-control > .sia-input-control__count { flex: 0 0 auto; width: max-content; min-width: 0; max-width: none; margin: 0 0 0 -4px; padding: 0; color: var(--sia-color-text-secondary); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .sia-input-control__count.is-limit { color: var(--sia-color-text); font-weight: 500; }
 .sia-input-control__clear { display: inline-grid; place-items: center; flex: 0 0 auto; width: 18px; height: 18px; padding: 0; color: var(--sia-color-text-secondary); cursor: pointer; pointer-events: none; background: transparent; border: 0; border-radius: 50%; opacity: 0; transition: color 140ms ease, opacity 140ms ease; }
 .sia-input-control:hover .sia-input-control__clear, .sia-input-control:focus-within .sia-input-control__clear { pointer-events: auto; opacity: 0.72; }
 .sia-input-control__clear:hover, .sia-input-control__clear:focus-visible { color: var(--sia-color-text); outline: none; opacity: 1; }
+/* 展开入口常驻可点击，不继承清空按钮仅悬停可交互的规则。 */
+.sia-input-control__expand { display: inline-grid; place-items: center; flex: 0 0 auto; width: 20px; height: 20px; padding: 0; color: var(--sia-color-text-secondary); background: transparent; border: 0; cursor: pointer; }
+.sia-input-control__expand:hover, .sia-input-control__expand:focus-visible { color: var(--sia-color-primary); }
+.sia-input-control__expand:disabled { display: none; }
+/* :disabled 同时覆盖组件自身和原生 fieldset 继承的禁用状态；隐藏清空入口且不保留占位，恢复启用后自动显示。 */
+:is(.sia-input-control__clear, .sia-input-select__clear, .sia-select__clear, .sia-picker__clear, .sia-tree-select__clear, .sia-number-range__clear):disabled,
+.sia-cascader__trigger:disabled .sia-cascader__clear { display: none; }
 .sia-input-control__input-wrap { position: relative; align-self: stretch; flex: 1 1 auto; min-width: 0; }
 .sia-input { min-width: 0; width: 100%; height: 100%; padding: 0; color: var(--sia-color-text); font: 400 var(--sia-font-size-small)/1.5 system-ui, sans-serif; background: transparent; border: 0; outline: 0; }
 .sia-input-control--small .sia-input { font-size: 12px; }

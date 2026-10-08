@@ -366,7 +366,7 @@ export interface FormProps extends Omit<FormHTMLAttributes<HTMLFormElement>, "on
   /** 占位提示的显示模式；floating 为浮动标签。 */
   placeholderMode?: InputPlaceholderMode;
   /**
-   * 是否禁用交互。
+   * 是否通过原生 fieldset 禁用表单内控件交互；禁用时同时隐藏输入、选择和区间控件的清空入口，恢复启用后按各控件的 allowClear 配置显示。
    * @defaultValue false
    */
   disabled?: boolean;

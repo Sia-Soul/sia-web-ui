@@ -15,6 +15,7 @@ import {
   DatePanelFooter,
   daysBetween,
   normalizeDateValue,
+  pad,
   parseDate,
   startOfMonth,
   timePart,
@@ -82,12 +83,12 @@ export interface DatePickerProps extends SharedDatePickerProps {
   /** 选择后需要点击确定才提交；带时间的范围必须确认后保存；纯日期范围点选后立即保存合法值，此属性仅控制是否保留面板供确认关闭。 */
   needConfirm?: boolean;
   /**
-   * 组合时间面板，可显示秒；范围选择始终显示单个面板，点击起止输入区域直接编辑对应端点；先确认当前端点，再切换到另一端点，两个端点确认后提交并关闭；锁定端点无需再次确认，快捷范围只需一次确认
+   * 组合时间面板，可显示秒；范围选择始终显示单个面板，点击起止输入区域直接编辑对应端点。日历点选结束日期时自动填入 23:59，开启 showSecond 时为 23:59:59，可随后手动调整；开始日期保留原时间，“此刻”使用当前时间，快捷范围保留预设时间。先确认当前端点，再切换到另一端点，两个端点确认后提交并关闭；锁定端点无需再次确认，快捷范围只需一次确认。
    * @defaultValue false
    */
   showTime?: DatePickerShowTime;
   /**
-   * 是否显示返回今天的入口。
+   * 是否显示“此刻”入口。点击选择本机当前日期；开启 showTime 时同时填入当前时分，showSecond 为 true 时包含秒。沿用 needConfirm 的提交规则；范围选择仅更新当前编辑端点，禁用日期不可选择。
    * @defaultValue true
    */
   showToday?: boolean;
@@ -284,18 +285,22 @@ export function DatePicker({
     return disabledDate?.(day, { type: "date" }) ?? false;
   }
 
-  function buildValue(day: string) {
+  // 快捷选择显式传入本次点击时间，避免读取尚未更新的 React 时间状态。
+  function buildValue(day: string, time = draftTime) {
     const picked = formatPickerValue(day, picker);
-    return showTime && picker === "date" ? withTime(picked, draftTime, showSecond) : picked;
+    return showTime && picker === "date" ? withTime(picked, time, showSecond) : picked;
   }
 
-  function selectDate(day: string) {
+  // 此刻入口确保日期被选中；普通多选点击仍切换该日期的选中状态。
+  function selectDate(day: string, time = draftTime, ensureSelected = false) {
     if (isDisabled(day)) return;
-    const nextValue = buildValue(day);
+    const nextValue = buildValue(day, time);
     if (multiple) {
       const current = Array.isArray(draftValue) ? [...draftValue] : [];
       const exists = current.some((item) => dayFromValue(item) === day);
-      const next = exists ? current.filter((item) => dayFromValue(item) !== day) : [...current, nextValue];
+      const next = exists
+        ? ensureSelected ? current.map((item) => dayFromValue(item) === day ? nextValue : item) : current.filter((item) => dayFromValue(item) !== day)
+        : [...current, nextValue];
       setDraftValue(next);
       if (!resolvedNeedConfirm) setCurrentValue(next);
       return;
@@ -385,7 +390,16 @@ export function DatePicker({
         showToday={showToday}
         needConfirm={resolvedNeedConfirm}
         disabledConfirm={Array.isArray(draftValue) ? draftValue.length === 0 : !draftValue}
-        onToday={() => selectDate(dateKey(new Date()))}
+        onToday={() => {
+          // 日期与时间取自同一时刻，跨午夜点击也不会拼接出不一致的值。
+          const now = new Date();
+          const day = dateKey(now);
+          if (isDisabled(day)) return;
+          const time = [now.getHours(), now.getMinutes(), now.getSeconds()].map(pad).join(":");
+          if (showTime) setDraftTime(time);
+          setViewMonth(startOfMonth(now));
+          selectDate(day, time, true);
+        }}
         onConfirm={commitDraft}
       />
     </PopupPortal>
@@ -566,10 +580,15 @@ function DateRangePicker({
     }
   }
 
-  function selectDateTime(day: string, index: 0 | 1) {
+  // 日历点选结束日期时取当天末尾；开始日期保留原时间，“此刻”显式传入即时值优先。
+  function selectDateTime(day: string, index: 0 | 1, time = index === 1 ? "23:59:59" : times[index]) {
     if (isDisabled(day, index, true)) return;
+    // 同步时间列与草稿，提交时由 showSecond 决定保留到分钟还是秒。
+    const nextTimes: [string, string] = [...times];
+    nextTimes[index] = time;
+    setTimes(nextTimes);
     const nextValue: [string, string] = [...draftValue];
-    nextValue[index] = buildRangeValue(day, index);
+    nextValue[index] = withTime(day, time, showSecond);
     updateDraft(nextValue);
     setHoverDate("");
     // 点选日期只更新当前步骤，必须由底部按钮切换步骤或提交。
@@ -768,7 +787,20 @@ function DateRangePicker({
           {renderExtraFooter?.()}
           {invalidDateTimeRange ? <small className="sia-date-panel__range-error">结束时间不能早于开始时间</small> : maxRangeDays ? <small>最多选择 {maxRangeDays} 天</small> : null}
         </>}
-        onToday={() => showTime ? selectDateTime(dateKey(new Date()), activeIndex) : selectDate(dateKey(new Date()))}
+        onToday={() => {
+          // 范围快捷选择仅更新活动端点，保留另一端和现有分步确认规则。
+          const now = new Date();
+          const day = dateKey(now);
+          if (isDisabled(day, activeIndex, Boolean(showTime))) return;
+          if (showTime) {
+            const time = [now.getHours(), now.getMinutes(), now.getSeconds()].map(pad).join(":");
+            (activeIndex === 0 ? setViewMonth : setEndViewMonth)(startOfMonth(now));
+            selectDateTime(day, activeIndex, time);
+          } else {
+            setViewMonth(startOfMonth(now));
+            selectDate(day);
+          }
+        }}
         onConfirm={confirm}
       />
     </PopupPortal>

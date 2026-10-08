@@ -54,7 +54,7 @@ export interface CascaderProps extends Omit<HTMLAttributes<HTMLDivElement>, "def
    */
   showSearch?: boolean;
   /**
-   * 是否允许清空当前选择或输入值；默认启用，显式传入 false 可关闭。
+   * 是否允许清空当前选择或输入值；默认启用，显式传入 false 可关闭。组件或所属 Form / fieldset 禁用时隐藏清空入口。
    * @defaultValue true
    */
   allowClear?: boolean;
@@ -224,7 +224,8 @@ export function Cascader({
       <span className="sia-cascader__value">{display
         ? multiple && Array.isArray(display) ? display.map((label, index) => <span className="sia-cascader__tag" key={pathKey(selectedPaths[index] ?? [])}>{label}</span>) : display
         : <span className="sia-cascader__placeholder">{placeholder}</span>}</span>
-      {allowClear && selectedPaths.length ? <span className="sia-cascader__clear" role="button" aria-label="清除选择" onClick={(event) => { event.stopPropagation(); clearSelection(); }}><Icon name="circle-close" variant="filled" size={15} /></span> : null}
+      {/* 禁用时不渲染清空入口；继承 fieldset 的禁用状态由触发按钮的 :disabled 样式处理。 */}
+      {allowClear && selectedPaths.length && !disabled ? <span className="sia-cascader__clear" role="button" aria-label="清除选择" onClick={(event) => { event.stopPropagation(); clearSelection(); }}><Icon name="circle-close" variant="filled" size={15} /></span> : null}
       {floating.label}
       <Icon name={open ? "chevron-up" : "chevron-down"} size={14} />
     </button>

@@ -61,9 +61,11 @@ export function TreemapPage() {
       { property: "gap / headerHeight", description: "节点间距和展开目录标题高度", type: "number", defaultValue: "2 / 28" },
       { property: "minLabelWidth / minLabelHeight", description: "显示节点标签所需的最小尺寸", type: "number", defaultValue: "26 / 18" },
       { property: "minTileWidth / minTileHeight", description: "布局保留节点所需的最小尺寸", type: "number", defaultValue: "28 / 18" },
-      { property: "maxVisibleNodes", description: "最大可见节点数，超出后合并为其他项", type: "number", defaultValue: "180" },
+      { property: "maxVisibleNodes", description: "启用聚合时的最大可见节点数，超出后合并为其他项", type: "number", defaultValue: "180" },
+      { property: "aggregateOverflow", description: "是否聚合超限或尺寸不足的节点；关闭后使用紧凑网格保留每个原始节点", type: "boolean", defaultValue: "true" },
       { property: "valueFormatter", description: "自定义节点权重显示", type: "(value, node) => ReactNode", defaultValue: "本地化数字" },
-      { property: "overflowLabel", description: "自定义合并节点文案", type: "(count: number) => string", defaultValue: "'其他 n 项'" },
+      { property: "overflowLabel", description: "启用聚合时自定义合并节点文案", type: "(count: number) => string", defaultValue: "'其他 n 项'" },
+      { property: "showValueInCompactTiles", description: "是否在紧凑块中继续显示格式化数值", type: "boolean", defaultValue: "false" },
       { property: "onExpandedChange / onFocusedChange", description: "目录展开和聚焦变化回调", type: "function", defaultValue: "-" },
       { property: "onNodeClick", description: "节点点击回调", type: "(info: TreemapNodeClickInfo) => void", defaultValue: "-" },
     ]}

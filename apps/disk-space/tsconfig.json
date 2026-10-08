@@ -3,6 +3,8 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tsbuildinfo",
     "noEmit": true,
+    // 业务项目直接解析组件库源码，允许组件内部使用显式的 .ts 导入后缀。
+    "allowImportingTsExtensions": true,
     "baseUrl": ".",
     "paths": {
       "@sia.soul/sia-react-ui": ["../../packages/react/src/index.ts"]

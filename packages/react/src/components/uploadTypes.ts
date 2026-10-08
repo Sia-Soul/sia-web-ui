@@ -128,7 +128,7 @@ export interface UploadProps extends Omit<HTMLAttributes<HTMLDivElement>, "defau
   disabled?: boolean;
   /** 添加后自动上传；false 为手动模式，调用 ref.upload 或自定义列表操作启动。 @defaultValue true */
   autoUpload?: boolean;
-  /** 最大文件数量，包含等待及失败项；超出部分拒绝，不替换已有文件。默认不限。 */
+  /** 最大文件数量，包含等待及失败项；达到上限时隐藏上传入口（含拖拽区域），低于上限后恢复，已选列表继续显示。超出部分拒绝，不替换已有文件。默认不限；有限数值向下取整且不小于 0，设为 0 时始终隐藏入口。受控列表需在 onChange 中回填后更新显示。 */
   maxCount?: number;
   /** 受控列表，onChange 中回填；外部移除记录会取消关联请求。 */
   fileList?: readonly UploadFile[];

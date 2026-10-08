@@ -58,7 +58,7 @@ export interface InputSelectProps {
    */
   loading?: boolean;
   /**
-   是否允许清空当前选择或输入值。
+   * 是否允许清空当前选择或输入值；组件或所属 Form / fieldset 禁用时隐藏清空按钮。
    * @defaultValue true
    */
   allowClear?: boolean;
@@ -166,7 +166,7 @@ export const InputSelect = forwardRef<HTMLInputElement, InputSelectProps>(functi
         changeOpen(true);
       }}
       suffix={<span className="sia-input-select__suffix">
-        {allowClear && draft && !disabled && <Button variant="text" size="small" disabled={loading} aria-label="清除输入选择" onClick={event => {
+        {allowClear && draft && !disabled && <Button className="sia-input-select__clear" variant="text" size="small" disabled={loading} aria-label="清除输入选择" onClick={event => {
           event.stopPropagation(); setDraft(""); emit(multiple ? [] : undefined); inputRef.current?.focus();
         }}>×</Button>}
         {suffix}

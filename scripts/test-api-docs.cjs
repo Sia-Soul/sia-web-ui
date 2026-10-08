@@ -6,14 +6,26 @@ const ts = require('typescript');
 const packageRoot = path.resolve(__dirname, '../packages/react');
 const filename = path.join(packageRoot, '__api-doc-consumer__.tsx').replaceAll('\\', '/');
 // 上传新增的命令式句柄、OSS 配置及自定义渲染同样从发布产物检查悬停。
-const source = `import type { NumberRangeProps } from '@sia.soul/sia-react-ui';
+const source = `import type { NumberRangeProps, DatePickerProps } from '@sia.soul/sia-react-ui';
+import type { InputProps } from '@sia.soul/sia-react-ui';
+// 展开编辑的确认回填约定必须保留到发布声明。
+declare const expandableInputProps: InputProps;
+expandableInputProps.expandable;
+// 此刻快捷入口的时间精度和确认语义应保留到发布声明。
+declare const datePickerProps: DatePickerProps;
+datePickerProps.showToday;
+datePickerProps.showTime;
 // 数字区间空值与完整回调约定必须出现在发布声明中。
 declare const numberRangeProps: NumberRangeProps;
 numberRangeProps.value;
 numberRangeProps.onChange;
 numberRangeProps.allowClear;
+// Treemap 关闭聚合后的原始节点保留方式必须进入发布声明。
+declare const treemapProps: TreemapProps;
+treemapProps.aggregateOverflow;
+treemapProps.showValueInCompactTiles;
 import { Upload, type UploadRef, type UploadHttpRequest, type UploadRequestOptions, QueryForm, Select, Modal, message, Form, createColumnSettingPlugin, type TableSettingsAdapter, type BarChartProps, type SelectModalConfig, type QueryFormProps, type TableProps, type TreeProps } from '@sia.soul/sia-react-ui';
-import type { CardProps, TagProps, CheckboxGroupProps, TabsProps, UploadProps, UploadItemActions, PopconfirmProps, TooltipProps } from '@sia.soul/sia-react-ui';
+import type { CardProps, TagProps, CheckboxGroupProps, TabsProps, UploadProps, UploadItemActions, PopconfirmProps, TooltipProps, TreemapProps } from '@sia.soul/sia-react-ui';
 // 设置菜单和工具栏的提示属性必须保留禁用项提示约定。
 import type { TableToolbarItem } from '@sia.soul/sia-react-ui';
 // 树形连接线开关的默认值与启用条件必须保留在发布声明中。
@@ -74,6 +86,8 @@ uploadRequest.signal;
 declare const uploadProps: UploadProps;
 uploadProps.downloadRequest;
 uploadProps.cardSize;
+// 数量上限控制上传入口显隐的说明必须保留到发布声明。
+uploadProps.maxCount;
 // 业务接管上传入口时必须明确返回 false 的含义。
 uploadProps.onChoose;
 declare const uploadActions: UploadItemActions;
@@ -113,6 +127,11 @@ assert.equal(errors.length,0,ts.formatDiagnosticsWithColorAndContext(errors,{get
 const cases=[['savedQueries', '业务方'],['onSaveQuery','快照'],['allowClear','清空'],['modalThreshold','阈值'],['Modal.open','打开'],['message.success','成功'],['Form.useForm','表单实例'],['createColumnSettingPlugin({','列设置'],['adapter.save','保存'],['chart.barCategoryGap','间距'],['selection.maxHeight','像素'],['selection.extraValues','浅拷贝'],['selection.onConfirm','取消'],['queryProps.fieldWidth','列间距'],['tableProps.cellSelection','单元格选择'],['tableProps.showIndex','序号列']];
 // 验证默认自适应排列及显式数量上限都能在编辑器悬停正文中读取。
 cases.push(['queryProps.collapsedCount', '自动填满一行'], ['queryProps.collapsedCount', '显式指定时作为数量上限']);
+// 防止“此刻”时间赋值规则在声明构建后丢失。
+// 结束日期的默认时间及精度也必须在悬停中可见。
+cases.push(['datePickerProps.showTime', '23:59:59']);
+cases.push(['expandableInputProps.expandable', '取消不修改原值']);
+cases.push(['datePickerProps.showToday', '当前时分'], ['datePickerProps.showToday', 'needConfirm']);
 cases.push(['recursive', '子文件夹'], ['pastable', '粘贴'], ['autoUpload', '手动'], ['itemRender', '自定义'], ['uploadRef.upload', '取消'], ['httpUpload.body', '二进制'], ['uploadRequest.signal', '取消']);
 // Tag 主入口属性注释与 core 配色类型都必须在发布后可用。
 cases.push(['tagProps.color', 'CSS 颜色'], ['tagProps.variant', '边框'], ['tagProps.closeOnHover', '向右扩展'], ['tagProps.size', '继承 Form']);
@@ -120,6 +139,7 @@ cases.push(['checkboxGroupProps.columns', '等宽网格'], ['checkboxGroupProps.
 cases.push(['tabsProps.contentGap', '仅影响当前 Tabs'], ['tabsProps.deferContent', '保留旧面板'], ['tabsProps.onAfterChange', '连续切换']);
 cases.push(['uploadProps.downloadRequest', 'Blob'], ['uploadActions.download', '不打开新标签页']);
 cases.push(['uploadProps.cardSize', '卡片尺寸']);
+cases.push(['uploadProps.maxCount', '隐藏上传入口'], ['uploadProps.maxCount', '低于上限后恢复']);
 cases.push(['uploadProps.onChoose', '返回 false']);
 // 剩余高度的优先级与容器约束必须随发布声明提供给业务使用者。
 cases.push(['tableProps.fillRemaining', '剩余高度'], ['remaining.container', '独立确定高度'], ['remaining.bottomOffset', 'px'], ['remaining.minHeight', '最小总高度']);
@@ -132,6 +152,8 @@ cases.push(['cardProps.bordered', '内边距']);
 cases.push(['confirmProps.skipConfirm', '跳过气泡'], ['confirmProps.onConfirm', 'Promise'], ['confirmProps.onConfirmError', '原始错误'], ['confirmProps.arrow', 'pointAtCenter'], ['floatingProps.autoAdjustOverflow', '可视区域'], ['floatingArrow.pointAtCenter', '中心']);
 // 覆盖区间受控、清空和回调语义，防止打包丢失中文说明。
 cases.push(['numberRangeProps.value', 'null'], ['numberRangeProps.onChange', '完整区间'], ['numberRangeProps.allowClear', '只读']);
+// 验证紧凑布局与紧凑数值显示的编辑器提示，而非只检查源码覆盖率。
+cases.push(['treemapProps.aggregateOverflow', '紧凑网格'], ['treemapProps.showValueInCompactTiles', '截断']);
 for(const[needle,expected]of cases){const offset=needle.includes('.')?needle.lastIndexOf('.')+1:0;const pos=source.indexOf(needle)+offset+1;const info=service.getQuickInfoAtPosition(filename,pos);const text=ts.displayPartsToString(info?.documentation);assert(text.includes(expected),`${needle}: expected ${expected}, got ${JSON.stringify(text)}`);console.log(`PASS hover ${needle}: ${text.slice(0,70)}`);}
 for(const entry of ['index.d.ts','index.d.cts']){
   const text=fs.readFileSync(path.join(packageRoot,'dist',entry),'utf8');assert(text.includes('底部已保存快捷查询标签'));assert(text.includes('@defaultValue'));assert(!text.includes('\uFFFD'),'UTF-8 replacement character found');

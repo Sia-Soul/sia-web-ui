@@ -66,13 +66,15 @@ export default function Demo() {
 }`;
 
 const apiRows = [
+  { property: "expandable", description: "展开到多行编辑弹框，确定回填、取消保留原值，继承长度和计数；换行回填为空格", type: "boolean", defaultValue: "false" },
   { property: "size", description: "small / medium / large 高度为 22 / 30 / 38px；默认继承 Form，组件自身 size 优先", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
   { property: "status", description: "校验状态", type: "'default' | 'warning' | 'error'", defaultValue: "'default'" },
   { property: "prefix", description: "输入框前缀", type: "ReactNode", defaultValue: "-" },
   { property: "suffix", description: "输入框后缀", type: "ReactNode", defaultValue: "-" },
   { property: "allowClear", description: "显示清空按钮", type: "boolean", defaultValue: "true" },
   { property: "maxLength", description: "允许输入的最大字符数", type: "number", defaultValue: "-" },
-  { property: "showCount", description: "显示当前字符数", type: "boolean", defaultValue: "false" },
+  // 计数随实际文字宽度变化，不为最大位数提前占用输入空间。
+  { property: "showCount", description: "显示当前字符数，设置 maxLength 时显示当前字数/上限；宽度按实际文字自适应", type: "boolean", defaultValue: "false" },
   { property: "placeholderMode", description: "占位文案的显示模式", type: "'default' | 'floating'", defaultValue: "'default'" },
   { property: "label", description: "字段标签", type: "ReactNode", defaultValue: "-" },
   { property: "hint", description: "帮助或校验信息", type: "ReactNode", defaultValue: "-" },
@@ -106,6 +108,8 @@ function validateAccessKey(value: string): ValidationResult {
 export function InputPage() {
   const [tab, setTab] = useState<"examples" | "api">("examples");
   const [value, setValue] = useState("Sia Web UI");
+  // 独立草稿由框架维护，业务只接收确定后的输入值。
+  const [remark, setRemark] = useState("原备注");
   const [username, setUsername] = useState("Sia用户");
   const [email, setEmail] = useState("sia@example.com");
   const [accessKey, setAccessKey] = useState("");
@@ -118,6 +122,12 @@ export function InputPage() {
       <PageHeader eyebrow="组件 / 数据录入 / Input" title="Input 输入框" description="接收用户输入的基础表单控件。" />
       <DocsTabs activeKey={tab} onChange={setTab} />
       {tab === "examples" ? <div className="demo-stack">
+        <DemoCard title="展开编辑" description="单行输入支持展开编辑，正文仅包含多行输入框，最多 500 字，确定后回填。" code={'<Input expandable maxLength={500} showCount />'}>
+          <Input aria-label="可展开备注" expandable maxLength={500} showCount value={remark} onChange={(event) => setRemark(event.target.value)} />
+          <Input aria-label="非受控展开备注" expandable maxLength={500} defaultValue="非受控备注" />
+          <Input aria-label="只读展开备注" expandable value="只读备注" readOnly />
+          <Input aria-label="禁用展开备注" expandable value="禁用备注" disabled />
+        </DemoCard>
         <DemoCard title="基础用法" description="支持受控值、前后缀和一键清空。" code={basicCode}>
           <div className="component-demo component-demo--column">
             <Input aria-label="项目名称" value={value} onChange={(event) => setValue(event.target.value)} prefix={<Icon name="search" size={16} />} maxLength={30} showCount allowClear placeholder="请输入项目名称" />

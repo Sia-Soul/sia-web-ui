@@ -220,7 +220,8 @@ const UploadRoot = forwardRef<UploadRef, UploadProps>(function UploadRoot({ acce
     ingest(selected.map(file => ({ file, path: file.name })));
   }
 
-  const trigger = !(listType === "picture-card" && full) && <div className="sia-upload__trigger">
+  // 所有列表模式达到数量上限后隐藏整个上传入口；移除文件释放名额后自动恢复。
+  const trigger = !full && <div className="sia-upload__trigger">
     <Button className="sia-upload__choose" aria-label={compactCard ? (directory ? "选择文件夹" : "选择文件") : undefined} disabled={disabled || full} onClick={() => {
       // 入口复用同一原生按钮，业务接管后不再同时弹出系统选择器。
       if (!disabled && !full && onChoose?.() !== false) inputRef.current?.click();
@@ -260,7 +261,7 @@ const UploadRoot = forwardRef<UploadRef, UploadProps>(function UploadRoot({ acce
   </div>;
 });
 
-/** 拖拽入口与普通上传共享列表、请求、取消和校验流程；默认拖拽内容在文字或图片列表可见且非空时收紧，清空后恢复。 */
+/** 拖拽入口与普通上传共享列表、请求、取消和校验流程；达到 maxCount 时隐藏入口，低于上限后恢复；未达上限且文字或图片列表可见、非空时收紧默认拖拽内容。 */
 const UploadDragger = forwardRef<UploadRef, UploadDraggerProps>(function UploadDragger({ hint = "支持单个或批量上传", children, className = "", ...props }, ref) {
   return <UploadRoot {...props} ref={ref} className={`sia-upload-dragger ${className}`.trim()}>
     {children ?? <span className="sia-upload-dragger__content"><Icon name="upload" size={32} /><strong>点击或拖拽{props.directory ? "文件夹" : "文件"}到此区域上传</strong><span>{hint}</span>{props.pastable && <span>聚焦此区域后按 Ctrl / ⌘ + V 粘贴文件或截图</span>}</span>}
@@ -269,7 +270,7 @@ const UploadDragger = forwardRef<UploadRef, UploadDraggerProps>(function UploadD
 
 /** 上传组件，默认以带数量标题和状态的文字卡片展示已选文件；支持图片列表、照片墙、目录、粘贴与完全受控请求，未配置请求时仅选择文件。 */
 export const Upload = Object.assign(UploadRoot, {
-  /** 可点击、键盘操作和拖拽的上传区域，ref 支持手动上传、取消及移除；默认内容在文字或图片列表非空且可见时收紧高度，清空后恢复。 */
+  /** 可点击、键盘操作和拖拽的上传区域，ref 支持手动上传、取消及移除；达到 maxCount 后隐藏入口，低于上限时恢复；未达上限且文字或图片列表非空、可见时收紧默认内容高度。 */
   Dragger: UploadDragger,
   /** beforeUpload 返回时移除该文件，不进行上传。 */
   LIST_IGNORE,

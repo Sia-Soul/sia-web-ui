@@ -1,4 +1,5 @@
 import { isValidElement, useEffect, useRef, useState } from "react";
+import { reconcileColumnSettings, mergeColumnSettings } from "./columnSettings";
 import { withTitleTooltip } from "../titleTooltip";
 import type {
   CSSProperties,
@@ -3169,19 +3170,19 @@ function ColumnSettingPanel<T extends Record<string, unknown>>({
 
 const columnSettingLoadTokens = new WeakMap<object, symbol>();
 
-/** 创建表格列设置和持久化插件。将返回值加入 Table 的 plugins 后生效；序号和勾选附加列不显示在设置中，不参与业务列排序、显隐、固定位置与宽度配置，旧存储中的附加列配置会被忽略。 */
+/** 创建表格列设置和持久化插件。将返回值加入 Table 的 plugins 后生效；序号和勾选附加列不显示在设置中，不参与业务列排序、显隐、固定位置与宽度配置，旧存储中的附加列配置会被忽略。动态分组展开时自动补齐新叶子列，收起时保留子列设置供再次展开恢复。 */
 export function createColumnSettingPlugin<T extends Record<string, unknown>>(
   options: TableColumnSettingPluginOptions<T> = {},
 ): TablePlugin<T, ColumnSettingState, TableColumnSettingApi> {
   const baseItems = (context: TablePluginContext<T, ColumnSettingState>) =>
     createColumnSettingItems(context.baseColumns, options.defaultVisibleKeys);
-  // 历史存储和外部 apply 可能包含附加列或已移除列，只接收当前业务列的配置。
+  // 面板只编辑当前叶子列；动态收起的列仍保留在状态与持久化快照中。
   const editableItems = (items: readonly TableColumnSettingItem[], context: TablePluginContext<T, ColumnSettingState>) => {
     const keys = new Set(baseItems(context).map((item) => item.key));
     return items.filter((item) => keys.has(item.key));
   };
   const currentItems = (context: TablePluginContext<T, ColumnSettingState>) =>
-    context.state.items?.length ? editableItems(context.state.items, context) : baseItems(context);
+    reconcileColumnSettings(context.baseColumns, baseItems(context), context.state.items ?? []);
   const save = (snapshot: TableSettingsSnapshot) =>
     options.adapter && options.scope
       ? options.adapter.save(options.scope, snapshot).catch(() => undefined)
@@ -3194,7 +3195,8 @@ export function createColumnSettingPlugin<T extends Record<string, unknown>>(
     const normalized = orderColumnSettings(
       editableItems(items, context).sort((a, b) => a.order - b.order),
     );
-    context.setState((state) => ({ ...state, items: normalized, open: false }));
+    const snapshot = mergeColumnSettings(context.baseColumns, context.state.items, normalized);
+    context.setState((state) => ({ ...state, items: snapshot, open: false }));
     const columnMap = new Map(
       flattenTableColumns(context.baseColumns).map((column) => [
         column.key,
@@ -3214,7 +3216,7 @@ export function createColumnSettingPlugin<T extends Record<string, unknown>>(
     );
     if (persist)
       void save({
-        columns: normalized,
+        columns: snapshot,
         pageSize: context.state.pageSize,
         version: 1,
       });
@@ -3297,9 +3299,10 @@ export function createColumnSettingPlugin<T extends Record<string, unknown>>(
         const next = currentItems(context).map((item) =>
           item.key === columnKey ? { ...item, width } : item,
         );
-        context.setState((state) => ({ ...state, items: next }));
+        const snapshot = mergeColumnSettings(context.baseColumns, context.state.items, next);
+        context.setState((state) => ({ ...state, items: snapshot }));
         void save({
-          columns: next,
+          columns: snapshot,
           pageSize: context.state.pageSize,
           version: 1,
         });
@@ -3307,7 +3310,7 @@ export function createColumnSettingPlugin<T extends Record<string, unknown>>(
       if (event.type === "pageSizeChange") {
         const pageSize = event.payload as number;
         context.setState((state) => ({ ...state, pageSize }));
-        void save({ columns: currentItems(context), pageSize, version: 1 });
+        void save({ columns: mergeColumnSettings(context.baseColumns, context.state.items, currentItems(context)), pageSize, version: 1 });
       }
     },
     renderToolbarEnd:

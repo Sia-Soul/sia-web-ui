@@ -233,6 +233,7 @@ export function TimePanel({
   </aside>;
 }
 
+/** 日期面板底部操作区；“此刻”交由调用方选择当前日期时间，确定按钮提交已有草稿。 */
 export function DatePanelFooter({
   showToday = true,
   needConfirm = false,
@@ -251,7 +252,7 @@ export function DatePanelFooter({
   onConfirm?: () => void;
 }) {
   return <footer className="sia-date-panel__footer">
-    <span>{showToday ? <button type="button" onClick={onToday}>今天</button> : null}{extra}</span>
+    <span>{showToday ? <button type="button" onClick={onToday}>此刻</button> : null}{extra}</span>
     {needConfirm ? <button type="button" className="sia-date-panel__confirm" disabled={disabledConfirm} onClick={onConfirm}>{confirmText}</button> : null}
   </footer>;
 }

@@ -94,10 +94,15 @@ export interface TreemapProps extends Omit<HTMLAttributes<HTMLDivElement>, "onCh
    */
   minTileHeight?: number;
   /**
-   * 最大可见节点数，超出后合并为其他项
+   * 启用节点聚合时允许直接显示的最大节点数；超出后合并为一个汇总节点。
    * @defaultValue 180
    */
   maxVisibleNodes?: number;
+  /**
+   * 是否把数量超限或无法满足最小尺寸的节点合并为汇总节点。关闭后保留每个原始节点，并将尺寸不足的节点排列为紧凑网格；当容器面积不足以容纳所有最小尺寸时，网格仍会按现有空间等分。
+   * @defaultValue true
+   */
+  aggregateOverflow?: boolean;
   /**
    * 没有数据时的显示内容。
    * @defaultValue "暂无数据"
@@ -108,8 +113,13 @@ export interface TreemapProps extends Omit<HTMLAttributes<HTMLDivElement>, "onCh
    * @defaultValue defaultValueFormatter
    */
   valueFormatter?: (value: number, node: TreemapNode) => ReactNode;
-  /** 自定义合并节点文案 */
+  /** 启用节点聚合时用于生成汇总节点名称；参数为被合并的节点数量。 */
   overflowLabel?: (count: number) => string;
+  /**
+   * 是否在紧凑矩形块中也显示格式化后的数值；内容超出矩形块时按组件样式截断。
+   * @defaultValue false
+   */
+  showValueInCompactTiles?: boolean;
   /** 展开状态改变时调用。 */
   onExpandedChange?: (keys: string[]) => void;
   /** 聚焦节点改变时调用。 */
@@ -363,6 +373,116 @@ function collapseNarrowNodes(
   return squarify([...kept, overflowNode], bounds, minimumArea);
 }
 
+/**
+ * 将尺寸不足的原始节点填满指定区域，避免关闭聚合后再次产生汇总节点或网格末行空洞。
+ */
+function placeCompactGrid(
+  nodes: readonly TreemapNode[],
+  bounds: Rectangle,
+  minimumWidth: number,
+  minimumHeight: number,
+) {
+  if (nodes.length === 0 || bounds.width <= 0 || bounds.height <= 0) return [];
+  const preferredAspectRatio = Math.max(0.1, minimumWidth / Math.max(1, minimumHeight));
+  let columnCount = 1;
+  let bestScore = Number.POSITIVE_INFINITY;
+
+  // 同时衡量最小尺寸缺口、方块形状与末行空位，选择更易阅读的网格列数。
+  for (let columns = 1; columns <= nodes.length; columns += 1) {
+    const rows = Math.ceil(nodes.length / columns);
+    const cellWidth = bounds.width / columns;
+    const cellHeight = bounds.height / rows;
+    const widthDeficit = Math.max(0, minimumWidth - cellWidth) / Math.max(1, minimumWidth);
+    const heightDeficit = Math.max(0, minimumHeight - cellHeight) / Math.max(1, minimumHeight);
+    const aspectPenalty = Math.abs(Math.log(Math.max(0.01, cellWidth / Math.max(1, cellHeight)) / preferredAspectRatio));
+    const emptyPenalty = (rows * columns - nodes.length) / nodes.length;
+    const score = (widthDeficit + heightDeficit) * 12 + aspectPenalty + emptyPenalty * 0.25;
+    if (score < bestScore) {
+      bestScore = score;
+      columnCount = columns;
+    }
+  }
+
+  const orderedNodes = [...nodes].sort((left, right) => layoutValue(right) - layoutValue(left));
+  const rowCount = Math.ceil(orderedNodes.length / columnCount);
+  const rowHeight = bounds.height / rowCount;
+  return orderedNodes.map((node, index) => {
+    const row = Math.floor(index / columnCount);
+    const firstIndex = row * columnCount;
+    const itemsInRow = Math.min(columnCount, orderedNodes.length - firstIndex);
+    const column = index - firstIndex;
+    const cellWidth = bounds.width / itemsInRow;
+    return {
+      node,
+      rectangle: {
+        x: bounds.x + column * cellWidth,
+        y: bounds.y + row * rowHeight,
+        width: column === itemsInRow - 1 ? bounds.x + bounds.width - (bounds.x + column * cellWidth) : cellWidth,
+        height: row === rowCount - 1 ? bounds.y + bounds.height - (bounds.y + row * rowHeight) : rowHeight,
+      },
+    };
+  });
+}
+
+/**
+ * 保留所有过窄节点，并在不破坏较大节点权重关系的前提下为其分配紧凑网格区域。
+ */
+function preserveNarrowNodes(
+  nodes: readonly TreemapNode[],
+  placements: readonly { node: TreemapNode; rectangle: Rectangle }[],
+  bounds: Rectangle,
+  minimumArea: number,
+  minimumWidth: number,
+  minimumHeight: number,
+  groupKey: string,
+) {
+  const narrowKeys = new Set(
+    placements
+      .filter(({ rectangle }) => rectangle.width < minimumWidth || rectangle.height < minimumHeight)
+      .map(({ node }) => node.key),
+  );
+  if (narrowKeys.size === 0) return placements;
+
+  let kept = nodes.filter((node) => !narrowKeys.has(node.key));
+  let compact = nodes.filter((node) => narrowKeys.has(node.key));
+  const totalArea = Math.max(1, bounds.width * bounds.height);
+
+  // 紧凑区域扩大后可能挤窄原本合格的节点，因此逐轮把新出现的窄块移入网格。
+  while (kept.length > 0) {
+    const keptWeight = kept.reduce((sum, node) => sum + layoutValue(node), 0);
+    const compactWeight = compact.reduce((sum, node) => sum + layoutValue(node), 0);
+    const proportionalArea = totalArea * compactWeight / Math.max(1, keptWeight + compactWeight);
+    const readableArea = Math.min(
+      totalArea * 0.82,
+      Math.max(proportionalArea, compact.length * minimumArea),
+    );
+    const compactLayoutWeight = readableArea * keptWeight / Math.max(1, totalArea - readableArea);
+    const compactGroup: TreemapNode = {
+      key: `${groupKey}::sia-compact-grid`,
+      label: "",
+      value: compact.reduce((sum, node) => sum + Math.max(0, node.value), 0),
+      layoutValue: Math.max(compactWeight, compactLayoutWeight),
+    };
+    const outerPlacements = squarify([...kept, compactGroup], bounds, minimumArea);
+    const newlyNarrowKeys = new Set(
+      outerPlacements
+        .filter(({ node, rectangle }) => node.key !== compactGroup.key
+          && (rectangle.width < minimumWidth || rectangle.height < minimumHeight))
+        .map(({ node }) => node.key),
+    );
+    if (newlyNarrowKeys.size === 0) {
+      // 紧凑分组只参与布局计算，不渲染额外父块，最终结果仍全部对应真实节点。
+      return outerPlacements.flatMap(({ node, rectangle }) => node.key === compactGroup.key
+        ? placeCompactGrid(compact, rectangle, minimumWidth, minimumHeight)
+        : [{ node, rectangle }]);
+    }
+    compact = [...compact, ...kept.filter((node) => newlyNarrowKeys.has(node.key))];
+    kept = kept.filter((node) => !newlyNarrowKeys.has(node.key));
+  }
+
+  return placeCompactGrid(compact, bounds, minimumWidth, minimumHeight);
+}
+
 function collectPositions(
   nodes: readonly TreemapNode[],
   bounds: Rectangle,
@@ -372,6 +492,7 @@ function collectPositions(
   minTileWidth: number,
   minTileHeight: number,
   maxVisibleNodes: number,
+  aggregateOverflow: boolean,
   overflowLabel: (count: number) => string,
   activeKey: string | null,
   depth = 0,
@@ -381,19 +502,34 @@ function collectPositions(
   const minimumWidthWithGap = minTileWidth + gap * 2;
   const minimumHeightWithGap = minTileHeight + gap * 2;
   const minimumArea = Math.max(1, minimumWidthWithGap * minimumHeightWithGap);
-  const visibleNodes = limitNodes(
-    nodes,
-    bounds,
-    minimumArea,
-    maxVisibleNodes,
-    `${parentKey}:${depth}`,
-    overflowLabel,
-    activeKey,
-  );
+  // 业务关闭聚合后直接保留原始节点，最大节点数仅用于聚合模式。
+  const visibleNodes = aggregateOverflow
+    ? limitNodes(
+      nodes,
+      bounds,
+      minimumArea,
+      maxVisibleNodes,
+      `${parentKey}:${depth}`,
+      overflowLabel,
+      activeKey,
+    )
+    : nodes;
   const initialPlacements = squarify(visibleNodes, bounds, minimumArea);
-  const placements = parentKey.endsWith("::sia-readable-overflow")
-    ? initialPlacements
-    : collapseNarrowNodes(
+  const placements = aggregateOverflow
+    ? parentKey.endsWith("::sia-readable-overflow")
+      ? initialPlacements
+      : collapseNarrowNodes(
+        visibleNodes,
+        initialPlacements,
+        bounds,
+        minimumArea,
+        minimumWidthWithGap,
+        minimumHeightWithGap,
+        `${parentKey}:${depth}`,
+        overflowLabel,
+        activeKey,
+      )
+    : preserveNarrowNodes(
       visibleNodes,
       initialPlacements,
       bounds,
@@ -401,8 +537,6 @@ function collectPositions(
       minimumWidthWithGap,
       minimumHeightWithGap,
       `${parentKey}:${depth}`,
-      overflowLabel,
-      activeKey,
     );
   placements.forEach(({ node, rectangle }) => {
     const inset = Math.min(gap, rectangle.width / 4, rectangle.height / 4);
@@ -437,6 +571,7 @@ function collectPositions(
       minTileWidth,
       minTileHeight,
       maxVisibleNodes,
+      aggregateOverflow,
       overflowLabel,
       activeKey,
       depth + 1,
@@ -486,9 +621,11 @@ export function Treemap({
   minTileWidth = 28,
   minTileHeight = 18,
   maxVisibleNodes = 180,
+  aggregateOverflow = true,
   emptyContent = "暂无数据",
   valueFormatter = defaultValueFormatter,
   overflowLabel = (count) => `其他 ${count} 项`,
+  showValueInCompactTiles = false,
   onExpandedChange,
   onFocusedChange,
   onNodeClick,
@@ -522,10 +659,11 @@ export function Treemap({
       Math.max(1, minTileWidth),
       Math.max(1, minTileHeight),
       Math.max(1, maxVisibleNodes),
+      aggregateOverflow,
       overflowLabel,
       activeKey,
     ),
-    [activeKey, data, effectiveFocusedNode, expandedSet, gap, headerHeight, maxVisibleNodes, minTileHeight, minTileWidth, overflowLabel, size],
+    [activeKey, aggregateOverflow, data, effectiveFocusedNode, expandedSet, gap, headerHeight, maxVisibleNodes, minTileHeight, minTileWidth, overflowLabel, size],
   );
 
   useEffect(() => {
@@ -591,8 +729,10 @@ export function Treemap({
           "--sia-treemap-value-font-size": `${Math.max(7, fontSize - 1)}px`,
         } as CSSProperties;
         const showLabel = rectangle.width >= minLabelWidth && rectangle.height >= minLabelHeight;
-        const showValue = rectangle.width >= Math.max(52, minLabelWidth)
-          && rectangle.height >= Math.max(34, minLabelHeight + 12);
+        const showValue = showLabel && (showValueInCompactTiles || (
+          rectangle.width >= Math.max(52, minLabelWidth)
+          && rectangle.height >= Math.max(34, minLabelHeight + 12)
+        ));
         const hasChildren = Boolean(node.hasChildren || node.children?.length);
         const title = `${node.label} · ${String(valueFormatter(node.value, node))}`;
         if (expanded) {

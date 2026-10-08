@@ -154,6 +154,7 @@ export default function Demo() {
     <Space wrap>
       <DatePicker allowClear />
       <DatePicker needConfirm />
+      {/* 点击“此刻”填入当前日期和时分秒，再点击确定提交。 */}
       <DatePicker showTime={{ showSecond: true }} needConfirm />
     </Space>
   );
@@ -181,6 +182,7 @@ export default function Demo() {
   return (
     <Space direction="vertical">
       {/* 任一端允许为空时立即回显所选日期时间，确认流程完成后再提交。 */}
+      {/* 点选结束日期自动填入 23:59:59；此刻和快捷范围仍使用各自的时间。 */}
       <DatePicker.RangePicker showTime={{ showSecond: true }} allowEmpty={[true, true]} needConfirm presets={presets} />
       <DatePicker.RangePicker maxRangeDays={7} />
     </Space>
@@ -197,7 +199,9 @@ export function DatePickerPage() {
     { property: "picker", description: "日期粒度", type: "date | week | month | year | quarter", defaultValue: "'date'" },
     { property: "multiple", description: "在同一面板内选择多个日期", type: "boolean", defaultValue: "false" },
     { property: "needConfirm", description: "选择后需要点击确定才提交；带时间的范围始终使用确定按钮分步确认并提交", type: "boolean", defaultValue: "showTime 时为 true" },
-    { property: "showTime", description: "组合时间面板，可显示秒；范围选择始终显示单面板，点击起止输入框直接编辑对应端点；当前端点确定后切换到另一端，再确定提交", type: "boolean | { showSecond, defaultValue }", defaultValue: "false" },
+    // 沿用 showToday 属性名，说明快捷入口按开启的时间精度填值。
+    { property: "showToday", description: "显示“此刻”入口；点击填入本机当前日期，开启 showTime 后填入当前时分，showSecond 开启后包含秒；遵循确认流程和日期限制，范围仅更新当前端点", type: "boolean", defaultValue: "true" },
+    { property: "showTime", description: "组合时间面板，可显示秒；范围点选结束日期自动填入 23:59，开启秒后为 23:59:59，可再手动修改；开始日期保留原时间，此刻取当前时间。范围使用单面板分步确认两端后提交", type: "boolean | { showSecond, defaultValue }", defaultValue: "false" },
     { property: "presets", description: "面板左侧纵向显示的快捷日期或范围；带时间范围回填后点击一次确定即提交关闭", type: "DatePickerPreset[]", defaultValue: "-" },
     { property: "disabledDate / minDate / maxDate", description: "禁用或限制可选日期", type: "function / string", defaultValue: "-" },
     { property: "RangePicker.allowEmpty", description: "分别允许开始、结束为空；任一端允许为空时，选值立即回显；纯日期点选即保存合法值，带时间必须确定后保存；均为 false 时两端完整确认后一起更新", type: "readonly [boolean, boolean]", defaultValue: "[false, false]" },

@@ -77,6 +77,12 @@ QueryForm 收起时默认预留操作区宽度，按字段实际宽度依次保�
 
 ## 框架交互默认行为
 
+- Input 的 `showCount` 按当前计数文字的实际宽度占位，例如 `0/50`、`10/50` 随位数变化自适应；不设固定计数宽度或额外内边距，与左侧内容保持 4px 间距。
+
+- 日期范围开启 `showTime` 后，在日历中点选结束日期会自动将时间设为 `23:59`；开启 `showTime.showSecond` 时为 `23:59:59`，时间列同步定位，之后可手动调整。每次重新点选结束日期都会采用当天末尾，开始日期保持已有时间；“此刻”仍取点击时的当前时间，快捷范围仍保留其预设时间，纯日期不附加时间。
+
+- 日期面板的 `showToday` 入口文案为“此刻”：每次点击取本机当前日期，开启 `showTime` 时填入当前时分，`showTime.showSecond` 为 true 时包含秒；未开启时间时只填日期。日历定位到当前月份，禁用日期不变更值；沿用 `needConfirm` 和范围分步确认规则，范围仅修改当前活动端点。多选模式确保今天已选中并更新其时间，不切换为取消选中。
+
 - 日期范围选择器的活动底线在开始、结束输入区域之间以 220ms 平滑移动，包括带时间时点击“确定”进入另一端及手动切换端点；关闭面板后隐藏，系统启用减少动态效果时直接定位。
 - TextArea 默认正文及浮动占位字号为 `14px`，small / medium / large 分别为 `12 / 14 / 16px`。
 - Checkbox、Radio、Switch 默认标签字号为 `13px`，small / medium / large 分别为 `12 / 13 / 16px`，不改变勾选框、圆点或开关的图形尺寸。
@@ -85,6 +91,8 @@ QueryForm 收起时默认预留操作区宽度，按字段实际宽度依次保�
 - 表格单元格选区在点击表格空白处或外部时清除；勾选框对应的行选择保持不变。拖拽经过表格外部不会提前清除选区。
 
 ## 清空能力的默认值
+
+输入、输入选择、下拉选择、级联选择、树选择、日期／时间及数字区间控件禁用时隐藏清空入口，不保留按钮占位；直接设置组件 `disabled` 或通过 `Form disabled` / 原生 `fieldset disabled` 禁用均适用。恢复启用后，清空入口继续按各控件的 `allowClear` 和当前值显示。
 
 框架中已提供 `allowClear` 的组件统一默认启用（`true`），显式传入 `allowClear={false}` 可关闭对应清空入口或再次点击取消选择的能力。包括 Input、InputSelect、Select、Cascader、TreeSelect、ColorPicker、DatePicker、TimePicker 和 Rate；日期／时间区间继承对应配置。新增带有该属性的组件也应遵守此约定。各组件保留原有清空值及回调语义，禁用状态下仍遵循原有交互限制。
 
@@ -101,6 +109,8 @@ Form 的提交只作用于当前表单：点击提交按钮或回车时，阻止
 `Form.Item.label` 支持文本和包含 Tooltip 的 React 节点。必填星号使用独立类名 `sia-form-item__required-mark`，红色仅标识星号，不表示字段已校验失败，也不应改变自定义标签的颜色。只有用户交互触发校验或提交校验时，才按原有规则显示字段错误。
 
 ## Upload 已上传图片回填
+
+Upload 的 `maxCount` 统计全部列表项（包括等待和失败项）。达到上限时，普通上传、拖拽上传及照片墙统一隐藏上传入口，已选列表保持原有配置；移除文件至低于上限后自动恢复。受控 `fileList` 需由业务在 `onChange` 中回填，入口随回填列表更新。未配置上限时不因数量隐藏入口。
 
 回填记录可使用 `{ uid, name, url, status: "done" }`。Upload 统一按 `thumbUrl`、图片 MIME、文件名或 URL 路径后缀判断缩略图与内置预览；URL 的查询参数和 hash 不影响后缀识别。没有 MIME 和后缀的远程图片，在 `accept="image/*"` 等纯图片限制下尝试加载；混合文件场景应提供准确的 `type` 或 `thumbUrl`，已知非图片 MIME 保持文件预览。
 
@@ -137,3 +147,8 @@ Upload 会在选择、进度和完成时通知 `onChange`。若业务要求“�
 ## Modal 命令式关闭生命周期
 
 `Modal.confirm`、`Modal.open` 及其余静态提示弹框在取消、确认成功或调用 `destroy()` 后，等待组件自身关闭动画结束，先调用 `afterOpenChange(false)`，再卸载宿主。业务可在该回调释放防重复打开的句柄；返回 false 的确认不关闭，也不触发关闭完成回调。创建后立即 destroy 同样完成关闭通知和宿主清理。
+
+
+## Input 展开编辑
+
+Input 的 expandable 默认 false；启用后显示展开图标，正文仅包含 TextArea。maxLength 与 showCount 继承输入框，确定通过 onChange 回填，取消保留原值；单行输入回填时换行转为空格。禁用、只读或非 text 类型不显示展开入口。示例：<Input expandable maxLength={500} showCount />。

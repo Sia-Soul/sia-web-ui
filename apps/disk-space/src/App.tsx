@@ -749,12 +749,20 @@ export default function App() {
           popupStyle={{ minWidth: 214 }}
           onContextMenu={prepareTreemapContextMenu}
         >
+          {/* 保留每个真实文件和文件夹，并用紧凑尺寸显示被截断的名称与大小。 */}
           <Treemap
             className="space-treemap"
             data={data}
             activeKey={activeTreemapKey}
             expandedKeys={expandedKeys}
             focusedKey={focusedKey}
+            gap={0.5}
+            minTileWidth={44}
+            minTileHeight={30}
+            minLabelWidth={8}
+            minLabelHeight={8}
+            aggregateOverflow={false}
+            showValueInCompactTiles
             emptyContent={isScanning ? <Spin tip="正在发现文件和文件夹" /> : "没有可显示的内容"}
             valueFormatter={(value) => formatBytes(value)}
             onExpandedChange={setExpandedKeys}
