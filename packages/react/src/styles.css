@@ -596,8 +596,8 @@
 .sia-divider--vertical { align-self: stretch; width: 0; min-height: 20px; margin: 0 8px; border-left: 1px var(--sia-divider-style) var(--sia-color-border); }
 
 /* Tabs 变体仅作用于直属导航和面板，避免科技装饰、方向和尺寸样式污染嵌套实例。 */
-.sia-tabs { display: flex; flex-direction: column; color: var(--sia-color-text); }
-.sia-tabs__header { display: flex; align-items: stretch; min-width: 0; }
+.sia-tabs { display: flex; flex-direction: column; min-width: 0; min-height: 0; color: var(--sia-color-text); }
+.sia-tabs__header { display: flex; align-items: stretch; min-width: 0; flex-shrink: 0; }
 .sia-tabs__title { display: flex; align-items: center; flex: 0 0 auto; padding-right: 24px; font-weight: 600; white-space: nowrap; }
 .sia-tabs__list { display: flex; min-width: 0; flex: 1; gap: 24px; }
 .sia-tabs__extra { display: flex; align-items: center; margin-left: auto; padding-left: 16px; }
@@ -681,7 +681,9 @@
 .sia-tabs--right.sia-tabs--card > .sia-tabs__header .sia-tabs__list { border-left: 1px solid var(--sia-color-border); }
 .sia-tabs--left.sia-tabs--card > .sia-tabs__header .sia-tabs__tab { border-right: 0; border-radius: var(--sia-radius) 0 0 var(--sia-radius); }
 .sia-tabs--right.sia-tabs--card > .sia-tabs__header .sia-tabs__tab { border-left: 0; border-radius: 0 var(--sia-radius) var(--sia-radius) 0; }
-.sia-tabs__panels { padding-top: 16px; }
+/* 有界高度沿两层面板传递，空表仍填满剩余空间；未指定高度时保持内容自然撑开。 */
+.sia-tabs__panels { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; padding-top: 16px; }
+.sia-tabs__panel { flex: 1; min-width: 0; min-height: 0; }
 .sia-tabs--bottom > .sia-tabs__panels { padding-top: 0; padding-bottom: 16px; }
 .sia-tabs--left > .sia-tabs__panels { min-width: 0; flex: 1; padding-top: 0; padding-left: 20px; }
 .sia-tabs--right > .sia-tabs__panels { min-width: 0; flex: 1; padding-top: 0; padding-right: 20px; }

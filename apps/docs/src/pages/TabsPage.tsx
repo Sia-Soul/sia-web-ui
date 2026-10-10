@@ -1,4 +1,4 @@
-import { Badge, Button, Icon, Tabs } from "@sia.soul/sia-react-ui";
+import { Badge, Button, Flex, Icon, Table, Tabs, createPaginationPlugin } from "@sia.soul/sia-react-ui";
 import type { CSSProperties } from "react";
 import { useRef, useState } from "react";
 import { ApiTable } from "./ApiTable";
@@ -34,6 +34,24 @@ const items = [
 export default function Demo() {
   return <Tabs items={items} defaultActiveKey="overview" />;
 }`;
+
+/** 空数据、少量数据和大量数据共用有界内容区，用于验收分页位置不随行数变化。 */
+function RemainingHeightDemo() {
+  const [expanded, setExpanded] = useState(false);
+  return <div data-testid="tabs-fill-demo" style={{ height: 420 }}>
+    <Tabs style={{ height: "100%" }} destroyInactiveTabPane={false} items={[0, 2, 80].map(count => ({
+      key: String(count), label: `${count} 条数据`, children: <Flex vertical gap={6} style={{ height: "100%", minHeight: 0 }}>
+        <Button onClick={() => setExpanded(value => !value)}>{expanded ? "收起查询条件" : "展开查询条件"}</Button>
+        {expanded && <div style={{ height: 60, flexShrink: 0 }}>查询条件占据空间后，表格使用其余高度。</div>}
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <Table rowKey="id" height="100%" columns={[{ key: "id", code: "id", name: "编号" }, { key: "name", code: "name", name: "名称" }]}
+            dataSource={Array.from({ length: count }, (_, index) => ({ id: index + 1, name: `数据 ${index + 1}` }))}
+            plugins={[createPaginationPlugin({ pageSize: 100 })]} />
+        </div>
+      </Flex>,
+    }))} />
+  </div>;
+}
 
 const positionCode = `import { Tabs } from "@sia.soul/sia-react-ui";
 
@@ -209,6 +227,9 @@ export function TabsPage() {
     {tab === "examples" ? <div className="demo-stack">
       <DemoCard title="基础用法" description="底部指示条随选中项平滑滑动；使用方向键切换标签，Home 和 End 可快速跳转首尾。" code={basicCode}>
         <Tabs items={basicItems} defaultActiveKey="overview" />
+      </DemoCard>
+      <DemoCard title="填充剩余高度" description="Tabs 获得确定高度后，面板自动占满导航之外的空间。查询区之外的 Table 使用 height=100%，空数据、少量数据和大量数据均保持分页在底部。" code={'<Tabs style={{ height: "100%" }} items={items} />'}>
+        <RemainingHeightDemo />
       </DemoCard>
       <DemoCard title="四个标签位置" description="标签栏可以放在内容区域的上、右、下、左四个方向。" code={positionCode}>
         <div className="tabs-position-demo">

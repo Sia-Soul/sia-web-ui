@@ -97,7 +97,7 @@ export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChang
   onTabContextMenuClick?: (info: TabsContextMenuClickInfo) => void;
 }
 
-/** 选项卡组件；横向空间不足时，剩余标签收起到末尾的更多菜单，支持悬停或点击展开。 */
+/** 选项卡组件；横向空间不足时，剩余标签收起到末尾的更多菜单，支持悬停或点击展开。设置确定高度或由父级弹性布局分配高度时，内容面板占满导航之外的剩余空间；未限定高度时按内容自然撑开。 */
 export function Tabs({
   items,
   activeKey,
