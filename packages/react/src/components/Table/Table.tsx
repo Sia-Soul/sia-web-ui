@@ -3,6 +3,7 @@ import { useScrollbarProximity } from "../useScrollbarProximity";
 import { TableCellContent } from "./TableCellContent";
 import { useRemainingHeight } from "./useRemainingHeight";
 import { TableCanvasLayer } from "./TableCanvasLayer";
+import { createRowIdentity } from "./rowIdentity";
 import "./canvas.css";
 import { Fragment, forwardRef, isValidElement, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactElement, ReactNode, Ref } from "react";
@@ -244,7 +245,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
   const {
     dataSource = EMPTY_DATA as readonly T[],
     columns: baseColumns = EMPTY_COLUMNS as readonly TableColumn<T>[],
-    rowKey = "id",
+    rowKey,
     plugins: providedPlugins = EMPTY_PLUGINS as readonly AnyTablePlugin<T>[],
     loading = false,
     emptyText = "暂无数据",
@@ -294,9 +295,10 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
   const [viewportHeight, setViewportHeight] = useState(420);
   const [viewportWidth, setViewportWidth] = useState(0);
   const [autoColumnWidths, setAutoColumnWidths] = useState<Record<string, number>>({});
-  const getRowKey = useCallback((record: T, index: number) => typeof rowKey === "function"
-    ? rowKey(record, index)
-    : (record[String(rowKey)] as React.Key | undefined) ?? index, [rowKey]);
+  // 未指定或字段缺失时使用表格内部标识，不能借用可能重复的业务 id 或首列值。
+  const [resolveRowIdentity] = useState(createRowIdentity);
+  const getRowKey = useCallback((record: T, index: number) =>
+    resolveRowIdentity(record, index, typeof rowKey === "function" ? rowKey : rowKey == null ? undefined : String(rowKey)), [rowKey, resolveRowIdentity]);
   const builtInResizePlugin = useMemo(() => createResizePlugin<T>(), []);
   const builtInHighlightPlugin = useMemo(() => createHighlightPlugin<T>(), []);
   const builtInCellSelectionPlugin = useMemo(() => createCellSelectionPlugin<T>(), []);

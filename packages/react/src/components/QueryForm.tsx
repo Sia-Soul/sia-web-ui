@@ -1,4 +1,7 @@
-import { Children, useLayoutEffect, useRef, useState } from "react";
+import { Children, isValidElement, useLayoutEffect, useRef, useState } from "react";
+import { useQueryFormSettings } from "./QueryFormSettings";
+import { reconcileQueryFields } from "./queryFormSettingsUtils";
+import type { QueryFormSettingsConfig } from "./queryFormSettingsTypes";
 import type { CSSProperties, ReactNode } from "react";
 import { Form, useForm } from "./Form";
 import type { FormItemProps, FormProps, FormValues } from "./Form";
@@ -17,6 +20,8 @@ import type { TagStatus } from "./Tag";
 export interface QueryFormField extends FormItemProps {
   /** 字段布局的稳定唯一标识；用于 React 渲染，不替代 Form.Item 的 name 字段路径。 */
   key: string;
+  /** 查询设置面板中的名称；默认取 label、控件 placeholder，最后回退为 key，不影响表单标签。 */
+  settingsLabel?: ReactNode;
   /** 字段占用宽度，优先于自动布局。未指定时普通控件占一列，日期／时间区间及横向组合控件占两列，SelectDateRange 占三列，均包含跨列间距。 */
   width?: number | string;
 }
@@ -53,6 +58,8 @@ export interface QueryFormProps<T extends FormValues = FormValues> extends Omit<
 > {
   /** 查询字段配置，每项包含稳定 key、可选宽度以及 Form.Item 属性；提供后优先于 children。 */
   fields?: readonly QueryFormField[];
+  /** 云设置入口，在查询操作按钮组末尾显示竖向三点图标；复用表格 adapter 和 scope，读写共用快照的 queryForm 属性。未提供时不显示入口。隐藏字段保留挂载和值；children 模式需提供稳定 React key。 */
+  settings?: QueryFormSettingsConfig;
   /** 也可直接放入 Form.Item 或 Space.Compact，每个直接子项视为一个查询字段。 */
   children?: ReactNode;
   /** 表单校验通过后执行查询。values 是完整条件；info.source 区分 submit（查询）、reset（重置）、quick（顶部预设）和 saved（已保存条件）。返回 Promise 时自动显示加载状态并阻止重复提交。 */
@@ -75,7 +82,7 @@ export interface QueryFormProps<T extends FormValues = FormValues> extends Omit<
   /** 受控收起状态，需在 onCollapsedChange 中更新；全部字段能单行显示时不执行收起。收起时保留字段挂载和值，只隐藏放不下的字段，底部快捷标签始终保留。 */
   collapsed?: boolean;
   /**
-   * 非受控模式的初始收起状态；默认展开全部查询条件，即使条件超过一行也不自动收起。显式传 true 时才初始收起。
+   * 非受控模式的初始收起状态；默认展开全部查询条件。启用 settings 后，云端 defaultCollapsed 在加载完成时优先；受控 collapsed 始终优先。
    * @defaultValue false
    */
   defaultCollapsed?: boolean;
@@ -144,6 +151,7 @@ export interface QueryFormProps<T extends FormValues = FormValues> extends Omit<
 /** 可复用的业务查询表单；快捷查询的存储和结果数据由业务方管理。 */
 export function QueryForm<T extends FormValues = FormValues>({
   fields,
+  settings,
   children,
   form: providedForm,
   onSearch,
@@ -193,17 +201,30 @@ export function QueryForm<T extends FormValues = FormValues>({
   const snapshot = useRef<T>();
   const busy = disabled || loading || searching;
   const shortcutBusy = busy || shortcutsLoading || saving || removing;
-  const entries = fields
-    ? fields.map(({ key, width, ...item }) => ({
+  // 设置标题独立于字段标签；已有表单和组合控件可通过显式 settingsLabel 提供可读名称。
+  const fieldLabel = (content: ReactNode): ReactNode => {
+    if (!isValidElement<{ label?: ReactNode; placeholder?: ReactNode; children?: ReactNode }>(content)) return undefined;
+    return content.props.label ?? content.props.placeholder ?? fieldLabel(content.props.children);
+  };
+  const sourceEntries = fields
+    ? fields.map(({ key, width, settingsLabel, ...item }) => ({
         key,
         width,
+        label: settingsLabel ?? item.label ?? (typeof item.children === "function" ? undefined : fieldLabel(item.children)) ?? key,
         content: <Form.Item noStyle {...item} />,
       }))
     : Children.toArray(children).map((content, index) => ({
-        key: String(index),
+        key: isValidElement(content) && content.key != null ? String(content.key) : String(index),
         width: undefined,
+        label: fieldLabel(content) ?? `条件 ${index + 1}`,
         content,
       }));
+  const cloudSettings = useQueryFormSettings(settings, sourceEntries, defaultCollapsed, setInternalCollapsed, disabled);
+  const configured = reconcileQueryFields(sourceEntries.map(entry => entry.key), cloudSettings.snapshot?.fields);
+  const entriesByKey = new Map(sourceEntries.map(entry => [entry.key, entry]));
+  let visibleIndex = 0;
+  const entries = configured.map(item => ({ ...entriesByKey.get(item.key)!, visible: item.visible, visibleIndex: item.visible ? visibleIndex++ : -1 }));
+  const layoutKey = JSON.stringify(configured);
   const limit = Math.max(1, Math.floor(collapsedCount));
   const rowRef = useRef<HTMLDivElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
@@ -217,7 +238,7 @@ export function QueryForm<T extends FormValues = FormValues>({
       if (!row || !actions) return;
       const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
       const allFields = Array.from(
-        row.querySelectorAll<HTMLElement>(":scope > .sia-query-form__field"),
+        row.querySelectorAll<HTMLElement>(":scope > .sia-query-form__field:not([data-settings-hidden])"),
       );
       const hiddenFields = allFields.filter((field) => field.hidden);
       const wasCollapsed = row.classList.contains("is-collapsed");
@@ -265,6 +286,7 @@ export function QueryForm<T extends FormValues = FormValues>({
     return () => observer.disconnect();
   }, [
     collapsed,
+    layoutKey,
     needsCollapse,
     collapsible,
     limit,
@@ -414,11 +436,12 @@ export function QueryForm<T extends FormValues = FormValues>({
             } as CSSProperties
           }
         >
-          {entries.map((entry, index) => (
+          {entries.map((entry) => (
             <div
               key={entry.key}
               className="sia-query-form__field"
-              hidden={collapsed && index >= Math.min(limit, fittingCount)}
+              data-settings-hidden={!entry.visible || undefined}
+              hidden={!entry.visible || (collapsed && entry.visibleIndex >= Math.min(limit, fittingCount))}
               style={
                 entry.width !== undefined
                   ? ({
@@ -459,6 +482,7 @@ export function QueryForm<T extends FormValues = FormValues>({
                   {saveText}
                 </Button>
               ) : null}
+              {cloudSettings.control}
             </Space.Compact>
             {collapsible && entries.length > 0 ? (
               <span ref={toggleRef} hidden={!needsCollapse}>
@@ -479,6 +503,7 @@ export function QueryForm<T extends FormValues = FormValues>({
               </span>
             ) : null}
             {actionsExtra}
+            {cloudSettings.panel}
           </div>
         </div>
         {/* 快捷查询是独立操作入口，不随查询字段收起而隐藏。 */}

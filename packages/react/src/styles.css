@@ -1043,6 +1043,21 @@
 .sia-query-form { min-width: 0; width: 100%; }
 /* 查询字段行列间距默认 6px；容器上的 --sia-query-field-gap（CSS 长度）可覆盖，并同步用于双列宽度计算。 */
 .sia-query-form__fields { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sia-query-field-gap, 8px); padding-top: 8px; }
+/* 云设置沿用框架 Modal、Checkbox 和 Button；列表独立滚动，名称可换行，排序按钮保持可操作。 */
+.sia-query-settings { display: grid; gap: 12px; }
+/* 三点入口仅保留紧凑的横向留白，高度继续继承按钮尺寸，与查询操作组对齐。 */
+.sia-query-settings__trigger.sia-button { padding-inline: 6px; }
+.sia-query-settings__hint { margin: 0; color: var(--sia-color-text-secondary); }
+.sia-query-settings__list { display: grid; gap: 6px; max-height: 360px; overflow-y: auto; }
+.sia-query-settings__item { position: relative; display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 8px; background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: var(--sia-radius); touch-action: none; cursor: grab; }
+.sia-query-settings__item.is-disabled { cursor: default; }
+.sia-query-settings__name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+/* 拖动项无延迟跟手，其余字段平滑让位；停留在列表边缘时继续滚动预览。 */
+.sia-query-settings__list.is-sorting .sia-query-settings__item { transition: transform 180ms ease; user-select: none; }
+.sia-query-settings__list.is-sorting .sia-query-settings__item.is-dragging { z-index: 2; transition: none; cursor: grabbing; border-color: var(--sia-color-primary); background: var(--sia-color-primary-light); box-shadow: 0 4px 10px -3px rgb(0 0 0 / 25%); }
+@media (prefers-reduced-motion: reduce) { .sia-query-settings__list.is-sorting .sia-query-settings__item { transition: none; } }
+.sia-query-settings__item > .sia-checkbox { min-width: 0; overflow-wrap: anywhere; }
+.sia-query-settings__order { display: flex; flex-shrink: 0; }
 .sia-query-form__field { --sia-query-item-width: var(--sia-query-field-width, 220px); flex: 0 1 var(--sia-query-item-width); width: var(--sia-query-item-width); min-width: 0; max-width: 100%; }
 /* 区间和横向组合字段占两列，包含普通字段之间的间距；字段内联 width 优先。 */
 .sia-query-form__field:has(.sia-number-range, .sia-picker-range-control, .sia-time-range, .sia-select-date-range, .sia-space-compact:not(.sia-space-compact--vertical) > :nth-child(2)) { --sia-query-item-width: calc(var(--sia-query-field-width, 220px) + var(--sia-query-field-width, 220px) + var(--sia-query-field-gap, 8px)); }

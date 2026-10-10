@@ -114,6 +114,15 @@ declare const queryProps: QueryFormProps;
 queryProps.fieldWidth;
 // 确认发布声明保留收起字段默认按可用宽度排列的说明。
 queryProps.collapsedCount;
+// 查询云设置及共享快照的嵌套说明必须能从发布包读取。
+queryProps.settings;
+declare const querySettings: NonNullable<QueryFormProps['settings']>;
+querySettings.adapter;
+querySettings.scope.businessKey;
+declare const querySnapshot: NonNullable<Awaited<ReturnType<typeof querySettings.adapter.load>>>;
+querySnapshot.queryForm;
+querySnapshot.queryForm!.defaultCollapsed;
+querySnapshot.queryForm!.fields[0].visible;
 declare const tableProps: TableProps;
 tableProps.cellSelection;
 tableProps.showIndex;
@@ -144,6 +153,7 @@ cases.push(['tabsProps.contentGap', '仅影响当前 Tabs'], ['tabsProps.deferCo
 cases.push(['uploadProps.downloadRequest', 'Blob'], ['uploadActions.download', '不打开新标签页']);
 cases.push(['uploadProps.cardSize', '卡片尺寸']);
 cases.push(['headerColumn.title', '完整显示时不提示']);
+cases.push(['queryProps.settings', 'queryForm'], ['querySettings.adapter', '合并'], ['querySettings.scope.businessKey', '稳定标识'], ['querySnapshot.queryForm', '排序'], ['querySnapshot.queryForm!.defaultCollapsed', '受控'], ['querySnapshot.queryForm!.fields[0].visible', '不清空']);
 cases.push(['uploadProps.maxCount', '隐藏上传入口'], ['uploadProps.maxCount', '低于上限后恢复']);
 cases.push(['uploadProps.onChoose', '返回 false']);
 // 剩余高度的优先级与容器约束必须随发布声明提供给业务使用者。

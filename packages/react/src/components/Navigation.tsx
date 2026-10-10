@@ -442,6 +442,18 @@ export type SegmentedOption = SegmentedValue | {
   title?: string };
 /** 分段选择的属性配置。 */
 export interface SegmentedProps extends Omit<HTMLAttributes<HTMLDivElement>, "defaultValue" | "onChange"> {
+  /**
+   * default 为圆角分段样式；zigzag 为横向闪电折线分隔样式，选中项主题色高亮并平滑放大至 1.04 倍（200ms）。
+   * 仅支持两个横向选项；vertical=true 或选项数量不为 2 时回退为 default 样式。
+   * @defaultValue "default"
+   */
+  variant?: "default" | "zigzag";
+  /**
+   * zigzag 变体的外形：capsule 胶囊、rectangle 直角矩形、rounded 主题圆角矩形。
+   * default 变体不受此属性影响。
+   * @defaultValue "capsule"
+   */
+  shape?: "capsule" | "rectangle" | "rounded";
   /** 可供用户选择的候选项列表。 */
   options: readonly SegmentedOption[];
   /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
@@ -470,7 +482,7 @@ export interface SegmentedProps extends Omit<HTMLAttributes<HTMLDivElement>, "de
 }
 
 /** 分段选择组件。 */
-export function Segmented({ options, value, defaultValue, size: sizeProp, block = false, vertical = false, disabled = false, onChange, className = "", onKeyDown, ...props }: SegmentedProps) {
+export function Segmented({ options, value, defaultValue, variant = "default", shape = "capsule", size: sizeProp, block = false, vertical = false, disabled = false, onChange, className = "", onKeyDown, ...props }: SegmentedProps) {
   const size = useControlSize(sizeProp);
   const normalized = useMemo(() => options.map((option) => typeof option === "object" ? option : { label: option, value: option }), [options]);
   const [current, setCurrent] = useControllableState<SegmentedValue | undefined>({ value, defaultValue: defaultValue ?? normalized[0]?.value, onChange: (next) => next !== undefined && onChange?.(next) });
@@ -483,7 +495,7 @@ export function Segmented({ options, value, defaultValue, size: sizeProp, block 
     const next = event.key === "ArrowRight" || event.key === "ArrowDown" ? enabled[(index + 1) % enabled.length] : enabled[(index - 1 + enabled.length) % enabled.length];
     if (next) setCurrent(next.value);
   }
-  return <div className={`sia-segmented sia-segmented--${size}${block ? " sia-segmented--block" : ""}${vertical ? " sia-segmented--vertical" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()} role="radiogroup" onKeyDown={keyboard} {...withTitleTooltip(props)}>
+  return <div className={`sia-segmented sia-segmented--${size}${variant === "zigzag" && !vertical && normalized.length === 2 ? ` sia-segmented--zigzag sia-segmented--shape-${shape}` : ""}${block ? " sia-segmented--block" : ""}${vertical ? " sia-segmented--vertical" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()} role="radiogroup" onKeyDown={keyboard} {...withTitleTooltip(props)}>
     {normalized.map((option) => <button type="button" role="radio" aria-checked={option.value === current} {...withTitleTooltip({ title: option.title })} className={option.value === current ? "is-selected" : ""} disabled={disabled || option.disabled} key={option.value} onClick={() => setCurrent(option.value)}>
       {option.icon}<span>{option.label ?? option.value}</span>
     </button>)}

@@ -212,11 +212,21 @@ export function SegmentedPage() {
   const [value, setValue] = useState<SegmentedValue>("list");
   return <ComponentDocPage eyebrow="组件 / 数据展示 / Segmented" title="Segmented 分段控制器" description="在少量互斥选项之间即时切换视图或状态。" name="Segmented" apiRows={[
     { property: "size", description: "small / medium / large 高度为 22 / 30 / 38px；默认继承 Form，组件自身 size 优先", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
+    { property: "shape", description: "zigzag 外形：胶囊、直角矩形或主题圆角矩形；选中块平滑放大 4% 并还原", type: "'capsule' | 'rectangle' | 'rounded'", defaultValue: "'capsule'" },
+    { property: "variant", description: "default 圆角分段；slash 横向闪电折线分隔，选中侧高亮；纵向时回退默认样式", type: "'default' | 'zigzag'", defaultValue: "'default'" },
     { property: "options", description: "文本、数值或带图标选项", type: "SegmentedOption[]", defaultValue: "[]" },
     { property: "value / defaultValue", description: "受控值或默认值", type: "string | number", defaultValue: "首项" },
     { property: "block / vertical", description: "撑满容器或纵向排列", type: "boolean", defaultValue: "false" },
     { property: "size / disabled", description: "尺寸与禁用状态", type: "small | medium | large / boolean", defaultValue: "medium / false" },
   ]}>
+    {/* 视图名称同时展示，点击具体分段选择目标视图。 */}
+    <DemoCard title="闪电折线分隔视图切换" description="左右名称同时可见，选中侧高亮，支持方向键切换。" code={'<Segmented variant="zigzag" options={["吊牌视图", "商品分类视图"]} />'}>
+      <Space direction="vertical">
+        <Segmented variant="zigzag" shape="capsule" options={["吊牌视图", "商品分类视图"]} />
+        <Segmented variant="zigzag" shape="rectangle" options={["吊牌视图", "商品分类视图"]} />
+        <Segmented variant="zigzag" shape="rounded" options={["吊牌视图", "商品分类视图"]} />
+      </Space>
+    </DemoCard>
     <DemoCard title="图标与块级模式" description={`当前视图：${value}`} code={segmentedCode}>
       <Space direction="vertical" style={{ width: "100%" }}><Segmented value={value} onChange={setValue} block options={[
         { label: "列表", value: "list", icon: <Icon name="menu" /> }, { label: "看板", value: "board", icon: <Icon name="component" /> }, { label: "日历", value: "calendar", icon: <Icon name="calendar" /> },

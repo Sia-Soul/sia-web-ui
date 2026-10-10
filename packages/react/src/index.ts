@@ -133,6 +133,8 @@ export * from './components/InputSelect';
 
 export { QueryForm } from "./components/QueryForm";
 export type { QueryFormProps, QueryFormField, QueryFormShortcut, QueryFormSearchInfo } from "./components/QueryForm";
+// 查询区与表格共享云配置，业务可直接复用已有的 TableSettingsAdapter。
+export type { QueryFormFieldSetting, QueryFormSettingsSnapshot, QueryFormSettingsConfig } from "./components/queryFormSettingsTypes";
 
 // 数字区间复用数字输入交互，通过统一入口提供给业务查询表单。
 export { NumberRange } from "./components/NumberRange";

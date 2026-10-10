@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   DatePicker,
   Form,
@@ -7,6 +7,8 @@ import {
   Select,
   Space,
   Table,
+  createColumnSettingPlugin,
+  createLocalStorageTableSettingsAdapter,
 } from "@sia.soul/sia-react-ui";
 import type { FormValues, QueryFormShortcut } from "@sia.soul/sia-react-ui";
 import { ComponentDocPage } from "./ComponentDocPage";
@@ -69,6 +71,26 @@ export default function Demo() {
   />;
 }`;
 
+/** 用本地适配器演示同一记录的双向合并；业务替换为已有云端适配器即可。 */
+function SharedQuerySettingsDemo() {
+  const adapter = useMemo(() => createLocalStorageTableSettingsAdapter("sia-docs-query-settings"), []);
+  const scope = useMemo(() => ({ moduleName: "docs", businessKey: "query-and-table" }), []);
+  const plugins = useMemo(() => [createColumnSettingPlugin<(typeof rows)[number]>({ adapter, scope })], [adapter, scope]);
+  return <>
+    <QueryForm settings={{ adapter, scope }} fieldWidth={180} onSearch={() => undefined} fields={[
+      { key: "code", name: "code", settingsLabel: "编码", children: <Input placeholder="编码" /> },
+      { key: "name", name: "name", settingsLabel: "名称", children: <Input placeholder="名称" /> },
+      { key: "dates", name: "dates", settingsLabel: "创建日期", children: <DatePicker.RangePicker /> },
+      { key: "remark", name: "remark", settingsLabel: "备注", children: <Input placeholder="备注" /> },
+    ]} />
+    <Table rowKey="id" dataSource={rows} plugins={plugins} columns={[
+      { key: "id", dataIndex: "id", title: "编码" },
+      { key: "name", dataIndex: "name", title: "名称" },
+      { key: "status", dataIndex: "status", title: "状态" },
+    ]} />
+  </>;
+}
+
 export function QueryFormPage() {
   const [form] = Form.useForm();
   const [saved, setSaved] = useState<QueryFormShortcut[]>([
@@ -89,6 +111,9 @@ export function QueryFormPage() {
       title="QueryForm 查询表单"
       description="封装业务查询区的字段布局、查询重置、展开收起及快捷查询；直接复用 Form 与框架输入组件。"
       apiRows={[
+        // 查询布局与列设置使用相同适配器和 scope，仅持久化属性不同。
+        { property: "settings", description: "云设置：传入已有 TableSettingsAdapter 和 scope，使用 queryForm 属性保存字段显隐、顺序、默认收起；保存前合并其他配置，失败可重试", type: "QueryFormSettingsConfig", defaultValue: "-" },
+        { property: "fields[].settingsLabel", description: "设置面板名称；默认取 label、placeholder 或 key。字段 key 需保持稳定", type: "ReactNode", defaultValue: "label / placeholder / key" },
         {
           property: "fields",
           description:
@@ -356,6 +381,9 @@ export function QueryFormPage() {
         >
           {JSON.stringify(lastQuery, null, 2)}
         </pre>
+      </DemoCard>
+      <DemoCard title="查询云设置与列设置共用记录" description="示例使用本地存储模拟云端：修改查询字段显隐、拖动或上下移动排序、设置默认收起后保存；刷新后恢复。下方表格共用适配器和业务标识，保存列设置不会覆盖 queryForm。业务使用已有云适配器时，需让 load/save 完整透传 queryForm 属性。" code={'const scope = { moduleName: "业务模块", businessKey: "页面标识" };\n// 查询与表格复用同一个 settingsAdapter 实例及 scope。\n<QueryForm settings={{ adapter: settingsAdapter, scope }} fields={fields} onSearch={search} />\n<Table plugins={[createColumnSettingPlugin({ adapter: settingsAdapter, scope })]} columns={columns} dataSource={rows} />'}>
+        <SharedQuerySettingsDemo />
       </DemoCard>
       <DemoCard
         title="复用现有 Form.Item"

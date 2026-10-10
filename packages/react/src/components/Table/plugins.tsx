@@ -1,5 +1,6 @@
 import { isValidElement, useEffect, useRef, useState } from "react";
 import { reconcileColumnSettings, mergeColumnSettings } from "./columnSettings";
+import { saveSettingsPatch } from "../settingsPersistence";
 import { withTitleTooltip } from "../titleTooltip";
 import type {
   CSSProperties,
@@ -3185,7 +3186,8 @@ export function createColumnSettingPlugin<T extends Record<string, unknown>>(
     reconcileColumnSettings(context.baseColumns, baseItems(context), context.state.items ?? []);
   const save = (snapshot: TableSettingsSnapshot) =>
     options.adapter && options.scope
-      ? options.adapter.save(options.scope, snapshot).catch(() => undefined)
+      // 合并写入共享记录，避免列设置、列宽或分页保存覆盖查询区配置。
+      ? saveSettingsPatch(options.adapter, options.scope, snapshot).catch(() => undefined)
       : Promise.resolve();
   function apply(
     items: readonly TableColumnSettingItem[],

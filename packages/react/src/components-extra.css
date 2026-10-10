@@ -1303,3 +1303,31 @@ button.sia-treemap__tile:focus-visible,
 
 /* 原生按钮继承面板字号，保证时间选项和底部操作文字同步放大。 */
 .sia-date-panel button, .sia-time-panel button { font: inherit; }
+
+/* 闪电折线分段将左右背景裁切成互补的折线边缘，文字和点击区域保持正向。 */
+.sia-segmented.sia-segmented--zigzag { gap: 0; padding: 0; overflow: visible; background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: 999px; }
+.sia-segmented--zigzag:not(.sia-segmented--block) { width: max-content; }
+.sia-segmented--zigzag button { position: relative; isolation: isolate; padding-inline: 20px; border-radius: 0; }
+.sia-segmented--zigzag button::before { position: absolute; z-index: -1; inset: 0; content: ""; background: var(--sia-color-surface); transition: background 140ms ease; pointer-events: none; }
+/* 左右顶点共用同一条闪电折线，避免切换后分隔位置跳动。 */
+.sia-segmented--zigzag button:first-child::before { right: -6px; clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 42%, calc(100% - 2px) 42%, calc(100% - 12px) 100%, 0 100%); }
+.sia-segmented--zigzag button:last-child::before { left: -6px; clip-path: polygon(12px 0, 100% 0, 100% 100%, 0 100%, 10px 42%, 2px 42%); }
+.sia-segmented--zigzag button:hover:not(:disabled)::before { background: var(--sia-color-control-hover); }
+.sia-segmented--zigzag button.is-selected { z-index: 1; color: #fff; background: transparent; box-shadow: none; }
+.sia-segmented--zigzag button.is-selected::before,
+.sia-segmented--zigzag button.is-selected:hover:not(:disabled)::before { background: var(--sia-color-primary); }
+.sia-segmented--zigzag button.is-selected:hover:not(:disabled) { color: #fff; }
+.sia-segmented--zigzag button:focus-visible { outline: 2px solid var(--sia-color-primary); outline-offset: -2px; }
+
+/* 外形由框架属性决定；选中块的放大不改变布局尺寸，切换时双向平滑过渡。 */
+.sia-segmented--zigzag.sia-segmented--shape-rectangle { border-radius: 0; }
+.sia-segmented--zigzag.sia-segmented--shape-rounded { border-radius: var(--sia-radius); }
+.sia-segmented--zigzag button { transform: scale(1); transition: transform 200ms cubic-bezier(.2,.8,.2,1), color 200ms ease; }
+.sia-segmented--zigzag button.is-selected { transform: scale(1.04); }
+/* 不再裁切外层，避免放大块被截断；仅为两侧背景保留外形圆角，折线内侧保持尖角。 */
+.sia-segmented--zigzag button:first-child { border-top-left-radius: inherit; border-bottom-left-radius: inherit; }
+.sia-segmented--zigzag button:last-child { border-top-right-radius: inherit; border-bottom-right-radius: inherit; }
+.sia-segmented--zigzag button::before { border-radius: inherit; transition: background 200ms ease; }
+@media (prefers-reduced-motion: reduce) {
+  .sia-segmented--zigzag button, .sia-segmented--zigzag button::before { transition: none; }
+}

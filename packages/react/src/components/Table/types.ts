@@ -286,7 +286,7 @@ export interface TableProps<T extends Record<string, unknown> = Record<string, u
   dataSource?: readonly T[];
   /** 表格列定义；支持 children 构建分组表头。 */
   columns?: readonly TableColumn<T>[];
-  /** 行唯一键字段或计算函数 */
+  /** 行唯一键字段或计算函数，显式提供的值应唯一。未设置、字段不存在或值为 null/undefined 时按数据对象生成内部唯一键，不读取首列或默认 id。同一对象在排序、筛选后保留内部键；重新请求得到的新对象会生成新键，跨请求保留选择须显式设置业务主键。 */
   rowKey?: keyof T | string | ((record: T, index: number) => TableKey);
   /** 默认启用行悬停高亮；传入 createHighlightPlugin({ row: false }) 可关闭。 */
   plugins?: readonly AnyTablePlugin<T>[];
@@ -449,8 +449,10 @@ export interface TableColumnSettingItem {
   order: number;
 }
 
-/** 可持久化的表格列设置和分页大小快照。 */
+/** 表格与查询区共用的持久化快照；分别使用 columns/pageSize 和 queryForm 保存各自设置。 */
 export interface TableSettingsSnapshot {
+  /** 查询条件的显隐、排序及默认收起设置；保存列设置时保留该属性。 */
+  queryForm?: import("../queryFormSettingsTypes").QueryFormSettingsSnapshot;
   /** 列配置或选项布局列数，具体类型见签名。 */
   columns?: readonly TableColumnSettingItem[];
   /** 每页显示的记录数。 */
@@ -461,13 +463,13 @@ export interface TableSettingsSnapshot {
 
 /** 读取与保存表格设置的适配器契约。 */
 export interface TableSettingsAdapter {
-  /** 按 scope 读取表格配置；首次挂载及打开列设置时调用。无已保存配置时返回 null 或 undefined。 */
+  /** 按 scope 读取共用配置；挂载、打开设置及合并保存前调用。无配置时返回 null；应保留 queryForm、columns、pageSize 等完整属性。 */
   load: (scope: {
   /** 所属业务模块名称。 */
   moduleName: string;
   /** 同一模块内用于区分表格配置的业务标识。 */
   businessKey: string }) => Promise<TableSettingsSnapshot | null>;
-  /** 按 scope 保存完整的列设置快照。用于列设置应用、拖拽列宽结束或分页大小变化后的持久化，可返回 Promise。 */
+  /** 按 scope 保存完整配置；用于查询设置、列设置、列宽或分页变化。框架保存前合并最新记录，同页共用适配器实例时串行写入；失败应拒绝 Promise。 */
   save: (scope: {
   /** 所属业务模块名称。 */
   moduleName: string;

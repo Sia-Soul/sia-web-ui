@@ -1,0 +1,22 @@
+// 直接验证框架使用的解析器，覆盖重复业务值、缺失主键及排序后的标识稳定性。
+const fs = require('node:fs');
+const path = require('node:path');
+const assert = require('node:assert/strict');
+const ts = require('typescript');
+const source = fs.readFileSync(path.join(__dirname, '../packages/react/src/components/Table/rowIdentity.ts'), 'utf8');
+const output = ts.transpileModule(source, {compilerOptions: {module: ts.ModuleKind.CommonJS}}).outputText;
+const moduleValue = {exports: {}};
+new Function('exports', 'module', output)(moduleValue.exports, moduleValue);
+const resolve = moduleValue.exports.createRowIdentity();
+const first = {id: 7, name: '重复首列'}, second = {id: 7, name: '重复首列'};
+const a = resolve(first, 0), b = resolve(second, 1);
+assert.notEqual(a, b);
+assert.equal(resolve(first, 20), a);
+assert.equal(resolve(second, 0, 'missing'), b);
+assert.equal(resolve(first, 0, () => undefined), a);
+assert.equal(resolve({id: 0}, 1, 'id'), 0);
+assert.equal(resolve(first, 0, 'id'), 7);
+assert.notEqual(resolve({id: null}, 0, 'id'), resolve({id: null}, 1, 'id'));
+assert.notEqual(resolve({...first}, 0), a);
+assert.deepEqual(first, {id: 7, name: '重复首列'});
+console.log('PASS 表格内部主键：未指定、字段缺失、空值、重复业务值、排序稳定、显式0及不修改源数据');

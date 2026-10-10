@@ -1,5 +1,9 @@
 # 公开 API 的编辑器注释
 
+`Segmented.variant` 默认为 `default`，设置 `zigzag` 后横向选项以闪电折线分隔，选中项使用主题色；`vertical=true` 或选项数量不为 2 时使用默认样式。左右标签始终可见，受控使用 `value/onChange`。
+
+Table 未设置 `rowKey` 时按数据对象生成内部行标识，不自动读取 `id` 或首列。显式指定的字段缺失、为 null/undefined，或计算函数未返回有效键时，同样使用内部标识；0 是有效业务键。同一对象排序后保留内部键，接口刷新产生新对象时分配新键。跨请求保留勾选或用选中键提交业务操作时，应显式配置唯一的业务 `rowKey`。
+
 选择弹框关闭卸载后，重新打开时可向 `createSelectionPlugin` 同时传入 `selectedKeys` 和 `selectedRows`，恢复其他分页上的已选明细。`selectedRows` 不添加选择、不进入当前页列表，当前页同键数据优先；跨页已选计数按去重后的 `selectedKeys` 统计，即使行数据尚未加载也不缩小计数。
 
 表格 `createSelectionPlugin` 的跨页行缓存由每个 Table 实例独立持有。业务可以在渲染时重新创建插件，已选数量、已选明细及 `onChange` 返回的行数据仍跨页保留；取消勾选或清空会移除对应缓存，关闭跨页保留时只保留当前页选择，表格卸载后缓存释放。
@@ -58,6 +62,25 @@ pnpm test:api-docs
 - 覆盖检查不等同于“所有描述都足够详细”：开发者仍须对照实现人工检查语义、默认值、参数与失败行为。悬停测试是代表性回归，重要新增接口应追加用例。
 
 ## 查询表单布局变量
+
+### 查询云设置
+
+启用设置后，“查询、重置、另存为”紧凑按钮组末尾显示竖向三点图标，悬停提示“查询设置”，点击打开设置面板；未启用另存为时，图标紧跟重置按钮。
+
+拖动排序支持实时预览：拖动项跟随指针，经过其他项时立即让位；松手更新面板草稿，点击保存才写入配置。拖动时按 Escape、指针取消或窗口失焦会恢复本次拖动前的顺序；列表内容较多时，靠近上下边缘会自动滚动。也可以使用每项右侧的上下按钮排序。
+
+`QueryForm.settings={{ adapter, scope }}` 启用“查询设置”。复用列设置的 `TableSettingsAdapter` 实例和 `{ moduleName, businessKey }`，同一接口记录的 `queryForm` 保存 `{ fields: [{ key, visible, order }], defaultCollapsed }`。`columns`、`pageSize` 继续用于表格，查询值与快捷查询不写入该设置。
+
+面板支持勾选显示／隐藏、拖动或上下移动排序、默认收起、恢复默认；编辑后点击保存才生效，取消不保存。挂载和打开面板时读取配置，读取失败可重试，保存失败保留草稿。字段使用稳定的 `fields[].key`；面板名称优先 `settingsLabel`，其次 `label`、控件 `placeholder`、key。使用 children 时应指定稳定 React key。新增字段默认显示并追加，暂时不存在的字段配置在保存时保留；隐藏字段不卸载、不清空值，仍参与表单查询和校验。
+
+云端默认收起在初次加载和保存成功时应用；`collapsed` 受控值优先，`collapsible=false` 禁用折叠，能放入一行时不额外折叠。保存前读取最新完整快照并仅合并本次属性；同一页面的表格和查询区应复用同一个适配器实例，以串行处理同 scope 的写入。适配器的 load/save 必须完整透传 queryForm，读取失败时不得返回伪造空配置。跨浏览器同时写入的冲突仍需后端用版本号或原子合并处理。
+
+```tsx
+// settingsAdapter 复用已有云接口；两个组件使用同一实例和业务标识。
+const scope = { moduleName: "brand", businessKey: "list" };
+<QueryForm settings={{ adapter: settingsAdapter, scope }} fields={fields} onSearch={search} />;
+<Table plugins={[createColumnSettingPlugin({ adapter: settingsAdapter, scope })]} columns={columns} dataSource={rows} />;
+```
 
 QueryForm 收起时默认预留操作区宽度，按字段实际宽度依次保留单行能容纳的条件，不再默认限制为 3 个字段。`collapsedCount` 默认 `Infinity`，业务显式指定时作为数量上限；空间不足仍会减少显示数量。隐藏字段保留挂载和值，窗口宽度变化后重新计算，全部字段与操作区能单行显示时不执行收起。
 
@@ -154,3 +177,5 @@ Upload 会在选择、进度和完成时通知 `onChange`。若业务要求“�
 ## Input 展开编辑
 
 Input 的 expandable 默认 false；启用后显示展开图标，正文仅包含 TextArea。maxLength 与 showCount 继承输入框，确定通过 onChange 回填，取消保留原值；单行输入回填时换行转为空格。禁用、只读或非 text 类型不显示展开入口。示例：<Input expandable maxLength={500} showCount />。
+
+`Segmented` 的 `zigzag` 变体支持 `shape="capsule" | "rectangle" | "rounded"`（默认胶囊）；选中块以 200ms 平滑缩放至 1.04 倍，取消选中平滑还原，不改变布局尺寸；遵循减少动态效果的系统设置。

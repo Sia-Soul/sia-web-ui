@@ -47,6 +47,8 @@ vm.runInNewContext(ts.transpileModule(selected, { compilerOptions: { module: ts.
   exports: pluginExports,
   reconcileColumnSettings: project,
   mergeColumnSettings: merge,
+  // 本脚本隔离验证插件传出的快照；共享记录的异步合并在查询设置回归中单独覆盖。
+  saveSettingsPatch: (adapter, scope, snapshot) => adapter.save(scope, snapshot),
   flattenTableColumns: flatten,
   normalizeFixed: (fixed) => fixed === true ? 'left' : fixed || undefined,
   columnSettingLoadTokens: new WeakMap(),
