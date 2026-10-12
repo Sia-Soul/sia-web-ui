@@ -363,6 +363,9 @@ export function TreePage() {
     { property: "checkable / checkStrictly", description: "启用勾选；checkStrictly=false 时父子联动并显示半选，禁用节点阻断传播", type: "boolean", defaultValue: "false" },
     { property: "onCheck", description: "切换时返回联动后的完整选中键，以及 info.halfCheckedKeys 半选键；受控模式需更新 checkedKeys", type: "(keys, info) => void", defaultValue: "-" },
     { property: "loadData / draggable / onDrop", description: "异步节点与拖拽", type: "function / boolean / function", defaultValue: "-" },
+    // 默认整行选择与祖先强调独立，避免子节点选中时误认为父节点也被选中。
+    { property: "blockNode", description: "节点标题填满剩余行宽", type: "boolean", defaultValue: "true" },
+    { property: "highlightSelectedAncestors", description: "是否强调选中节点的祖先行", type: "boolean", defaultValue: "false" },
     { property: "stickyAncestors / stickyRowHeight", description: "滚动时按层级吸顶已展开的祖先节点及其行高", type: "boolean / number", defaultValue: "false / 34" },
     { property: "virtual / virtualThreshold / virtualItemHeight", description: "Tree 自身形成滚动视口且可见节点达到阈值时自动启用虚拟滚动；自定义行高时需同步指定固定高度", type: "boolean / number / number", defaultValue: "true / 100 / stickyRowHeight" },
     { property: "TreeNode.loadingText", description: "异步加载节点时显示的状态文案", type: "ReactNode", defaultValue: "正在加载…" },

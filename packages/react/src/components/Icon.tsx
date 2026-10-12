@@ -2,6 +2,8 @@ import { withTitleTooltip } from "./titleTooltip";
 import { forwardRef } from "react";
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { extendedIconPaths } from "./IconCatalog";
+import { filledIconBounds, outlineIconBounds } from "./iconBounds";
+import { normalizeIconPaths } from "./iconGeometry";
 
 const coreIconPaths = {
   search: <><circle cx="10.8" cy="10.8" r="6.8" /><path d="m15.8 15.8 5.2 5.2" /></>,
@@ -34,7 +36,8 @@ const coreIconPaths = {
   home: <><path d="m3.5 11 8.5-7 8.5 7" /><path d="M5.5 9.5V20h13V9.5M9.5 20v-6h5v6" /></>,
   user: <><circle cx="12" cy="8" r="4" /><path d="M4.5 21c.7-4.2 3.2-6.5 7.5-6.5s6.8 2.3 7.5 6.5" /></>,
   users: <><circle cx="9" cy="8" r="3.5" /><path d="M2.8 20c.6-3.8 2.7-5.8 6.2-5.8s5.6 2 6.2 5.8" /><path d="M15 5.2a3.5 3.5 0 0 1 0 6.6M16.2 14.5c2.9.5 4.4 2.3 4.9 5.5" /></>,
-  settings: <><circle cx="12" cy="12" r="3.5" /><path d="M10 4.8 10 2 14 2 14 4.8 15.68 5.49 17.66 3.51 20.49 6.34 18.51 8.32 19.2 10 22 10 22 14 19.2 14 18.51 15.68 20.49 17.66 17.66 20.49 15.68 18.51 14 19.2 14 22 10 22 10 19.2 8.32 18.51 6.34 20.49 3.51 17.66 5.49 15.68 4.8 14 2 14 2 10 4.8 10 5.49 8.32 3.51 6.34 6.34 3.51 8.32 5.49Z" /></>,
+  // 保留齿轮原始路径；与其余图标一起通过统一几何规则调整主体大小。
+  settings: <><circle cx="12" cy="12" r="2.8" /><path d="M10.4 6.24 10.4 4 13.6 4 13.6 6.24 14.944 6.792 16.528 5.208 18.792 7.472 17.208 9.056 17.76 10.4 20 10.4 20 13.6 17.76 13.6 17.208 14.944 18.792 16.528 16.528 18.792 14.944 17.208 13.6 17.76 13.6 20 10.4 20 10.4 17.76 9.056 17.208 7.472 18.792 5.208 16.528 6.792 14.944 6.24 13.6 4 13.6 4 10.4 6.24 10.4 6.792 9.056 5.208 7.472 7.472 5.208 9.056 6.792Z" /></>,
   edit: <><path d="M4 20h4l11-11a2.8 2.8 0 0 0-4-4L4 16v4Z" /><path d="m13.5 6.5 4 4M4 20h16" /></>,
   copy: <><rect x="8" y="8" width="12" height="12" rx="2.5" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></>,
   trash: <><path d="M4 7h16M9 3h6l1 4H8l1-4ZM6 7l1 14h10l1-14M10 11v6M14 11v6" /></>,
@@ -127,17 +130,21 @@ export type IconVariant = "outline" | "filled";
 /** 可用填充图标名称集合。 */
 export const FILLED_ICON_NAMES = Object.freeze(Object.keys(filledIconPaths) as FilledIconName[]);
 
+// 描边、实心以及扩展目录共用同一规则；新增名称缺少边界数据时由类型检查拦截。
+const normalizedOutlinePaths = normalizeIconPaths(iconPaths, outlineIconBounds);
+const normalizedFilledPaths = normalizeIconPaths(filledIconPaths, filledIconBounds);
+
 /** 图标的属性配置。 */
 export interface IconProps extends Omit<HTMLAttributes<HTMLSpanElement>, "children"> {
   /** 名称或字段标识。 */
   name: IconName;
   /**
-   * 组件尺寸；用于调整控件高度、字号和间距。
+   * SVG 外框尺寸；数字为 px，字符串支持 em 等 CSS 长度。画布为 24×24，主体最长边为 18 单位（不含描边），保持比例并居中。
    * @defaultValue "1em"
    */
   size?: number | string;
   /**
-   * 描边或进度轨道粗细。
+   * 24 单位画布中的描边粗细；不受内部图形归一化影响，随 size 整体缩放。实心图标内的反白细节保留各自描边。
    * @defaultValue 1.8
    */
   strokeWidth?: number;
@@ -180,6 +187,7 @@ export const Icon = forwardRef<HTMLSpanElement, IconProps>(function Icon(
   const animationClass = spin ? " sia-icon--spin" : pulse ? " sia-icon--pulse" : "";
   const filledPath = filledIconPaths[name as FilledIconName];
   const resolvedVariant = variant === "filled" && filledPath ? "filled" : "outline";
+  const geometry = resolvedVariant === "filled" ? normalizedFilledPaths[name as FilledIconName] : normalizedOutlinePaths[name];
 
   return (
     <span
@@ -192,8 +200,8 @@ export const Icon = forwardRef<HTMLSpanElement, IconProps>(function Icon(
       style={mergedStyle}
       {...withTitleTooltip(props)}
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" focusable="false">
-        {resolvedVariant === "filled" ? filledPath : iconPaths[name]}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth / geometry.scale} strokeLinecap="round" strokeLinejoin="round" focusable="false">
+        {geometry.node}
       </svg>
     </span>
   );

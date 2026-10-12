@@ -198,7 +198,7 @@ export interface EditorProps {
   /** 键盘按下时调用，可用于处理快捷键。 */
   onKeyDown?: (event: EditorKeyDownEvent) => void;
   /**
-   * Monaco 语言标识
+   * Monaco 语言标识。SQL Server 使用 sql-sqlserver，区分保留字、常用内置函数、类型、变量和 Unicode 字符串；JSON 使用 json。
    * @defaultValue "plaintext"
    */
   language?: EditorLanguage;

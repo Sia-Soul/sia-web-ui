@@ -446,10 +446,15 @@ export interface TreeProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSelec
    */
   showIcon?: boolean;
   /**
-   * 节点是否占满整行宽度。
-   * @defaultValue false
+   * 节点标题是否填满缩进、展开按钮和复选框之外的剩余宽度。
+   * @defaultValue true
    */
   blockNode?: boolean;
+  /**
+   * 是否强调选中节点的祖先行；关闭时仅选中节点显示选中背景。
+   * @defaultValue false
+   */
+  highlightSelectedAncestors?: boolean;
   /**
    * 每级节点的缩进距离，单位为像素。
    * @defaultValue 20
@@ -553,7 +558,7 @@ function flattenVisibleTree(nodes: readonly TreeNode[], expandedKeys: ReadonlySe
 /** 树形控件，支持选择、勾选与异步加载；自身容器可滚动时默认接入浮动滚动条，无需全局 Provider。 */
 export function Tree({
   treeData, selectedKeys, defaultSelectedKeys = [], expandedKeys, defaultExpandedKeys = [], defaultExpandAll = false, checkedKeys, defaultCheckedKeys = [], loadingKeys = [],
-  checkable = false, checkStrictly = false, multiple = false, selectable = true, showLine = false, showIcon = false, blockNode = false,
+  checkable = false, checkStrictly = false, multiple = false, selectable = true, showLine = false, showIcon = false, blockNode = true, highlightSelectedAncestors = false,
   indentSize = 20, switcherWidth = 24, stickyAncestors = false, stickyRowHeight = 34,
   virtual = true, virtualThreshold = 100, virtualItemHeight,
   draggable = false, loadData, onSelect, onCheck, onExpand, onDrop, className = "", ...props
@@ -746,7 +751,8 @@ export function Tree({
   } = {}) {
     const open = expandedKeySet.has(node.key);
     const isSelected = selected.includes(node.key);
-    const isSelectedAncestor = selectedAncestorKeys.has(node.key);
+    // 祖先强调独立于节点选择，避免把父节点误呈现为同时选中。
+    const isSelectedAncestor = highlightSelectedAncestors && selectedAncestorKeys.has(node.key);
     const isChecked = checkState.checked.has(node.key);
     const isHalfChecked = checkState.halfChecked.has(node.key);
     const hasChildren = Boolean(node.children?.length || node.isLeaf === false);

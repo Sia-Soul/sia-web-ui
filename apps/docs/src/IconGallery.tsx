@@ -25,7 +25,12 @@ export function IconGallery() {
   const [query, setQuery] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
   const normalizedQuery = query.trim().toLowerCase();
-  const visibleGroups = useMemo(() => groups.map((group) => ({ ...group, names: group.names.filter((name) => name.includes(normalizedQuery)) })).filter((group) => group.names.length > 0), [normalizedQuery]);
+  // 自动补齐尚未分类的新图标，目录和尺寸验收都必须覆盖完整名称集合。
+  const visibleGroups = useMemo(() => {
+    const classified = new Set(groups.filter(group => group.variant !== "filled").flatMap(group => [...group.names]));
+    const completeGroups: readonly IconGroup[] = [...groups, { title: "其他图标", names: ICON_NAMES.filter(name => !classified.has(name)) }];
+    return completeGroups.map(group => ({ ...group, names: group.names.filter(name => name.includes(normalizedQuery)) })).filter(group => group.names.length > 0);
+  }, [normalizedQuery]);
 
   async function copyUsage(name: IconName, variant: IconVariant) {
     const usage = variant === "filled" ? `<Icon name="${name}" variant="filled" />` : `<Icon name="${name}" />`;
@@ -37,7 +42,7 @@ export function IconGallery() {
   return (
     <section className="icon-gallery-section">
       <div className="icon-gallery-heading">
-        <div><h2>图标目录</h2><p>按导航、编辑、数据、设备和业务语义分类，统一使用柔和圆角描边；常用状态同时提供实色变体。</p></div>
+        <div><h2>图标目录</h2><p>所有图标主体最长边统一为 18 单位并居中，保持原始比例；描边与实色变体使用相同几何标准。</p></div>
         <label className="icon-search"><Icon name="search" size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`搜索 ${ICON_NAMES.length + FILLED_ICON_NAMES.length} 个图标条目`} aria-label="搜索图标" /></label>
       </div>
       {visibleGroups.length > 0 ? visibleGroups.map((group) => {

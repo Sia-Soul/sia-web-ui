@@ -181,3 +181,13 @@ Upload 会在选择、进度和完成时通知 `onChange`。若业务要求“�
 Input 的 expandable 默认 false；启用后显示展开图标，正文仅包含 TextArea。maxLength 与 showCount 继承输入框，确定通过 onChange 回填，取消保留原值；单行输入回填时换行转为空格。禁用、只读或非 text 类型不显示展开入口。示例：<Input expandable maxLength={500} showCount />。
 
 `Segmented` 的 `zigzag` 变体支持 `shape="capsule" | "rectangle" | "rounded"`（默认胶囊）；选中块以 200ms 平滑缩放至 1.04 倍，取消选中平滑还原，不改变布局尺寸；遵循减少动态效果的系统设置。
+
+## SQL Server 编辑器高亮
+
+`Editor language="sql-sqlserver"` 区分 T-SQL 保留字、常用系统函数（如 COUNT/COUNT_BIG、ISNULL、GETDATE、DATEADD）、数据类型、@ 局部变量、@@ 系统变量、十六进制常量及 N'中文' 字符串。不执行 SQL，也不以词法高亮判断 SQL 的语法或性能是否正确。示例见 Editor 组件页。
+
+Tree 默认 blockNode=true，节点标题填充剩余行宽；highlightSelectedAncestors 默认 false，仅选中项显示选中背景。需要强调祖先路径时显式设置 highlightSelectedAncestors。
+
+Icon 的 settings 齿轮在 24×24 画布内居中，外轮廓坐标范围为 4～20（16 单位，不含描边），与刷新图标主体圆弧直径一致；描边仍使用统一 strokeWidth，不随轮廓缩放。
+
+Tree 指定高度或通过 flex 填充容器时，节点按自然行高从顶部排列，剩余空间保留在底部；内容超出后仍由树自身浮动滚动条滚动。

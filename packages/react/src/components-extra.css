@@ -853,7 +853,8 @@ body > .sia-popup-portal[data-sia-popup-layer] { position: fixed; z-index: 1080;
 .sia-timeline--alternate .sia-timeline__item--left .sia-timeline__content { grid-column: 1; padding-inline: 0 12px; text-align: right; }
 .sia-timeline--alternate .sia-timeline__item--right .sia-timeline__content, .sia-timeline--right .sia-timeline__content { grid-column: 3; }
 
-.sia-tree { display: grid; color: var(--sia-color-text); }
+/* 指定高度或 flex 填充时，剩余空间留在底部，避免 Grid 默认拉伸节点行。 */
+.sia-tree { display: grid; align-content: start; color: var(--sia-color-text); }
 /* 虚拟树使用总高度占位，只把视口附近的节点定位到滚动平面中。 */
 .sia-tree--virtual { position: relative; display: block; }
 .sia-tree__virtual-space { position: relative; min-width: 100%; }

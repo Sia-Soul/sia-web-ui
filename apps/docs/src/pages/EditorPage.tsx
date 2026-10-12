@@ -49,11 +49,16 @@ const apiRows = [
 export function EditorPage() {
   const [tab, setTab] = useState<"examples" | "api">("examples");
   const [value, setValue] = useState(DEFAULT_MARKDOWN);
+  // 包含聚合函数、时间函数、系统变量和 Unicode 字符串，便于验证 T-SQL 分类着色。
+  const [sql, setSql] = useState("DECLARE @id int = 1;\nSELECT COUNT(1), COUNT_BIG(*), ISNULL(SUM(amount), 0), GETDATE(), DATEADD(day, -1, GETDATE())\nFROM [dbo].[Orders] WITH (NOLOCK)\nWHERE co_id = @id AND name = N'中文' AND @@ROWCOUNT > 0;");
 
   return <>
     <PageHeader eyebrow="组件 / 数据录入 / Editor" title="Editor 编辑器" description="基于 Monaco 封装的通用编辑器，业务层无需直接管理实例、模型、Worker 与主题。" />
     <DocsTabs activeKey={tab} onChange={setTab} />
     {tab === "examples" ? <div className="demo-stack">
+      <DemoCard title="SQL Server 高亮" description="保留字、常用内置函数、数据类型、变量和字符串分别着色；不会执行 SQL。" code={'<Editor language="sql-sqlserver" value={sql} onChange={setSql} />'}>
+        <div style={{ height: 260 }}><Editor language="sql-sqlserver" value={sql} onChange={setSql} options={EDITOR_OPTIONS} /></div>
+      </DemoCard>
       <DemoCard title="Markdown 编辑" description="编辑器按需加载 Monaco，并暴露受控值与常用命令。" code={basicCode}>
         <div style={{ width: "100%", height: 360, border: "1px solid var(--sia-color-border)", borderRadius: 6, overflow: "hidden" }}>
           <Editor
