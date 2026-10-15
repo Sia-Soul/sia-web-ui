@@ -342,7 +342,7 @@ export interface TableProps<T extends Record<string, unknown> = Record<string, u
   stickyHeader?: boolean;
   /** 是否允许拖拽表头边界调整列宽；默认启用内置列宽调整插件。 */
   resizable?: boolean;
-  /** 是否启用单元格选择；点击表格空白处或表格外部清除单元格选区，不影响行勾选。false 时禁用（包括显式传入的插件）。启用时显式传入的单元格选择插件优先于内置默认插件。
+  /** 是否启用单元格选择；点击表格空白处或表格外部清除单元格选区，不影响行勾选。滚动时保留选区，正文选区描边由吸顶表头和固定列遮挡。false 时禁用（包括显式传入的插件）。启用时显式传入的单元格选择插件优先于内置默认插件。
    * @defaultValue true */
   cellSelection?: boolean;
   /**

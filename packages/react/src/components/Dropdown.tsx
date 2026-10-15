@@ -1,6 +1,6 @@
 import { withTitleTooltip } from "./titleTooltip";
 import { cloneElement, isValidElement, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { CSSProperties, HTMLAttributes, KeyboardEvent, MouseEvent, ReactNode } from "react";
+import type { CSSProperties, HTMLAttributes, KeyboardEvent, MouseEvent, ReactNode, RefObject } from "react";
 import { Button } from "./Button";
 import type { ButtonProps } from "./Button";
 import { Icon } from "./Icon";
@@ -103,7 +103,14 @@ const placementMap: Record<DropdownPlacement, PopupPortalPlacement> = {
   topRight: "top-end",
 };
 
-function DropdownRoot({
+/** 内部定位配置；组合按钮使用整组作为锚点，触发事件仍绑定箭头按钮。 */
+interface DropdownInternalProps extends DropdownProps {
+  /** 菜单定位锚点；未指定时使用当前下拉触发器，右键菜单仍使用点击坐标。 */
+  popupAnchorRef?: RefObject<HTMLSpanElement | null>;
+}
+
+function DropdownInternal({
+  popupAnchorRef,
   menu,
   children,
   trigger = ["hover"],
@@ -127,7 +134,7 @@ function DropdownRoot({
   onContextMenu,
   onKeyDown,
   ...props
-}: DropdownProps) {
+}: DropdownInternalProps) {
   const rootRef = useRef<HTMLSpanElement>(null);
   const contextAnchorRef = useRef<HTMLSpanElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -333,7 +340,7 @@ function DropdownRoot({
     <PopupPortal
       key={contextPoint ? `context-${contextPoint.x}-${contextPoint.y}` : "trigger"}
       ref={popupRef}
-      anchorRef={contextPoint ? contextAnchorRef : rootRef}
+      anchorRef={contextPoint ? contextAnchorRef : popupAnchorRef ?? rootRef}
       open={mounted}
       placement={contextPoint ? "bottom-start" : placementMap[placement]}
       offset={contextPoint ? 2 : 6}
@@ -353,8 +360,18 @@ function DropdownRoot({
   </span>;
 }
 
-/** DropdownButton的属性配置。 */
+/** 普通下拉菜单使用自身触发器定位，不对外暴露组合按钮的内部锚点。 */
+function DropdownRoot(props: DropdownProps) {
+  return <DropdownInternal {...props} />;
+}
+
+/** 组合下拉按钮的属性配置；菜单相对于整组按钮定位，主操作和箭头触发保持独立。 */
 export interface DropdownButtonProps extends Omit<DropdownProps, "children" | "className"> {
+  /**
+   * 相对于整组按钮的弹出方向和对齐位置；默认优先与主按钮左侧对齐，视口空间不足时自动调整位置。
+   * @defaultValue "bottomLeft"
+   */
+  placement?: DropdownPlacement;
   /** 子内容；组件嵌套内容或当前节点的子项。 */
   children?: ReactNode;
   /**
@@ -383,9 +400,11 @@ function DropdownButton({
   trigger = ["click"],
   ...dropdownProps
 }: DropdownButtonProps) {
-  return <span className={`sia-dropdown-button ${className}`.trim()}>
+  // 定位使用整组宽度，避免菜单左边缘只对齐右侧箭头；事件仍由各自按钮处理。
+  const groupRef = useRef<HTMLSpanElement>(null);
+  return <span ref={groupRef} className={`sia-dropdown-button ${className}`.trim()}>
     <Button {...buttonProps} disabled={disabled || buttonDisabled} onClick={onClick}>{children}</Button>
-    <DropdownRoot {...dropdownProps} disabled={disabled || dropdownDisabled} trigger={trigger} showTriggerIcon={false}>
+    <DropdownInternal {...dropdownProps} popupAnchorRef={groupRef} disabled={disabled || dropdownDisabled} trigger={trigger} showTriggerIcon={false}>
       <Button
         {...buttonProps}
         className={`sia-dropdown-button__arrow ${buttonProps?.className ?? ""}`.trim()}
@@ -393,7 +412,7 @@ function DropdownButton({
         icon={<Icon name="chevron-down" size={14} />}
         aria-label="展开下拉菜单"
       />
-    </DropdownRoot>
+    </DropdownInternal>
   </span>;
 }
 

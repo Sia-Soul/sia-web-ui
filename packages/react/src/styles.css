@@ -792,7 +792,8 @@
 .sia-table .sia-table__cell.sia-table__cell--range-selected { background: color-mix(in srgb, var(--sia-color-primary) 14%, var(--sia-color-surface)); }
 .sia-table__cell--range-multiple > .sia-table__cell-content { pointer-events: none; }
 .sia-table__cell--range-selected:not(.sia-table__cell--fixed) { position: relative; }
-.sia-table__cell--range-selected::after { position: absolute; z-index: 7; inset: -1px; content: ""; border: 0 solid var(--sia-color-primary); pointer-events: none; }
+/* 正文选区描边覆盖普通单元格，但低于固定列（2）和吸顶表头（4/6），滚动时由表头及固定列遮挡。 */
+.sia-table__cell--range-selected::after { position: absolute; z-index: 1; inset: -1px; content: ""; border: 0 solid var(--sia-color-primary); pointer-events: none; }
 .sia-table__cell--range-top::after { border-top-width: 2px; }
 .sia-table__cell--range-right::after { border-right-width: 2px; }
 .sia-table__cell--range-bottom::after { border-bottom-width: 2px; }

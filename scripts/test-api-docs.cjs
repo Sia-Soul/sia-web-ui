@@ -50,6 +50,10 @@ cardProps.onSelectedChange;
 cardProps.hoverActions;
 // 无边框的留白规则必须随发布声明提供。
 cardProps.bordered;
+// 组合按钮定位说明必须明确整组锚点，避免业务继续按箭头宽度补偿。
+import type { DropdownButtonProps } from '@sia.soul/sia-react-ui';
+declare const dropdownButtonProps: DropdownButtonProps;
+dropdownButtonProps.placement;
 import type { TagVariant as CoreTagVariant } from '@sia.soul/sia-react-ui/core';
 import type { TagSize as CoreTagSize } from '@sia.soul/sia-react-ui/core';
 // 确认气泡的条件触发与异步失败约定应出现在编辑器提示中。
@@ -164,6 +168,8 @@ cases.push(['treeProps.virtual', '自动启用虚拟滚动'], ['treeProps.virtua
 cases.push(['cardProps.selectable', '非交互区域'], ['cardProps.onSelectedChange', '布尔状态'], ['cardProps.hoverActions', '滑入']);
 // 验证新增属性的编辑器提示，而非仅检查源码注释存在。
 cases.push(['cardProps.bordered', '内边距']);
+// 发布声明应保留组合菜单相对于整组按钮定位的约定。
+cases.push(['dropdownButtonProps.placement', '整组按钮']);
 cases.push(['confirmProps.skipConfirm', '跳过气泡'], ['confirmProps.onConfirm', 'Promise'], ['confirmProps.onConfirmError', '原始错误'], ['confirmProps.arrow', 'pointAtCenter'], ['floatingProps.autoAdjustOverflow', '可视区域'], ['floatingArrow.pointAtCenter', '中心']);
 // 覆盖区间受控、清空和回调语义，防止打包丢失中文说明。
 cases.push(['numberRangeProps.value', 'null'], ['numberRangeProps.onChange', '完整区间'], ['numberRangeProps.allowClear', '只读']);

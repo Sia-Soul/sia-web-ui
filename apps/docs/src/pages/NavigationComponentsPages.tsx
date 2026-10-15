@@ -118,7 +118,8 @@ export function DropdownPage() {
         <Dropdown.Button disabled buttonDisabled={false} dropdownDisabled={false} menu={{ items: dropdownItems }}>整组禁用</Dropdown.Button>
       </Space>
     </DemoCard>
-    <DemoCard title="组合按钮与右键菜单" description="主按钮执行默认动作，箭头展开更多操作；也可以在指定区域使用右键菜单。" code={`<Dropdown.Button menu={{ items }} onClick={save}>保存</Dropdown.Button>\n\n<Dropdown menu={{ items }} trigger={["contextMenu"]} style={{ width: 420, maxWidth: "100%", minHeight: 92, border: "1px dashed #d9d9d9" }}>在此区域单击右键</Dropdown>`}>
+    {/* 组合菜单以整组按钮定位，右键菜单仍跟随鼠标坐标。 */}
+    <DemoCard title="组合按钮与右键菜单" description="主按钮执行默认动作，箭头展开更多操作；菜单默认优先对齐整组按钮左侧，空间不足时自动调整。右键菜单跟随点击位置。" code={`<Dropdown.Button menu={{ items }} onClick={save}>保存</Dropdown.Button>\n\n<Dropdown menu={{ items }} trigger={["contextMenu"]} style={{ width: 420, maxWidth: "100%", minHeight: 92, border: "1px dashed #d9d9d9" }}>在此区域单击右键</Dropdown>`}>
       <Space direction="vertical" size={16}>
         <Dropdown.Button menu={{ items: dropdownItems }} buttonProps={{ variant: "primary" }} onClick={() => setLastAction("立即保存")}>立即保存</Dropdown.Button>
         <Dropdown menu={{ items: dropdownItems }} trigger={["contextMenu"]} className="dropdown-context-demo">
