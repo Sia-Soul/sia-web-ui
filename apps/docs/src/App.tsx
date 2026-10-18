@@ -43,6 +43,8 @@ import { ChartsPage, ChartCategoryPage } from "./pages/ChartsPage";
 import { TokensPage } from "./pages/TokensPage";
 import { WindowFramePage } from "./pages/WindowFramePage";
 import { RichTextEditorPage } from "./pages/RichTextEditorPage";
+// 属性索引与补充交互样例共用文档路由。
+import { PropertyExamplesPage } from "./pages/PropertyExamplesPage";
 
 function ScrollToTop({ scrollRef }: { scrollRef: React.RefObject<HTMLElement> }) {
   const { pathname } = useLocation();
@@ -134,6 +136,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/introduction" replace />} />
             <Route path="/components/button" element={<ButtonPage />} />
+            <Route path="/components/property-examples" element={<PropertyExamplesPage />} />
             <Route path="/components/float-button" element={<FloatButtonPage />} />
             <Route path="/components/typography" element={<TypographyPage />} />
             <Route path="/components/breadcrumb" element={<BreadcrumbPage />} />

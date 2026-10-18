@@ -5,7 +5,7 @@ export interface CartesianTransferSeries {
 export interface CartesianTransferAddress {series:number;index:number}
 export interface CartesianIsland {name:string;value:number;seriesName:string}
 
-/** Decimal-safe addition for finite chart values (including exponent notation). */
+/** 按十进制位数对齐有限图表数值，支持科学计数法，避免浮点相加产生尾差。 */
 function addValues(a:number,b:number):number {
  const parts=(value:number)=>{
   const [mantissa,exponent='0']=String(value).split('e');
@@ -13,7 +13,9 @@ function addValues(a:number,b:number):number {
   return {integer:BigInt(mantissa!.replace('.','')),scale:fraction-Number(exponent)};
  };
  const left=parts(a),right=parts(b),scale=Math.max(left.scale,right.scale);
- const integer=left.integer*10n**BigInt(scale-left.scale)+right.integer*10n**BigInt(scale-right.scale);
+ // 使用十进制字符串构造倍率，避免低版本构建目标拒绝 BigInt 字面量或把乘方降级为 Math.pow。
+ const factor=(digits:number)=>BigInt(`1${'0'.repeat(digits)}`);
+ const integer=left.integer*factor(scale-left.scale)+right.integer*factor(scale-right.scale);
  const value=Number(`${integer}e${-scale}`);
  if(!Number.isFinite(value))throw new RangeError('合并值超出有限数值范围');
  return value;

@@ -604,6 +604,8 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     ...style,
     height: effectiveHeight,
     "--sia-table-header-height": `${headerRows.length * rowHeight}px`,
+    // 空态占位只覆盖内容区，必须给仍有业务意义的合计行留出空间。
+    "--sia-table-summary-height": `${summaries.length * rowHeight}px`,
   } as CSSProperties;
 
   const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
@@ -842,6 +844,8 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
             })}</tr>)}
           </thead>
           <tbody>
+            {/* 无数据时撑开正文，将合计留在视口底部，避免与空态遮罩重叠。 */}
+            {pipeline.rows.length === 0 && summaries.length > 0 ? <tr aria-hidden="true"><td colSpan={leafColumns.length} style={{ height: Math.max(0, viewportHeight - (headerRows.length + summaries.length) * rowHeight), padding: 0, border: 0 }} /></tr> : null}
             {topSpacer > 0 ? <tr aria-hidden="true"><td colSpan={leafColumns.length} style={{ height: topSpacer, padding: 0, border: 0 }} /></tr> : null}
             {renderedRows.map((row, offset) => {
               const cached = rowElements.get(row.key);

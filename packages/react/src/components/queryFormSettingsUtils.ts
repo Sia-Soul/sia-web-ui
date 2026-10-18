@@ -17,3 +17,12 @@ export function mergeQueryFields(saved: readonly QueryFormFieldSetting[], active
   const current = new Set(active.map(item => item.key));
   return [...active, ...saved.filter(item => !current.has(item.key))];
 }
+
+/** 根据字段垂直中心坐标计算实际行数；半像素内差异视为同一行，避免缩放造成误判，不统计按钮或快捷查询。 */
+export function countQueryFieldRows(centers: readonly number[]): number {
+  const rows: number[] = [];
+  for (const top of centers) {
+    if (!rows.some(value => Math.abs(value - top) <= 0.5)) rows.push(top);
+  }
+  return rows.length;
+}

@@ -34,6 +34,8 @@ export type SelectOption = {
   disabled?: boolean;
   /** 弹框模式中的分组标题。 */
   group?: string;
+  /** 弹框模式中显示在选项名称旁的帮助说明，不参与搜索或回填。 */
+  description?: ReactNode;
 };
 
 /** 选择器的属性配置。 */
@@ -54,6 +56,9 @@ export interface SelectProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
   modalThreshold?: number;
   /** 弹框标题、布局及顶部/底部扩展内容。 */
   modalConfig?: {
+    /** 多选弹框显示分组复选框，仅切换当前搜索及已选视图中该组的可用项。
+     * @defaultValue false */
+    groupCheckable?: boolean;
     /** 弹框标题，未设置时使用 Select 的 placeholder。 */
     title?: ReactNode;
     /** 弹框宽度，默认 900px。 */
@@ -587,7 +592,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
             <Button variant="link" size="small" danger disabled={!modalValues.length} onClick={() => setModalValues([])}>清空</Button>
           </div> : null}
           {allowInput && canSubmitInput ? <Button variant="link" onClick={() => { setModalValues(multiple ? [...new Set([...modalValues, inputValue])] : [inputValue]); setQuery(""); }}>使用“{inputValue}”</Button> : null}
-          <SelectionPanel options={modalFiltered} value={modalValues} onChange={setModalValues} multiple={multiple} allowDeselect={allowClear} selectedOnly={selectedOnly}
+          <SelectionPanel options={modalFiltered} value={modalValues} onChange={setModalValues} multiple={multiple} groupCheckable={modalConfig?.groupCheckable} allowDeselect={allowClear} selectedOnly={selectedOnly}
             showValue={showValue} showSearch={false} showActions={false} includeUnknownValues={false} columns={modalConfig?.columns ?? 3} maxHeight={modalConfig?.maxHeight ?? 360} />
         </> : null}
       </Modal> : null}

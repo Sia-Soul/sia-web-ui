@@ -58,6 +58,8 @@ const apiRows = [
   { property: "min / max", description: "允许的数值边界", type: "number", defaultValue: "-" },
   { property: "step", description: "每次改变的步长", type: "number", defaultValue: "1" },
   { property: "precision", description: "固定小数位数", type: "number", defaultValue: "-" },
+  { property: "formatter", description: "已提交数值的显示文本；输入中保留草稿，失焦、回车、步进及外部值变化后格式化", type: "(value: string) => string", defaultValue: "-" },
+  { property: "parser", description: "提交输入时解析文本，返回数字或数字字符串；空值提交 null，无效值恢复当前值", type: "(text: string) => number | string", defaultValue: "Number" },
   { property: "controls", description: "是否显示增减按钮", type: "boolean", defaultValue: "true" },
   { property: "placeholderMode", description: "占位文案的显示模式", type: "'default' | 'floating'", defaultValue: "'default'" },
   { property: "onChange", description: "数值变化回调", type: "(value: number | null) => void", defaultValue: "-" },
@@ -72,6 +74,10 @@ export function InputNumberPage() {
       <PageHeader eyebrow="组件 / 数据录入 / InputNumber" title="InputNumber 数字输入框" description="通过输入或步进按钮录入有边界的数值。" />
       <DocsTabs activeKey={tab} onChange={setTab} />
       {tab === "examples" ? <div className="demo-stack">
+        {/* 格式化只影响显示，受控值和步进计算仍使用原始数值。 */}
+        <DemoCard title="千分位显示" description="与解析函数配套；清空保持空值，不会变成0。" code={'<InputNumber defaultValue={12345.6} precision={2} formatter={(value) => value.replace(/\\B(?=(\\d{3})+(?!\\d))/g, ",")} parser={(text) => text.replace(/,/g, "")} />'}>
+          <InputNumber defaultValue={12345.6} precision={2} formatter={(value) => value.replace(/\B(?=(\d{3})+(?!\d))/g, ",")} parser={(text) => text.replace(/,/g, "")} />
+        </DemoCard>
         <DemoCard title="受控数值" description="支持键盘上下方向键和按钮步进。" code={controlledCode}>
           <div className="component-demo">
             <InputNumber aria-label="商品数量" value={value} onChange={setValue} min={0} max={10} step={0.5} precision={1} suffix="件" />

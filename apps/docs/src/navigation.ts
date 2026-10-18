@@ -125,6 +125,8 @@ export const navGroups: readonly NavGroup[] = [
     items: [
       { label: "介绍 / Introduction", path: "/introduction", eyebrow: "开始", title: "Sia Web UI", description: "一套统一组件、样式和工程约定的 Web UI 框架。" },
       { label: "快速开始 / Get Started", path: "/getting-started", eyebrow: "开始", title: "快速开始", description: "安装组件库并创建第一个 Sia Web UI 页面。" },
+      // 将完整属性索引放在常驻导航中，覆盖没有独立文档页的框架组件。
+      { label: "组件属性样例", path: "/components/property-examples", eyebrow: "组件 / 属性样例", title: "组件属性样例索引", description: "查询全部自有属性的实际样例，并体验补充交互。" },
     ],
   },
   {

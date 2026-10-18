@@ -77,7 +77,7 @@ function SharedQuerySettingsDemo() {
   const scope = useMemo(() => ({ moduleName: "docs", businessKey: "query-and-table" }), []);
   const plugins = useMemo(() => [createColumnSettingPlugin<(typeof rows)[number]>({ adapter, scope })], [adapter, scope]);
   return <>
-    <QueryForm settings={{ adapter, scope }} fieldWidth={180} onSearch={() => undefined} fields={[
+    <QueryForm showSettings settings={{ adapter, scope }} fieldWidth={180} onSearch={() => undefined} fields={[
       { key: "code", name: "code", settingsLabel: "编码", children: <Input placeholder="编码" /> },
       { key: "name", name: "name", settingsLabel: "名称", children: <Input placeholder="名称" /> },
       { key: "dates", name: "dates", settingsLabel: "创建日期", children: <DatePicker.RangePicker /> },
@@ -89,6 +89,27 @@ function SharedQuerySettingsDemo() {
       { key: "status", dataIndex: "status", title: "状态" },
     ]} />
   </>;
+}
+
+/** 用容器宽度与显式开关演示实际换行判断，不把操作按钮计入查询条件行数。 */
+function AutomaticSettingsDemo() {
+  const [width, setWidth] = useState(400);
+  const [mode, setMode] = useState("auto");
+  const adapter = useMemo(() => createLocalStorageTableSettingsAdapter("sia-docs-auto-query-settings"), []);
+  return <Space direction="vertical" style={{ width: "100%" }}>
+    <Space>
+      <Select aria-label="演示宽度" value={width} onChange={value => setWidth(Number(value))}
+        options={[{value: 400, label: "三行条件"}, {value: 600, label: "两行条件"}, {value: 1200, label: "一行条件"}]} />
+      <Select aria-label="设置按钮显隐" value={mode} onChange={value => setMode(String(value))}
+        options={[{value: "auto", label: "自动显示"}, {value: "show", label: "始终显示"}, {value: "hide", label: "始终隐藏"}]} />
+    </Space>
+    <div style={{ width, maxWidth: "100%" }} aria-label="查询设置自动显隐示例">
+      <QueryForm fieldWidth={180} showSettings={mode === "auto" ? undefined : mode === "show"}
+        settings={{adapter, scope: {moduleName: "docs", businessKey: "automatic-settings"}}}
+        fields={Array.from({length: 6}, (_, index) => ({key: String(index), name: String(index), children: <Input placeholder={`条件 ${index + 1}`} />}))}
+        onSearch={() => undefined} />
+    </div>
+  </Space>;
 }
 
 export function QueryFormPage() {
@@ -113,6 +134,7 @@ export function QueryFormPage() {
       apiRows={[
         // 查询布局与列设置使用相同适配器和 scope，仅持久化属性不同。
         { property: "settings", description: "云设置：传入已有 TableSettingsAdapter 和 scope，使用 queryForm 属性保存字段显隐、顺序、默认收起；保存前合并其他配置，失败可重试", type: "QueryFormSettingsConfig", defaultValue: "-" },
+        { property: "showSettings", description: "需配置 settings；true 始终显示，false 隐藏，未指定时按完整查询条件展开超过两行自动显示；操作区和快捷查询不计行数", type: "boolean", defaultValue: "超过两行" },
         { property: "fields[].settingsLabel", description: "设置面板名称；默认取 label、placeholder 或 key。字段 key 需保持稳定", type: "ReactNode", defaultValue: "label / placeholder / key" },
         {
           property: "fields",
@@ -382,6 +404,7 @@ export function QueryFormPage() {
           {JSON.stringify(lastQuery, null, 2)}
         </pre>
       </DemoCard>
+      <DemoCard title="查询设置入口自动显隐" description="默认按完整条件展开后的实际行数判断，超过两行显示；收起不会丢失入口。显式 showSettings 优先，调整示例宽度可比较临界行为。" code={'<QueryForm settings={{ adapter, scope }} fields={fields} onSearch={search} />'}><AutomaticSettingsDemo /></DemoCard>
       <DemoCard title="查询云设置与列设置共用记录" description="示例使用本地存储模拟云端：修改查询字段显隐、拖动或上下移动排序、设置默认收起后保存；刷新后恢复。下方表格共用适配器和业务标识，保存列设置不会覆盖 queryForm。业务使用已有云适配器时，需让 load/save 完整透传 queryForm 属性。" code={'const scope = { moduleName: "业务模块", businessKey: "页面标识" };\n// 查询与表格复用同一个 settingsAdapter 实例及 scope。\n<QueryForm settings={{ adapter: settingsAdapter, scope }} fields={fields} onSearch={search} />\n<Table plugins={[createColumnSettingPlugin({ adapter: settingsAdapter, scope })]} columns={columns} dataSource={rows} />'}>
         <SharedQuerySettingsDemo />
       </DemoCard>

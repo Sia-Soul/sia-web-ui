@@ -6,7 +6,19 @@ const ts = require('typescript');
 const packageRoot = path.resolve(__dirname, '../packages/react');
 const filename = path.join(packageRoot, '__api-doc-consumer__.tsx').replaceAll('\\', '/');
 // 上传新增的命令式句柄、OSS 配置及自定义渲染同样从发布产物检查悬停。
-const source = `import type { NumberRangeProps, DatePickerProps } from '@sia.soul/sia-react-ui';
+const source = `import type { SelectOption, SelectProps, SelectionPanelProps } from '@sia.soul/sia-react-ui';
+declare const helpOption: SelectOption;
+helpOption.description;
+declare const groupedSelection: SelectionPanelProps;
+groupedSelection.groupCheckable;
+declare const groupedModal: NonNullable<SelectProps['modalConfig']>;
+groupedModal.groupCheckable;
+import type { NumberRangeProps, DatePickerProps } from '@sia.soul/sia-react-ui';
+import type { InputNumberProps } from '@sia.soul/sia-react-ui';
+// 格式化与解析的草稿/提交语义必须保留在发布声明中。
+declare const inputNumberProps: InputNumberProps;
+inputNumberProps.formatter;
+inputNumberProps.parser;
 import type { InputProps } from '@sia.soul/sia-react-ui';
 import type { TableColumn } from '@sia.soul/sia-react-ui';
 // 列头提示仅在实际省略时显示的约定必须保留到发布声明。
@@ -100,7 +112,7 @@ uploadProps.maxCount;
 uploadProps.onChoose;
 declare const uploadActions: UploadItemActions;
 uploadActions.download;
-const query = <QueryForm savedQueries={[]} onSaveQuery={async ({name,values})=>{}} onSearch={()=>{}} />;
+const query = <QueryForm showSettings={undefined} savedQueries={[]} onSaveQuery={async ({name,values})=>{}} onSearch={()=>{}} />;
 const select = <Select options={[]} allowClear modalThreshold={15} />;
 Modal.open({title:'示例'});
 message.success('成功');
@@ -141,7 +153,8 @@ const host={getScriptFileNames:()=>[filename],getScriptVersion:()=> '0',getScrip
 const service=ts.createLanguageService(host);
 const errors=service.getSemanticDiagnostics(filename).filter(d=>d.category===ts.DiagnosticCategory.Error);
 assert.equal(errors.length,0,ts.formatDiagnosticsWithColorAndContext(errors,{getCurrentDirectory:()=>packageRoot,getCanonicalFileName:f=>f,getNewLine:()=> '\n'}));
-const cases=[['savedQueries', '业务方'],['onSaveQuery','快照'],['allowClear','清空'],['modalThreshold','阈值'],['Modal.open','打开'],['message.success','成功'],['Form.useForm','表单实例'],['createColumnSettingPlugin({','列设置'],['adapter.save','保存'],['chart.barCategoryGap','间距'],['selection.maxHeight','像素'],['selection.extraValues','浅拷贝'],['selection.onConfirm','取消'],['queryProps.fieldWidth','列间距'],['tableProps.cellSelection','单元格选择'],['tableProps.showIndex','序号列']];
+const cases=[['showSettings', '两行'],['savedQueries', '业务方'],['onSaveQuery','快照'],['allowClear','清空'],['modalThreshold','阈值'],['Modal.open','打开'],['message.success','成功'],['Form.useForm','表单实例'],['createColumnSettingPlugin({','列设置'],['adapter.save','保存'],['chart.barCategoryGap','间距'],['selection.maxHeight','像素'],['selection.extraValues','浅拷贝'],['selection.onConfirm','取消'],['queryProps.fieldWidth','列间距'],['tableProps.cellSelection','单元格选择'],['tableProps.showIndex','序号列']];
+cases.push(['inputNumberProps.formatter', '原始草稿'], ['inputNumberProps.parser', '不经过 parser']);
 // 验证默认自适应排列及显式数量上限都能在编辑器悬停正文中读取。
 cases.push(['queryProps.collapsedCount', '自动填满一行'], ['queryProps.collapsedCount', '显式指定时作为数量上限']);
 // 防止“此刻”时间赋值规则在声明构建后丢失。
@@ -175,6 +188,8 @@ cases.push(['confirmProps.skipConfirm', '跳过气泡'], ['confirmProps.onConfir
 cases.push(['numberRangeProps.value', 'null'], ['numberRangeProps.onChange', '完整区间'], ['numberRangeProps.allowClear', '只读']);
 // 验证紧凑布局与紧凑数值显示的编辑器提示，而非只检查源码覆盖率。
 cases.push(['treemapProps.aggregateOverflow', '紧凑网格'], ['treemapProps.showValueInCompactTiles', '截断']);
+// 分组选择及帮助说明必须在发布入口保留悬停文档。
+cases.push(['helpOption.description', '说明'], ['groupedSelection.groupCheckable', '分组'], ['groupedModal.groupCheckable', '分组']);
 for(const[needle,expected]of cases){const offset=needle.includes('.')?needle.lastIndexOf('.')+1:0;const pos=source.indexOf(needle)+offset+1;const info=service.getQuickInfoAtPosition(filename,pos);const text=ts.displayPartsToString(info?.documentation);assert(text.includes(expected),`${needle}: expected ${expected}, got ${JSON.stringify(text)}`);console.log(`PASS hover ${needle}: ${text.slice(0,70)}`);}
 for(const entry of ['index.d.ts','index.d.cts']){
   const text=fs.readFileSync(path.join(packageRoot,'dist',entry),'utf8');assert(text.includes('底部已保存快捷查询标签'));assert(text.includes('@defaultValue'));assert(!text.includes('\uFFFD'),'UTF-8 replacement character found');

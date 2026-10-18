@@ -29,6 +29,16 @@ export interface InputNumberProps extends Omit<InputHTMLAttributes<HTMLInputElem
   step?: number;
   /** 固定小数位数 */
   precision?: number;
+  /**
+   * 将已提交的数值转换为显示文本，例如千分位或货币符号；输入过程中保留原始草稿，失焦、回车、步进及外部 value 更新后格式化。
+   * 参数为应用 precision 后的十进制文本，空值为空字符串；应返回显示文本，并与 parser 配套。未指定时显示普通十进制文本。
+   */
+  formatter?: (value: string) => string;
+  /**
+   * 失焦或回车时将输入文本解析为数字或数字字符串；无效值或抛出异常时恢复当前值，不触发 onChange。
+   * 空输入或解析为空字符串提交 null；未指定时使用 Number 转换。步进使用数值计算，不经过 parser。
+   */
+  parser?: (text: string) => number | string;
   /** small / medium / large 高度为 22 / 30 / 38px；默认继承 Form，组件自身 size 优先 */
   size?: ControlSize;
   /**
@@ -64,6 +74,8 @@ export const InputNumber = forwardRef<HTMLInputElement, InputNumberProps>(functi
     max,
     step = 1,
     precision,
+    formatter,
+    parser,
     size: sizeProp,
     status = "default",
     prefix,
@@ -86,11 +98,15 @@ export const InputNumber = forwardRef<HTMLInputElement, InputNumberProps>(functi
   const inputId = id ?? fallbackId;
   const localRef = useRef<HTMLInputElement | null>(null);
   const [currentValue, setCurrentValue] = useControllableState({ value, defaultValue, onChange });
-  const [text, setText] = useState(() => formatValue(currentValue, precision));
+  const displayValue = (next: number | null) => {
+    const plain = formatValue(next, precision);
+    return plain && formatter ? formatter(plain) : plain;
+  };
+  const [text, setText] = useState(() => displayValue(currentValue));
 
   useEffect(() => {
-    setText(formatValue(currentValue, precision));
-  }, [currentValue, precision]);
+    setText(displayValue(currentValue));
+  }, [currentValue, precision, formatter]);
 
   function setRef(node: HTMLInputElement | null) {
     localRef.current = node;
@@ -112,20 +128,35 @@ export const InputNumber = forwardRef<HTMLInputElement, InputNumberProps>(functi
       setCurrentValue(null);
       return;
     }
-    const parsed = Number(rawText);
+    let parsed: number;
+    try {
+      const value = parser ? parser(rawText) : rawText;
+      if (typeof value === "string" && value.trim() === "") {
+        setText("");
+        setCurrentValue(null);
+        return;
+      }
+      parsed = Number(value);
+    } catch {
+      setText(displayValue(currentValue));
+      return;
+    }
     if (!Number.isFinite(parsed)) {
-      setText(formatValue(currentValue, precision));
+      setText(displayValue(currentValue));
       return;
     }
     const nextValue = normalize(parsed);
-    setText(formatValue(nextValue, precision));
+    setText(displayValue(nextValue));
     setCurrentValue(nextValue);
   }
 
   function changeBy(direction: 1 | -1) {
     if (disabled || readOnly) return;
     const baseValue = currentValue ?? 0;
-    commit(String(baseValue + step * direction));
+    // 步进已经是数值，避免业务 parser 对其再次换算单位。
+    const nextValue = normalize(baseValue + step * direction);
+    setText(displayValue(nextValue));
+    setCurrentValue(nextValue);
     localRef.current?.focus();
   }
 

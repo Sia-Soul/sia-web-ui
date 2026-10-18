@@ -1,6 +1,6 @@
 import { Children, isValidElement, useLayoutEffect, useRef, useState } from "react";
 import { useQueryFormSettings } from "./QueryFormSettings";
-import { reconcileQueryFields } from "./queryFormSettingsUtils";
+import { countQueryFieldRows, reconcileQueryFields } from "./queryFormSettingsUtils";
 import type { QueryFormSettingsConfig } from "./queryFormSettingsTypes";
 import type { CSSProperties, ReactNode } from "react";
 import { Form, useForm } from "./Form";
@@ -58,8 +58,14 @@ export interface QueryFormProps<T extends FormValues = FormValues> extends Omit<
 > {
   /** 查询字段配置，每项包含稳定 key、可选宽度以及 Form.Item 属性；提供后优先于 children。 */
   fields?: readonly QueryFormField[];
-  /** 云设置入口，在查询操作按钮组末尾显示竖向三点图标；复用表格 adapter 和 scope，读写共用快照的 queryForm 属性。未提供时不显示入口。隐藏字段保留挂载和值；children 模式需提供稳定 React key。 */
+  /** 云设置入口，在查询操作按钮组末尾显示竖向三点图标；复用表格 adapter 和 scope，读写共用快照的 queryForm 属性。未提供时不显示入口；入口显隐由 showSettings 控制。隐藏字段保留挂载和值；children 模式需提供稳定 React key。 */
   settings?: QueryFormSettingsConfig;
+  /**
+   * 是否显示查询设置入口，需同时提供 settings。true 始终显示，false 始终隐藏；未指定时，全部条件在当前宽度下展开超过两行才显示。
+   * 行数不包含操作按钮和快捷查询；按未隐藏条件前的完整字段测量，收起或保存字段显隐后仍可恢复设置。
+   * @defaultValue undefined
+   */
+  showSettings?: boolean;
   /** 也可直接放入 Form.Item 或 Space.Compact，每个直接子项视为一个查询字段。 */
   children?: ReactNode;
   /** 表单校验通过后执行查询。values 是完整条件；info.source 区分 submit（查询）、reset（重置）、quick（顶部预设）和 saved（已保存条件）。返回 Promise 时自动显示加载状态并阻止重复提交。 */
@@ -152,6 +158,7 @@ export interface QueryFormProps<T extends FormValues = FormValues> extends Omit<
 export function QueryForm<T extends FormValues = FormValues>({
   fields,
   settings,
+  showSettings,
   children,
   form: providedForm,
   onSearch,
@@ -230,6 +237,7 @@ export function QueryForm<T extends FormValues = FormValues>({
   const actionsRef = useRef<HTMLDivElement>(null);
   const toggleRef = useRef<HTMLSpanElement>(null);
   const [fittingCount, setFittingCount] = useState(limit);
+  const [settingsRows, setSettingsRows] = useState(0);
   useLayoutEffect(() => {
     const row = rowRef.current;
     const actions = actionsRef.current;
@@ -237,6 +245,15 @@ export function QueryForm<T extends FormValues = FormValues>({
     function measure() {
       if (!row || !actions) return;
       const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
+      // 同行字段按中心对齐，以中心坐标兼容不同高度控件；暂时展开完整字段测量行数；不把按钮算作查询条件，也不因用户隐藏字段而丢失设置入口。
+      const sourceFields = Array.from(row.querySelectorAll<HTMLElement>(":scope > .sia-query-form__field"));
+      const sourceHidden = sourceFields.map(field => field.hidden);
+      const sourceCollapsed = row.classList.contains("is-collapsed");
+      row.classList.remove("is-collapsed");
+      sourceFields.forEach(field => { field.hidden = false; });
+      if (row.clientWidth > 0) setSettingsRows(countQueryFieldRows(sourceFields.map(field => { const rect = field.getBoundingClientRect(); return rect.top + rect.height / 2; })));
+      sourceFields.forEach((field, index) => { field.hidden = sourceHidden[index]; });
+      row.classList.toggle("is-collapsed", sourceCollapsed);
       const allFields = Array.from(
         row.querySelectorAll<HTMLElement>(":scope > .sia-query-form__field:not([data-settings-hidden])"),
       );
@@ -482,7 +499,7 @@ export function QueryForm<T extends FormValues = FormValues>({
                   {saveText}
                 </Button>
               ) : null}
-              {cloudSettings.control}
+              {(showSettings ?? settingsRows > 2) ? cloudSettings.control : null}
             </Space.Compact>
             {collapsible && entries.length > 0 ? (
               <span ref={toggleRef} hidden={!needsCollapse}>

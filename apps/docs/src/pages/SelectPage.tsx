@@ -149,6 +149,9 @@ const apiRows = [
   { property: "popupMode", description: "显式指定下拉或弹框，优先于自动判断；未指定时根据选项总数与 modalThreshold 判断。弹框点击确定才提交", type: "'dropdown' | 'modal'", defaultValue: "自动判断" },
   { property: "modalThreshold", description: "未设置 popupMode 时，options 总数超过此值使用弹框；等于阈值仍使用下拉。本次打开期间保持模式稳定，下次打开重新判断", type: "number", defaultValue: "15" },
   { property: "modalConfig", description: "弹框 title、width、columns、maxHeight、顶部首行扩展 headerExtra 与左下角扩展 footerExtra", type: "object", defaultValue: "width: 900, columns: 3" },
+  // 标签业务需要分组勾选与帮助说明，入口和独立弹框共享规则。
+  { property: "modalConfig.groupCheckable", description: "多选弹框分组勾选；仅操作当前可见可用项，保留隐藏及组外选择", type: "boolean", defaultValue: "false" },
+  { property: "options[].description", description: "弹框选项帮助图标的悬停说明；点击不改变选择", type: "ReactNode", defaultValue: "-" },
   { property: "modalConfig.headerExtra", description: "标题下方、选项范围与搜索栏上方的独立扩展行；未传入时不占位。openSelectModal 也支持顶层 headerExtra", type: "ReactNode", defaultValue: "-" },
   { property: "modalConfig.extraValues", description: "扩展区域的受控数据对象，支持多个字段；确认时传出当前数据，不自动读取子组件状态", type: "Record<string, unknown>", defaultValue: "{}" },
   { property: "modalConfig.onConfirm", description: "确定时接收 value、option、extraValues；返回 false 或抛出异常保留弹框，支持异步。成功后再触发原有 onChange；取消不调用", type: "(value, option, extraValues) => void | boolean | Promise<void | boolean>", defaultValue: "-" },
@@ -195,6 +198,8 @@ export function SelectPage() {
 
 <Button onClick={() => openSelectModal({
   title: "请选择合作方店铺标签",
+              // 分组勾选只影响当前过滤后的可用项。
+              groupCheckable: true,
   mode: "multiple",
   options,
   value: selectedValues,
@@ -234,9 +239,11 @@ export function SelectPage() {
         </DemoCard>
         <DemoCard title="弹框选择" description="扩展区域可包裹多个控件，通过 extraValues 管理数据，确定时 onConfirm 一并返回选中值、选项详情和扩展数据。取消不提交选项草稿，扩展数据由业务管理。" code={extraConfirmCode}>
           <Select aria-label="弹框多选标签" popupMode="modal" mode="multiple" placeholder="请选择合作方店铺标签" placeholderMode="floating" allowClear
-            options={Array.from({ length: 16 }, (_, index) => ({ value: index, label: index === 15 ? "这是一个用于演示单行省略的超长合作方店铺标签名称" : "标签 " + (index + 1), group: index < 8 ? "自定义标签" : "平台标签", disabled: index === 7 }))}
+            options={Array.from({ length: 16 }, (_, index) => ({ value: index, label: index === 15 ? "这是一个用于演示单行省略的超长合作方店铺标签名称" : "标签 " + (index + 1), group: index < 8 ? "自定义标签" : "平台标签", disabled: index === 7, description: index === 0 ? "标签帮助说明，点击说明不会切换选中状态" : undefined }))}
             modalConfig={{
               title: "请选择合作方店铺标签",
+              // 分组勾选只影响当前过滤后的可用项。
+              groupCheckable: true,
               headerExtra: <Space wrap>
                 <Radio.Group value={extraValues.action} onChange={action => setExtraValues(current => ({ ...current, action: String(action) }))} options={[{ label: "添加以下标签", value: "add" }, { label: "移除以下标签", value: "remove" }]} />
                 <Input aria-label="操作备注" placeholder="操作备注" value={extraValues.remark} onChange={event => setExtraValues(current => ({ ...current, remark: event.target.value }))} />

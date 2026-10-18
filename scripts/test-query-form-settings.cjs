@@ -10,10 +10,15 @@ function load(name) {
   return exports;
 }
 const plain = value => JSON.parse(JSON.stringify(value));
-const { reconcileQueryFields, mergeQueryFields } = load('queryFormSettingsUtils');
+const { countQueryFieldRows, reconcileQueryFields, mergeQueryFields } = load('queryFormSettingsUtils');
 const { getQuerySortPreview } = load('useQueryFieldSort');
 const { saveSettingsPatch } = load('settingsPersistence');
 async function main() {
+  // 实际行坐标覆盖空、一/二/三行、跨列字段及缩放误差，不按字段个数推算行数。
+  assert.equal(countQueryFieldRows([]), 0);
+  assert.equal(countQueryFieldRows([10, 10.25, 10.5]), 1);
+  assert.equal(countQueryFieldRows([10, 10, 50, 50]), 2);
+  assert.equal(countQueryFieldRows([10, 50, 50.2, 90]), 3);
   const fields = reconcileQueryFields(['a', 'b', 'new'], [{ key: 'b', order: 0, visible: false }, { key: 'a', order: 1, visible: true }]);
   assert.deepEqual(plain(fields), [{ key: 'b', order: 0, visible: false }, { key: 'a', order: 1, visible: true }, { key: 'new', order: 2, visible: true }]);
   assert.equal(mergeQueryFields([{ key: 'old', order: 4, visible: false }], fields).length, 4);

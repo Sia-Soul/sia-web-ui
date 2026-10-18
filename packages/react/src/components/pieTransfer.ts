@@ -14,10 +14,12 @@ export function transferPieValue(series:readonly PieTransferSeries[],source:PieT
  if(target?.series===source.series&&(target.index===source.index||target.index===-1))return {series:next};
  if(destination){
   const value=destination.value==='-'?0:destination.value;if(!Number.isFinite(value)||value<0)throw new RangeError('目标项必须是非负有限数值或缺失值');
-  // Add decimal strings exactly before converting back to the numeric chart model.
+  // 十进制整数对齐后再转回图表数值，保留小数精度和科学计数法。
   const parts=(n:number)=>{const [m,e='0']=String(n).split('e');return {integer:BigInt(m!.replace('.','')),scale:(m!.split('.')[1]?.length??0)-Number(e)};};
   const a=parts(value),b=parts(origin.value),scale=Math.max(a.scale,b.scale);
-  const merged=Number(`${a.integer*10n**BigInt(scale-a.scale)+b.integer*10n**BigInt(scale-b.scale)}e${-scale}`);
+  // 字符串倍率不依赖 BigInt 字面量或乘方语法，可通过业务现有 ES2015 压缩目标。
+  const factor=(digits:number)=>BigInt(`1${'0'.repeat(digits)}`);
+  const merged=Number(`${a.integer*factor(scale-a.scale)+b.integer*factor(scale-b.scale)}e${-scale}`);
   if(!Number.isFinite(merged))throw new RangeError('合并值超出有限数值范围');
   next[target!.series]!.data[target!.index]={...destination,value:merged,name:destination.name+connector+origin.name};
  }else if(target){

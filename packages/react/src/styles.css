@@ -398,7 +398,8 @@
 .sia-switch-input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .sia-switch { position: relative; flex: 0 0 auto; overflow: hidden; border-radius: 999px; transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease; }
 .sia-switch--standard { display: inline-grid; place-items: center; width: var(--sia-switch-width, 44px); height: var(--sia-switch-height, 22px); color: #fff; background-color: #8c8c8c; }
-.sia-switch__thumb { position: absolute; z-index: 1; top: 2px; left: 2px; width: calc(var(--sia-switch-height, 22px) - 4px); height: calc(var(--sia-switch-height, 22px) - 4px); background-color: #fff; border-radius: 999px; box-shadow: 0 1px 2px rgb(0 0 0 / 35%); transition: left 160ms ease, width 160ms ease; }
+/* 标准开关使用轻柔投影区分白色圆点与轨道，避免深色硬边。 */
+.sia-switch__thumb { position: absolute; z-index: 1; top: 2px; left: 2px; width: calc(var(--sia-switch-height, 22px) - 4px); height: calc(var(--sia-switch-height, 22px) - 4px); background-color: #fff; border-radius: 999px; box-shadow: 0 2px 4px rgb(0 35 11 / 20%); transition: left 160ms ease, width 160ms ease; }
 .sia-switch-input:checked + .sia-switch--standard { background-color: var(--sia-color-primary); }
 .sia-switch-input:checked + .sia-switch--standard .sia-switch__thumb { left: calc(100% - var(--sia-switch-height, 22px) + 2px); }
 .sia-switch--with-content { width: auto; min-width: calc(var(--sia-switch-width, 44px) + 14px); padding: 0 8px 0 calc(var(--sia-switch-height, 22px) + 2px); }
@@ -827,7 +828,8 @@
 .sia-table__scrollbar--horizontal .sia-table__scrollbar-thumb::after { width: 100%; height: var(--sia-scrollbar-size); }
 .sia-table__scrollbar--vertical .sia-table__scrollbar-thumb { top: 0; right: 0; width: 100%; height: var(--sia-table-scrollbar-y-size, 0); transform: translateY(var(--sia-table-scrollbar-y-position, 0)); }
 .sia-table__scrollbar--vertical .sia-table__scrollbar-thumb::after { width: var(--sia-scrollbar-size); height: 100%; }
-.sia-table__empty { position: absolute; z-index: 7; inset: var(--sia-table-header-height, 36px) 0 0; display: grid; place-items: center; min-width: 0; padding: 24px; overflow: hidden; color: var(--sia-color-text-secondary); text-align: center; text-overflow: ellipsis; background: var(--sia-color-surface); pointer-events: none; }
+/* 空表仍可显示统计合计，空态背景不得遮住底部汇总区域。 */
+.sia-table__empty { position: absolute; z-index: 7; inset: var(--sia-table-header-height, 36px) 0 var(--sia-table-summary-height, 0px); display: grid; place-items: center; min-width: 0; padding: 24px; overflow: hidden; color: var(--sia-color-text-secondary); text-align: center; text-overflow: ellipsis; background: var(--sia-color-surface); pointer-events: none; }
 .sia-table__loading { position: absolute; z-index: 12; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: var(--sia-color-primary-text); background: color-mix(in srgb, var(--sia-color-surface) 72%, transparent); }
 .sia-table--small .sia-table__header-cell, .sia-table--small .sia-table__cell { height: 28px; padding: 3px 9px; font-size: 12px; }
 .sia-table--large .sia-table__header-cell, .sia-table--large .sia-table__cell { height: 46px; padding: 10px 14px; font-size: 14px; }

@@ -7,6 +7,8 @@
   "scripts": {
     "release:ui": "node scripts/publish-ui.mjs",
     "check:api-docs": "node scripts/check-api-docs.cjs",
+    "check:component-examples": "node scripts/check-component-examples.cjs",
+    "generate:component-examples": "node scripts/check-component-examples.cjs --write",
     "test:api-docs": "node scripts/test-api-docs.cjs",
     "test:number-range": "node scripts/test-number-range.cjs",
     "build:business": "node scripts/build-business.mjs",
@@ -33,7 +35,7 @@
     "notepad:bundle": "pnpm --filter @sia-ui/notepad tauri:build",
     "notepad:web": "pnpm --filter @sia-ui/notepad dev",
     "typecheck": "pnpm -r typecheck",
-    "check": "pnpm check:api-docs && pnpm typecheck && pnpm build && pnpm test:api-docs",
+    "check": "pnpm check:api-docs && pnpm check:component-examples && pnpm typecheck && pnpm build && pnpm test:api-docs",
     "create:sia": "node packages/create-sia-web/cli.mjs"
   },
   "devDependencies": {

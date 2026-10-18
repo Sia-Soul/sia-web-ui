@@ -18,6 +18,9 @@ export interface SelectModalConfig extends Omit<ModalOpenConfig, "children" | "f
   /** 单选或多选模式；single 确认时返回单值，multiple 返回数组。
    * @defaultValue "single" */
   mode?: SelectProps["mode"];
+  /** 多选时显示分组复选框，仅切换当前搜索及已选视图中该组的可用项。
+   * @defaultValue false */
+  groupCheckable?: boolean;
   /** 在选项名称下方另起一行显示 value；关闭此项仍可按 value 搜索。
    * @defaultValue false */
   showValue?: boolean;
@@ -79,7 +82,7 @@ function SelectModalBody({ config, values, disabled, onChange }: {
       <Button variant="link" size="small" disabled={disabled || !enabled.length} onClick={() => batch("invert")}>反选</Button>
       <Button variant="link" size="small" danger disabled={disabled || !values.length} onClick={() => onChange([])}>清空</Button>
     </div> : null}
-    <SelectionPanel options={filtered} value={values} onChange={onChange} multiple={multiple} disabled={disabled}
+    <SelectionPanel options={filtered} value={values} onChange={onChange} multiple={multiple} groupCheckable={config.groupCheckable} disabled={disabled}
       selectedOnly={selectedOnly} showValue={config.showValue} showSearch={false} showActions={false}
       includeUnknownValues={false} columns={config.columns ?? 3} maxHeight={config.maxHeight ?? 360} />
   </>;
@@ -104,7 +107,7 @@ export function openSelectModal(config: SelectModalConfig): OverlayApiHandle<Sel
     }} />;
   }
   function modalConfig(): ModalOpenConfig {
-    const { options, value, mode, showValue, columns, maxHeight, headerExtra, extraValues, searchPlaceholder, filterOption, onSearch, onConfirm, ...modal } = current;
+    const { options, value, mode, groupCheckable, showValue, columns, maxHeight, headerExtra, extraValues, searchPlaceholder, filterOption, onSearch, onConfirm, ...modal } = current;
     return { ...modal, title: current.title ?? "请选择", width: current.width ?? 900,
       className: `sia-select-modal ${current.className ?? ""}`, children: body(),
       onOk: async () => {

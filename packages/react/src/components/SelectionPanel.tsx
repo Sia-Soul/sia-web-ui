@@ -5,6 +5,7 @@ import { Button } from "./Button";
 import { Tooltip } from "./FloatingDisplay";
 import { Input } from "./Input";
 import { FloatingScrollbarProvider } from "./FloatingScrollbarProvider";
+import { Icon } from "./Icon";
 
 /** Selection的值类型。 */
 export type SelectionValue = string | number;
@@ -20,6 +21,8 @@ export interface SelectionOption {
   disabledTip?: ReactNode;
   /** 选项所属分组名称。 */
   group?: string;
+  /** 选项名称旁帮助图标的悬停说明，不参与搜索及值回填。 */
+  description?: ReactNode;
   /** 普通或按钮形态 */
   optionType?: "divider";
 }
@@ -36,6 +39,9 @@ export interface SelectionPanelProps {
    * @defaultValue false
    */
   multiple?: boolean;
+  /** 多选时在分组标题前显示复选框，仅切换当前搜索及已选视图中该组的可用选项；保留组外、隐藏及禁用的已选值。
+   * @defaultValue false */
+  groupCheckable?: boolean;
   /** 单选时允许再次点击已选项以清空选择。 */
   allowDeselect?: boolean;
   /**
@@ -102,7 +108,7 @@ export interface SelectionPanelProps {
 /** 可嵌入下拉或弹窗的分组选择面板，长列表按行虚拟化。 */
 export function SelectionPanel({ options, value, onChange, multiple = false, allowDeselect = false, disabled = false, loading = false,
   showSearch = true, showActions = true, includeUnknownValues = true, searchValue, onSearch, selectedOnly = false, showValue = false,
-  displayField = "label", columns = 1, maxHeight = 250, autoFocusSearch = false }: SelectionPanelProps) {
+  displayField = "label", columns = 1, maxHeight = 250, autoFocusSearch = false, groupCheckable = false }: SelectionPanelProps) {
   const [localSearch, setLocalSearch] = useState("");
   const search = searchValue ?? localSearch;
   const [scrollTop, setScrollTop] = useState(0);
@@ -127,7 +133,7 @@ export function SelectionPanel({ options, value, onChange, multiple = false, all
     const rows: { key: string; title?: string; items?: SelectionOption[]; top: number; height: number }[] = [];
     let top = 0;
     for (const [group, items] of groups) {
-      if (group) { rows.push({ key: `group-${rows.length}`, title: group, top, height: 30 }); top += 30; }
+      if (group) { rows.push({ key: `group-${rows.length}`, title: group, items, top, height: 30 }); top += 30; }
       for (let index = 0; index < items.length; index += count) {
         const height = showValue ? 48 : 34;
         rows.push({ key: `row-${rows.length}`, items: items.slice(index, index + count), top, height }); top += height;
@@ -155,6 +161,24 @@ export function SelectionPanel({ options, value, onChange, multiple = false, all
     const add = enabled.filter(option => operation === "all" || !selected.has(option.value)).map(option => option.value);
     onChange([...retained, ...add]);
   }
+  // 分组只操作过滤后的可用项，不能清除其他分组或搜索条件隐藏的选择。
+  function groupHeading(title: string, items: SelectionOption[]) {
+    if (!multiple || !groupCheckable) return title;
+    const editable = items.filter(option => !option.disabled && option.optionType !== "divider");
+    const all = editable.length > 0 && editable.every(option => selected.has(option.value));
+    return <Checkbox checked={all} indeterminate={!all && editable.some(option => selected.has(option.value))}
+      disabled={disabled || loading || !editable.length} onChange={checked => {
+        const next = new Set(value);
+        editable.forEach(option => checked ? next.add(option.value) : next.delete(option.value));
+        onChange([...next]);
+      }}>{title}</Checkbox>;
+  }
+  function help(option: SelectionOption) {
+    return option.description != null && option.description !== false ? <Tooltip title={option.description}>
+      <span role="img" aria-label="选项说明" tabIndex={0} onClick={event => { event.preventDefault(); event.stopPropagation(); }}
+        onKeyDown={event => event.stopPropagation()} style={{ display: "inline-flex", marginInlineStart: 4 }}><Icon name="help-circle" size={14} /></span>
+    </Tooltip> : null;
+  }
   return <div className="sia-selection-panel">
     {/* 由列表自身接管浮动滚动条，独立弹框与 Select 弹框均不依赖业务页面的全局 Provider。 */}
     <FloatingScrollbarProvider targetRef={listRef} />
@@ -181,7 +205,7 @@ export function SelectionPanel({ options, value, onChange, multiple = false, all
           setDeselectedHover(undefined);
           const next = event.key === "Home" ? 0 : event.key === "End" ? enabled.length - 1 : Math.max(0, Math.min(enabled.length - 1, index + (event.key === "ArrowDown" ? 1 : -1)));
           const option = enabled[next]; setActive(option.value);
-          const row = rows.find(row => row.items?.includes(option));
+          const row = rows.find(row => row.title === undefined && row.items?.includes(option));
           if (row && listRef.current) { listRef.current.scrollTop = Math.max(0, row.top - maxHeight / 2); setScrollTop(listRef.current.scrollTop); }
         } else if ((event.key === "Enter" || event.key === " ") && index >= 0) { event.preventDefault(); toggle(enabled[index], true); }
       }}>
@@ -189,7 +213,7 @@ export function SelectionPanel({ options, value, onChange, multiple = false, all
         <div style={{ height: totalHeight, position: "relative" }}>{renderedRows.map(row => <div key={row.key}
           className={row.title !== undefined ? "sia-selection-panel__group" : "sia-selection-panel__row"}
           style={{ position: "absolute", top: row.top, height: row.height, width: "100%", gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` }}>
-          {row.title ?? row.items?.map((option, index) => option.optionType === "divider" ? <div role="separator" key={`divider-${index}`} className="sia-selection-panel__divider" /> :
+          {row.title !== undefined ? groupHeading(row.title, row.items ?? []) : row.items?.map((option, index) => option.optionType === "divider" ? <div role="separator" key={`divider-${index}`} className="sia-selection-panel__divider" /> :
             <Tooltip key={`${typeof option.value}-${option.value}`} title={option.disabled ? option.disabledTip : undefined} placement="right">
               <div role="option" id={`${id}-${typeof option.value}-${option.value}`} tabIndex={-1}
                 aria-selected={selected.has(option.value)} aria-disabled={disabled || option.disabled || undefined}
@@ -198,9 +222,9 @@ export function SelectionPanel({ options, value, onChange, multiple = false, all
                 onPointerLeave={() => { if (deselectedHover === option.value) setDeselectedHover(undefined); }}
                 onClick={(event) => { if (!(event.target as Element).closest(".sia-checkbox")) toggle(option); }}>
                 {multiple ? <Checkbox checked={selected.has(option.value)} disabled={disabled || loading || option.disabled} tabIndex={-1} onChange={() => toggle(option)}>
-                  <span className="sia-selection-panel__text"><span className="sia-selection-panel__label">{showValue || displayField === "label" ? option.label : String(option.value)}</span>{showValue && <small>{String(option.value)}</small>}</span>
+                  <span className="sia-selection-panel__text"><span className="sia-selection-panel__label">{showValue || displayField === "label" ? option.label : String(option.value)}{help(option)}</span>{showValue && <small>{String(option.value)}</small>}</span>
                 </Checkbox> :
-                <span className="sia-selection-panel__text"><span className="sia-selection-panel__label">{showValue || displayField === "label" ? option.label : String(option.value)}</span>
+                <span className="sia-selection-panel__text"><span className="sia-selection-panel__label">{showValue || displayField === "label" ? option.label : String(option.value)}{help(option)}</span>
                   {showValue && <small>{String(option.value)}</small>}</span>
                 }
               </div>
