@@ -2489,7 +2489,7 @@
       },
       {
         "name": "noStyle",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:329",
+        "example": "apps/docs/src/pages/QueryFormCompactInputDemo.tsx:7",
         "supplement": null
       },
       {
@@ -5344,27 +5344,27 @@
     "props": [
       {
         "name": "fields",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:83",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:86",
         "supplement": "apps/docs/src/pages/examples/FormExamples.tsx:25"
       },
       {
         "name": "settings",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:83",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:86",
         "supplement": null
       },
       {
         "name": "showSettings",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:83",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:86",
         "supplement": null
       },
       {
         "name": "children",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:422",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:426",
         "supplement": null
       },
       {
         "name": "onSearch",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:83",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:86",
         "supplement": "apps/docs/src/pages/examples/FormExamples.tsx:25"
       },
       {
@@ -5374,12 +5374,12 @@
       },
       {
         "name": "fieldWidth",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:83",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:86",
         "supplement": null
       },
       {
         "name": "collapsible",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:422",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:426",
         "supplement": null
       },
       {
@@ -5404,17 +5404,17 @@
       },
       {
         "name": "quickQueries",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:263",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:266",
         "supplement": null
       },
       {
         "name": "quickQuerySize",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:263",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:266",
         "supplement": null
       },
       {
         "name": "savedQueries",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:263",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:266",
         "supplement": null
       },
       {
@@ -5424,12 +5424,12 @@
       },
       {
         "name": "onSaveQuery",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:263",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:266",
         "supplement": "apps/docs/src/pages/examples/FormExamples.tsx:25"
       },
       {
         "name": "onRemoveQuery",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:263",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:266",
         "supplement": null
       },
       {
@@ -5474,7 +5474,7 @@
       },
       {
         "name": "form",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:263",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:266",
         "supplement": null
       },
       {
@@ -5484,7 +5484,7 @@
       },
       {
         "name": "initialValues",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:263",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:266",
         "supplement": null
       },
       {

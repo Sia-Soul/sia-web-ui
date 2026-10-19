@@ -1073,6 +1073,9 @@
 .sia-query-form__field > .sia-input-control, .sia-query-form__field > .sia-select, .sia-query-form__field > .sia-picker, .sia-query-form__field > .sia-input-number, .sia-query-form__field > .sia-cascader, .sia-query-form__field > .sia-tree-select, .sia-query-form__field > .sia-select-date-range { width: 100%; }
 .sia-query-form__field > .sia-space-compact { width: 100%; }
 .sia-query-form__field > .sia-space-compact > .sia-select { flex: 1; min-width: 0; width: 0; }
+/* 查询中的双控件横向组合按 4:6 分配空间；仅匹配下拉框接文本框，避免影响双下拉、按钮组及纵向排列。 */
+.sia-query-form__field .sia-space-compact--horizontal:has(> .sia-select:first-child + .sia-field:last-child > .sia-input-control) > .sia-select { flex: 4 1 0; min-width: 0; width: 0; }
+.sia-query-form__field .sia-space-compact--horizontal:has(> .sia-select:first-child + .sia-field:last-child > .sia-input-control) > .sia-field { flex: 6 1 0; min-width: 0; width: 0; }
 .sia-query-form__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .sia-query-form__quick, .sia-query-form__saved { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .sia-query-form__quick { margin-bottom: 8px; }

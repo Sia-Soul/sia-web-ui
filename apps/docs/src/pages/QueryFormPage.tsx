@@ -16,6 +16,9 @@ import { DemoCard } from "./DemoCard";
 // 运行预览和复制源码来自同一文件，便于观察实际行数阈值。
 import { QueryFormAutoCollapseDemo } from "./QueryFormAutoCollapseDemo";
 import autoCollapseCode from "./QueryFormAutoCollapseDemo.tsx?raw";
+// 组合字段样例与展示源码保持一致，直接使用框架默认比例。
+import { QueryFormCompactInputDemo } from "./QueryFormCompactInputDemo";
+import compactInputCode from "./QueryFormCompactInputDemo.tsx?raw";
 
 const initialValues = {
   coId: "",
@@ -407,6 +410,7 @@ export function QueryFormPage() {
           {JSON.stringify(lastQuery, null, 2)}
         </pre>
       </DemoCard>
+      <DemoCard title="下拉框与文本框组合" description="查询条件中的横向 Select + Input 组合默认按 40% / 60% 分配宽度，右侧文本框填满剩余空间；支持 Form.Item noStyle 分别绑定字段。" code={compactInputCode}><QueryFormCompactInputDemo /></DemoCard>
       <DemoCard title="三行条件自动收起" description="未指定展开或收起时按可见条件的实际行数判断，达到三行自动收起；手动展开后改变宽度仍保留选择。" code={autoCollapseCode}><QueryFormAutoCollapseDemo /></DemoCard>
       <DemoCard title="查询设置入口自动显隐" description="默认按完整条件展开后的实际行数判断，超过两行显示；收起不会丢失入口。显式 showSettings 优先，调整示例宽度可比较临界行为。" code={'<QueryForm settings={{ adapter, scope }} fields={fields} onSearch={search} />'}><AutomaticSettingsDemo /></DemoCard>
       <DemoCard title="查询云设置与列设置共用记录" description="示例使用本地存储模拟云端：修改查询字段显隐、拖动或上下移动排序、设置默认收起后保存；刷新后恢复。下方表格共用适配器和业务标识，保存列设置不会覆盖 queryForm。业务使用已有云适配器时，需让 load/save 完整透传 queryForm 属性。" code={'const scope = { moduleName: "业务模块", businessKey: "页面标识" };\n// 查询与表格复用同一个 settingsAdapter 实例及 scope。\n<QueryForm settings={{ adapter: settingsAdapter, scope }} fields={fields} onSearch={search} />\n<Table plugins={[createColumnSettingPlugin({ adapter: settingsAdapter, scope })]} columns={columns} dataSource={rows} />'}>

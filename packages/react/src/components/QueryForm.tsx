@@ -66,7 +66,7 @@ export interface QueryFormProps<T extends FormValues = FormValues> extends Omit<
    * @defaultValue undefined
    */
   showSettings?: boolean;
-  /** 也可直接放入 Form.Item 或 Space.Compact，每个直接子项视为一个查询字段。 */
+  /** 也可直接放入 Form.Item 或 Space.Compact，每个直接子项视为一个查询字段。横向 Space.Compact 仅包含左侧 Select 和右侧 Input 时，默认按 40% / 60% 分配宽度；Form.Item noStyle 包裹时同样适用。 */
   children?: ReactNode;
   /** 表单校验通过后执行查询。values 是完整条件；info.source 区分 submit（查询）、reset（重置）、quick（顶部预设）和 saved（已保存条件）。返回 Promise 时自动显示加载状态并阻止重复提交。 */
   onSearch: (values: T, info: QueryFormSearchInfo) => void | Promise<void>;
