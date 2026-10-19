@@ -1,11 +1,11 @@
 import type { QueryFormFieldSetting } from "./queryFormSettingsTypes";
 
-/** 按稳定 key 合并当前字段与历史布局，新增字段追加显示，暂时不存在的字段不参与当前布局。 */
-export function reconcileQueryFields(keys: readonly string[], saved: readonly QueryFormFieldSetting[] = []): QueryFormFieldSetting[] {
+/** 按稳定 key 合并当前字段与历史布局，新增字段追加显示，暂时不存在的字段不参与当前布局。hideDisabledKeys 中的字段始终可见，但保留其保存顺序。 */
+export function reconcileQueryFields(keys: readonly string[], saved: readonly QueryFormFieldSetting[] = [], hideDisabledKeys: readonly string[] = []): QueryFormFieldSetting[] {
   const stored = new Map(saved.map(item => [item.key, item]));
   return keys.map((key, index) => ({
     key,
-    visible: stored.get(key)?.visible !== false,
+    visible: hideDisabledKeys.includes(key) || stored.get(key)?.visible !== false,
     order: Number.isFinite(stored.get(key)?.order) ? stored.get(key)!.order : Infinity,
     index,
   })).sort((a, b) => a.order - b.order || a.index - b.index)

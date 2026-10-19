@@ -19,6 +19,12 @@ export type MenuItem = {
   label?: ReactNode;
   /** 显示在内容旁的图标节点，建议使用 Icon 组件。 */
   icon?: ReactNode;
+  /** 图标槽的宽高，单位 px；未指定时沿用菜单图标尺寸变量。图片图标应传入与图片相同的尺寸，避免挤压。 */
+  iconSize?: number;
+  /** 是否显示当前生效的半透明勾选水印，默认为 false；独立于 selectedKeys 的浏览选中状态，由业务在应用成功后更新。 */
+  applied?: boolean;
+  /** 生效水印的无障碍说明；默认为“当前使用”，仅 applied 为 true 时显示。 */
+  appliedLabel?: string;
   /** 主体之外的补充内容或操作区。 */
   extra?: ReactNode;
   /** 菜单项的悬停提示文字，停留 600ms 后显示，禁用项同样支持；收起的图标菜单未设置时使用纯文本 label。 */
@@ -229,10 +235,12 @@ function MenuEntry({
       {...withTitleTooltip({ title: collapsed ? item.title ?? (typeof item.label === "string" ? item.label : undefined) : item.title })}
       disabled={item.disabled}
       aria-current={isSelected ? "page" : undefined}
+      data-applied={item.applied || undefined}
       aria-expanded={hasChildren ? isOpen : undefined}
       onClick={(event) => hasChildren ? props.toggle(item.key) : props.select(item, path, event)}
     >
-      {reserveIcon ? <span className="sia-menu__icon" aria-hidden={!item.icon || undefined}>{item.icon}</span> : null}
+      {reserveIcon ? <span className="sia-menu__icon" style={item.iconSize ? { width: item.iconSize, height: item.iconSize, flexBasis: item.iconSize } : undefined} aria-hidden={!item.icon || undefined}>{item.icon}</span> : null}
+      {item.applied ? <span className="sia-menu__applied" role="img" aria-label={item.appliedLabel ?? "当前使用"}><Icon name="circle-check" size={32}/></span> : null}
       {!collapsed ? <span className="sia-menu__label">{item.label}</span> : null}
       {!collapsed && item.extra ? <span className="sia-menu__extra">{item.extra}</span> : null}
       {!collapsed && hasChildren ? <Icon className="sia-menu__expand-icon" name="chevron-down" size={13} /> : null}

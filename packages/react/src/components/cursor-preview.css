@@ -1,0 +1,8 @@
+/* 预览区沿用框架背景、圆角和文字令牌；不引入业务专用 CSS 变量。 */
+.sia-cursor-preview { position: relative; overflow: hidden; border-radius: var(--sia-radius); background: var(--sia-color-background); isolation: isolate; }
+.sia-cursor-preview.is-following { cursor: none; }
+.sia-cursor-preview__bitmap { position: absolute; pointer-events: none; z-index: 1; }
+.sia-cursor-preview__bitmap .sia-image { display: block; }
+.sia-cursor-preview__bitmap img { display: block; object-fit: contain; }
+.sia-cursor-preview__empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--sia-color-text-tertiary); }
+.sia-cursor-preview__caption { position: absolute; bottom: 14px; left: 16px; right: 16px; text-align: center; color: var(--sia-color-text-secondary); pointer-events: none; }

@@ -1,5 +1,9 @@
 import "./styles.css";
 import "./components-extra.css";
+export { CursorPreview } from "./components/CursorPreview";
+export type { CursorPreviewFrame, CursorPreviewProps } from "./components/CursorPreview";
+export { AutoSizer, FloatingPanel, SortableList } from "./components/UtilityLayout";
+export type { AutoSizerProps, AutoSizerSize, FloatingPanelProps, SortableKey, SortableListProps } from "./components/UtilityLayout";
 export { Toolbar } from "./components/Toolbar";
 export type { ToolbarItem, ToolbarProps } from "./components/Toolbar";
 

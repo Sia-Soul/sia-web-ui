@@ -118,9 +118,9 @@ export interface FormInstance {
   getFieldsValue: () => FormValues;
   /** 读取指定字段的校验错误信息。 */
   getFieldError: (name: NamePath) => readonly ReactNode[];
-  /** 设置单个字段的值；name 可为嵌套字段路径。 */
+  /** 设置单个字段的值；name 可为嵌套字段路径。首次挂载前设置的值会保留并优先于同路径 initialValues。 */
   setFieldValue: (name: NamePath, value: unknown) => void;
-  /** 批量设置表单字段值。 */
+  /** 批量设置表单字段值，不触发 onValuesChange；首次挂载前回填的字段会保留并优先于 initialValues。 */
   setFieldsValue: (values: FormValues) => void;
   /** 将字段恢复到初始值，并清理相关校验状态。 */
   resetFields: (names?: readonly NamePath[]) => void;
@@ -205,6 +205,8 @@ class FormStore implements FormInstance {
   private callbacks: FormCallbacks = {};
   private version = 0;
   private initialized = false;
+  // 延迟挂载的页签可能先收到接口结果，记录写入路径以保留嵌套字段的初始默认值。
+  private pendingWrites: { path: readonly (string | number)[]; value?: unknown; reset?: boolean }[] = [];
 
   configure(initialValues: FormValues | undefined, callbacks: FormCallbacks) {
     this.callbacks = callbacks;
@@ -212,6 +214,10 @@ class FormStore implements FormInstance {
       this.initialized = true;
       this.initialValues = cloneFormValue(initialValues ?? {});
       this.values = cloneFormValue(initialValues ?? {});
+      this.pendingWrites.forEach(({ path, value, reset }) => {
+        this.values = setValue(this.values, path, cloneFormValue(reset ? getValue(this.initialValues, path) : value));
+      });
+      this.pendingWrites = [];
     }
   }
 
@@ -243,6 +249,7 @@ class FormStore implements FormInstance {
 
   setFieldValue = (name: NamePath, value: unknown) => {
     const path = pathArray(name);
+    if (!this.initialized) this.pendingWrites.push({ path: [...path], value: cloneFormValue(value) });
     this.values = setValue(this.values, path, value);
     this.errors.delete(pathKey(path));
     const changed = setValue({}, path, value);
@@ -252,6 +259,7 @@ class FormStore implements FormInstance {
 
   setFieldsValue = (values: FormValues) => {
     Object.entries(values).forEach(([key, value]) => {
+      if (!this.initialized) this.pendingWrites.push({ path: [key], value: cloneFormValue(value) });
       this.values = setValue(this.values, [key], value);
     });
     this.notify();
@@ -259,11 +267,14 @@ class FormStore implements FormInstance {
 
   resetFields = (names?: readonly NamePath[]) => {
     if (!names) {
+      this.pendingWrites = [];
       this.values = cloneFormValue(this.initialValues);
       this.errors.clear();
     } else {
       names.forEach((name) => {
         const path = pathArray(name);
+        // 挂载前重置也按操作顺序回放，不能让已撤销的接口回填在挂载时重新出现。
+        if (!this.initialized) this.pendingWrites.push({ path: [...path], reset: true });
         this.values = setValue(this.values, path, getValue(this.initialValues, path));
         this.errors.delete(pathKey(path));
       });
@@ -461,7 +472,7 @@ function FormRoot({
 export interface FormItemProps {
   /** 绑定到表单值的字段名或嵌套路径，例如 ["user", "name"]。 */
   name?: NamePath;
-  /** 字段标签，支持文本或 React 节点；横向及行内布局未指定标签列宽时，与同一 Form 内最宽的可见标签对齐，测量包含必填标记。 */
+  /** 字段标签，支持文本或 React 节点；横向及行内布局未指定标签列宽时，与同一 Form 内最宽的可见标签对齐，测量包含必填标记。未渲染标签时，控件占据表单项整行宽度。 */
   label?: ReactNode;
   /**
    * 字段的校验规则，按配置执行。

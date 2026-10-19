@@ -84,7 +84,8 @@ function SharedQuerySettingsDemo() {
   const plugins = useMemo(() => [createColumnSettingPlugin<(typeof rows)[number]>({ adapter, scope })], [adapter, scope]);
   return <>
     <QueryForm showSettings settings={{ adapter, scope }} fieldWidth={180} onSearch={() => undefined} fields={[
-      { key: "code", name: "code", settingsLabel: "编码", children: <Input placeholder="编码" /> },
+      // 必须保留的业务条件禁止隐藏，但仍可排序；普通字段仍可自由配置。
+      { key: "code", name: "code", settingsLabel: "编码", settingsHideDisabled: true, children: <Input placeholder="编码" /> },
       { key: "name", name: "name", settingsLabel: "名称", children: <Input placeholder="名称" /> },
       { key: "dates", name: "dates", settingsLabel: "创建日期", children: <DatePicker.RangePicker /> },
       { key: "remark", name: "remark", settingsLabel: "备注", children: <Input placeholder="备注" /> },

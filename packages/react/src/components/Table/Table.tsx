@@ -271,6 +271,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     onRowDoubleClick,
     onCellContextMenu,
     rowClassName,
+    rowStatus,
     tableStyle,
     className = "",
     style,
@@ -577,7 +578,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
   // 虚拟窗口移动时复用仍可见行的元素与事件闭包；数据、插件或列布局变化必须失效。
   const rowElements = useMemo(() => new Map<React.Key, ReactElement>(), [
     dataSource, baseColumns, sortedPlugins, pluginStates, autoColumnWidths,
-    viewportWidth, rowHeight, striped, rowClassName, getRowKey,
+    viewportWidth, rowHeight, striped, rowClassName, rowStatus, getRowKey,
     canvas, scrollLeft,
     onRowClick, onRowDoubleClick, onCellContextMenu,
   ]);
@@ -852,6 +853,9 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
               if (cached) return cached;
               const rowIndex = startIndex + offset;
               const pluginClasses = sortedPlugins.map((plugin) => plugin.getRowClassName?.(row, getContext(plugin))).filter(Boolean).join(" ");
+              // 业务只提供状态，DOM 和 Canvas 共用的行背景交由框架主题处理。
+              const status = typeof rowStatus === "function" ? rowStatus(row.record, row.sourceIndex) : rowStatus;
+              const statusClass = status ? `sia-table__row--${status}` : "";
               const customClass = typeof rowClassName === "function" ? rowClassName(row.record, row.sourceIndex) : rowClassName ?? "";
               const element = <TableBodyRow
                 canvas={canvas}
@@ -866,7 +870,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
                 rightFixedEdgeKey={rightFixedEdgeKey}
                 striped={striped}
                 rowHeight={rowHeight}
-                className={`${pluginClasses} ${customClass}`.trim()}
+                className={`${statusClass} ${pluginClasses} ${customClass}`.trim()}
                 onClick={() => {
                   for (const plugin of sortedPlugins) plugin.onRowClick?.(row, getContext(plugin));
                   onRowClick?.(row.record, row.sourceIndex);

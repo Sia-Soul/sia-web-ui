@@ -17,6 +17,8 @@
   --sia-color-background: #f5f7fa;
   --sia-color-surface: #ffffff;
   --sia-color-border: #d9d9d9;
+  /* Card 标题分割线颜色（无单位）：浅色默认约 #f0f0f0；容器或卡片可覆盖此变量，卡片局部值优先。 */
+  --sia-card-header-border-color: color-mix(in srgb, var(--sia-color-border) 40%, var(--sia-color-surface));
   --sia-color-control-hover: #fafafa;
   --sia-color-control-active: #f0f0f0;
   --sia-color-focus-ring: rgb(22 119 255 / 22%);
@@ -56,6 +58,8 @@
   --sia-color-background: #141414;
   --sia-color-surface: #1f1f1f;
   --sia-color-border: #424242;
+  /* 深色主题保留完整边框对比度，默认 #424242；局部覆盖规则与浅色主题一致。 */
+  --sia-card-header-border-color: var(--sia-color-border);
   --sia-color-control-hover: #2d2d2d;
   --sia-color-control-active: #383838;
   --sia-color-focus-ring: rgb(60 135 230 / 28%);
@@ -507,8 +511,8 @@
 .sia-message__close { width: 24px; height: 24px; margin-right: -5px; }
 
 .sia-card { --sia-card-accent: var(--sia-color-primary); color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: var(--sia-radius); }
-/* 标题区最小高度为 40px，较高的标题或操作内容仍可自然撑开。 */
-.sia-card__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 40px; margin-inline: 16px; border-bottom: 1px solid var(--sia-color-border); }
+/* 标题区最小高度为 40px；分割线使用独立主题色，浅色减淡、深色保持可辨识的对比度。 */
+.sia-card__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 40px; margin-inline: 16px; border-bottom: 1px solid var(--sia-card-header-border-color); }
 .sia-card__heading { display: flex; align-items: center; min-width: 0; gap: 12px; }
 .sia-card__accent { display: block; flex: 0 0 auto; width: 5px; height: 26px; background: var(--sia-card-accent); border-radius: 999px; }
 .sia-card__accent--success { --sia-card-accent: var(--sia-color-success); }
@@ -524,6 +528,16 @@
 .sia-card--collapsed .sia-card__header { border-bottom-color: transparent; }
 /* 卡片统一处理选择反馈及悬浮操作，业务不需要复制动画样式。 */
 .sia-card--selectable { position: relative; cursor: pointer; }
+/* 整卡操作与选择共用焦点反馈，业务页面无需补鼠标或键盘样式。 */
+.sia-card--actionable { cursor: pointer; }
+.sia-card--actionable[aria-disabled="true"] { cursor: default; }
+.sia-card--actionable:focus-visible { outline: 2px solid var(--sia-color-primary); outline-offset: 2px; }
+/* 标题不参与压缩，表格可直接填充卡片剩余正文高度。 */
+.sia-card--fill { height: 100%; min-height: 0; min-width: 0; display: flex; flex-direction: column; }
+.sia-card--fill > .sia-card__header,
+.sia-card--fill > .sia-card__description { flex-shrink: 0; }
+.sia-card--fill > .sia-card__body { flex: 1; min-height: 0; min-width: 0; }
+.sia-card--fill.sia-card--body-height > .sia-card__body { flex: 0 0 auto; }
 /* 右上角三角形使用主题色，白色勾选明确表达选中状态。 */
 .sia-card__selected-corner { position: absolute; top: 0; right: 0; width: 40px; height: 40px; background: var(--sia-color-primary); color: white; clip-path: polygon(0 0, 100% 0, 100% 100%); border-top-right-radius: var(--sia-radius); pointer-events: none; z-index: 1; }
 /* Icon 外层是 span，定位整个图标，并让其边界完整位于三角形内部。 */
@@ -752,6 +766,11 @@
 .sia-table__toolbar { display: flex; align-items: center; justify-content: space-between; flex: 0 0 auto; gap: 12px; min-height: 46px; padding: 7px 10px; border-bottom: 1px solid var(--sia-table-border-color, #EFF2F6); }
 .sia-table__toolbar > div { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .sia-table__toolbar-icon.sia-button { min-width: 30px; width: 30px; height: 30px; padding: 0; }
+/* 右侧纯图标按钮与设置入口采用同一点击区域，避免内边距不同造成图标中心间距不等。 */
+.sia-table__toolbar > div:last-child .sia-button:has(> :is(.sia-button__icon, .sia-button__spinner):only-child),
+.sia-table__toolbar > div:last-child .sia-button:has(> span:only-child > .sia-icon:only-child) { min-width: 30px; width: 30px; height: 30px; padding: 0; }
+/* 右侧嵌套操作组沿用外层 8px 间距；Space 的默认间距写在内联样式中，因此在表格工具栏内统一覆盖。 */
+.sia-table__toolbar > div:last-child > :is(.sia-space--horizontal, .sia-toolbar) { column-gap: inherit !important; width: auto; }
 .sia-table__viewport-wrap { position: relative; display: flex; min-height: 0; flex: 1 1 auto; overflow: hidden; }
 .sia-table__viewport { isolation: isolate; min-width: 0; min-height: 0; flex: 1 1 auto; overflow: auto; scrollbar-width: none; }
 .sia-table__viewport::-webkit-scrollbar { display: none; width: 0; height: 0; }
@@ -785,6 +804,10 @@
 .sia-table--small .sia-table__row { contain-intrinsic-size: auto 28px; }
 .sia-table--large .sia-table__row { contain-intrinsic-size: auto 46px; }
 .sia-table__row--striped .sia-table__cell { background: color-mix(in srgb, var(--sia-color-background) 55%, var(--sia-color-surface)); }
+/* 状态行覆盖斑马纹，后续悬停、勾选样式继续优先；固定单元格使用相同不透明背景。 */
+.sia-table__row--success .sia-table__cell { background: color-mix(in srgb, var(--sia-color-success) 10%, var(--sia-color-surface)); }
+.sia-table__row--warning .sia-table__cell { background: color-mix(in srgb, var(--sia-color-warning) 10%, var(--sia-color-surface)); }
+.sia-table__row--error .sia-table__cell { background: color-mix(in srgb, var(--sia-color-error) 10%, var(--sia-color-surface)); }
 .sia-table__row:hover .sia-table__cell { background: var(--sia-color-control-hover); }
 .sia-table__row--selected .sia-table__cell { background: color-mix(in srgb, var(--sia-color-primary) 10%, var(--sia-color-surface)); }
 .sia-table .sia-table__cell.sia-table__cell--highlight-row { background: color-mix(in srgb, var(--sia-color-primary) 7%, var(--sia-color-surface)); }
@@ -1076,6 +1099,9 @@
 /* 查询中的双控件横向组合按 4:6 分配空间；仅匹配下拉框接文本框，避免影响双下拉、按钮组及纵向排列。 */
 .sia-query-form__field .sia-space-compact--horizontal:has(> .sia-select:first-child + .sia-field:last-child > .sia-input-control) > .sia-select { flex: 4 1 0; min-width: 0; width: 0; }
 .sia-query-form__field .sia-space-compact--horizontal:has(> .sia-select:first-child + .sia-field:last-child > .sia-input-control) > .sia-field { flex: 6 1 0; min-width: 0; width: 0; }
+/* 类型下拉与区间组成一个查询条件时按 1:2 分配；清除区间默认满宽，避免把类型选择挤成零宽。仅匹配双控件横向组合。 */
+.sia-query-form__field .sia-space-compact--horizontal:has(> .sia-select:first-child + :is(.sia-picker-range-control, .sia-number-range, .sia-time-range):last-child) > .sia-select { flex: 1 1 0; min-width: 0; width: auto; }
+.sia-query-form__field .sia-space-compact--horizontal:has(> .sia-select:first-child + :is(.sia-picker-range-control, .sia-number-range, .sia-time-range):last-child) > :last-child { flex: 2 1 0; min-width: 0; width: auto; }
 .sia-query-form__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .sia-query-form__quick, .sia-query-form__saved { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .sia-query-form__quick { margin-bottom: 8px; }
@@ -1130,3 +1156,27 @@
 .sia-number-range__separator { flex: 0 0 auto; color: var(--sia-color-text-secondary); opacity: 0.65; }
 .sia-number-range__clear { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 24px; align-self: stretch; padding: 0; border: 0; background: transparent; color: var(--sia-color-text-secondary); cursor: pointer; }
 .sia-number-range__clear:hover { color: var(--sia-color-text); }
+/* 测量容器使用已确定的父级空间，子内容绝对填充，避免内容尺寸反向撑大测量区域。 */
+.sia-auto-sizer { position: relative; width: 100%; height: 100%; min-width: 0; min-height: 0; }
+.sia-auto-sizer__content { position: absolute; inset: 0; min-width: 0; min-height: 0; }
+/* 持续任务采用框架表面、边框及视口安全边距，不由业务页面配置层级和阴影。 */
+.sia-floating-panel { position: fixed; z-index: 1000; width: 280px; max-width: calc(100vw - 32px); padding: 16px; box-sizing: border-box; border: 1px solid var(--sia-color-border); border-radius: var(--sia-radius, 8px); background: var(--sia-color-surface); color: var(--sia-color-text); box-shadow: 0 6px 20px rgb(0 0 0 / 12%); }
+.sia-floating-panel--bottomRight { bottom: 24px; right: 16px; }
+.sia-floating-panel--bottomLeft { bottom: 24px; left: 16px; }
+.sia-floating-panel--topRight { top: 24px; right: 16px; }
+.sia-floating-panel--topLeft { top: 24px; left: 16px; }
+.sia-floating-panel__title { display: block; margin-bottom: 8px; }
+/* 排序手柄与业务内容分离，水平/垂直布局共用插入位置提示。 */
+.sia-sortable-list { display: flex; gap: 16px; overflow: auto; min-width: 0; padding: 4px; }
+.sia-sortable-list--vertical { flex-direction: column; }
+.sia-sortable-list__item { position: relative; flex-shrink: 0; min-width: 0; }
+.sia-sortable-list__item.is-dragging { opacity: .5; }
+.sia-sortable-list__handle { display: flex; align-items: center; justify-content: center; width: 100%; padding: 6px; border: 0; background: var(--sia-color-fill-secondary); color: var(--sia-color-text-secondary); cursor: grab; }
+.sia-sortable-list__handle:focus-visible { outline: 2px solid var(--sia-color-primary); outline-offset: -2px; }
+.sia-sortable-list__handle:disabled { cursor: not-allowed; opacity: .5; }
+.sia-sortable-list__item.is-drop-before::before, .sia-sortable-list__item.is-drop-after::after { content: ""; position: absolute; background: var(--sia-color-primary); pointer-events: none; z-index: 1; }
+.sia-sortable-list--horizontal .is-drop-before::before { top: 0; bottom: 0; left: -9px; width: 2px; }
+.sia-sortable-list--horizontal .is-drop-after::after { top: 0; bottom: 0; right: -9px; width: 2px; }
+.sia-sortable-list--vertical .is-drop-before::before { left: 0; right: 0; top: -9px; height: 2px; }
+.sia-sortable-list--vertical .is-drop-after::after { left: 0; right: 0; bottom: -9px; height: 2px; }
+.sia-popover.sia-popover--wide { width: 760px; max-width: calc(100vw - 32px); }

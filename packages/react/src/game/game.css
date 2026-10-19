@@ -1,0 +1,521 @@
+/* 游戏皮肤独立作用域。--game-accent 默认 #cfb67b（颜色）、--game-background 默认 #101918（颜色）；容器 style 或祖先同名变量覆盖默认值。 */
+.sia-game{color-scheme:dark;--bg:#101918;--panel:#192421;--line:#344039;--muted:#87958b;--text:#d6dbcd;--gold:#cfb67b;--jade:#8fbba3;--serif:'Noto Serif SC','Songti SC','SimSun',serif}
+.sia-game *{box-sizing:border-box}
+.sia-game{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 'Microsoft YaHei',system-ui,sans-serif}
+.sia-game button,.sia-game a,.sia-game input{font:inherit}
+.sia-game button{cursor:pointer;color:inherit;transition:background .18s,border-color .18s,transform .18s}
+.sia-game button:disabled{cursor:not-allowed;opacity:.4}
+.sia-game button:not(:disabled):hover{filter:brightness(1.16)}
+.sia-game button:focus-visible,.sia-game a:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+.sia-game button{border:1px solid transparent;background:none}
+.sia-game h1,.sia-game h2,.sia-game h3,.sia-game p{margin:0}
+.sia-game h1,.sia-game h2,.sia-game h3{font-family:var(--serif)}
+.sia-game h1{font-size:28px;letter-spacing:3px;font-weight:500}
+.sia-game h2{font-size:21px;font-weight:500}
+.sia-game h3{font-size:15px;font-weight:500}
+.sia-game small{font-size:11px}
+.sia-game .gold{color:var(--gold)}
+.sia-game .jade{color:var(--jade)}
+.sia-game .muted{color:var(--muted)}
+.sia-game .red-text{color:#d3927d}
+.sia-game .topbar{height:88px;padding:0 32px;display:flex;align-items:center;gap:42px;border-bottom:1px solid var(--line);background:linear-gradient(110deg,#1b2824,#15201e)}
+.sia-game .brand{color:var(--text);text-decoration:none;display:flex;align-items:center;gap:15px}
+.sia-game .brand-seal{width:43px;height:48px;border:1px solid #bb9b61;color:var(--gold);font:32px var(--serif);display:grid;place-items:center;border-radius:3px;box-shadow:inset 0 0 0 3px #1b2824,inset 0 0 0 4px #685f44;transform:rotate(-4deg)}
+.sia-game .brand-title{font:29px var(--serif);letter-spacing:7px}
+.sia-game .brand-title small{display:block;font:9px system-ui;letter-spacing:3px;color:#8b9b8e;margin-top:5px}
+.sia-game .realm{font-size:12px;color:#b3beb0;display:flex;align-items:center;gap:9px}
+.sia-game .separator{margin:0 8px;color:#536256}
+.sia-game .live-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#90b99d;box-shadow:0 0 8px #94b79c33;flex-shrink:0}
+.sia-game .live-dot.inactive{background:#8b897c;box-shadow:none}
+.sia-game .top-actions{margin-left:auto;display:flex;align-items:center;gap:21px}
+.sia-game .version{font-size:11px;border:1px solid var(--line);padding:3px 10px;color:var(--muted);border-radius:3px}
+.sia-game .icon-button{display:grid;place-items:center;width:34px;height:34px;color:#a6b2a6}
+.sia-game .navigation{height:62px;display:flex;gap:10px;padding:0 28px;border-bottom:1px solid var(--line);background:#15201d}
+.sia-game .nav-item{position:relative;min-width:146px;display:flex;align-items:center;justify-content:center;gap:10px;color:#9eac9f;letter-spacing:2px}
+.sia-game .nav-item.active{color:var(--gold);background:linear-gradient(0deg,#c6b07912,transparent)}
+.sia-game .nav-item.active:after{position:absolute;bottom:0;left:20px;right:20px;content:'';height:2px;background:var(--gold)}
+.sia-game .nav-count{font:10px system-ui;background:#394639;color:var(--gold);border-radius:3px;padding:0 5px}
+.sia-game .nav-verse{margin:auto 10px auto auto;font:12px var(--serif);color:#7d8e7f;letter-spacing:2px}
+.sia-game .workspace{display:grid;grid-template-columns:248px minmax(440px,1fr) 268px;gap:22px;padding:24px 28px;max-width:1800px;margin:auto;align-items:start}
+.sia-game .character-panel,.sia-game .right-panel{background:var(--panel);border:1px solid var(--line);border-radius:5px;overflow:hidden}
+.sia-game .character-panel{padding:20px 18px 0}
+.sia-game .profile-top{display:flex;gap:12px;align-items:center}
+.sia-game .avatar{width:61px;height:70px;flex-shrink:0;background:radial-gradient(ellipse at center,#697966,#273c33);overflow:hidden;border:1px solid #64715a;border-radius:4px}
+.sia-game .profile-top h2{font-size:20px;letter-spacing:1px;margin:5px 0}
+.sia-game .eyebrow{font-size:10px;letter-spacing:1.4px;color:#92a18e}
+.sia-game .profile-top .eyebrow{font-size:10px;letter-spacing:0}
+.sia-game .level-tag{font-size:11px;color:var(--gold)}
+.sia-game .level-tag span{color:#819286;margin-left:10px}
+.sia-game .power{display:flex;align-items:center;gap:10px;background:#c5b27408;border:1px solid #bda36924;padding:9px 11px;margin:21px 0 16px;border-radius:3px}
+.sia-game .power span{font-size:11px;color:#a2ad98}
+.sia-game .power strong{font-size:24px;color:#dbc18d;font-weight:500;font-family:Georgia,serif}
+.sia-game .experience>div:first-child{display:flex;justify-content:space-between;color:#8e9c8e;font-size:10px;margin-bottom:7px}
+.sia-game .progress{height:4px;background:#303b32;border-radius:4px;overflow:hidden}
+.sia-game .progress i{display:block;background:#9bb893;height:100%;transition:width .5s}
+.sia-game .attributes{display:grid;grid-template-columns:1fr 1fr;gap:10px 21px;margin:18px 0 22px}
+.sia-game .attributes>div{display:flex;justify-content:space-between;font-size:12px}
+.sia-game .attributes span{color:var(--muted)}
+.sia-game .attributes b{font-weight:400}
+.sia-game .line-heading{border-top:1px solid var(--line);padding-top:16px;display:flex;justify-content:space-between;align-items:center;color:#9eaa9a;font-size:11px;letter-spacing:1px}
+.sia-game .text-button{font-size:11px;color:#9cab99;padding:2px 3px;white-space:nowrap}
+.sia-game .wallet{margin:15px 0 21px;display:grid;gap:11px}
+.sia-game .wallet>div{display:flex;justify-content:space-between;align-items:center;font-size:12px}
+.sia-game .wallet span{display:flex;align-items:center;gap:10px}
+.sia-game .wallet b{font-weight:400;font-size:14px;font-variant-numeric:tabular-nums}
+.sia-game .equipped-list{display:grid;gap:8px;margin-top:13px}
+.sia-game .equipped-item{display:flex;width:100%;align-items:center;text-align:left;padding:0;gap:10px}
+.sia-game .slot-symbol{width:38px;height:38px;display:grid;place-items:center;background:#26332c;border:1px solid #47513f;border-radius:3px;color:#94a78e}
+.sia-game .equipped-item>span:nth-child(2){display:grid;gap:2px}
+.sia-game .equipped-item small{color:#788a7b;font-size:9px}
+.sia-game .equipped-item b{font-size:11px;font-weight:400}
+.sia-game .equipped-item em{margin-left:auto;font-style:normal;font-size:11px;color:var(--gold)}
+.sia-game .pet-mini{margin:22px -1px 17px;background:#25372d;border:1px solid #43573f;border-radius:4px;width:100%;display:flex;align-items:center;gap:9px;padding:6px 9px;text-align:left}
+.sia-game .pet-mini-art{display:block;width:39px;height:48px;overflow:hidden}
+.sia-game .pet-mini small{display:block;color:#9aaa94;font-size:10px}
+.sia-game .pet-mini b{font-size:11px;font-weight:400}
+.sia-game .pet-mini em{font:10px system-ui;color:var(--gold);margin-left:5px}
+.sia-game .character-bottom{margin:0 -18px;padding:12px 18px;background:#14201c;border-top:1px solid var(--line);color:#8e9c8b;font-size:10px;display:flex;align-items:center;gap:8px}
+.sia-game .view-title{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:66px;margin-bottom:16px}
+.sia-game .view-title .eyebrow{display:block;margin-bottom:5px}
+.sia-game .subtle-button,.sia-game .small-button{border:1px solid #455246;background:#253129;display:inline-flex;gap:7px;align-items:center;justify-content:center;border-radius:3px;color:#b8c3af}
+.sia-game .subtle-button{padding:8px 12px;font-size:11px}
+.sia-game .small-button{padding:6px 9px;font-size:10px}
+.sia-game .primary-button{border:1px solid #c8af77;background:linear-gradient(130deg,#dcc58e,#bba166);color:#263028;padding:12px 23px;border-radius:3px;font-weight:600;font-size:13px;display:inline-flex;gap:10px;align-items:center;justify-content:center;letter-spacing:1px}
+.sia-game .scene{height:390px;position:relative;overflow:hidden;border:1px solid #6d8166;border-radius:5px;background:#718c78}
+.sia-game .scene-art,.sia-game .landscape{width:100%;height:100%;position:absolute;inset:0}
+.sia-game .scene:after{content:'';position:absolute;inset:0;box-shadow:inset 0 0 70px #17372a40;pointer-events:none}
+.sia-game .scene-top{position:absolute;top:16px;left:16px;right:16px;display:flex;justify-content:space-between;z-index:2;gap:6px}
+.sia-game .scene-label{display:flex;align-items:center;gap:6px;color:#e3e7cc;font-size:10px;background:#17332680;border:1px solid #b6c4a12e;padding:5px 9px;border-radius:3px;backdrop-filter:blur(5px)}
+.sia-game .scene-inscription{position:absolute;right:37px;top:70px;text-align:right;color:#e6e5c9;text-shadow:0 2px 20px #274f39}
+.sia-game .scene-inscription>span{font:38px var(--serif);letter-spacing:9px}
+.sia-game .scene-inscription small{display:block;font:8px var(--serif);letter-spacing:2px;margin-top:8px;opacity:.8}
+.sia-game .fighter{position:absolute;bottom:35px;width:155px;text-align:center;z-index:1}
+.sia-game .fighter.hero{left:17%}
+.sia-game .fighter.enemy{right:12%}
+.sia-game .unit-label{color:#eff0d3;font-size:11px;text-shadow:0 2px 4px #203c2c;font-weight:500;white-space:nowrap}
+.sia-game .unit-label em{font:9px system-ui;margin-left:5px;color:#e0dcad}
+.sia-game .unit-health{height:5px;margin:6px auto 0;width:86px;background:#304333;border-radius:4px;box-shadow:0 0 0 1px #d6dfb030;overflow:hidden}
+.sia-game .unit-health i{display:block;height:100%;width:100%;background:#c9d998;transition:width .5s}
+.sia-game .unit-health.red i{background:#cb8469}
+.sia-game .health-text{font:9px system-ui;color:#f0eed4;text-shadow:0 1px 3px #0009}
+.sia-game .sprite{height:183px;filter:drop-shadow(0 6px 5px #1d36243d);transform-origin:50% 90%}
+.sia-game .enemy .sprite{height:170px;margin-top:13px}
+.sia-game .companion{position:absolute;bottom:35px;left:7%;width:65px;z-index:2;text-align:center}
+.sia-game .companion span{font-size:9px;color:#e0e7c7;text-shadow:0 1px 4px #223b2a;display:block}
+.sia-game .scene-bottom{position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:space-between;padding:9px 16px;background:#1e38266b;color:#d3dfc1;font-size:10px}
+.sia-game .scene-bottom span:first-child{display:flex;align-items:center;gap:5px}
+.sia-game .damage{position:absolute;top:16px;left:0;width:100%;font-size:23px;font-weight:700;color:#fff0b3;text-shadow:0 2px 4px #354429;opacity:0;pointer-events:none;white-space:nowrap}
+.sia-game .hero .damage{color:#ffe0cc}
+.sia-game .float{animation:damageFloat .85s ease-out}
+.sia-game .attack{animation:attack .5s ease-out}
+.sia-game .battle-controls{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:19px 0}
+.sia-game .status-label{font-family:var(--serif);font-size:16px;letter-spacing:1px}
+.sia-game .battle-controls small{display:block;color:#7f9181;font-size:10px;margin-top:4px}
+.sia-game .income{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:15px 19px}
+.sia-game .panel-heading{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.sia-game .panel-heading h3{display:flex;align-items:center;gap:7px;letter-spacing:1px}
+.sia-game .panel-heading>span{font-size:9px;color:#8d9c8c}
+.sia-game .income-grid{display:grid;grid-template-columns:repeat(3,1fr);margin-top:18px}
+.sia-game .income-grid>div{border-right:1px solid var(--line);padding-left:20px}
+.sia-game .income-grid>div:first-child{padding-left:0}
+.sia-game .income-grid>div:last-child{border:none}
+.sia-game .income-grid span{display:flex;gap:6px;align-items:center;font-size:10px;color:#97a58f}
+.sia-game .income-grid b{display:block;font-size:23px;font-weight:400;font-family:Georgia,serif;color:#d7ddc5;margin-top:5px}
+.sia-game .tip{display:flex;align-items:center;gap:12px;border:1px solid #384435;border-radius:3px;padding:13px 14px;margin-top:18px;color:#7d917e;background:#87967205}
+.sia-game .tip p{font-size:10px;line-height:1.9}
+.sia-game .tip p b{font-weight:500;color:#a5b099;margin-right:8px}
+.sia-game .tip .text-button{margin-left:auto}
+.sia-game .right-panel{padding:18px 17px 0}
+.sia-game .boss-portrait{height:150px;position:relative;margin-top:10px;background:radial-gradient(ellipse,#5f624331,transparent 68%);display:flex;justify-content:center}
+.sia-game .boss-portrait:before{content:'';position:absolute;border:1px solid #66704855;width:120px;height:120px;top:17px;border-radius:50%;box-shadow:0 0 0 8px #9ea45b06,0 0 0 9px #66704822}
+.sia-game .boss-seal{font-family:var(--serif);color:#b89470;border:1px solid #7d6351;position:absolute;right:17px;top:26px;width:25px;padding:5px 4px;font-size:12px;line-height:1.4;border-radius:2px}
+.sia-game .boss-title{text-align:center;margin:6px 0 15px}
+.sia-game .boss-title h2{letter-spacing:4px;font-size:23px;color:#d5c39c}
+.sia-game .boss-title span{font-size:10px;color:#82917f}
+.sia-game .boss-stats{display:flex;justify-content:space-between;font-size:10px;background:#101c1740;padding:9px 12px;border-radius:3px;color:#94a18b}
+.sia-game .boss-stats b{font-weight:400;color:#c3cdb5;margin-left:5px}
+.sia-game .boss-reward{margin:15px 0}
+.sia-game .boss-reward>span{font-size:10px;color:#82917c}
+.sia-game .boss-reward div{font-size:11px;color:#c0b88d;display:flex;gap:7px;align-items:center;margin-top:7px}
+.sia-game .boss-button{width:100%;border:1px solid #9d8b5b;background:#9d895014;padding:10px;display:flex;gap:8px;justify-content:center;align-items:center;color:#d4bc83;border-radius:3px;letter-spacing:2px;font-size:12px}
+.sia-game .boss-hint{text-align:center;font-size:9px;color:#7c8c77;margin:9px 0 19px}
+.sia-game .journal{border-top:1px solid var(--line);padding-top:17px}
+.sia-game .journal .panel-heading{margin-bottom:14px}
+.sia-game #logs{height:225px;overflow:auto;scrollbar-width:thin;scrollbar-color:#435340 transparent}
+.sia-game .log{display:flex;gap:9px;font-size:10px;line-height:1.9;margin-bottom:10px;color:#9eae97}
+.sia-game .log time{font-size:9px;color:#647b6a;padding-top:2px;flex-shrink:0}
+.sia-game .log.loot{color:#a9bf94}
+.sia-game .log.rare{color:#d2bb82}
+.sia-game .log.boss{color:#c0a18b}
+.sia-game .save-state{margin:8px -17px 0;padding:12px 10px;background:#14201c;border-top:1px solid var(--line);font-size:8px;color:#7f907c;display:flex;align-items:center;justify-content:center;gap:6px}
+.sia-game footer{display:flex;justify-content:space-between;padding:12px 28px 19px;color:#5e7767;font-size:9px;letter-spacing:1px;max-width:1800px;margin:auto}
+.sia-game footer b{font-weight:400;padding:0 9px}
+.sia-game footer span:last-child{display:flex;align-items:center;gap:10px}
+.sia-game .view-description{font-size:12px;line-height:1.9;color:#97a78f;margin-bottom:24px}
+.sia-game .map-list{display:grid;gap:15px}
+.sia-game .map-card{position:relative;overflow:hidden;min-height:180px;text-align:left;border:1px solid #465744;border-radius:4px;padding:24px;display:flex;align-items:flex-start;gap:18px}
+.sia-game .map-art{position:absolute;inset:0;opacity:.32}
+.sia-game .map-art:after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,#14251aea,#16281b11)}
+.sia-game .map-number{position:relative;font:33px Georgia;color:#c9b87a;opacity:.8}
+.sia-game .map-content{position:relative;max-width:78%}
+.sia-game .map-content h2{font-size:24px;letter-spacing:4px;margin:3px 0 7px}
+.sia-game .map-content p{font-size:11px;color:#aebba3;max-width:440px}
+.sia-game .map-meta{font-size:10px;color:#93a68c;display:block;margin-top:12px}
+.sia-game .map-state{position:absolute;right:20px;bottom:16px;font-size:10px;color:#c6bf93;display:flex;align-items:center;gap:5px}
+.sia-game .map-card.selected{border-color:#a69c65}
+.sia-game .map-card.locked{filter:grayscale(.7);opacity:.45}
+.sia-game .capacity{color:#a2b092;font-size:11px;white-space:nowrap}
+.sia-game .gear-slots{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.sia-game .gear-slot{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:12px 9px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.sia-game .gear-slot>.eyebrow{display:flex;justify-content:space-between;width:100%}
+.sia-game .gear-slot .eyebrow b{color:var(--gold);font-weight:400}
+.sia-game .gear-icon{width:48px;height:48px;display:grid;place-items:center;background:#25362a;border:1px solid #435c3d;border-radius:5px}
+.sia-game .gear-slot strong{font-size:11px;font-weight:400}
+.sia-game .gear-slot small{color:#83957e;font-size:9px}
+.sia-game .gear-slot .small-button{font-size:9px;padding:5px 6px;width:100%}
+.sia-game .inventory-toolbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:25px 0 14px}
+.sia-game .filters{display:flex;gap:4px}
+.sia-game .filter{padding:5px 9px;font-size:10px;color:#90a087;border-radius:3px}
+.sia-game .filter.active{color:var(--gold);background:#b7a1691c;border-color:#7a77504f}
+.sia-game .inventory-list{display:grid;gap:9px;max-height:450px;overflow:auto;scrollbar-width:thin}
+.sia-game .item-row{display:flex;align-items:center;gap:10px;padding:12px;background:var(--panel);border:1px solid var(--line);border-radius:4px}
+.sia-game .item-symbol{width:40px;height:44px;display:grid;place-items:center;border:1px solid #42583e;background:#233827;border-radius:3px;flex-shrink:0}
+.sia-game .item-detail{flex:1}
+.sia-game .item-detail strong{font-size:12px;font-weight:500}
+.sia-game .item-detail small{font-size:9px;color:#86967c;margin-left:6px}
+.sia-game .item-stats{display:flex;gap:9px;font-size:9px;color:#8f9f86;margin-top:5px}
+.sia-game .jade-button{color:var(--jade);border-color:#537461;background:#64866e20}
+.sia-game .rarity-0{color:#a5b5a0!important}
+.sia-game .rarity-1{color:#b2cb8b!important;border-color:#667b49!important;background:#3b4e292e!important}
+.sia-game .rarity-2{color:#8db7d1!important;border-color:#536f83!important;background:#2f4f652e!important}
+.sia-game .rarity-3{color:#c49dcc!important;border-color:#8c6493!important}
+.sia-game .rarity-text-0{color:#b5c0ab}
+.sia-game .rarity-text-1{color:#b5cc8d}
+.sia-game .rarity-text-2{color:#94bdd8}
+.sia-game .rarity-text-3{color:#caa5d2}
+.sia-game .empty-state{text-align:center;min-height:250px;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#6f896e;gap:16px;border:1px dashed #354631;border-radius:4px}
+.sia-game .empty-state h3{font-size:18px;color:#b3c0a7}
+.sia-game .empty-state p{font-size:11px;line-height:2}
+.sia-game .pet-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.sia-game .pet-card{border:1px solid var(--line);background:linear-gradient(#203328,#19251e);border-radius:5px;padding:15px 13px;display:flex;flex-direction:column;align-items:stretch}
+.sia-game .pet-card.selected{border-color:#a2915d;background:linear-gradient(#333b29,#1e2c22)}
+.sia-game .pet-card-head{display:flex;justify-content:space-between;font-size:10px;color:#91a282;align-items:center}
+.sia-game .pet-kind{border:1px solid #6a795044;color:#b0bb8a;padding:2px 7px;border-radius:2px}
+.sia-game .pet-art{height:175px;margin:8px 0 13px;background:radial-gradient(ellipse,#82986b25,transparent 70%)}
+.sia-game .pet-card h2{text-align:center;font-size:19px;letter-spacing:2px}
+.sia-game .pet-card p{font-size:11px;color:#96a48b;line-height:1.9;min-height:63px;margin:14px 0}
+.sia-game .pet-stat{border-top:1px solid #3e4a35;border-bottom:1px solid #3e4a35;padding:10px 0;display:flex;justify-content:space-between;font-size:10px;color:#95a48b;margin-bottom:20px}
+.sia-game .pet-stat b{font-weight:400;color:#c8d2b6}
+.sia-game .pet-card .primary-button{font-size:10px;padding:10px 6px;margin-top:8px;letter-spacing:0}
+.sia-game .pet-card .subtle-button{font-size:10px}
+.sia-game .pet-card>.primary-button:last-child{margin-top:auto}
+.sia-game .pet-card .subtle-button:disabled{opacity:.8;color:var(--gold);border-color:#6c714d;background:#4e57352e}
+.sia-game .game-toast{position:fixed;left:50%;bottom:35px;transform:translate(-50%,20px);padding:12px 24px;background:#d6c18b;color:#243225;border:1px solid #e9d6a2;border-radius:4px;font-size:13px;box-shadow:0 10px 40px #0005;z-index:100;opacity:0;pointer-events:none;transition:.2s;max-width:90vw}
+.sia-game .game-toast.visible{opacity:1;transform:translate(-50%,0)}
+.sia-game dialog{background:#1d2c23;color:var(--text);border:1px solid #657454;border-radius:6px;padding:25px;width:min(560px,92vw);box-shadow:0 30px 100px #0008}
+.sia-game dialog::backdrop{background:#050d09aa;backdrop-filter:blur(5px)}
+.sia-game .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.sia-game .modal-head h2{letter-spacing:2px}
+.sia-game .close{font-size:26px;color:#91a286;padding:0 6px}
+.sia-game .help-content{font-size:12px;line-height:2;color:#b2c0a5}
+.sia-game .help-content p{margin:14px 0}
+.sia-game .help-content ol{padding-left:23px}
+.sia-game .help-content li{padding-left:4px;margin-bottom:12px}
+.sia-game .full{width:100%;margin-top:15px}
+.sia-game .settings-actions{display:flex;gap:10px;flex-wrap:wrap}
+.sia-game .compare{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.sia-game .compare>div{padding:16px;background:#263629;border:1px solid #46573e;border-radius:3px}
+.sia-game .compare h3{margin:12px 0}
+.sia-game .compare span:not(.eyebrow){display:block;color:#a5b797;font-size:12px;margin:7px 0}
+.sia-game .compare~p{font-size:11px;margin:18px 0}
+.sia-game .compare-delta{display:flex;gap:20px;font-size:12px}
+.sia-game .offline-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:25px 0}
+.sia-game .offline-grid>div{background:#2d3b2b;padding:15px 9px;text-align:center;border:1px solid #4b5e42;border-radius:4px}
+.sia-game .offline-grid span{display:block;color:#9fb28f;font-size:11px}
+.sia-game .offline-grid b{display:block;color:#dac58e;font:22px Georgia;margin-top:10px}
+.sia-game dialog>.muted{font-size:11px;line-height:1.9}
+@keyframes damageFloat{0%{opacity:0;transform:translateY(0)}20%{opacity:1}100%{opacity:0;transform:translateY(-45px)}}
+@keyframes attack{0%,100%{transform:translateX(0) rotate(0)}40%{transform:translateX(14px) rotate(5deg)}}
+@media(min-width:1600px){.sia-game .workspace{grid-template-columns:270px minmax(600px,1fr) 290px;gap:26px}
+.sia-game .scene{height:455px}
+.sia-game .fighter{bottom:40px;width:180px}
+.sia-game .sprite{height:215px}
+.sia-game .enemy .sprite{height:202px}
+.sia-game .companion{left:10%;bottom:43px;width:75px}
+.sia-game .character-panel{padding-top:24px}
+.sia-game .equipped-list{gap:13px}
+.sia-game .wallet{gap:15px}
+.sia-game .boss-portrait{height:175px}
+.sia-game #logs{height:258px}
+}
+@media(max-width:1190px){.sia-game .workspace{grid-template-columns:210px minmax(400px,1fr);padding:20px;gap:18px}
+.sia-game .right-panel{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:25px;padding-bottom:16px}
+.sia-game .right-panel #quest{display:grid;grid-template-columns:130px 1fr;column-gap:15px}
+.sia-game .right-panel #quest>.panel-heading{grid-column:1/-1}
+.sia-game .boss-portrait{grid-row:2/6;height:150px}
+.sia-game .boss-title{margin:10px 0}
+.sia-game .boss-hint{grid-column:1/-1;margin-bottom:0}
+.sia-game .boss-reward{margin:9px 0}
+.sia-game .journal{border:0;padding-top:0}
+.sia-game .save-state{display:none}
+.sia-game .character-panel{padding:16px 12px 0}
+.sia-game .profile-top{gap:8px}
+.sia-game .profile-top h2{font-size:17px}
+.sia-game .character-bottom{margin:0 -12px;font-size:9px}
+.sia-game .nav-verse{display:none}
+.sia-game .fighter.hero{left:15%}
+.sia-game .fighter.enemy{right:8%}
+.sia-game .scene-inscription{right:25px}
+.sia-game .pet-cards{gap:8px}
+.sia-game .pet-card{padding:12px 9px}
+}
+@media(max-width:760px){.sia-game .topbar{padding:0 16px;height:76px;gap:12px}
+.sia-game .brand-title{font-size:24px}
+.sia-game .brand-title small{font-size:8px}
+.sia-game .realm{display:none}
+.sia-game .version{font-size:9px}
+.sia-game .top-actions{gap:5px}
+.sia-game .navigation{padding:0 8px;gap:0;height:58px}
+.sia-game .nav-item{min-width:0;flex:1;font-size:11px;letter-spacing:0;gap:5px}
+.sia-game .nav-item.active:after{left:8px;right:8px}
+.sia-game .nav-count{display:none}
+.sia-game .workspace{display:flex;flex-direction:column;padding:14px;gap:15px}
+.sia-game .character-panel{width:100%;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px 18px}
+.sia-game .profile-top{grid-row:1/3}
+.sia-game .avatar{height:60px;width:51px}
+.sia-game .profile-top h2{font-size:18px}
+.sia-game .power{margin:0;padding:3px 8px}
+.sia-game .power strong{font-size:21px}
+.sia-game .experience{margin:0}
+.sia-game .attributes,.sia-game .wallet,.sia-game .line-heading,.sia-game .equipped-list,.sia-game .pet-mini,.sia-game .character-bottom{display:none}
+.sia-game .character-panel .eyebrow{font-size:9px}
+.sia-game main{width:100%}
+.sia-game .view-title{min-height:54px;margin-bottom:12px}
+.sia-game h1{font-size:23px;letter-spacing:2px}
+.sia-game .scene{height:350px}
+.sia-game .scene-inscription{top:65px;right:21px}
+.sia-game .scene-inscription>span{font-size:31px}
+.sia-game .scene-label{font-size:8px;padding:4px 6px}
+.sia-game .scene-top{left:10px;right:10px}
+.sia-game .fighter{width:120px}
+.sia-game .sprite{height:160px}
+.sia-game .enemy .sprite{height:147px}
+.sia-game .fighter.hero{left:13%}
+.sia-game .fighter.enemy{right:5%}
+.sia-game .companion{left:0%;width:50px}
+.sia-game .battle-controls{padding:15px 0}
+.sia-game .status-label{font-size:13px}
+.sia-game .primary-button{padding:11px 17px;font-size:12px}
+.sia-game .battle-controls small{font-size:9px}
+.sia-game .income{padding:13px}
+.sia-game .income-grid b{font-size:22px}
+.sia-game .tip .text-button{display:none}
+.sia-game .right-panel{width:100%;display:flex;flex-direction:column;gap:16px;padding:16px}
+.sia-game .right-panel #quest{grid-template-columns:130px 1fr}
+.sia-game .journal{border-top:1px solid var(--line);padding-top:15px}
+.sia-game #logs{height:170px}
+.sia-game .gear-slots{grid-template-columns:repeat(2,1fr)}
+.sia-game .gear-slot{gap:7px}
+.sia-game .gear-icon{width:36px;height:36px}
+.sia-game .gear-slot .small-button{max-width:130px}
+.sia-game .inventory-toolbar{flex-wrap:wrap;margin-top:18px}
+.sia-game .filters{gap:0}
+.sia-game .filter{padding:5px 8px}
+.sia-game .item-row{gap:7px;flex-wrap:wrap;padding:10px}
+.sia-game .item-detail{min-width:190px}
+.sia-game .item-row .text-button{margin-left:3px}
+.sia-game .item-row .small-button{flex:1}
+.sia-game .pet-cards{grid-template-columns:1fr}
+.sia-game .pet-card{display:grid;grid-template-columns:110px 1fr;gap:8px 15px;padding:16px}
+.sia-game .pet-card-head{grid-column:1/-1}
+.sia-game .pet-art{grid-row:2/5;height:150px;margin:0}
+.sia-game .pet-card h2{text-align:left;margin-top:8px}
+.sia-game .pet-card p{min-height:0;margin:0}
+.sia-game .pet-stat{margin:0;padding:5px 0}
+.sia-game .pet-card .primary-button{margin:0!important}
+.sia-game .pet-card .subtle-button{margin:0}
+.sia-game .map-card{padding:18px 15px;gap:13px;min-height:210px}
+.sia-game .map-number{font-size:26px}
+.sia-game .map-content{max-width:82%}
+.sia-game .map-content p{font-size:10px}
+.sia-game .map-content .eyebrow{font-size:9px}
+.sia-game .map-meta{font-size:9px;margin-top:10px}
+.sia-game .map-state{font-size:9px;right:12px;bottom:11px}
+.sia-game .map-content h2{font-size:22px}
+.sia-game .capacity{font-size:10px}
+.sia-game .view-title .subtle-button{font-size:9px;padding:7px 9px}
+.sia-game .view-title .eyebrow{font-size:9px}
+.sia-game footer{padding:5px 15px 18px;font-size:8px}
+.sia-game footer span:last-child{display:none}
+.sia-game .offline-grid{grid-template-columns:1fr 1fr}
+.sia-game .compare{gap:10px}
+.sia-game .compare>div{padding:12px}
+}
+@media(prefers-reduced-motion:reduce){.sia-game *{animation:none!important;transition:none!important}
+}
+.sia-game .ui-icon{display:inline-flex;align-items:center;justify-content:center;width:var(--icon-size);height:var(--icon-size);font-family:'Segoe UI Symbol','Microsoft YaHei',sans-serif;font-size:var(--icon-size);line-height:1;vertical-align:middle;flex-shrink:0;font-weight:400;letter-spacing:0}
+.sia-game .unit-art{display:block;width:100%;height:100%;object-fit:contain;user-select:none;pointer-events:none}
+.sia-game .unit-art.face-left{transform:scaleX(-1)}
+.sia-game .avatar{height:78px;width:64px;position:relative;background:#28364b;border-color:#697384}
+.sia-game .avatar .unit-art{position:absolute;height:185px;width:125px;max-width:none;left:-27px;top:-10px;object-fit:contain}
+.sia-game .profile-top .eyebrow{color:#a7b7cc}
+.sia-game .profile-title{display:inline-block;margin:6px 0 0;padding:2px 7px;background:#697f9d1c;border:1px solid #697f9d45;border-radius:2px;color:#a9b9cf;font-size:9px;letter-spacing:1px}
+.sia-game .scene{height:430px;border:1px solid #6e785a;border-radius:3px;isolation:isolate;background:#4a5843}
+.sia-game .scene-art{z-index:0}
+.sia-game .landscape{object-fit:cover;object-position:center 58%}
+.sia-game .scene:after{box-shadow:inset 0 0 0 4px #18241c55,inset 0 0 0 5px #b0a77b22;z-index:5}
+.sia-game .scene-top{z-index:6}
+.sia-game .scene-label{background:#17251dd9;border-color:#a6a78055;backdrop-filter:none;font-size:10px;box-shadow:0 2px 4px #11201530}
+.sia-game .scene-inscription{top:66px;right:23px;z-index:1;color:#e6d3a0;background:#14251dc2;border:1px solid #a6a78050;padding:9px 13px;text-shadow:none}
+.sia-game .scene-inscription>span{font-size:24px;letter-spacing:5px}
+.sia-game .scene-inscription small{font:8px system-ui;letter-spacing:2px;margin-top:4px;color:#c2c3a6}
+.sia-game .fighter{width:180px;bottom:49px;z-index:3;display:flex;flex-direction:column;align-items:center}
+.sia-game .fighter.hero{left:16%}
+.sia-game .fighter.enemy{right:13%}
+.sia-game .sprite{width:158px;height:216px;filter:none;position:relative;z-index:2;transform-origin:50% 90%}
+.sia-game .enemy .sprite{height:190px;width:165px;margin-top:0}
+.sia-game .scene.boss-fight .enemy .sprite{height:230px;width:197px}
+.sia-game .fighter:after{content:'';position:absolute;bottom:6px;width:92px;height:15px;border-radius:50%;background:#12271f44;z-index:0;pointer-events:none}
+.sia-game .unit-label{padding:3px 8px;background:#15261de8;border:1px solid #c4bb8055;border-radius:3px;font-size:11px;color:#f0e3bb;white-space:nowrap;text-shadow:none;z-index:4}
+.sia-game .unit-label em{color:#cbd7e5}
+.sia-game .enemy .unit-label{border-color:#cba27e7a;color:#f2d4aa}
+.sia-game .unit-identity{font-size:8px;color:#e6e3c8;background:#1d2c22bf;border-radius:2px;padding:1px 6px;letter-spacing:1px;margin-top:3px;z-index:3}
+.sia-game .unit-health{width:94px;margin:5px auto 0;height:5px;z-index:3;border-radius:1px;box-shadow:0 0 0 1px #17251f}
+.sia-game .unit-health i{background:#8ab77b}
+.sia-game .unit-health.red i{background:#cc795a}
+.sia-game .health-text{font-size:9px;line-height:1.5;z-index:3;font-variant-numeric:tabular-nums;color:#fff3d4;text-shadow:0 1px 2px #17291d,1px 0 2px #17291d}
+.sia-game .companion{width:100px;left:4%;bottom:51px;z-index:4}
+.sia-game .companion .unit-art{height:113px;width:105px;object-fit:contain}
+.sia-game .companion span{font-size:9px;background:#15251dcc;border:1px solid #a4b38455;border-radius:3px;display:inline-block;padding:2px 6px;color:#dbe5bf;text-shadow:none}
+.sia-game .companion:before{content:'';position:absolute;bottom:20px;left:18px;width:66px;height:12px;background:#13291f38;border-radius:50%;z-index:-1}
+.sia-game .scene-bottom{z-index:6;background:#14261ddd;font-size:10px;border-top:1px solid #b6b88342}
+.sia-game .damage{z-index:7;top:45px;font:700 24px Georgia,'Microsoft YaHei',serif;color:#ffdf83;text-shadow:-1px -1px #483422,1px 1px #483422,1px -1px #483422,-1px 1px #483422}
+.sia-game .damage.float{animation:damageFloat .85s ease-out}
+.sia-game .hero .damage{color:#ffb4a1}
+.sia-game .sprite.attack{animation:cast-step .45s ease-out}
+.sia-game .enemy .sprite.hit{animation:unit-hit .35s ease-out}
+.sia-game .attack-flash{position:absolute;left:43%;top:51%;width:58px;height:58px;z-index:6;opacity:0;pointer-events:none;font:35px var(--serif);color:#f4d477;text-shadow:1px 1px #654925}
+.sia-game .attack-flash.cast{animation:talisman-cast .7s ease-out}
+.sia-game .boss-portrait{height:190px;margin-top:14px;background:none;overflow:visible}
+.sia-game .boss-portrait:before{top:28px;border:1px solid #8c85544d;box-shadow:0 0 0 7px #9f985b05,0 0 0 8px #72754c25}
+.sia-game .boss-portrait .unit-art{height:194px;width:180px;position:relative;z-index:1;filter:none}
+.sia-game .boss-seal{right:7px;top:14px;z-index:2;background:#1b241bcc;border-color:#a18c60;color:#d7bd7e}
+.sia-game .boss-title{margin:7px 0 10px}
+.sia-game .boss-title h2{font-size:23px;letter-spacing:3px}
+.sia-game .identity-traits{font-size:9px;color:#a0ae92;letter-spacing:1px;text-align:center;margin:4px 0 14px}
+.sia-game .boss-title span{color:#b7b09a;font-size:10px}
+.sia-game .boss-stats{font-size:11px}
+.sia-game .boss-reward div{font-size:11px}
+.sia-game .boss-hint{margin-bottom:15px}
+.sia-game .pet-mini{min-height:66px;background:#243329}
+.sia-game .pet-mini-art{width:46px;height:52px;overflow:visible}
+.sia-game .pet-mini-art .unit-art{width:46px;height:52px}
+.sia-game .pet-mini>.ui-icon{margin-left:auto}
+.sia-game .pet-art{height:190px;margin:10px 0;background:none}
+.sia-game .pet-art .unit-art{height:100%;width:100%}
+.sia-game .pet-card{background:#1d2a23}
+.sia-game .pet-card.selected{background:#253326}
+.sia-game .pet-card .identity-traits{font-size:8px;margin:6px 0 0;letter-spacing:0;min-height:0}
+.sia-game .pet-card-head{font-size:11px}
+.sia-game .pet-card p{min-height:70px}
+.sia-game .pet-card h2{letter-spacing:2px}
+.sia-game .map-art{opacity:.68}
+.sia-game .map-art:after{background:linear-gradient(90deg,#14251af2 0%,#14251abe 50%,#14251a22 100%)}
+.sia-game .map-card{min-height:185px;border-color:#56634b}
+.sia-game .map-content h2{text-shadow:0 2px 4px #14251a}
+.sia-game .map-state{background:#14251acb;border:1px solid #6f7f5d60;padding:4px 7px;border-radius:2px}
+.sia-game .battle-controls{padding:16px 0}
+.sia-game .income-grid{margin-top:14px}
+.sia-game .tip{margin-top:14px}
+.sia-game .version{color:#c0b48a}
+@keyframes cast-step{0%,100%{transform:translateX(0)}35%{transform:translateX(9px)}60%{transform:translateX(6px)}}
+@keyframes unit-hit{0%,100%{transform:translateX(0)}35%{transform:translateX(5px)}65%{transform:translateX(-3px)}}
+@keyframes talisman-cast{0%{opacity:0;transform:translate(-25px,22px) rotate(-20deg) scale(.75)}30%{opacity:1}100%{opacity:0;transform:translate(80px,-15px) rotate(15deg) scale(1.1)}}
+@media(min-width:1600px){.sia-game .scene{height:475px}
+.sia-game .sprite{height:244px;width:180px}
+.sia-game .enemy .sprite{height:216px;width:190px}
+.sia-game .scene.boss-fight .enemy .sprite{height:262px;width:223px}
+.sia-game .fighter.hero{left:20%}
+.sia-game .fighter.enemy{right:17%}
+.sia-game .companion{left:7%;bottom:52px}
+.sia-game .companion .unit-art{height:130px;width:120px}
+.sia-game .boss-portrait{height:215px}
+.sia-game .boss-portrait .unit-art{height:215px;width:195px}
+}
+@media(max-width:1190px){.sia-game .fighter.hero{left:15%}
+.sia-game .fighter.enemy{right:7%}
+.sia-game .right-panel #quest{grid-template-columns:145px 1fr}
+.sia-game .boss-portrait{height:178px;grid-row:2/7}
+.sia-game .boss-portrait .unit-art{height:178px;width:140px}
+.sia-game .boss-portrait:before{width:105px;height:105px}
+.sia-game .identity-traits{margin:3px 0 8px;font-size:8px}
+.sia-game .right-panel .boss-title{margin-top:12px}
+.sia-game .companion{left:1%}
+}
+@media(max-width:760px){.sia-game .avatar{height:64px;width:54px}
+.sia-game .avatar .unit-art{height:157px;width:108px;left:-24px;top:-9px}
+.sia-game .profile-title{display:none}
+.sia-game .navigation .ui-icon{font-size:16px;width:16px}
+.sia-game .power>.ui-icon{display:none}
+.sia-game .scene{height:370px}
+.sia-game .scene-inscription{top:57px;right:13px;padding:6px 9px}
+.sia-game .scene-inscription>span{font-size:21px}
+.sia-game .scene-inscription small{font-size:7px;letter-spacing:1px}
+.sia-game .fighter{width:125px;bottom:47px}
+.sia-game .fighter.hero{left:14%}
+.sia-game .fighter.enemy{right:3%}
+.sia-game .sprite{height:164px;width:117px}
+.sia-game .enemy .sprite{height:143px;width:125px}
+.sia-game .scene.boss-fight .enemy .sprite{height:174px;width:140px}
+.sia-game .fighter:after{width:66px;height:11px}
+.sia-game .companion{left:0;bottom:46px;width:63px}
+.sia-game .companion .unit-art{width:69px;height:80px}
+.sia-game .companion span{font-size:8px;padding:1px 4px}
+.sia-game .companion:before{width:44px;left:8px}
+.sia-game .unit-label{font-size:9px;padding:3px 5px}
+.sia-game .unit-identity{font-size:7px;letter-spacing:0}
+.sia-game .unit-health{width:76px}
+.sia-game .health-text{font-size:8px}
+.sia-game .scene-top{top:11px}
+.sia-game .scene-label{font-size:8px}
+.sia-game .scene-bottom{font-size:9px}
+.sia-game .damage{font-size:18px}
+.sia-game .boss-portrait{height:172px}
+.sia-game .boss-portrait .unit-art{height:172px;width:140px}
+.sia-game .pet-art{height:155px}
+.sia-game .pet-card p{min-height:0}
+.sia-game .pet-card .identity-traits{grid-column:2;margin:0;text-align:left}
+.sia-game .pet-card .pet-art{grid-row:2/6}
+.sia-game .pet-card h2{font-size:18px}
+.sia-game .attack-flash{left:44%;font-size:27px}
+.sia-game .map-state{font-size:8px}
+}
+@media(prefers-reduced-motion:reduce){.sia-game .attack-flash{display:none}
+.sia-game .sprite,.sia-game .damage{animation:none!important}
+}
+
+/* Sia Button 和 Modal 是实际交互基础，以下规则仅调整游戏布局与主题。 */
+body:has(.sia-game){margin:0;background:#101918}
+.sia-game{--gold:var(--game-accent,#cfb67b);--bg:var(--game-background,#101918);min-height:100vh;background:var(--bg);--sia-color-primary:#cfb67b;--sia-color-text:#d6dbcd;--sia-color-bg-container:#192421;--sia-color-border:#52624b}
+.sia-game .game-button{height:auto;min-height:0;line-height:inherit;box-shadow:none;white-space:normal;letter-spacing:inherit}
+.sia-game .game-button>span{display:contents}
+.sia-game .game-button.nav-item{height:100%}.sia-game .game-button.equipped-item{width:100%;text-align:left}.sia-game .game-button.pet-mini{width:100%;text-align:left}
+.sia-game .game-button.map-card{width:100%;text-align:left;display:flex;white-space:normal}
+.sia-game .game-button.boss-button{width:100%;height:42px}
+.sia-game .game-button.primary-button{background:#cfb67b;color:#203022;border:1px solid #dbc589}
+.sia-game .game-button:disabled{opacity:.45}.sia-game .unit-health i{display:block;height:100%}
+.sia-game .scene-art,.sia-game .landscape{width:100%;height:100%}
+.sia-game .gear-slot{display:flex;flex-direction:column;align-items:stretch;gap:12px;padding:14px}.sia-game .gear-info h3{margin:6px 0}
+.sia-game .map-list{display:grid;gap:16px}.sia-game .map-card .map-art{position:absolute;inset:0}.sia-game .map-content,.sia-game .map-number,.sia-game .map-state{z-index:1}
+.sia-game .sia-game-dialog{background:#1d2c23;color:#d6dbcd;border-color:#657454}.sia-game .sia-modal__header,.sia-game .sia-modal__body{background:transparent;color:inherit}
+.sia-game .compare>section{padding:16px;background:#263629;border:1px solid #46573e;border-radius:3px}
+.sia-game .game-toast{background:#d6c18b;color:#243225}
+.sia-game .inventory-toolbar{justify-content:space-between}
+.sia-game .log-line{display:flex;gap:8px;font-size:11px;margin-bottom:11px}.sia-game .log-line time{color:#87958b;flex-shrink:0}.sia-game .log-line.rare{color:#dbc18d}
+@media(max-width:760px){.sia-game .game-button.nav-item{font-size:11px;padding:4px}.sia-game .gear-slot{padding:10px}.sia-game .map-content{max-width:76%}.sia-game .sia-button{min-width:0}}
+
+/* Sia Button 使用内容包裹层；文本分行由游戏类显式定义，避免依赖原型的直接子节点结构。 */
+.sia-game .equipped-item small{display:block;font-size:10px;color:#87958b;margin-bottom:3px}
+.sia-game .equipped-item b{display:block;font-size:12px;font-weight:400}
+.sia-game .equipped-item > span > span:nth-child(2){flex:1;min-width:0;text-align:left}
+.sia-game .equipped-item em{margin-left:auto}

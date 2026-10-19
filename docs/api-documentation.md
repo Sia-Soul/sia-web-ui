@@ -1,5 +1,9 @@
 # 公开 API 的编辑器注释
 
+QueryForm 的字段可指定 `settingsHideDisabled: true`，用于编码等必须保留的查询入口。该字段忽略云端隐藏值，在查询设置中始终勾选且不可取消，仍可排序；不影响 Form 的必填校验。例如 `{ key: "sku_id", name: "sku_id", settingsHideDisabled: true, children: <Input placeholder="商品编码" /> }`。未指定时沿用原来的可隐藏行为。
+
+`Form.useForm()` 实例允许在 Form 挂载前调用 `setFieldsValue` / `setFieldValue`，适用于延迟挂载页签中的接口回填。首次挂载时，已写入路径优先于 `initialValues`，未写入字段保留初始值；回填和挂载不触发业务保存。`resetFields` 仍恢复首次挂载的初始值，挂载前重置也按操作顺序生效。
+
 Table 单元格选区在滚动后保留；正文选区描边位于吸顶表头与固定列之下，不覆盖列头内容。普通表头、分组表头和左右固定列均遵循此遮挡规则。
 
 Tabs 设置确定高度（或由父级弹性布局分配高度）后，内容面板占满标签栏之外的剩余空间；未限定高度时仍随内容自然撑开。面板内的列表可采用纵向 Flex、查询区、`flex: 1; min-height: 0` 表格容器和 `Table height="100%"`，使空表分页保持在容器底部。上下左右页签、嵌套页签及保留隐藏面板均沿用此规则，不需要业务覆盖内部 CSS。

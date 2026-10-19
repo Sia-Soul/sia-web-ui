@@ -1,0 +1,137 @@
+/* 游戏框架默认暗色皮肤：只改变界面，不对场景或单位位图添加滤镜。
+ * --game-background：CSS 颜色，默认 #10151e；--game-accent：CSS 颜色，默认 #e0bd78。
+ * 宿主 style 或祖先同名变量优先；其余变量仅为内部面板层级与交互色。
+ */
+body:has(.sia-game){background:#10151e}
+.sia-game{--bg:var(--game-background,#10151e);--panel:#1c2533;--line:#364355;--muted:#9ba9bc;--text:#e0e7f1;--gold:var(--game-accent,#e0bd78);--jade:#7ed4b1;--action:#62c4ef;--sia-color-primary:#62c4ef;--sia-color-text:#e0e7f1;--sia-color-bg-container:#1c2533;--sia-color-border:#364355;background:var(--bg);color:var(--text)}
+.sia-game button:not(:disabled):hover{filter:none;border-color:#6b829f;background-color:#2b3c50}
+.sia-game button:focus-visible,.sia-game a:focus-visible{outline-color:var(--action)}
+.sia-game .topbar{height:72px;padding:0 22px;gap:32px;background:#171e29;border-bottom-color:#3b495d}
+.sia-game .brand-seal{width:37px;height:43px;background:#202a39;box-shadow:inset 0 0 0 3px #202a39,inset 0 0 0 4px #706345}
+.sia-game .brand-title{font-size:27px;color:#f2e3c4}
+.sia-game .brand-title small{color:#99a7ba}
+.sia-game .realm{color:#b5c3d5}
+.sia-game .separator{color:#526177}
+.sia-game .version{color:#a8b8cd;background:#202b3b}
+.sia-game .icon-button{color:#a9bbd0;border-color:#364355;background:#202b3b;border-radius:3px}
+.sia-game .top-actions{gap:12px}
+.sia-game .live-dot{background:#78d8ae;box-shadow:none}
+.sia-game .live-dot.inactive{background:#8794a8}
+/* 桌面导航采用紧凑的游戏菜单格，青蓝边框标出当前位置。 */
+.sia-game .navigation{height:56px;padding:6px 22px;gap:8px;background:#121a25;border-bottom-color:#354256}
+.sia-game .game-button.nav-item{min-width:156px;padding:0 20px;border:1px solid #354256;border-radius:3px;background:#1d2837;color:#aabdd2;letter-spacing:1px}
+.sia-game .game-button.nav-item.active{color:#8bdcff;background:#203e55;border-color:#4586aa}
+.sia-game .nav-item.active:after{left:0;right:0;bottom:0;background:#63cafa;height:2px}
+.sia-game .nav-count{background:#32485f;color:#c2e8ff}
+.sia-game .nav-verse{color:#91a2b8}
+.sia-game .workspace{gap:14px;padding:16px 22px;grid-template-columns:248px minmax(440px,1fr) 268px}
+.sia-game .character-panel,.sia-game .right-panel{border-radius:3px;border-color:#3a485b;box-shadow:0 3px 12px #00000020}
+.sia-game .character-panel{padding:16px 15px 0}
+.sia-game .right-panel{padding:15px 14px 0}
+.sia-game .avatar{background:#27364b;border-color:#536981}
+.sia-game .eyebrow,.sia-game .level-tag span{color:#a5b4c8}
+.sia-game .profile-title{background:#27394e;border-color:#445e7a;color:#bdd7f0}
+.sia-game .profile-top h2{color:#f0e1bd}
+.sia-game .power{margin:14px 0;padding:9px 11px;background:#142032;border-color:#3b536e}
+.sia-game .power span{color:#acc2db}
+.sia-game .power strong{color:#f0cc86;font-family:system-ui,sans-serif;font-size:25px;font-weight:600}
+.sia-game .experience>div:first-child{color:#a7b6cb}
+.sia-game .progress{height:5px;background:#101721;border:1px solid #35465b;border-radius:2px}
+.sia-game .progress i{background:#55b6e8}
+.sia-game .attributes{gap:8px 16px;margin:14px 0 17px}
+.sia-game .attributes b{color:#edf1f7;font-variant-numeric:tabular-nums}
+.sia-game .line-heading{padding-top:12px;color:#b9c7d9}
+.sia-game .text-button{color:#77c9ed}
+.sia-game .wallet{margin:12px 0 16px;gap:9px}
+.sia-game .wallet b{font-weight:500}
+.sia-game .equipped-list{gap:6px;margin-top:10px}
+.sia-game .game-button.equipped-item{padding:5px 7px;background:#151e2b;border-color:#344359;border-radius:3px}
+.sia-game .slot-symbol{width:34px;height:34px;background:#243249;border-color:#475c76;color:#aec3df}
+.sia-game .equipped-item small{color:#97abc3}
+.sia-game .game-button.pet-mini{margin:14px 0;background:#203349;border-color:#405d79;min-height:62px}
+.sia-game .pet-mini small{color:#9db7d2}
+.sia-game .character-bottom{margin:0 -15px;padding:11px 15px;background:#151d28;color:#97aabd}
+.sia-game .view-title{min-height:65px;margin:0 0 12px;padding:4px 2px 10px;border-bottom:1px solid #344357}
+.sia-game h1{font-size:26px;color:#e8edf6}
+.sia-game .subtle-button,.sia-game .small-button{background:#243247;border-color:#4a607b;color:#c2d7ec}
+.sia-game .game-button.primary-button{background:#245779;border-color:#5094bd;color:#e4f5ff;font-weight:500}
+.sia-game .game-button.primary-button:not(:disabled):hover{background:#2c6a92;border-color:#76c6f0}
+.sia-game .game-button.jade-button{color:#9ee1cb;border-color:#467c77;background:#203c3e}
+/* 场景内部保留原有绘画色彩；仅 HUD、铭牌和操作栏换用中性深色。 */
+.sia-game .scene{border-color:#536780;border-radius:3px;background:#182432}
+.sia-game .scene:after{box-shadow:inset 0 0 0 3px #10182466,inset 0 0 0 4px #a1bad12b}
+.sia-game .scene-label{background:#121b2be8;color:#d8e6f7;border-color:#60738b}
+.sia-game .scene-inscription{background:#17202de0;border-color:#667083;color:#eed8a7}
+.sia-game .scene-inscription small{color:#bdc9d9}
+.sia-game .unit-label{background:#162131ed;border-color:#718198;color:#f6e8c8}
+.sia-game .unit-identity{background:#162131d9;color:#ccd9eb}
+.sia-game .companion span{background:#162131e6;border-color:#667c93;color:#d3eee4}
+.sia-game .scene-bottom{background:#111b2bef;border-top-color:#4c627c;color:#cedbeb}
+.sia-game .battle-controls{margin-top:0;padding:13px 14px;background:#1c293a;border:1px solid #3c5069;border-top:0;border-radius:0 0 3px 3px}
+.sia-game .battle-controls small{color:#a0b3cb}
+.sia-game .status-label{font-size:15px;color:#dbe6f5}
+.sia-game .income{margin-top:12px;padding:13px 16px;border-color:#3a485b}
+.sia-game .panel-heading h3{font-family:'Microsoft YaHei',system-ui,sans-serif;font-size:13px;font-weight:600;color:#d5e1f2}
+.sia-game .panel-heading>span{color:#a4b4c8}
+.sia-game .income-grid{margin-top:12px}
+.sia-game .income-grid span{color:#a2b4cc}
+.sia-game .income-grid b{color:#ebd29c;font:500 23px/1.4 system-ui,sans-serif}
+.sia-game .tip{margin-top:12px;padding:10px 13px;background:#17212f;border-color:#344358;color:#9bacc3}
+.sia-game .tip p b{color:#b8cbe1}
+.sia-game .boss-portrait{margin-top:9px}
+.sia-game .boss-portrait:before{border-color:#4f6682;box-shadow:0 0 0 7px #27374b44,0 0 0 8px #3c4e6633}
+.sia-game .boss-seal{background:#302622;border-color:#9f7851;color:#edc791}
+.sia-game .boss-title h2{color:#f0d8aa}
+.sia-game .boss-title span,.sia-game .identity-traits{color:#a8b7ca}
+.sia-game .boss-stats{background:#121c2a;color:#a1b4cd;border:1px solid #33455b}
+.sia-game .boss-stats b{color:#d9e6f7}
+.sia-game .boss-reward>span{color:#a4b4ca}
+.sia-game .boss-reward div{color:#e6c68c}
+.sia-game .game-button.boss-button{color:#f5d694;border-color:#a0844e;background:#3c3324}
+.sia-game .game-button.boss-button:not(:disabled):hover{background:#53452d;border-color:#d2b26c}
+.sia-game .boss-hint{color:#a3b1c5}
+.sia-game .journal{padding-top:12px}
+.sia-game .journal .panel-heading{margin-bottom:12px}
+.sia-game #logs{height:204px;scrollbar-color:#4a5e78 #121b28}
+.sia-game .log-line{color:#c2cddd;font-size:11px;line-height:1.8;margin-bottom:8px}
+.sia-game .log-line time{color:#90a3bc}
+.sia-game .log-line.rare{color:#e5c78e}
+.sia-game .save-state{margin:8px -14px 0;background:#151d28;color:#9cacbf}
+.sia-game footer{padding:8px 22px 16px;color:#879bb5}
+/* 地图、背包、灵宠与弹窗共享相同面板色，避免切换页面时出现旧绿色皮肤。 */
+.sia-game .view-description{color:#acbdd2;margin-bottom:17px}
+.sia-game .map-card{border-color:#4c6078}
+.sia-game .map-art:after{background:linear-gradient(90deg,#101b2bf5 0%,#101b2bbf 50%,#101b2b15 100%)}
+.sia-game .map-card.current{border-color:#63bce5}
+.sia-game .map-content h2{color:#ede2c9;text-shadow:none}
+.sia-game .map-content p,.sia-game .map-meta{color:#b8c9df}
+.sia-game .map-state{background:#142236ed;border-color:#536e8e;color:#9eddf7}
+.sia-game .capacity{color:#acbdd2}
+.sia-game .gear-icon,.sia-game .item-symbol{background:#23324a;border-color:#49617f}
+.sia-game .gear-slot small,.sia-game .item-detail small,.sia-game .item-stats{color:#a4b7d0}
+.sia-game .inventory-toolbar{margin:18px 0 12px}
+.sia-game .filter{color:#b5c6dd;border-color:#35475f;background:#1d2a3c}
+.sia-game .filter.active{color:#8bdcff;background:#203e55;border-color:#4586aa}
+.sia-game .inventory-list{scrollbar-color:#4a5e78 #121b28}
+.sia-game .empty-state{color:#a3b4cc;border-color:#435770;background:#17212e}
+.sia-game .empty-state h3{color:#cfdded}
+.sia-game .pet-card{background:#1c2839;border-color:#3f526d}
+.sia-game .pet-card.selected{background:#203348;border-color:#5a9cc4;box-shadow:inset 0 3px #5ebce6}
+.sia-game .pet-card-head{color:#acc0d9}
+.sia-game .pet-kind{color:#b6d9f2;border-color:#4b6986;background:#233c52}
+.sia-game .pet-card p{color:#b3c3d7}
+.sia-game .pet-stat{border-color:#425673;color:#acbfd7}
+.sia-game .pet-stat b{color:#e0eaf6}
+.sia-game .pet-card .subtle-button:disabled{opacity:1;color:#98d9f4;border-color:#477d9c;background:#203f56}
+.sia-game .sia-game-dialog{background:#1c2737;color:#dce6f4;border-color:#576c87;box-shadow:0 24px 80px #0008}
+.sia-game .sia-modal__header{border-bottom-color:#3d4f68}
+.sia-game .help-content,.sia-game .compare span:not(.eyebrow){color:#b7c8dd}
+.sia-game .compare>section,.sia-game .offline-grid>div{background:#142031;border-color:#415675}
+.sia-game .offline-grid span{color:#afc3df}
+.sia-game .offline-grid b{color:#f0cf8f}
+.sia-game .close{color:#b7c9e1}
+.sia-game .game-toast{background:#253d55;border-color:#6597bf;color:#edf6ff}
+/* 暗色主题只压缩桌面间距；继续遵守原框架的平板及手机布局断点。 */
+@media(min-width:1600px){.sia-game .workspace{grid-template-columns:270px minmax(600px,1fr) 290px;gap:16px}.sia-game #logs{height:230px}}
+@media(max-width:1190px){.sia-game .workspace{grid-template-columns:210px minmax(400px,1fr);padding:16px;gap:14px}.sia-game .right-panel{padding-bottom:14px}.sia-game .journal{padding-top:0}}
+@media(max-width:760px){.sia-game .topbar{height:68px;padding:0 12px;gap:10px}.sia-game .brand-title{font-size:23px}.sia-game .top-actions{gap:4px}.sia-game .icon-button{width:30px;height:30px}.sia-game .navigation{height:51px;padding:5px 8px;gap:4px}.sia-game .game-button.nav-item{min-width:0;padding:0 4px;font-size:11px;letter-spacing:0;gap:4px}.sia-game .workspace{padding:12px;gap:12px}.sia-game .character-panel{padding:12px}.sia-game .power{margin:0;padding:3px 8px}.sia-game .power strong{font-size:21px}.sia-game .view-title{min-height:57px;padding-bottom:8px}.sia-game h1{font-size:23px}.sia-game .battle-controls{padding:11px 10px;gap:8px}.sia-game .battle-controls .primary-button{padding:10px 13px}.sia-game .battle-controls small{font-size:9px}.sia-game .income{padding:12px}.sia-game .income-grid b{font-size:21px}.sia-game .right-panel{padding:14px}.sia-game footer{padding:8px 12px 15px}}

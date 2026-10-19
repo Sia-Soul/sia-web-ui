@@ -1,6 +1,6 @@
 {
   "name": "@sia.soul/sia-react-ui",
-  "version": "0.1.101",
+  "version": "0.1.110",
   "description": "Sia Design components and tokens for React",
   "publishConfig": {
     "access": "public",
@@ -44,14 +44,20 @@
       "import": "./dist/chart.js",
       "require": "./dist/chart.cjs"
     },
-    "./styles.css": "./dist/index.css"
+    "./styles.css": "./dist/index.css",
+    "./game": {
+      "types": "./dist/game.d.ts",
+      "import": "./dist/game.js",
+      "require": "./dist/game.cjs"
+    },
+    "./game/styles.css": "./dist/game.css"
   },
   "files": [
     "dist",
     "THIRD_PARTY_NOTICES.md"
   ],
   "scripts": {
-    "build": "tsup src/index.ts src/core.ts src/select-date-range.ts src/rich-text-editor.ts src/markdown-editor.ts src/chart.ts --format esm,cjs --dts --clean",
+    "build": "tsup src/index.ts src/core.ts src/select-date-range.ts src/rich-text-editor.ts src/markdown-editor.ts src/chart.ts src/game.ts --format esm,cjs --dts --clean",
     "typecheck": "tsc -p tsconfig.json",
     "prepublishOnly": "node ../../scripts/check-api-docs.cjs && pnpm typecheck && pnpm build && node ../../scripts/test-api-docs.cjs"
   },

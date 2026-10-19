@@ -31,6 +31,8 @@ export interface WindowControlLabels {
 export interface WindowFrameProps extends HTMLAttributes<HTMLDivElement> {
   /** 标题栏内容或配置。 */
   titleBar?: ReactNode;
+  /** 是否允许选择普通界面文字，默认 true；false 时当前文档内（含弹层）的普通文字和图片不可拖选，输入框、文本域及可编辑区域仍能正常选择和编辑。 */
+  textSelectable?: boolean;
 }
 
 /** 窗口控制按钮的属性配置。 */
@@ -127,6 +129,7 @@ const NON_DRAG_SELECTOR = [
 /** 窗口框架组件。 */
 export function WindowFrame({
   titleBar,
+  textSelectable = true,
   className = "",
   children,
   ...props
@@ -135,6 +138,7 @@ export function WindowFrame({
     <div
       className={`sia-window-frame ${className}`.trim()}
       data-sia-window-mode="custom"
+      data-sia-text-selectable={textSelectable}
       {...withTitleTooltip(props)}
     >
       {titleBar}

@@ -4,6 +4,8 @@ import { ApiTable } from "./ApiTable";
 import { DemoCard } from "./DemoCard";
 import { DocsTabs } from "./DocsTabs";
 import { PageHeader } from "./PageHeader";
+import { NativeLayoutDemo } from "./NativeLayoutDemo";
+import nativeLayoutCode from "./NativeLayoutDemo.tsx?raw";
 
 type DocPageProps = {
   eyebrow: string;
@@ -49,6 +51,7 @@ export function FlexPage() {
       { property: "wrap", description: "是否允许换行", type: "boolean | CSS flex-wrap", defaultValue: "false" },
     ]}
   >
+    <DemoCard title="原生排序、尺寸与任务浮层" description="框架负责通用交互和外观，业务只传递数据、顺序回调和任务进度。" code={nativeLayoutCode}><NativeLayoutDemo /></DemoCard>
     <DemoCard title="对齐、换行与间距" description="Flex 直接控制子元素布局，不会为每个子元素增加包装节点。" code={flexCode}>
       <Flex wrap gap="medium" align="center" justify="space-between" className="layout-demo-surface">
         <Button variant="primary">主要操作</Button>

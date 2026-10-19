@@ -66,7 +66,7 @@ export interface SliderProps extends Omit<HTMLAttributes<HTMLDivElement>, "defau
   formatter?: (value: number) => ReactNode };
   /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (value: SliderValue) => void;
-  /** 拖动完成回调 */
+  /** 鼠标或触摸拖动结束、方向键等调整键松开时调用，参数为当前值；用于保存最终设置。 */
   onChangeComplete?: (value: SliderValue) => void;
 }
 
@@ -141,6 +141,8 @@ export function Slider({
         onChange={(event) => update(index, Number(event.currentTarget.value))}
         onMouseUp={finish}
         onTouchEnd={finish}
+        // 键盘调整同样提交最终值，避免受控页面只更新显示而未保存。
+        onKeyUp={(event) => { if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) finish(); }}
       />
       {tooltip?.open || activeThumb === index ? <span
         className="sia-slider__tooltip-anchor"

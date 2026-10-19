@@ -12,7 +12,14 @@ import type { QueryFormSettingsConfig, QueryFormSettingsSnapshot } from "./query
 /** 管理查询布局的云端加载、草稿和保存；通过请求序号隔离业务切换后的迟到响应。未指定默认收起值且云端无记录时保留 undefined，让查询区继续按实际行数判断。 */
 export function useQueryFormSettings(
   config: QueryFormSettingsConfig | undefined,
-  fields: readonly { key: string; label: ReactNode }[],
+  fields: readonly {
+    /** 对应查询字段的稳定标识。 */
+    key: string;
+    /** 设置列表显示的名称。 */
+    label: ReactNode;
+    /** 强制可见且禁止取消勾选，不限制排序；默认 false。 */
+    hideDisabled?: boolean;
+  }[],
   defaultCollapsed: boolean | undefined,
   applyCollapsed: (collapsed: boolean | undefined) => void,
   disabled: boolean,
@@ -45,7 +52,7 @@ export function useQueryFormSettings(
       if (request !== token.current) return;
       const next = stored ?? { fields: [], defaultCollapsed: current.defaultCollapsed ?? false };
       setSnapshot(next);
-      setDraft({ ...next, fields: reconcileQueryFields(latest.current.fields.map(field => field.key), next.fields) });
+      setDraft({ ...next, fields: reconcileQueryFields(latest.current.fields.map(field => field.key), next.fields, latest.current.fields.filter(field => field.hideDisabled).map(field => field.key)) });
       // 打开设置不重置用户临时展开状态；初次加载和成功保存才应用云端默认值。
       if (!edit) latest.current.applyCollapsed(stored?.defaultCollapsed ?? latest.current.defaultCollapsed);
     } catch (reason) {
@@ -79,7 +86,7 @@ export function useQueryFormSettings(
     setSaving(true);
     setError("");
     const request = token.current;
-    const active = reconcileQueryFields(current.fields.map(field => field.key), draft.fields);
+    const active = reconcileQueryFields(current.fields.map(field => field.key), draft.fields, current.fields.filter(field => field.hideDisabled).map(field => field.key));
     const next = { ...draft, fields: mergeQueryFields(snapshot?.fields ?? [], active) };
     try {
       await saveSettingsPatch(current.config.adapter, current.config.scope, { queryForm: next });
@@ -98,7 +105,8 @@ export function useQueryFormSettings(
     }
   }
 
-  const visibleDraft = reconcileQueryFields(fields.map(field => field.key), draft.fields);
+  const hideDisabledKeys = new Set(fields.filter(field => field.hideDisabled).map(field => field.key));
+  const visibleDraft = reconcileQueryFields(fields.map(field => field.key), draft.fields, [...hideDisabledKeys]);
   const labels = new Map(fields.map(field => [field.key, field.label]));
   const locked = loading || saving || loadFailed || disabled;
   const move = (from: number, to: number) => {
@@ -130,7 +138,7 @@ export function useQueryFormSettings(
             style={sort.preview ? { transform: `translateY(${sort.preview.offsets[item.key] ?? 0}px)` } : undefined}
             onPointerDown={event => sort.start(event, item.key)}>
             <Icon name="menu" size={15} />
-            <Checkbox aria-label={`显示 ${item.key}`} checked={item.visible} disabled={locked} onChange={checked => setDraft(current => ({ ...current, fields: visibleDraft.map(field => field.key === item.key ? { ...field, visible: checked } : field) }))} />
+            <Checkbox aria-label={`显示 ${item.key}`} checked={item.visible} disabled={locked || hideDisabledKeys.has(item.key)} onChange={checked => setDraft(current => ({ ...current, fields: visibleDraft.map(field => field.key === item.key ? { ...field, visible: checked } : field) }))} />
             <span className="sia-query-settings__name">{labels.get(item.key) ?? item.key}</span>
             <div className="sia-query-settings__order">
               <Button type="button" size="small" variant="text" aria-label={`上移 ${item.key}`} disabled={locked || index === 0} icon={<Icon name="chevron-up" />} onClick={() => move(index, index - 1)} />

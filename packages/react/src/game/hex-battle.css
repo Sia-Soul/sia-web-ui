@@ -1,0 +1,25 @@
+/* 六边形战斗的暗色外壳；几何、贴图和战斗特效统一由框架 Canvas 渲染，不使用 SVG。 */
+.sia-game .hex-battlefield{position:relative;border:1px solid #4b647e;background:#111d2a;border-radius:3px;overflow:hidden}
+.sia-game .hex-stage-head,.sia-game .hex-stage-foot{display:flex;justify-content:space-between;gap:12px;padding:10px 14px;background:#192a3b;color:#b6ccdf;font-size:11px;border-bottom:1px solid #354b62}
+.sia-game .hex-stage-head>span:first-child{color:#e0c68e}
+.sia-game .hex-stage-foot{border-top:1px solid #354b62;border-bottom:0;background:#142131;font-size:10px}
+.sia-game .hex-stage-foot>span:first-child{color:#9cdbed}
+.sia-game .hex-canvas{display:block;width:100%;height:auto;aspect-ratio:900/580}
+.sia-game .hex-boss-intent{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;background:#392d28;color:#d7c6b4;border-top:1px solid #786044;font-size:10px}
+.sia-game .hex-boss-intent b{color:#f2c783;font-size:12px}
+.sia-game .hex-boss-intent.charging{background:#51352b;border-color:#d6a06b}
+.sia-game .hex-asset-warning{font-size:11px;color:#f1bf86;padding:10px}
+.sia-game .hex-build-bar{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 0}
+.sia-game .hex-build-bar span{padding:4px 7px;font-size:10px;background:#1c2c3e;color:#bbcee3;border:1px solid #3e526d;border-radius:2px}
+.sia-game .hex-build-bar b{color:#e2ca98;font-weight:400;margin-right:5px}
+.sia-game .hex-loadout>p{font-size:12px;color:#afc3da;line-height:1.8;margin-bottom:16px}
+.sia-game .hex-loadout section{margin:14px 0}
+.sia-game .hex-loadout h3{font-size:13px;color:#e4c994;margin-bottom:8px}
+.sia-game .hex-ability-options{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sia-game .game-button.hex-ability{display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:12px;border:1px solid #455c76;background:#162235;border-radius:3px;gap:5px}
+.sia-game .game-button.hex-ability>span{display:flex;flex-direction:column;gap:5px}
+.sia-game .hex-ability strong{font-size:13px;color:#d8e9f6}
+.sia-game .hex-ability small{font-size:10px;color:#87c9e4}
+.sia-game .hex-ability span span{font-size:11px;line-height:1.7;color:#aebed2}
+.sia-game .game-button.hex-ability.selected{background:#203d52;border-color:#62bde8;box-shadow:inset 3px 0 #62bde8}
+@media(max-width:760px){.sia-game .hex-stage-head,.sia-game .hex-stage-foot{padding:8px;font-size:9px;gap:5px}.sia-game .hex-canvas{min-height:285px;object-fit:contain}.sia-game .hex-boss-intent{flex-wrap:wrap;padding:8px;font-size:9px}.sia-game .hex-boss-intent>span:last-child{width:100%}.sia-game .hex-build-bar{gap:4px}.sia-game .hex-build-bar span{font-size:9px;padding:3px 5px}.sia-game .hex-ability-options{gap:6px}.sia-game .game-button.hex-ability{padding:9px}}

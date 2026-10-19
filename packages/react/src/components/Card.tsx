@@ -14,7 +14,7 @@ export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
    * @defaultValue true
    */
   bordered?: boolean;
-  /** 标题内容，可传入文本或 React 节点。 */
+  /** 标题内容，可传入文本或 React 节点；标题分割线在浅色主题下减淡，深色主题下保留边框对比度，卡片收起时隐藏。可通过 --sia-card-header-border-color 覆盖颜色。 */
   title?: ReactNode;
   /** 补充说明内容。 */
   description?: ReactNode;
@@ -38,12 +38,14 @@ export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
    */
   defaultSelected?: boolean;
   /**
-   * 禁止切换选中，不禁用卡片内独立操作。
+   * 禁止切换选中或触发 onAction，不禁用卡片内独立操作。
    * @defaultValue false
    */
   disabled?: boolean;
   /** 用户切换选中时通知新的布尔状态；禁用时不触发。 */
   onSelectedChange?: (selected: boolean) => void;
+  /** 点击卡片非交互区域或聚焦卡片后按 Enter/空格时执行；提供后使用按钮语义和框架交互样式。disabled 为 true 或 selectable 为 true 时不触发，内部按钮、链接及表单控件保持独立操作。 */
+  onAction?: () => void;
   /** 鼠标移入或键盘聚焦卡片时从底部滑入的操作区；触屏设备始终显示。 */
   hoverActions?: ReactNode;
   /** 强调装饰样式。 */
@@ -66,6 +68,8 @@ export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
   onCollapsedChange?: (collapsed: boolean) => void;
   /** 固定内容区高度并开启内部滚动 */
   bodyHeight?: number | string;
+  /** 填充父容器分配的高度，标题固定、正文占用剩余空间；父容器必须提供确定高度或弹性分配。bodyHeight 显式指定时优先使用该正文高度。默认 false。 */
+  fill?: boolean;
   /**
    * 内容区域的 CSS 类名。
    * @defaultValue ""
@@ -87,6 +91,7 @@ export function Card({
   defaultSelected = false,
   disabled = false,
   onSelectedChange,
+  onAction,
   hoverActions,
   accent,
   accentColor,
@@ -95,6 +100,7 @@ export function Card({
   defaultCollapsed = false,
   onCollapsedChange,
   bodyHeight,
+  fill = false,
   bodyClassName = "",
   bodyStyle,
   className = "",
@@ -107,6 +113,8 @@ export function Card({
   const [internalCollapsed, setInternalCollapsed] = useState(defaultCollapsed);
   const [internalSelected, setInternalSelected] = useState(defaultSelected);
   const isSelected = selected ?? internalSelected;
+  // 选择与执行是互斥语义，旧 selectable 卡片优先保持原有选择行为。
+  const actionable = Boolean(onAction) && !selectable;
   // 内部按钮、链接和表单控件有自己的行为，不应连带切换卡片选中。
   function toggleSelected() {
     if (!selectable || disabled) return;
@@ -136,24 +144,28 @@ export function Card({
 
   return (
     <section
-      className={`sia-card${!bordered ? " sia-card--borderless" : ""}${isCollapsed ? " sia-card--collapsed" : ""}${selectable ? " sia-card--selectable" : ""}${selectable && isSelected ? " sia-card--selected" : ""}${hoverActions ? " sia-card--hover-actions" : ""} ${className}`.trim()}
+      className={`sia-card${fill ? " sia-card--fill" : ""}${fill && bodyHeight !== undefined ? " sia-card--body-height" : ""}${!bordered ? " sia-card--borderless" : ""}${isCollapsed ? " sia-card--collapsed" : ""}${selectable ? " sia-card--selectable" : ""}${actionable ? " sia-card--actionable" : ""}${selectable && isSelected ? " sia-card--selected" : ""}${hoverActions ? " sia-card--hover-actions" : ""} ${className}`.trim()}
       style={mergedStyle}
-      role={selectable ? "checkbox" : undefined}
+      role={selectable ? "checkbox" : actionable ? "button" : undefined}
       aria-checked={selectable ? isSelected : undefined}
-      aria-disabled={selectable ? disabled : undefined}
-      tabIndex={selectable && !disabled ? 0 : undefined}
+      aria-disabled={selectable || actionable ? disabled : undefined}
+      tabIndex={(selectable || actionable) && !disabled ? 0 : undefined}
       {...withTitleTooltip(props)}
       onClick={(event) => {
         onClick?.(event);
         const target = event.target as Element;
         const interactive = target.closest('button, a, input, select, textarea, label, [role="button"], [role="checkbox"], [role="radio"], [role="switch"], [contenteditable="true"], [tabindex]');
-        if (!event.defaultPrevented && (!interactive || interactive === event.currentTarget)) toggleSelected();
+        if (!event.defaultPrevented && (!interactive || interactive === event.currentTarget)) {
+          toggleSelected();
+          if (actionable && !disabled) onAction?.();
+        }
       }}
       onKeyDown={(event) => {
         onKeyDown?.(event);
-        if (!event.defaultPrevented && event.target === event.currentTarget && selectable && (event.key === "Enter" || event.key === " ")) {
+        if (!event.defaultPrevented && event.target === event.currentTarget && (selectable || actionable) && (event.key === "Enter" || event.key === " ")) {
           event.preventDefault();
           toggleSelected();
+          if (actionable && !disabled) onAction?.();
         }
       }}
     >

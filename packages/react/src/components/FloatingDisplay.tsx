@@ -273,14 +273,16 @@ export function Tooltip(props: TooltipProps) { return <Floating {...props} conte
 
 /** 气泡卡片的属性配置。 */
 export interface PopoverProps extends Omit<TooltipProps, "title"> {
+  /** 内容布局预设：default 沿用普通气泡，wide 为表格等宽内容提供 760px 宽度并限制在视口内。@defaultValue "default" */
+  contentSize?: "default" | "wide";
   /** 标题内容，可传入文本或 React 节点。 */
   title?: ReactNode;
   /** 需要显示的内容，支持文本或 React 节点。 */
   content?: ReactNode;
 }
 /** 气泡卡片组件。 */
-export function Popover({ title, content, trigger = "click", overlayClassName = "", ...props }: PopoverProps) {
-  return <Floating {...props} trigger={trigger} role="dialog" overlayClassName={`sia-popover ${overlayClassName}`.trim()} content={<>{title ? <strong className="sia-popover__title">{title}</strong> : null}<span className="sia-popover__content">{content}</span></>} />;
+export function Popover({ title, content, contentSize = "default", trigger = "click", overlayClassName = "", ...props }: PopoverProps) {
+  return <Floating {...props} trigger={trigger} role="dialog" overlayClassName={`sia-popover${contentSize === "wide" ? " sia-popover--wide" : ""} ${overlayClassName}`.trim()} content={<>{title ? <strong className="sia-popover__title">{title}</strong> : null}<span className="sia-popover__content">{content}</span></>} />;
 }
 
 /** 时间轴的项目定义。 */

@@ -22,6 +22,8 @@ export interface QueryFormField extends FormItemProps {
   key: string;
   /** 查询设置面板中的名称；默认取 label、控件 placeholder，最后回退为 key，不影响表单标签。 */
   settingsLabel?: ReactNode;
+  /** 是否禁止在查询设置中隐藏该字段，默认 false。为 true 时忽略云端的隐藏值，设置面板保持勾选且不可取消；仍允许调整顺序，不改变表单必填校验。 */
+  settingsHideDisabled?: boolean;
   /** 字段占用宽度，优先于自动布局。未指定时普通控件占一列，日期／时间区间及横向组合控件占两列，SelectDateRange 占三列，均包含跨列间距。 */
   width?: number | string;
 }
@@ -217,20 +219,22 @@ export function QueryForm<T extends FormValues = FormValues>({
     return content.props.label ?? content.props.placeholder ?? fieldLabel(content.props.children);
   };
   const sourceEntries = fields
-    ? fields.map(({ key, width, settingsLabel, ...item }) => ({
+    ? fields.map(({ key, width, settingsLabel, settingsHideDisabled, ...item }) => ({
         key,
         width,
+        hideDisabled: settingsHideDisabled,
         label: settingsLabel ?? item.label ?? (typeof item.children === "function" ? undefined : fieldLabel(item.children)) ?? key,
         content: <Form.Item noStyle {...item} />,
       }))
     : Children.toArray(children).map((content, index) => ({
         key: isValidElement(content) && content.key != null ? String(content.key) : String(index),
         width: undefined,
+        hideDisabled: false,
         label: fieldLabel(content) ?? `条件 ${index + 1}`,
         content,
       }));
   const cloudSettings = useQueryFormSettings(settings, sourceEntries, defaultCollapsed, setInternalCollapsed, disabled);
-  const configured = reconcileQueryFields(sourceEntries.map(entry => entry.key), cloudSettings.snapshot?.fields);
+  const configured = reconcileQueryFields(sourceEntries.map(entry => entry.key), cloudSettings.snapshot?.fields, sourceEntries.filter(entry => entry.hideDisabled).map(entry => entry.key));
   const entriesByKey = new Map(sourceEntries.map(entry => [entry.key, entry]));
   let visibleIndex = 0;
   const entries = configured.map(item => ({ ...entriesByKey.get(item.key)!, visible: item.visible, visibleIndex: item.visible ? visibleIndex++ : -1 }));

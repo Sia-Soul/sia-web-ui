@@ -1,0 +1,31 @@
+{
+  "name": "@sia-ui/react-game",
+  "version": "0.1.0",
+  "description": "SiaWebUI 放置游戏框架：组件、运行时和配置驱动的 RPG",
+  "type": "module",
+  "main": "./dist/game.cjs",
+  "module": "./dist/game.js",
+  "types": "./dist/game.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/game.d.ts",
+      "import": "./dist/game.js",
+      "require": "./dist/game.cjs"
+    },
+    "./styles.css": "./dist/game.css"
+  },
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node ../../scripts/build-game.mjs"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  }
+}

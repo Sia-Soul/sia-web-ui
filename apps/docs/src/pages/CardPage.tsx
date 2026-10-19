@@ -51,7 +51,9 @@ const apiRows = [
   { property: "bordered", description: "是否显示外边框及默认内部留白；false 移除选中描边、标题左右留白和说明、悬浮操作区内边距，正文上下 8px、左右 0，保留内部分割线", type: "boolean", defaultValue: "true" },
   { property: "showSelectedIndicator", description: "是否显示选中角标；关闭后保留选择交互，选中边框仅在 bordered 为 true 时显示", type: "boolean", defaultValue: "true" },
   // 业务仅维护受控值，交互与动画由 Card 提供。
-  { property: "selectable / disabled", description: "启用整卡选择；disabled 仅禁用选择", type: "boolean", defaultValue: "false" },
+  { property: "selectable / disabled", description: "启用整卡选择；disabled 禁用选择或整卡动作，内部操作仍独立", type: "boolean", defaultValue: "false" },
+  { property: "onAction", description: "点击非交互区域或 Enter/空格执行；selectable 优先", type: "() => void", defaultValue: "-" },
+  { property: "fill", description: "标题固定、正文占满父容器剩余高度，bodyHeight 优先", type: "boolean", defaultValue: "false" },
   { property: "selected / defaultSelected", description: "受控选中值与非受控初值", type: "boolean", defaultValue: "false" },
   { property: "onSelectedChange", description: "用户切换时通知新值，内部按钮不触发", type: "(selected: boolean) => void", defaultValue: "-" },
   { property: "hoverActions", description: "悬停或键盘聚焦时从底部滑入，触屏常显", type: "ReactNode", defaultValue: "-" },
@@ -68,10 +70,21 @@ export function CardPage() {
   const [tab, setTab] = useState<"examples" | "api">("examples");
   const [selected, setSelected] = useState(false);
   const [detailCount, setDetailCount] = useState(0);
+  // 计数用于核对内部按钮不会连带触发整卡动作。
+  const [actionCount, setActionCount] = useState(0);
+  const [innerCount, setInnerCount] = useState(0);
   return <>
     <PageHeader eyebrow="组件 / 数据展示 / Card" title="Card 卡片" description="把标题、说明、分割线和内容区域组织为统一的信息容器。" />
     <DocsTabs activeKey={tab} onChange={setTab} />
     {tab === "examples" ? <div className="demo-stack">
+      <DemoCard title="整卡执行与填充高度" description="卡片内按钮独立执行，整卡动作支持键盘；正文由框架分配剩余高度。" code={'<div style={{ height: 240 }}><Card fill title="订单统计" onAction={openDetails}>统计内容</Card></div>'}>
+        <div style={{ height: 240 }}>
+          <Card fill title="订单统计" aria-label="整卡操作示例" onAction={() => setActionCount(count => count + 1)}>
+            <p>整卡执行次数：{actionCount}</p>
+            <Button onClick={() => setInnerCount(count => count + 1)}>独立操作：{innerCount}</Button>
+          </Card>
+        </div>
+      </DemoCard>
       {/* 展示无边框正文上下 8px、左右 0 的默认间距。 */}
       <DemoCard title="无边框卡片" description="bordered={false} 移除外边框，正文内边距为上下 8px、左右 0；标题分割线仍保留，可通过 bodyStyle 自定义正文间距。" code={'<Card bordered={false} title="无边框卡片" description="正文上下留白 8px，左右无内边距。">这里是卡片内容。</Card>'}>
         <Card bordered={false} title="无边框卡片" description="正文上下留白 8px，左右无内边距。">这里是卡片内容。</Card>
@@ -86,7 +99,7 @@ export function CardPage() {
         <Card selectable showSelectedIndicator={false} defaultSelected aria-label="库存紧张筛选示例">库存紧张</Card>
       </DemoCard>
       {/* 有边框正文四周留白统一跟随框架间距配置。 */}
-      <DemoCard title="基础卡片" description="标题区最小高度为 40px，正文四周内边距沿用框架间距；通过强调色区分标题层级。" code={basicCode}>
+      <DemoCard title="基础卡片" description="标题区最小高度为 40px，标题分割线在浅色主题下约为 #f0f0f0，深色主题下使用 #424242 保留对比度；可通过 --sia-card-header-border-color 覆盖颜色。正文四周内边距沿用框架间距。" code={basicCode}>
         <Card accent="primary" title="基础卡片" description="标题、说明、分割线和内容区由 Card 统一组织。">
           <div className="card-demo-surface">这里是基础卡片的内容。</div>
         </Card>

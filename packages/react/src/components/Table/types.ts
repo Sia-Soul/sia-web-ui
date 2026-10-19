@@ -363,6 +363,12 @@ export interface TableProps<T extends Record<string, unknown> = Record<string, u
     index: number,
     event: ReactMouseEvent<HTMLTableCellElement>,
   ) => void;
+  /**
+   * 行的语义状态，使用框架成功、警告、错误背景色；默认不设置。
+   * 可传固定状态或计算函数，函数参数为当前记录和原始数据索引，返回 undefined 时沿用普通行背景。
+   * 状态背景覆盖斑马纹，悬停和勾选反馈优先；普通列、固定列及 Canvas 模式行为一致。
+   */
+  rowStatus?: "success" | "warning" | "error" | ((record: T, index: number) => "success" | "warning" | "error" | undefined);
   /** 行的 CSS 类名或计算函数。 */
   rowClassName?: string | ((record: T, index: number) => string);
   /** 表格元素的内联样式。 */
