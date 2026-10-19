@@ -158,7 +158,8 @@ export const outlineIconBounds = {
   "search": [4, 4, 17, 17],
   "send": [3, 3, 18, 18],
   "server": [3, 4, 18, 16],
-  "settings": [4, 4, 16, 16],
+  // 六齿直线轮廓的原始边界，不含描边。
+  "settings": [4.4825,4.1215,15.035,15.757],
   "share": [3, 2, 18, 20],
   "shield": [4, 3, 16, 19],
   "shield-check": [4, 3, 16, 19],

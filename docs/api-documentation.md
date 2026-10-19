@@ -192,7 +192,7 @@ Input 的 expandable 默认 false；启用后显示展开图标，正文仅包�
 
 Tree 默认 blockNode=true，节点标题填充剩余行宽；highlightSelectedAncestors 默认 false，仅选中项显示选中背景。需要强调祖先路径时显式设置 highlightSelectedAncestors。
 
-Icon 的 settings 齿轮在 24×24 画布内居中，外轮廓坐标范围为 4～20（16 单位，不含描边），与刷新图标主体圆弧直径一致；描边仍使用统一 strokeWidth，不随轮廓缩放。
+Icon 的 settings 使用六齿轮廓，在 24×24 画布内居中；主体最长边按统一规则归一化为 18 单位（不含描边）。描边仍使用统一 strokeWidth，不随内部轮廓归一化改变粗细。
 
 Tree 指定高度或通过 flex 填充容器时，节点按自然行高从顶部排列，剩余空间保留在底部；内容超出后仍由树自身浮动滚动条滚动。
 
