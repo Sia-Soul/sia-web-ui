@@ -9,16 +9,16 @@ import { saveSettingsPatch } from "./settingsPersistence";
 import { mergeQueryFields, reconcileQueryFields } from "./queryFormSettingsUtils";
 import type { QueryFormSettingsConfig, QueryFormSettingsSnapshot } from "./queryFormSettingsTypes";
 
-/** 管理查询布局的云端加载、草稿和保存；通过请求序号隔离业务切换后的迟到响应。 */
+/** 管理查询布局的云端加载、草稿和保存；通过请求序号隔离业务切换后的迟到响应。未指定默认收起值且云端无记录时保留 undefined，让查询区继续按实际行数判断。 */
 export function useQueryFormSettings(
   config: QueryFormSettingsConfig | undefined,
   fields: readonly { key: string; label: ReactNode }[],
-  defaultCollapsed: boolean,
-  applyCollapsed: (collapsed: boolean) => void,
+  defaultCollapsed: boolean | undefined,
+  applyCollapsed: (collapsed: boolean | undefined) => void,
   disabled: boolean,
 ) {
   const [snapshot, setSnapshot] = useState<QueryFormSettingsSnapshot>();
-  const [draft, setDraft] = useState<QueryFormSettingsSnapshot>({ fields: [], defaultCollapsed });
+  const [draft, setDraft] = useState<QueryFormSettingsSnapshot>({ fields: [], defaultCollapsed: defaultCollapsed ?? false });
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -43,11 +43,11 @@ export function useQueryFormSettings(
     try {
       const stored = (await current.config.adapter.load(current.config.scope))?.queryForm;
       if (request !== token.current) return;
-      const next = stored ?? { fields: [], defaultCollapsed: current.defaultCollapsed };
+      const next = stored ?? { fields: [], defaultCollapsed: current.defaultCollapsed ?? false };
       setSnapshot(next);
       setDraft({ ...next, fields: reconcileQueryFields(latest.current.fields.map(field => field.key), next.fields) });
       // 打开设置不重置用户临时展开状态；初次加载和成功保存才应用云端默认值。
-      if (!edit) latest.current.applyCollapsed(next.defaultCollapsed);
+      if (!edit) latest.current.applyCollapsed(stored?.defaultCollapsed ?? latest.current.defaultCollapsed);
     } catch (reason) {
       if (request !== token.current) return;
       setLoadFailed(true);
@@ -138,7 +138,7 @@ export function useQueryFormSettings(
             </div>
           </div>)}
         </div>
-        <Button type="button" disabled={locked} onClick={() => setDraft({ fields: reconcileQueryFields(fields.map(field => field.key)), defaultCollapsed })}>恢复默认</Button>
+        <Button type="button" disabled={locked} onClick={() => setDraft({ fields: reconcileQueryFields(fields.map(field => field.key)), defaultCollapsed: defaultCollapsed ?? false })}>恢复默认</Button>
       </div>
     </Modal>
   </> : null;

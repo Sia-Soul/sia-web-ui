@@ -86,6 +86,8 @@ const scope = { moduleName: "brand", businessKey: "list" };
 <Table plugins={[createColumnSettingPlugin({ adapter: settingsAdapter, scope })]} columns={columns} dataSource={rows} />;
 ```
 
+QueryForm 未指定 `collapsed` / `defaultCollapsed`、没有已保存的云端收起设置且用户未手动切换时，按可见查询条件完整展开后的实际行数判断：达到 3 行（含 3 行）自动收起，少于 3 行展开。行数不包含操作按钮、快捷查询和被查询设置隐藏的字段；容器宽度或条件数量变化后重新计算。显式 `defaultCollapsed={false}` 保持默认展开，受控 `collapsed` 优先；用户点击展开/收起后保持其选择，不再因行数变化自动切换。云端没有记录时保留自动模式，已保存的云端默认值仍按原有规则应用；`collapsible={false}` 始终不折叠。自动判断不触发 `onCollapsedChange`，该回调仅通知用户的展开/收起操作。
+
 QueryForm 收起时默认预留操作区宽度，按字段实际宽度依次保留单行能容纳的条件，不再默认限制为 3 个字段。`collapsedCount` 默认 `Infinity`，业务显式指定时作为数量上限；空间不足仍会减少显示数量。隐藏字段保留挂载和值，窗口宽度变化后重新计算，全部字段与操作区能单行显示时不执行收起。
 
 - `QueryForm.fieldWidth`：单列宽度，默认 `220px`；日期／时间区间与横向组合字段默认为两倍单列宽度加列间距，SelectDateRange 为三倍单列宽度加两处列间距，默认 `672px`。
@@ -193,3 +195,11 @@ Tree 默认 blockNode=true，节点标题填充剩余行宽；highlightSelectedA
 Icon 的 settings 齿轮在 24×24 画布内居中，外轮廓坐标范围为 4～20（16 单位，不含描边），与刷新图标主体圆弧直径一致；描边仍使用统一 strokeWidth，不随轮廓缩放。
 
 Tree 指定高度或通过 flex 填充容器时，节点按自然行高从顶部排列，剩余空间保留在底部；内容超出后仍由树自身浮动滚动条滚动。
+
+## Result 操作结果
+
+`Result` 从完整入口及 `core` 入口导出，用于展示成功、失败、信息或警告结果。默认 `status="info"`；`title`、`subTitle` 接受 React 节点，`children` 展示详情，`extra` 放置业务按钮。`icon` 不传时使用状态图标，传 `null` 或 `false` 时不保留图标占位。组件不请求接口、不增加默认按钮、不自动触发重试。长说明换行，操作区可换行，继承主题色。
+
+```tsx
+<Result status="success" title="文件已上传，正在后台导入中" extra={<Button onClick={openRecords}>前往查看导入记录</Button>} />
+```

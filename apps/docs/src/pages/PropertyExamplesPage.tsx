@@ -1,3 +1,4 @@
+import { ResultExamples } from "./examples/ResultExamples";
 /// <reference types="vite/client" />
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -25,6 +26,7 @@ const sources = import.meta.glob<string>(["./*.tsx", "./examples/*.tsx"], { quer
 const groups = [
   { value: "BasicExamples", label: "基础、布局、文字与工具栏", component: BasicExamples },
   { value: "NavigationExamples", label: "菜单、下拉与分页", component: NavigationExamples },
+  { value: "ResultExamples", label: "操作结果", component: ResultExamples },
   { value: "FeedbackExamples", label: "提示、反馈与引导", component: FeedbackExamples },
   { value: "SelectionExamples", label: "输入、选择与选择面板", component: SelectionExamples },
   { value: "DateExamples", label: "日期、时间与日历", component: DateExamples },

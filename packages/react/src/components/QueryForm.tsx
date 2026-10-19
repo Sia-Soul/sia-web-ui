@@ -88,8 +88,9 @@ export interface QueryFormProps<T extends FormValues = FormValues> extends Omit<
   /** 受控收起状态，需在 onCollapsedChange 中更新；全部字段能单行显示时不执行收起。收起时保留字段挂载和值，只隐藏放不下的字段，底部快捷标签始终保留。 */
   collapsed?: boolean;
   /**
-   * 非受控模式的初始收起状态；默认展开全部查询条件。启用 settings 后，云端 defaultCollapsed 在加载完成时优先；受控 collapsed 始终优先。
-   * @defaultValue false
+   * 非受控模式的初始收起状态；显式 true/false 分别指定收起/展开。未指定且没有云端设置或用户手动切换时，按可见查询字段的实际展开行数自动决定：达到 3 行收起，少于 3 行展开；不计操作按钮、快捷查询或设置隐藏的字段，容器宽度变化后重新计算。
+   * 用户手动切换后保持该选择，不再随行数自动改变。启用 settings 后，已保存的云端 defaultCollapsed 在加载完成时优先；受控 collapsed 始终优先，collapsible=false 禁用折叠。
+   * @defaultValue undefined
    */
   defaultCollapsed?: boolean;
   /**
@@ -97,7 +98,7 @@ export interface QueryFormProps<T extends FormValues = FormValues> extends Omit<
    * @defaultValue Infinity
    */
   collapsedCount?: number;
-  /** 收起状态变化回调 */
+  /** 用户点击展开/收起时调用，参数为新的收起状态；自动行数判断和云设置应用不触发此回调。受控模式需在此回填 collapsed。 */
   onCollapsedChange?: (collapsed: boolean) => void;
   /**
    * 顶部预设快捷查询按钮。点击后先恢复 initialValues，再覆盖该项 values，校验并自动触发 onSearch。
@@ -166,7 +167,7 @@ export function QueryForm<T extends FormValues = FormValues>({
   fieldWidth = 220,
   collapsible = true,
   collapsed: controlledCollapsed,
-  defaultCollapsed = false,
+  defaultCollapsed,
   collapsedCount = Infinity,
   onCollapsedChange,
   quickQueries = [],
@@ -190,9 +191,11 @@ export function QueryForm<T extends FormValues = FormValues>({
 }: QueryFormProps<T>) {
   const [form] = useForm(providedForm);
   const [internalCollapsed, setInternalCollapsed] = useState(defaultCollapsed);
+  // undefined 保留自动模式，显式默认值、云配置和手动切换都会形成独立选择。
+  const [expandedRows, setExpandedRows] = useState(0);
   const [needsCollapse, setNeedsCollapse] = useState(false);
   const collapsed =
-    collapsible && needsCollapse && (controlledCollapsed ?? internalCollapsed);
+    collapsible && needsCollapse && (controlledCollapsed ?? internalCollapsed ?? expandedRows >= 3);
   const [searching, setSearching] = useState(false);
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -267,6 +270,11 @@ export function QueryForm<T extends FormValues = FormValues>({
         field.hidden = false;
       });
       if (toggle) toggle.hidden = true;
+      // 在完整展开布局统计可见条件，避免收起后的单行高度导致状态来回切换。
+      if (row.clientWidth > 0) setExpandedRows(countQueryFieldRows(allFields.map(field => {
+        const rect = field.getBoundingClientRect();
+        return rect.top + rect.height / 2;
+      })));
       const requiredWidth = allFields.reduce(
         (total, field) => total + field.getBoundingClientRect().width + gap,
         actions.getBoundingClientRect().width,

@@ -1,0 +1,11 @@
+/* 结果区随所在弹框自然排布，长说明和操作按钮不能撑出横向滚动条。 */
+.sia-result { padding: 48px 32px; min-width: 0; text-align: center; color: var(--sia-color-text); overflow-wrap: anywhere; }
+.sia-result__icon { display: flex; justify-content: center; margin-bottom: 24px; color: var(--sia-color-primary); }
+.sia-result--success .sia-result__icon { color: var(--sia-color-success, #52c41a); }
+.sia-result--error .sia-result__icon { color: var(--sia-color-danger, #ff4d4f); }
+.sia-result--warning .sia-result__icon { color: var(--sia-color-warning, #faad14); }
+.sia-result__title { font-size: 24px; line-height: 1.35; }
+.sia-result__subtitle { margin-top: 8px; font-size: 14px; line-height: 1.6; color: var(--sia-color-text-secondary); }
+.sia-result__content { margin-top: 24px; text-align: start; }
+.sia-result__extra { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 24px; }
+@media (max-width: 480px) { .sia-result { padding: 32px 16px; } }

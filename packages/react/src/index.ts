@@ -139,3 +139,7 @@ export type { QueryFormFieldSetting, QueryFormSettingsSnapshot, QueryFormSetting
 // 数字区间复用数字输入交互，通过统一入口提供给业务查询表单。
 export { NumberRange } from "./components/NumberRange";
 export type { NumberRangeProps, NumberRangeValue } from "./components/NumberRange";
+
+// 结果展示同时提供完整入口和轻量入口，业务不再依赖其他组件库。
+export { Result } from "./components/Result";
+export type { ResultProps, ResultStatus } from "./components/Result";

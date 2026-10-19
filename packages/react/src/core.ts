@@ -36,3 +36,7 @@ export type { TypographyProps, TypographyTitleProps, TypographyLinkProps, Typogr
 export { FloatButton } from "./components/FloatButton";
 export type { FloatButtonProps, FloatButtonGroupProps, FloatButtonBackTopProps, FloatButtonShape } from "./components/FloatButton";
 export type { MessageConfig, MessageHandle, MessageKey, MessageType } from "./components/Message";
+
+// 结果展示同时提供完整入口和轻量入口，业务不再依赖其他组件库。
+export { Result } from "./components/Result";
+export type { ResultProps, ResultStatus } from "./components/Result";

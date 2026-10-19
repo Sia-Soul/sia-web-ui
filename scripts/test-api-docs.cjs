@@ -6,7 +6,11 @@ const ts = require('typescript');
 const packageRoot = path.resolve(__dirname, '../packages/react');
 const filename = path.join(packageRoot, '__api-doc-consumer__.tsx').replaceAll('\\', '/');
 // 上传新增的命令式句柄、OSS 配置及自定义渲染同样从发布产物检查悬停。
-const source = `import type { SelectOption, SelectProps, SelectionPanelProps } from '@sia.soul/sia-react-ui';
+const source = `import type { ResultProps } from "@sia.soul/sia-react-ui";
+declare const resultProps: ResultProps;
+resultProps.icon;
+resultProps.extra;
+import type { SelectOption, SelectProps, SelectionPanelProps } from '@sia.soul/sia-react-ui';
 declare const helpOption: SelectOption;
 helpOption.description;
 declare const groupedSelection: SelectionPanelProps;
@@ -128,6 +132,8 @@ selection.extraValues;
 selection.onConfirm;
 declare const queryProps: QueryFormProps;
 queryProps.fieldWidth;
+  // 默认折叠阈值和手动选择优先级必须出现在发布后的悬停说明中。
+  queryProps.defaultCollapsed;
 // 确认发布声明保留收起字段默认按可用宽度排列的说明。
 queryProps.collapsedCount;
 // 查询云设置及共享快照的嵌套说明必须能从发布包读取。
@@ -155,6 +161,7 @@ const errors=service.getSemanticDiagnostics(filename).filter(d=>d.category===ts.
 assert.equal(errors.length,0,ts.formatDiagnosticsWithColorAndContext(errors,{getCurrentDirectory:()=>packageRoot,getCanonicalFileName:f=>f,getNewLine:()=> '\n'}));
 const cases=[['showSettings', '两行'],['savedQueries', '业务方'],['onSaveQuery','快照'],['allowClear','清空'],['modalThreshold','阈值'],['Modal.open','打开'],['message.success','成功'],['Form.useForm','表单实例'],['createColumnSettingPlugin({','列设置'],['adapter.save','保存'],['chart.barCategoryGap','间距'],['selection.maxHeight','像素'],['selection.extraValues','浅拷贝'],['selection.onConfirm','取消'],['queryProps.fieldWidth','列间距'],['tableProps.cellSelection','单元格选择'],['tableProps.showIndex','序号列']];
 cases.push(['inputNumberProps.formatter', '原始草稿'], ['inputNumberProps.parser', '不经过 parser']);
+  cases.push(['queryProps.defaultCollapsed', '达到 3 行'], ['queryProps.defaultCollapsed', '用户手动切换']);
 // 验证默认自适应排列及显式数量上限都能在编辑器悬停正文中读取。
 cases.push(['queryProps.collapsedCount', '自动填满一行'], ['queryProps.collapsedCount', '显式指定时作为数量上限']);
 // 防止“此刻”时间赋值规则在声明构建后丢失。
@@ -190,6 +197,7 @@ cases.push(['numberRangeProps.value', 'null'], ['numberRangeProps.onChange', '�
 cases.push(['treemapProps.aggregateOverflow', '紧凑网格'], ['treemapProps.showValueInCompactTiles', '截断']);
 // 分组选择及帮助说明必须在发布入口保留悬停文档。
 cases.push(['helpOption.description', '说明'], ['groupedSelection.groupCheckable', '分组'], ['groupedModal.groupCheckable', '分组']);
+cases.push(['resultProps.icon', 'undefined'], ['resultProps.extra', '调用方']);
 for(const[needle,expected]of cases){const offset=needle.includes('.')?needle.lastIndexOf('.')+1:0;const pos=source.indexOf(needle)+offset+1;const info=service.getQuickInfoAtPosition(filename,pos);const text=ts.displayPartsToString(info?.documentation);assert(text.includes(expected),`${needle}: expected ${expected}, got ${JSON.stringify(text)}`);console.log(`PASS hover ${needle}: ${text.slice(0,70)}`);}
 for(const entry of ['index.d.ts','index.d.cts']){
   const text=fs.readFileSync(path.join(packageRoot,'dist',entry),'utf8');assert(text.includes('底部已保存快捷查询标签'));assert(text.includes('@defaultValue'));assert(!text.includes('\uFFFD'),'UTF-8 replacement character found');

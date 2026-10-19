@@ -1984,8 +1984,8 @@
     "props": [
       {
         "name": "direction",
-        "example": "apps/docs/src/pages/examples/BasicExamples.tsx:11",
-        "supplement": "apps/docs/src/pages/examples/BasicExamples.tsx:11"
+        "example": "apps/docs/src/pages/examples/ResultExamples.tsx:7",
+        "supplement": "apps/docs/src/pages/examples/ResultExamples.tsx:7"
       },
       {
         "name": "size",
@@ -2489,7 +2489,7 @@
       },
       {
         "name": "noStyle",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:326",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:329",
         "supplement": null
       },
       {
@@ -4460,12 +4460,12 @@
       {
         "name": "name",
         "example": "apps/docs/src/pages/IconPage.tsx:23",
-        "supplement": "apps/docs/src/pages/examples/BasicExamples.tsx:16"
+        "supplement": "apps/docs/src/pages/examples/ResultExamples.tsx:13"
       },
       {
         "name": "size",
         "example": "apps/docs/src/pages/IconPage.tsx:23",
-        "supplement": null
+        "supplement": "apps/docs/src/pages/examples/ResultExamples.tsx:13"
       },
       {
         "name": "strokeWidth",
@@ -5344,27 +5344,27 @@
     "props": [
       {
         "name": "fields",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:80",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:83",
         "supplement": "apps/docs/src/pages/examples/FormExamples.tsx:25"
       },
       {
         "name": "settings",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:80",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:83",
         "supplement": null
       },
       {
         "name": "showSettings",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:80",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:83",
         "supplement": null
       },
       {
         "name": "children",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:418",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:422",
         "supplement": null
       },
       {
         "name": "onSearch",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:80",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:83",
         "supplement": "apps/docs/src/pages/examples/FormExamples.tsx:25"
       },
       {
@@ -5374,12 +5374,12 @@
       },
       {
         "name": "fieldWidth",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:80",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:83",
         "supplement": null
       },
       {
         "name": "collapsible",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:418",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:422",
         "supplement": null
       },
       {
@@ -5404,17 +5404,17 @@
       },
       {
         "name": "quickQueries",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:260",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:263",
         "supplement": null
       },
       {
         "name": "quickQuerySize",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:260",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:263",
         "supplement": null
       },
       {
         "name": "savedQueries",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:260",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:263",
         "supplement": null
       },
       {
@@ -5424,12 +5424,12 @@
       },
       {
         "name": "onSaveQuery",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:260",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:263",
         "supplement": "apps/docs/src/pages/examples/FormExamples.tsx:25"
       },
       {
         "name": "onRemoveQuery",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:260",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:263",
         "supplement": null
       },
       {
@@ -5474,7 +5474,7 @@
       },
       {
         "name": "form",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:260",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:263",
         "supplement": null
       },
       {
@@ -5484,7 +5484,7 @@
       },
       {
         "name": "initialValues",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:260",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:263",
         "supplement": null
       },
       {
@@ -5586,6 +5586,41 @@
         "name": "placeholderMode",
         "example": "apps/docs/src/pages/NumberRangePage.tsx:19",
         "supplement": null
+      }
+    ]
+  },
+  {
+    "name": "Result",
+    "props": [
+      {
+        "name": "status",
+        "example": "apps/docs/src/pages/examples/ResultExamples.tsx:8",
+        "supplement": "apps/docs/src/pages/examples/ResultExamples.tsx:8"
+      },
+      {
+        "name": "title",
+        "example": "apps/docs/src/pages/examples/ResultExamples.tsx:8",
+        "supplement": "apps/docs/src/pages/examples/ResultExamples.tsx:8"
+      },
+      {
+        "name": "subTitle",
+        "example": "apps/docs/src/pages/examples/ResultExamples.tsx:8",
+        "supplement": "apps/docs/src/pages/examples/ResultExamples.tsx:8"
+      },
+      {
+        "name": "icon",
+        "example": "apps/docs/src/pages/examples/ResultExamples.tsx:13",
+        "supplement": "apps/docs/src/pages/examples/ResultExamples.tsx:13"
+      },
+      {
+        "name": "extra",
+        "example": "apps/docs/src/pages/examples/ResultExamples.tsx:8",
+        "supplement": "apps/docs/src/pages/examples/ResultExamples.tsx:8"
+      },
+      {
+        "name": "children",
+        "example": "apps/docs/src/pages/examples/ResultExamples.tsx:8",
+        "supplement": "apps/docs/src/pages/examples/ResultExamples.tsx:8"
       }
     ]
   },
