@@ -250,6 +250,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     loading = false,
     emptyText = "暂无数据",
     height,
+    maxBodyHeight,
     tableHeight,
     fillRemaining,
     size = "medium",
@@ -561,7 +562,9 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
   const canvas = renderMode === "canvas" && !sortedPlugins.some(plugin => plugin.disableVirtual);
   const shouldVirtualize = canvas || pipeline.rows.length > 100
     || ((virtual ?? pipeline.rows.length >= virtualThreshold) && !sortedPlugins.some((plugin) => plugin.disableVirtual));
-  const startIndex = shouldVirtualize ? Math.max(0, Math.floor(scrollTop / rowHeight) - overscan) : 0;
+  // 筛选或替换数据后旧滚动位置可能超过新列表；先限制窗口起点，避免占位行撑高少量结果或空表。
+  const firstVisibleIndex = Math.min(Math.floor(scrollTop / rowHeight), Math.max(0, pipeline.rows.length - Math.ceil(viewportHeight / rowHeight)));
+  const startIndex = shouldVirtualize ? Math.max(0, firstVisibleIndex - overscan) : 0;
   const visibleCount = shouldVirtualize ? Math.ceil(viewportHeight / rowHeight) + overscan * 2 : pipeline.rows.length;
   const endIndex = shouldVirtualize ? Math.min(pipeline.rows.length, startIndex + visibleCount) : pipeline.rows.length;
   const renderedRows = pipeline.rows.slice(startIndex, endIndex);
@@ -600,7 +603,11 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     return content ? <Fragment key={`overlay-${plugin.id}`}>{content}</Fragment> : null;
   }).filter(Boolean);
   const hasToolbar = toolbarStart.length > 0 || toolbarEnd.length > 0;
-  const effectiveHeight = height ?? tableHeight ?? remainingHeight ?? (shouldVirtualize ? 420 : undefined);
+  const effectiveHeight = height ?? tableHeight ?? remainingHeight ?? (shouldVirtualize && maxBodyHeight == null ? 420 : undefined);
+  // 表头在同一滚动视口中吸顶；最大内容高度只约束数据区，保留完整表头高度。
+  const viewportStyle: CSSProperties | undefined = maxBodyHeight == null ? undefined : {
+    maxHeight: `calc(${typeof maxBodyHeight === "number" ? `${maxBodyHeight}px` : maxBodyHeight} + var(--sia-table-header-height))`,
+  };
   const rootStyle = {
     ...style,
     height: effectiveHeight,
@@ -812,7 +819,8 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
       }}
     >
       {hasToolbar ? <div className="sia-table__toolbar"><div>{toolbarStart}</div><div>{toolbarEnd}</div></div> : null}
-      <div className="sia-table__viewport-wrap">
+      {/* 最大内容高度保留表头空间，工具栏与分页继续留在滚动区之外。 */}
+      <div className="sia-table__viewport-wrap" style={viewportStyle}>
         <div className="sia-table__viewport" ref={scrollRef} onScroll={handleScroll}>
         <table ref={tableRef} className="sia-table__element" style={{ width: Math.max(totalWidth, 1), ...(manualColumnLayout ? { minWidth: 0 } : {}), ...tableStyle }}>
           <colgroup>{leafColumns.map((column) => <col key={column.key} data-column-key={column.key} style={{ width: columnWidths.get(column.key) ?? DEFAULT_WIDTH }} />)}</colgroup>
@@ -845,6 +853,8 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
             })}</tr>)}
           </thead>
           <tbody>
+            {/* 自然高度结果表的空态也需保留可见区域，最大高度仍由外层视口约束。 */}
+            {maxBodyHeight != null && pipeline.rows.length === 0 ? <tr aria-hidden="true"><td colSpan={leafColumns.length} style={{ height: 120, padding: 0, border: 0 }} /></tr> : null}
             {/* 无数据时撑开正文，将合计留在视口底部，避免与空态遮罩重叠。 */}
             {pipeline.rows.length === 0 && summaries.length > 0 ? <tr aria-hidden="true"><td colSpan={leafColumns.length} style={{ height: Math.max(0, viewportHeight - (headerRows.length + summaries.length) * rowHeight), padding: 0, border: 0 }} /></tr> : null}
             {topSpacer > 0 ? <tr aria-hidden="true"><td colSpan={leafColumns.length} style={{ height: topSpacer, padding: 0, border: 0 }} /></tr> : null}

@@ -470,9 +470,11 @@ body:has(.sia-window-frame[data-sia-text-selectable="false"]) img { -webkit-user
 @media (prefers-reduced-motion: reduce) { .sia-upload--picture-card .sia-upload__actions { transition: none; } }
 
 .sia-form > fieldset { display: contents; min-width: 0; margin: 0; padding: 0; border: 0; }
-/* 表单项统一保留 6px 下外边距，避免相邻字段的标签与上一项控件紧贴。 */
+/* 表单承接父容器剩余空间，fieldset 不打断子列表的弹性高度。 */
+.sia-form--fill { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
+/* 表单项统一保留 8px 下外边距，避免相邻字段的标签与上一项控件紧贴。 */
 /* --sia-form-label-width 为标签列宽，支持 CSS 长度；未设置时使用本表单测得的最大标签宽度（px，初始 0px）。显式列宽优先于自动测量值。 */
-.sia-form-item { display: grid; grid-template-columns: var(--sia-form-label-width, var(--sia-form-auto-label-width, 0px)) minmax(0, 1fr); gap: 8px 14px; margin-bottom: 6px; color: var(--sia-color-text); }
+.sia-form-item { display: grid; grid-template-columns: var(--sia-form-label-width, var(--sia-form-auto-label-width, 0px)) minmax(0, 1fr); gap: 8px 14px; margin-bottom: 8px; color: var(--sia-color-text); }
 /* 内部测量值 --sia-form-auto-label-width 由 Form 写入，单位 px；自然宽度独立于标签列，避免测量结果被上一轮列宽限制。 */
 .sia-form-item__label-content { display: inline-block; width: max-content; }
 /* 表单项标签默认使用 13px 字号。 */
@@ -521,6 +523,8 @@ body:has(.sia-window-frame[data-sia-text-selectable="false"]) img { -webkit-user
 .sia-menu__entry { position: relative; margin-block: 3px; }
 .sia-menu__item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 38px; padding: 7px 12px; color: inherit; cursor: pointer; background: transparent; border: 0; border-radius: var(--sia-radius); text-align: left; transition: color 140ms ease, background 140ms ease; }
 .sia-menu__item:hover { background: var(--sia-color-control-hover); }
+/* 桌面选择列表可保持普通指针，不影响项目的选择与悬停高亮。 */
+.sia-menu__item[data-sia-interaction-cursor="default"] { cursor: default; }
 .sia-menu__entry.is-selected > .sia-menu__item { color: var(--sia-color-primary-text); background: var(--sia-color-primary-light); }
 .sia-menu__entry.is-danger > .sia-menu__item { color: var(--sia-color-error); }
 .sia-menu__entry.is-disabled { opacity: .45; }
@@ -531,7 +535,15 @@ body:has(.sia-window-frame[data-sia-text-selectable="false"]) img { -webkit-user
 /* 自定义图片等比缩放；生效水印不参与布局、不遮挡点击，与浏览选中背景独立。 */
 .sia-menu__icon img { object-fit: contain; }
 .sia-menu__item { position: relative; isolation: isolate; }
-.sia-menu__applied { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: inline-flex; color: var(--sia-color-primary); opacity: .18; pointer-events: none; z-index: -1; }
+/* 实心主题色圆底与白色勾保持明暗主题对比，轻微透明仍可辨识；位于内容上层但始终穿透点击。 */
+.sia-menu__applied { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: inline-flex; color: var(--sia-color-primary); opacity: .92; pointer-events: none; z-index: 1; }
+/* 网格菜单复用选择与生效状态；默认双列、支持自适应列数并允许长名称换行，图片槽始终保持正方形。 */
+.sia-menu--grid, .sia-menu--grid .sia-menu__group > ul { display: grid; grid-template-columns: var(--sia-menu-grid-columns, repeat(2, minmax(0, 1fr))); gap: 8px; align-content: start; border-inline-end: 0; }
+.sia-menu--grid > .sia-menu__entry, .sia-menu--grid .sia-menu__group > ul > .sia-menu__entry { min-width: 0; margin: 0; }
+.sia-menu--grid > .sia-menu__entry > .sia-menu__item, .sia-menu--grid .sia-menu__group > ul > .sia-menu__entry > .sia-menu__item { flex-direction: column; justify-content: flex-start; gap: 10px; height: 100%; min-height: 108px; padding: 14px 6px 10px; border: 1px solid var(--sia-color-border); border-radius: var(--sia-radius-lg, 10px); text-align: center; }
+.sia-menu--grid > .sia-menu__entry > .sia-menu__item > .sia-menu__label, .sia-menu--grid .sia-menu__group > ul > .sia-menu__entry > .sia-menu__item > .sia-menu__label { flex: 0 0 auto; width: 100%; margin-top: auto; font-size: 12px; line-height: 1.5; white-space: normal; overflow-wrap: anywhere; }
+.sia-menu--grid > .sia-menu__entry > .sia-menu__item > .sia-menu__applied, .sia-menu--grid .sia-menu__group > ul > .sia-menu__entry > .sia-menu__item > .sia-menu__applied { top: 8px; right: 6px; transform: none; }
+.sia-menu--grid > .sia-menu__divider, .sia-menu--grid > .sia-menu__group { grid-column: 1 / -1; }
 .sia-menu__extra { color: var(--sia-color-text-secondary); font-size: 12px; }
 .sia-menu__expand-icon { transition: transform 180ms cubic-bezier(.2, 0, 0, 1); }
 .sia-menu__entry.is-open > .sia-menu__item .sia-menu__expand-icon { transform: rotate(180deg); }
@@ -658,6 +670,20 @@ button.sia-pagination__total:disabled { cursor: default; }
 .sia-steps--vertical .sia-steps__head { align-items: center; flex: 0 0 32px; flex-direction: column; }
 .sia-steps--vertical .sia-steps__tail { width: 1px; height: auto; margin-block: 8px; }
 .sia-steps--vertical .sia-steps__content { display: block; margin: 4px 0 0 12px; padding: 0; }
+/* 横排标题通过公开布局属性选择；窄屏仍沿用纵向步骤，连接线不占标题位置。 */
+.sia-steps__inline-tail { display: none; }
+@media (min-width: 721px) {
+  .sia-steps--horizontal.sia-steps--label-horizontal .sia-steps__item { flex-direction: row; align-items: flex-start; }
+  .sia-steps--horizontal.sia-steps--label-horizontal .sia-steps__item:last-child { flex: 0 0 auto; }
+  .sia-steps--horizontal.sia-steps--label-horizontal .sia-steps__head { width: auto; }
+  .sia-steps--horizontal.sia-steps--label-horizontal .sia-steps__head .sia-steps__tail { display: none; }
+  .sia-steps--horizontal.sia-steps--label-horizontal .sia-steps__content { width: auto; flex: 0 1 auto; margin: 0 0 0 10px; padding: 0; }
+  .sia-steps--horizontal.sia-steps--label-horizontal .sia-steps__title { line-height: 32px; }
+  .sia-steps--horizontal.sia-steps--label-horizontal.sia-steps--small .sia-steps__title { line-height: 26px; }
+  .sia-steps--horizontal.sia-steps--label-horizontal .sia-steps__inline-tail { display: block; min-width: 12px; margin-block-start: 16px; }
+  .sia-steps--horizontal.sia-steps--label-horizontal.sia-steps--small .sia-steps__inline-tail { margin-block-start: 13px; }
+  .sia-steps--horizontal.sia-steps--label-horizontal .sia-steps__item:last-child .sia-steps__inline-tail { display: none; }
+}
 
 .sia-segmented { display: inline-flex; align-items: stretch; gap: 3px; padding: 3px; color: var(--sia-color-text-secondary); background: var(--sia-color-control-hover); border-radius: calc(var(--sia-radius) + 2px); }
 .sia-segmented button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 30px; padding: 4px 12px; color: inherit; cursor: pointer; background: transparent; border: 0; border-radius: var(--sia-radius); transition: color 140ms ease, background 140ms ease, box-shadow 140ms ease; }
@@ -980,7 +1006,8 @@ body > .sia-popup-portal[data-sia-popup-layer] { position: fixed; z-index: 1080;
 .sia-alert { position: relative; }
 .sia-alert__icon { display: inline-flex; align-self: flex-start; }
 .sia-alert__content { flex: 1; }
-.sia-alert__content strong, .sia-alert__content > span { display: block; }
+/* 标题独占行；说明内的加粗短语仍保持行内排版。 */
+.sia-alert__content > strong, .sia-alert__content > span { display: block; }
 /* 描述仅在标题之后增加间距，独立描述与状态图标保持顶部对齐。 */
 .sia-alert__content > span { color: var(--sia-color-text-secondary); }
 .sia-alert__content > strong + span { margin-top: 3px; }

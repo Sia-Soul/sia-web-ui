@@ -32,7 +32,24 @@ export function IconPage() {
           {[16, 24, 32].map(size => <Space key={size} size={16}><span>{size}px</span><Icon name="clock" size={size} /><Icon name="refresh" size={size} /><Icon name="settings" size={size} /></Space>)}
         </Space>
       </DemoCard>
+      {/* 业务图标与既有圆角图标同尺寸并排，便于检查轮廓、线重及小尺寸细节是否协调。 */}
+      <DemoCard title="圆角业务图标" description="每行前四个为原有图标，后六个为业务图标。箱体、单据与屋顶使用圆弧轮廓，沿用默认描边。" code={'<Icon name="package" size={16} />\n<Icon name="order-receipt" size={16} />'}>
+        <Space direction="vertical" align="start" size={20}>
+          {[16, 24, 32].map(size => (
+            <Space key={size} size={20} wrap>
+              <span>{size}px</span>
+              {(["copy", "calendar", "mail", "lock", "package", "order-receipt", "warehouse", "after-sales", "stocktaking", "platform-message"] as const).map(name => (
+                <Icon key={name} name={name} size={size} title={name} />
+              ))}
+            </Space>
+          ))}
+        </Space>
+      </DemoCard>
       <IconGallery />
+      {/* 语义色使用主题变量，图标颜色不影响相邻说明文字。 */}
+      <DemoCard title="语义颜色" description="tone 默认继承文字颜色；primary、success、warning、danger 跟随主题。" code={'<Icon name="shop" tone="primary" />'}>
+        <Space>{(["inherit", "primary", "success", "warning", "danger"] as const).map(tone => <Space key={tone}><Icon name="shop" tone={tone} /><span>{tone}</span></Space>)}</Space>
+      </DemoCard>
     </>
   );
 }

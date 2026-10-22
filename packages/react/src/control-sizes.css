@@ -54,6 +54,10 @@
   .sia-form--horizontal .sia-form-item__label { padding-top: max(0px, calc((var(--sia-form-row-height) - 1.45em) / 2)); }
   /* 单选、多选及其组使用与输入框相同的最小行高，保留组内换行和禁用状态。 */
   .sia-form--horizontal .sia-form-item__input-wrap > :is(.sia-radio, .sia-checkbox, .sia-radio-group, .sia-checkbox-group) { min-height: var(--sia-form-row-height); }
+  /* 只读文字与多行信息可选择整行居中；保留普通输入和纵向表单原有首行对齐。 */
+  .sia-form--horizontal .sia-form-item--align-center { align-items: center; }
+  .sia-form--horizontal .sia-form-item--align-center > .sia-form-item__label { padding-top: 0; }
+  .sia-form--horizontal .sia-form-item--align-center > .sia-form-item__control > .sia-floating > .sia-form-item__input-wrap { display: flex; flex-direction: column; justify-content: center; min-height: var(--sia-form-row-height); }
 }
 .sia-form.sia-form--vertical .sia-form-item__label { padding-top: 0; }
 .sia-rate--small .sia-rate__item button { font-size: 15px; }

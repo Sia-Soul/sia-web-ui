@@ -95,11 +95,11 @@ export function CardPage() {
           <p>合作关系查询接口</p><p>点击卡片选中，再次点击取消。</p><p>详情查看次数：{detailCount}</p>
         </Card>
       </DemoCard>
-      <DemoCard title="仅边框选中" description="筛选卡片可关闭右上角勾选标记，保留选中边框及键盘操作。" code={'<Card selectable showSelectedIndicator={false}>库存紧张</Card>'}>
+      <DemoCard title="无角标选中" description="筛选卡片可关闭右上角勾选标记，保留选中背景、边框及键盘操作。" code={'<Card selectable showSelectedIndicator={false}>库存紧张</Card>'}>
         <Card selectable showSelectedIndicator={false} defaultSelected aria-label="库存紧张筛选示例">库存紧张</Card>
       </DemoCard>
       {/* 有边框正文四周留白统一跟随框架间距配置。 */}
-      <DemoCard title="基础卡片" description="标题区最小高度为 40px，标题分割线在浅色主题下约为 #f0f0f0，深色主题下使用 #424242 保留对比度；可通过 --sia-card-header-border-color 覆盖颜色。正文四周内边距沿用框架间距。" code={basicCode}>
+      <DemoCard title="基础卡片" description="默认外边框轻微减淡，浅色主题约为 #e3e3e3，深色主题约为 #393939。标题区最小高度为 40px，标题分割线在浅色主题下约为 #f0f0f0，深色主题下使用 #424242；可通过 --sia-card-header-border-color 覆盖标题分割线颜色。正文四周内边距沿用框架间距。" code={basicCode}>
         <Card accent="primary" title="基础卡片" description="标题、说明、分割线和内容区由 Card 统一组织。">
           <div className="card-demo-surface">这里是基础卡片的内容。</div>
         </Card>

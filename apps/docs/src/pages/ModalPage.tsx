@@ -47,6 +47,7 @@ export default function Demo() {
 
 const apiRows = [
   { property: "open", description: "是否显示对话框", type: "boolean", defaultValue: "false" },
+  { property: "autoFocus", description: "打开时优先聚焦正文首个可用输入组件，跳过隐藏、禁用及只读字段；false 使用默认焦点。异步加载的字段需自行聚焦。", type: "boolean", defaultValue: "true" },
   { property: "title", description: "标题", type: "ReactNode", defaultValue: "-" },
   { property: "footer", description: "自定义底部操作区，传 null 隐藏", type: "ReactNode | null", defaultValue: "默认按钮" },
   { property: "onOk", description: "确认回调，支持 Promise 与返回 false 阻止关闭", type: "() => void | boolean | Promise", defaultValue: "-" },
@@ -57,6 +58,8 @@ const apiRows = [
 ] as const;
 
 export function ModalPage() {
+  // 独立展示关闭输入自动聚焦的用法，基础弹框则沿用默认行为。
+  const [manualOpen, setManualOpen] = useState(false);
   const [tab, setTab] = useState<"examples" | "api">("examples");
   const [open, setOpen] = useState(false);
 
@@ -96,8 +99,12 @@ export function ModalPage() {
     <PageHeader eyebrow="组件 / 反馈 / Modal" title="Modal 对话框" description="在当前流程上方承载任务，支持声明式使用与静态 API 调用。正文默认字号为 13px，子元素可通过自身字号样式覆盖。" />
     <DocsTabs activeKey={tab} onChange={setTab} />
     {tab === "examples" ? <div className="demo-stack">
-      <DemoCard title="基础对话框" description="通过 open 属性控制，支持遮罩、Esc、焦点管理和异步确认。" code={basicCode}>
+      <DemoCard title="基础对话框" description="打开后默认聚焦正文首个可用输入组件，可直接输入；支持遮罩、Esc、焦点管理和异步确认。" code={basicCode}>
         <Space wrap><Button variant="primary" onClick={() => setOpen(true)}>打开基础 Modal</Button></Space>
+      </DemoCard>
+      <DemoCard title="关闭输入自动聚焦" description="autoFocus=false 时保留默认首个可聚焦元素；内容自身显式设置的焦点始终优先。" code={'<Modal open={open} autoFocus={false} onOpenChange={setOpen}><Input placeholder="手动点击输入" /></Modal>'}>
+        <Button onClick={() => setManualOpen(true)}>打开不自动聚焦输入的弹框</Button>
+        <Modal open={manualOpen} autoFocus={false} title="手动选择输入" onOpenChange={setManualOpen}><Input placeholder="手动点击输入" /></Modal>
       </DemoCard>
       <DemoCard title="API 调用" description="适合跨组件反馈、一次性对话和确认操作。确认框关闭完成后释放句柄，可反复取消、重新打开。" code={apiCode}>
         <Space wrap>

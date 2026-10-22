@@ -510,7 +510,8 @@
 .sia-message__content { min-width: 0; overflow-wrap: anywhere; line-height: 1.45; }
 .sia-message__close { width: 24px; height: 24px; margin-right: -5px; }
 
-.sia-card { --sia-card-accent: var(--sia-color-primary); color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: var(--sia-radius); }
+/* 外边框保留 75% 主题边框色，混入 25% 表面色，轻微降低对比度且保留深色主题下的轮廓。 */
+.sia-card { --sia-card-accent: var(--sia-color-primary); color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid color-mix(in srgb, var(--sia-color-border) 75%, var(--sia-color-surface)); border-radius: var(--sia-radius); }
 /* 标题区最小高度为 40px；分割线使用独立主题色，浅色减淡、深色保持可辨识的对比度。 */
 .sia-card__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 40px; margin-inline: 16px; border-bottom: 1px solid var(--sia-card-header-border-color); }
 .sia-card__heading { display: flex; align-items: center; min-width: 0; gap: 12px; }
@@ -530,6 +531,8 @@
 .sia-card--selectable { position: relative; cursor: pointer; }
 /* 整卡操作与选择共用焦点反馈，业务页面无需补鼠标或键盘样式。 */
 .sia-card--actionable { cursor: pointer; }
+/* 桌面列表保留普通选择指针，避免卡片与间隙之间切换系统指针角色。 */
+.sia-card--selectable[data-sia-interaction-cursor="default"], .sia-card--actionable[data-sia-interaction-cursor="default"] { cursor: default; }
 .sia-card--actionable[aria-disabled="true"] { cursor: default; }
 .sia-card--actionable:focus-visible { outline: 2px solid var(--sia-color-primary); outline-offset: 2px; }
 /* 标题不参与压缩，表格可直接填充卡片剩余正文高度。 */
@@ -543,7 +546,8 @@
 /* Icon 外层是 span，定位整个图标，并让其边界完整位于三角形内部。 */
 .sia-card__selected-corner > .sia-icon { position: absolute; top: 4px; right: 4px; }
 .sia-card--selectable[aria-disabled="true"] { cursor: default; }
-.sia-card.sia-card--selected { border-color: var(--sia-color-primary); box-shadow: inset 0 0 0 1px var(--sia-color-primary); }
+/* 选中态同时改变背景，浅深主题均以当前表面色混合，保持正文对比度。 */
+.sia-card.sia-card--selected { background: color-mix(in srgb, var(--sia-color-primary) 10%, var(--sia-color-surface)); border-color: var(--sia-color-primary); box-shadow: inset 0 0 0 1px var(--sia-color-primary); }
 /* 无边框卡片取消横向留白及选中描边；直系选择器避免影响嵌套卡片，正文内联样式仍可覆盖。 */
 .sia-card.sia-card--borderless { border: 0; box-shadow: none; }
 .sia-card--borderless > .sia-card__header { margin-inline: 0; }
@@ -563,7 +567,8 @@
 .sia-alert { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; color: var(--sia-color-text); font: 400 var(--sia-font-size-small)/1.5 system-ui, sans-serif; border: 1px solid transparent; border-radius: var(--sia-radius); }
 .sia-alert__icon { display: grid; place-items: center; flex: 0 0 auto; width: 20px; height: 20px; color: var(--sia-color-primary-text); background: transparent; }
 .sia-alert__content { display: grid; gap: 2px; flex: 1; }
-.sia-alert__content span { color: var(--sia-color-text-secondary); }
+/* 仅设置说明容器颜色，嵌套按钮及标签保留各自的语义色。 */
+.sia-alert__content > span { color: var(--sia-color-text-secondary); }
 .sia-alert__action { margin-left: auto; }
 .sia-alert--info { background: #e6f4ff; border-color: #91caff; }
 .sia-alert--success { background: #f6ffed; border-color: #b7eb8f; }
@@ -769,7 +774,7 @@
 /* 右侧纯图标按钮与设置入口采用同一点击区域，避免内边距不同造成图标中心间距不等。 */
 .sia-table__toolbar > div:last-child .sia-button:has(> :is(.sia-button__icon, .sia-button__spinner):only-child),
 .sia-table__toolbar > div:last-child .sia-button:has(> span:only-child > .sia-icon:only-child) { min-width: 30px; width: 30px; height: 30px; padding: 0; }
-/* 右侧嵌套操作组沿用外层 8px 间距；Space 的默认间距写在内联样式中，因此在表格工具栏内统一覆盖。 */
+/* 右侧嵌套操作组沿用外层 4px 间距；Space 的默认间距写在内联样式中，因此在表格工具栏内统一覆盖。 */
 .sia-table__toolbar > div:last-child > :is(.sia-space--horizontal, .sia-toolbar) { column-gap: inherit !important; width: auto; }
 .sia-table__viewport-wrap { position: relative; display: flex; min-height: 0; flex: 1 1 auto; overflow: hidden; }
 .sia-table__viewport { isolation: isolate; min-width: 0; min-height: 0; flex: 1 1 auto; overflow: auto; scrollbar-width: none; }
@@ -805,6 +810,7 @@
 .sia-table--large .sia-table__row { contain-intrinsic-size: auto 46px; }
 .sia-table__row--striped .sia-table__cell { background: color-mix(in srgb, var(--sia-color-background) 55%, var(--sia-color-surface)); }
 /* 状态行覆盖斑马纹，后续悬停、勾选样式继续优先；固定单元格使用相同不透明背景。 */
+.sia-table__row--info .sia-table__cell { background: color-mix(in srgb, var(--sia-color-primary) 10%, var(--sia-color-surface)); }
 .sia-table__row--success .sia-table__cell { background: color-mix(in srgb, var(--sia-color-success) 10%, var(--sia-color-surface)); }
 .sia-table__row--warning .sia-table__cell { background: color-mix(in srgb, var(--sia-color-warning) 10%, var(--sia-color-surface)); }
 .sia-table__row--error .sia-table__cell { background: color-mix(in srgb, var(--sia-color-error) 10%, var(--sia-color-surface)); }
@@ -1132,7 +1138,8 @@
 .sia-toolbar__item { display: inline-flex; flex: 0 0 auto; width: max-content; white-space: nowrap; }
 .sia-toolbar__item--hidden { position: absolute; top: 0; left: 0; visibility: hidden; pointer-events: none; }
 .sia-table__toolbar > div:first-child { flex: 1; min-width: 0; }
-.sia-table__toolbar > div:last-child { flex-shrink: 0; flex-wrap: nowrap; }
+/* 右侧操作使用紧凑的 4px 间距，嵌套按钮组继承同一数值。 */
+.sia-table__toolbar > div:last-child { flex-shrink: 0; flex-wrap: nowrap; gap: 4px; }
 
 /* 横向标签保持自然宽度；收起项脱离布局但保留测量尺寸，不产生滚动区域。 */
 .sia-tabs--horizontal > .sia-tabs__header > .sia-tabs__list { position: relative; box-sizing: border-box; overflow: clip; min-width: 0; }
@@ -1174,6 +1181,8 @@
 .sia-sortable-list__handle { display: flex; align-items: center; justify-content: center; width: 100%; padding: 6px; border: 0; background: var(--sia-color-fill-secondary); color: var(--sia-color-text-secondary); cursor: grab; }
 .sia-sortable-list__handle:focus-visible { outline: 2px solid var(--sia-color-primary); outline-offset: -2px; }
 .sia-sortable-list__handle:disabled { cursor: not-allowed; opacity: .5; }
+/* 标题内的手柄继承标题排版，不再额外增加独立行的留白。 */
+.sia-sortable-list__handle--custom { justify-content: flex-start; padding: 0; font: inherit; color: inherit; background: transparent; text-align: start; }
 .sia-sortable-list__item.is-drop-before::before, .sia-sortable-list__item.is-drop-after::after { content: ""; position: absolute; background: var(--sia-color-primary); pointer-events: none; z-index: 1; }
 .sia-sortable-list--horizontal .is-drop-before::before { top: 0; bottom: 0; left: -9px; width: 2px; }
 .sia-sortable-list--horizontal .is-drop-after::after { top: 0; bottom: 0; right: -9px; width: 2px; }

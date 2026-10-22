@@ -10,7 +10,7 @@ export type CardAccent = "primary" | "success" | "warning" | "error";
 export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
   /**
    * 是否显示外边框并保留默认内部留白。false 移除外边框、选中描边、标题区左右留白及说明、悬浮操作区的内边距，正文内边距改为上下 8px、左右 0；保留背景、圆角、内部分割线和键盘焦点提示。
-   * 无边框时仍可通过 bodyStyle.padding 自定义正文内边距。
+   * 默认外边框混合 75% 主题边框色和 25% 表面色，以降低对比度；无边框时仍可通过 bodyStyle.padding 自定义正文内边距。
    * @defaultValue true
    */
   bordered?: boolean;
@@ -21,10 +21,12 @@ export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
   /** 主体之外的补充内容或操作区。 */
   extra?: ReactNode;
   /**
-   * 点击卡片非交互区域切换选中，支持 Enter 和空格键；选中时显示右上角三角勾选标记。
+   * 点击卡片非交互区域切换选中，支持 Enter 和空格键；选中时显示主题色浅背景及右上角三角勾选标记。
    * @defaultValue false
    */
   selectable?: boolean;
+  /** 可选择或可执行卡片的鼠标形状：pointer 使用系统链接指针，default 保持普通选择指针，适合桌面列表；不改变点击与键盘行为，内部独立控件和禁用样式仍优先。@defaultValue "pointer" */
+  interactionCursor?: "pointer" | "default";
   /** 受控选中状态，需在 onSelectedChange 中更新。 */
   selected?: boolean;
   /**
@@ -86,6 +88,7 @@ export function Card({
   description,
   extra,
   selectable = false,
+  interactionCursor = "pointer",
   selected,
   showSelectedIndicator = true,
   defaultSelected = false,
@@ -146,6 +149,7 @@ export function Card({
     <section
       className={`sia-card${fill ? " sia-card--fill" : ""}${fill && bodyHeight !== undefined ? " sia-card--body-height" : ""}${!bordered ? " sia-card--borderless" : ""}${isCollapsed ? " sia-card--collapsed" : ""}${selectable ? " sia-card--selectable" : ""}${actionable ? " sia-card--actionable" : ""}${selectable && isSelected ? " sia-card--selected" : ""}${hoverActions ? " sia-card--hover-actions" : ""} ${className}`.trim()}
       style={mergedStyle}
+      data-sia-interaction-cursor={interactionCursor}
       role={selectable ? "checkbox" : actionable ? "button" : undefined}
       aria-checked={selectable ? isSelected : undefined}
       aria-disabled={selectable || actionable ? disabled : undefined}

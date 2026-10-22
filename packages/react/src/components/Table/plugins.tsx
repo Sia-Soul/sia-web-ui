@@ -3473,7 +3473,7 @@ export interface TableToolbarItem<T> {
 export interface TableToolbarPluginOptions<T> {
   /** 范围起点。 */
   start?: ReactNode;
-  /** 工具栏右侧内容。纯图标按钮默认使用 30px 方形点击区域，与设置按钮一致；直接嵌套的横向 Space 或 Toolbar 统一使用外层 8px 间距。 */
+  /** 工具栏右侧内容。纯图标按钮默认使用 30px 方形点击区域，与设置按钮一致；直接嵌套的横向 Space 或 Toolbar 统一使用外层 4px 间距。 */
   end?: ReactNode;
   /** 按展示顺序排列的项目配置。 */
   items?: readonly TableToolbarItem<T>[];

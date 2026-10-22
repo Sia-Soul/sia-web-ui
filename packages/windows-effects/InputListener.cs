@@ -47,17 +47,18 @@ internal sealed class InputListener : IDisposable
     int interval;
     internal bool Listening => mouse != IntPtr.Zero;
     internal bool KeyboardListening => keyboard != IntPtr.Zero;
-    internal InputListener(Action<int, int, int> click, Action locate)
+    internal InputListener(Action<int, int, int, int> click, Action locate, Action activity)
     {
         mouseProc = (code, message, data) => {
             int kind = message.ToInt32();
-            if (code >= 0 && kind is 0x201 or 0x202 or 0x204 or 0x205) click(kind, Marshal.ReadInt32(data), Marshal.ReadInt32(data, 4));
+            if (code >= 0 && kind is 0x201 or 0x202 or 0x204 or 0x205 or 0x20A or 0x20E) click(kind, Marshal.ReadInt32(data), Marshal.ReadInt32(data, 4), (short)(Marshal.ReadInt32(data, 8) >> 16));
             return CallNextHookEx(mouse, code, message, data);
         };
         keyboardProc = (code, message, data) => {
             if (code >= 0 && (Marshal.ReadInt32(data, 8) & 0x10) == 0)
             {
                 int kind = message.ToInt32();
+                if (kind is 0x100 or 0x104) activity();
                 if (kind is 0x100 or 0x104 or 0x101 or 0x105)
                     if (detector.Feed(Marshal.ReadInt32(data), kind is 0x100 or 0x104, clock.Elapsed.TotalMilliseconds, interval)) locate();
             }

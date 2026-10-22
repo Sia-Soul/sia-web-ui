@@ -282,7 +282,7 @@ export function FormPage() {
   const [form] = Form.useForm();
   const [result, setResult] = useState("尚未提交");
   // 默认标签列按当前表单最宽标签对齐，动态字段增删时自动更新。
-  return <DocPage eyebrow="组件 / 数据录入 / Form" title="Form 表单" description="统一管理字段值、校验、气泡错误提示、提交和动态字段；水平及行内布局默认按同一表单最宽标签对齐，可通过 --sia-form-label-width 显式指定列宽；Form.Item 默认保留 6px 下外边距。" name="Form" apiRows={[
+  return <DocPage eyebrow="组件 / 数据录入 / Form" title="Form 表单" description="统一管理字段值、校验、气泡错误提示、提交和动态字段；水平及行内布局默认按同一表单最宽标签对齐，可通过 --sia-form-label-width 显式指定列宽；Form.Item 默认保留 8px 下外边距。" name="Form" apiRows={[
     { property: "form / Form.useForm", description: "表单实例与命令式 API", type: "FormInstance", defaultValue: "自动创建" },
     { property: "size", description: "统一子组件尺寸；small / medium / large 的单行控件高度为 22 / 30 / 38px。组件自身 size 优先，Checkbox.Group 和 Radio.Group 可覆盖组内默认尺寸", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
     { property: "placeholderMode", description: "统一设置输入和选择组件的占位符模式；组件自身的同名属性优先", type: "'default' | 'floating'", defaultValue: "'default'" },
@@ -290,8 +290,12 @@ export function FormPage() {
     { property: "onFinish / onFinishFailed", description: "提交成功和失败回调", type: "function", defaultValue: "-" },
     { property: "submit", description: "提交失败时自动滚动并聚焦首个错误字段", type: "() => void", defaultValue: "-" },
     { property: "Form.Item", description: "字段绑定、标签、校验规则和非占位错误气泡", type: "name / rules / valuePropName", defaultValue: "-" },
+    { property: "Form.Item.align", description: "横向布局中 start 对齐首行控件，center 对齐整个内容区中心；纵向、行内及窄屏堆叠不受影响", type: "'start' | 'center'", defaultValue: "'start'" },
     { property: "Form.List", description: "动态数组字段", type: "render function", defaultValue: "-" },
   ]}>
+    <DemoCard title="只读信息居中" description="通过 Form.Item 的语义属性对齐纯文字和多行内容，无需业务页面覆盖表单样式。" code={`<Form><Form.Item label="是否同步" align="center">是</Form.Item><Form.Item label="同步范围" align="center"><div>商品、订单<br />店铺、库存</div></Form.Item></Form>`}>
+      <Form><Form.Item label="是否同步" align="center">是</Form.Item><Form.Item label="同步范围" align="center"><div>商品、订单<br />店铺、库存</div></Form.Item></Form>
+    </DemoCard>
     <DemoCard title="统一组件尺寸" description="输入、选择、日期、按钮、颜色与分段控件统一为 22 / 30 / 38px，日期和时间文字为 12 / 13 / 16px；Checkbox 和 Radio 图形为 14 / 16 / 18px，标准 Switch 高度为 16 / 22 / 28px，Rate 星形为 15 / 20 / 25px。多行文本保留多行高度。支持 Form 继承、组尺寸和组件单独覆盖，切换尺寸不丢失已输入内容。" code={formSizeCode}>
       <FormSizeDemo />
     </DemoCard>

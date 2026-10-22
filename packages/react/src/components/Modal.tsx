@@ -17,6 +17,12 @@ export type ModalActionResult = void | boolean | Promise<void | boolean>;
 export interface ModalProps extends Omit<HTMLAttributes<HTMLDivElement>, "title" | "onSubmit"> {
   /** 是否显示对话框 */
   open: boolean;
+  /**
+   * 打开时自动聚焦正文中首个可用输入组件，跳过隐藏、禁用和只读字段；尊重内容自身已设置的焦点。
+   * 无可用输入组件或设置为 false 时，使用默认首个可聚焦元素。仅在打开时执行，不等待异步加载的字段；异步内容可在加载完成后自行聚焦。
+   * @defaultValue true
+   */
+  autoFocus?: boolean;
   /** 标题 */
   title?: ReactNode;
   /** 弹框正文内容，默认字号为 13px；子元素可通过自身字号样式覆盖。 */
@@ -123,6 +129,7 @@ const typeIcons: Partial<Record<ModalType, ReactNode>> = {
 const ModalRoot = forwardRef<HTMLDivElement, ModalProps>(function Modal(
   {
     open,
+    autoFocus = true,
     title,
     children,
     footer,
@@ -220,7 +227,7 @@ const ModalRoot = forwardRef<HTMLDivElement, ModalProps>(function Modal(
     }
   }
 
-  useOverlayLifecycle(rendered, localRef, requestClose, keyboard);
+  useOverlayLifecycle(rendered, localRef, requestClose, keyboard, autoFocus);
   if (!rendered) return null;
 
   const mergedStyle = {

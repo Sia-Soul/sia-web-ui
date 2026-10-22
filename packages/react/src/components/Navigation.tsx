@@ -1,14 +1,14 @@
 import { withTitleTooltip } from "./titleTooltip";
 import { useControlSize } from "./shared";
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { HTMLAttributes, KeyboardEvent, ReactNode, RefObject } from "react";
+import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode, RefObject } from "react";
 import { Icon } from "./Icon";
 import { PopupPortal } from "./PopupPortal";
 import type { PopupPortalPlacement } from "./PopupPortal";
 import { useControllableState } from "./shared";
 
-/** 菜单的模式类型。 */
-export type MenuMode = "vertical" | "horizontal" | "inline";
+/** 菜单排列模式；vertical 为纵向列表，horizontal 为横向菜单，inline 为内嵌子菜单，grid 为双列圆角卡片（图标在上、名称在下，子菜单以弹层展开）。 */
+export type MenuMode = "vertical" | "horizontal" | "inline" | "grid";
 /** 菜单的亮色或暗色主题。 */
 export type MenuTheme = "light" | "dark";
 /** 菜单的项目定义。 */
@@ -21,7 +21,7 @@ export type MenuItem = {
   icon?: ReactNode;
   /** 图标槽的宽高，单位 px；未指定时沿用菜单图标尺寸变量。图片图标应传入与图片相同的尺寸，避免挤压。 */
   iconSize?: number;
-  /** 是否显示当前生效的半透明勾选水印，默认为 false；独立于 selectedKeys 的浏览选中状态，由业务在应用成功后更新。 */
+  /** 是否显示当前生效的实心圆形勾选标记，默认为 false；标记以92%不透明度显示，独立于 selectedKeys 的浏览选中状态，由业务在应用成功后更新。 */
   applied?: boolean;
   /** 生效水印的无障碍说明；默认为“当前使用”，仅 applied 为 true 时显示。 */
   appliedLabel?: string;
@@ -54,10 +54,14 @@ export interface MenuProps extends Omit<HTMLAttributes<HTMLUListElement>, "onCli
   /** 按展示顺序排列的项目配置。 */
   items: readonly MenuItem[];
   /**
-   * 展示或交互模式；可选值见类型定义。
+   * 展示或交互模式；grid 显示双列圆角卡片，图标居上、名称居下，保留选中和当前生效标记。
    * @defaultValue "vertical"
    */
   mode?: MenuMode;
+  /** grid 模式的列数，默认 2；正数取整且至少为 1，auto 按每列至少 88px 自动换列。通过 --sia-menu-grid-columns 传递到分组；style 中的同名变量可覆盖。其他模式不生效。 */
+  gridColumns?: number | "auto";
+  /** 菜单项的鼠标形状：pointer 使用系统链接指针，default 保持普通选择指针，适合桌面列表；不改变点击、键盘和禁用语义，包含分组及子菜单。@defaultValue "pointer" */
+  interactionCursor?: "pointer" | "default";
   /**
    组件的配色主题。
    * @defaultValue "light"
@@ -65,6 +69,13 @@ export interface MenuProps extends Omit<HTMLAttributes<HTMLUListElement>, "onCli
   theme?: MenuTheme;
   /** 当前选中项目的标识集合；传入后由外部控制。 */
   selectedKeys?: readonly string[];
+  /**
+   * 自动将首个选中项目滚动到菜单自身的可见区域，适用于可纵向滚动的列表、内嵌或网格菜单。
+   * 首次渲染、异步项目到达及首个选中标识改变时尝试定位；已完整可见时不滚动，超出时尽量居中。
+   * 仅调整菜单自身的滚动位置，不展开子菜单、不移动焦点；相同选中项的普通重渲染保留用户手动滚动位置。
+   * @defaultValue false
+   */
+  autoScrollSelected?: boolean;
   /**
    * 非受控模式下初始选中的项目标识集合。
    * @defaultValue []
@@ -116,7 +127,8 @@ export interface MenuProps extends Omit<HTMLAttributes<HTMLUListElement>, "onCli
   onOpenChange?: (keys: string[]) => void;
 }
 
-type MenuLevelContext = Required<Pick<MenuProps, "mode" | "theme" | "multiple" | "selectable" | "inlineCollapsed" | "inlineIndent" | "triggerSubMenuAction">> & {
+// 子菜单沿用同一个指针配置，Portal 渲染不依赖外部样式继承。
+type MenuLevelContext = Required<Pick<MenuProps, "interactionCursor" | "mode" | "theme" | "multiple" | "selectable" | "inlineCollapsed" | "inlineIndent" | "triggerSubMenuAction">> & {
   menuId: string;
   selected: readonly string[];
   open: readonly string[];
@@ -231,16 +243,18 @@ function MenuEntry({
       ref={anchorRef}
       type="button"
       className="sia-menu__item"
+      data-sia-interaction-cursor={props.interactionCursor}
       style={{ paddingInlineStart: props.mode === "inline" && !props.inlineCollapsed ? 12 + level * props.inlineIndent : undefined }}
       {...withTitleTooltip({ title: collapsed ? item.title ?? (typeof item.label === "string" ? item.label : undefined) : item.title })}
       disabled={item.disabled}
       aria-current={isSelected ? "page" : undefined}
+      data-menu-key={item.key}
       data-applied={item.applied || undefined}
       aria-expanded={hasChildren ? isOpen : undefined}
       onClick={(event) => hasChildren ? props.toggle(item.key) : props.select(item, path, event)}
     >
       {reserveIcon ? <span className="sia-menu__icon" style={item.iconSize ? { width: item.iconSize, height: item.iconSize, flexBasis: item.iconSize } : undefined} aria-hidden={!item.icon || undefined}>{item.icon}</span> : null}
-      {item.applied ? <span className="sia-menu__applied" role="img" aria-label={item.appliedLabel ?? "当前使用"}><Icon name="circle-check" size={32}/></span> : null}
+      {item.applied ? <span className="sia-menu__applied" role="img" aria-label={item.appliedLabel ?? "当前使用"}><Icon name="circle-check" variant="filled" size={32}/></span> : null}
       {!collapsed ? <span className="sia-menu__label">{item.label}</span> : null}
       {!collapsed && item.extra ? <span className="sia-menu__extra">{item.extra}</span> : null}
       {!collapsed && hasChildren ? <Icon className="sia-menu__expand-icon" name="chevron-down" size={13} /> : null}
@@ -293,8 +307,11 @@ function MenuLevel({
 export function Menu({
   items,
   mode = "vertical",
+  gridColumns = 2,
+  interactionCursor = "pointer",
   theme = "light",
   selectedKeys,
+  autoScrollSelected = false,
   defaultSelectedKeys = [],
   openKeys,
   defaultOpenKeys = [],
@@ -308,12 +325,39 @@ export function Menu({
   onDeselect,
   onOpenChange,
   className = "",
+  style,
   ...rest
 }: MenuProps) {
   const menuId = useId();
   const rootRef = useRef<HTMLUListElement>(null);
   const [selected, setSelected] = useControllableState<readonly string[]>({ value: selectedKeys, defaultValue: defaultSelectedKeys });
   const [open, setOpen] = useControllableState<readonly string[]>({ value: openKeys, defaultValue: defaultOpenKeys, onChange: (next) => onOpenChange?.([...next]) });
+  const revealedKey = useRef<string>();
+  const firstSelected = selected[0];
+
+  // 选中状态与滚动位置分别维护；已定位的同一项目不会因宿主状态刷新而抢回滚动位置。
+  useLayoutEffect(() => {
+    if (!autoScrollSelected || firstSelected === undefined) { revealedKey.current = undefined; return; }
+    const root = rootRef.current;
+    if (!root || revealedKey.current === firstSelected || mode === "horizontal") return;
+    const reveal = () => {
+      if (revealedKey.current === firstSelected || root.clientHeight === 0) return;
+      const target = Array.from(root.querySelectorAll<HTMLElement>(".sia-menu__item"))
+        .find(element => element.dataset.menuKey === firstSelected && element.getBoundingClientRect().height > 0);
+      if (!target) return;
+      const bounds = root.getBoundingClientRect(), item = target.getBoundingClientRect();
+      const top = bounds.top + root.clientTop, bottom = top + root.clientHeight;
+      // 只滚动本菜单，避免 scrollIntoView 连带移动整个页面或右侧面板。
+      if (item.top < top || item.bottom > bottom)
+        root.scrollTop += item.top - top - Math.max(0, (root.clientHeight - item.height) / 2);
+      revealedKey.current = firstSelected;
+    };
+    reveal();
+    // 初始化布局或隐藏容器恢复时补做定位，成功后回调立即短路，不干扰手动浏览。
+    const observer = new ResizeObserver(reveal);
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [autoScrollSelected, firstSelected, items, mode]);
 
   useEffect(() => {
     if (mode === "inline" || !open.length) return undefined;
@@ -342,8 +386,10 @@ export function Menu({
     else onSelect?.({ ...info, selectedKeys: [...next] });
     if (mode !== "inline") setOpen([]);
   }
-  return <ul ref={rootRef} className={`sia-menu sia-menu--${mode} sia-menu--${theme}${inlineCollapsed ? " sia-menu--collapsed" : ""} ${className}`.trim()} role="menu" {...withTitleTooltip(rest)} data-sia-menu-owner={menuId}>
-    <MenuLevel items={items} level={0} parents={[]} props={{ menuId, mode, theme, multiple, selectable, inlineCollapsed, inlineIndent, triggerSubMenuAction, selected, open, select, toggle }} />
+  // 列定义由框架统一传入根菜单及分组，业务无需覆写内部卡片样式。
+  const gridStyle = mode === "grid" ? { "--sia-menu-grid-columns": gridColumns === "auto" ? "repeat(auto-fill, minmax(88px, 1fr))" : `repeat(${Number.isFinite(gridColumns) ? Math.max(1, Math.floor(Number(gridColumns))) : 2}, minmax(0, 1fr))` } : {};
+  return <ul ref={rootRef} className={`sia-menu sia-menu--${mode} sia-menu--${theme}${inlineCollapsed ? " sia-menu--collapsed" : ""} ${className}`.trim()} role="menu" {...withTitleTooltip(rest)} style={{ ...gridStyle, ...style } as CSSProperties} data-sia-menu-owner={menuId}>
+    <MenuLevel items={items} level={0} parents={[]} props={{ interactionCursor, menuId, mode, theme, multiple, selectable, inlineCollapsed, inlineIndent, triggerSubMenuAction, selected, open, select, toggle }} />
   </ul>;
 }
 
@@ -365,6 +411,8 @@ export type StepItem = {
   disabled?: boolean };
 /** 步骤条的属性配置。 */
 export interface StepsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
+  /** 横向步骤条的标题位置：vertical 在图标下方，horizontal 在图标右侧；纵向和窄屏堆叠时保持原布局。默认 vertical。 */
+  labelPlacement?: "horizontal" | "vertical";
   /** 按展示顺序排列的项目配置。 */
   items: readonly StepItem[];
   /**
@@ -418,8 +466,8 @@ export interface StepsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChan
 }
 
 /** 步骤条组件。 */
-export function Steps({ items, current = 0, initial = 0, direction = "horizontal", type = "default", size = "default", status = "process", progressDot = false, onChange, className = "", ...props }: StepsProps) {
-  return <div className={`sia-steps sia-steps--${direction} sia-steps--${type} sia-steps--${size} ${className}`.trim()} {...withTitleTooltip(props)}>
+export function Steps({ items, current = 0, initial = 0, direction = "horizontal", labelPlacement = "vertical", type = "default", size = "default", status = "process", progressDot = false, onChange, className = "", ...props }: StepsProps) {
+  return <div className={`sia-steps sia-steps--${direction} sia-steps--${type} sia-steps--${size} sia-steps--label-${labelPlacement} ${className}`.trim()} {...withTitleTooltip(props)}>
     {items.map((item, rawIndex) => {
       const index = rawIndex + initial;
       const itemStatus: StepStatus = item.status ?? (index < current ? "finish" : index === current ? status : "wait");
@@ -429,6 +477,7 @@ export function Steps({ items, current = 0, initial = 0, direction = "horizontal
       return <button type="button" className={`sia-steps__item sia-steps__item--${itemStatus}`} key={index} disabled={item.disabled || !onChange} onClick={() => onChange?.(index)}>
         <span className="sia-steps__head"><span className="sia-steps__icon">{icon}</span><span className="sia-steps__tail" /></span>
         <span className="sia-steps__content"><span className="sia-steps__title">{item.title}{item.subTitle ? <small>{item.subTitle}</small> : null}</span>{item.description ? <span className="sia-steps__description">{item.description}</span> : null}</span>
+        {direction === "horizontal" && labelPlacement === "horizontal" ? <span className="sia-steps__tail sia-steps__inline-tail" /> : null}
       </button>;
     })}
   </div>;

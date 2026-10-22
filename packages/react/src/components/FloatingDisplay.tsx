@@ -9,13 +9,14 @@ import { Dropdown } from "./Dropdown";
 import type { DropdownMenuProps } from "./Dropdown";
 import { Icon } from "./Icon";
 import { useControllableState } from "./shared";
+import { isAnchorBehindOverlay, subscribeOverlayLayers } from "./Overlay";
 
 /** 气泡十二个方向；start/end 为对应边的起点/终点对齐，同时支持 topLeft、leftTop 等驼峰别名。 */
 export type FloatingPlacement = "top" | "top-start" | "top-end" | "bottom" | "bottom-start" | "bottom-end" | "left" | "left-start" | "left-end" | "right" | "right-start" | "right-end"
   | "topLeft" | "topRight" | "bottomLeft" | "bottomRight" | "leftTop" | "leftBottom" | "rightTop" | "rightBottom";
 /** 触发浮层显示的交互方式。 */
 export type FloatingTrigger = "hover" | "focus" | "click";
-/** 文字提示的属性配置；弹框或抽屉内的提示遵循所属容器的层级，不覆盖后续打开的子弹层。 */
+/** 文字提示的属性配置；模态弹框/抽屉打开时，被遮挡页面或父层的提示暂时隐藏，模态层关闭后恢复受控显示状态。 */
 export interface TooltipProps {
   /** 标题内容，可传入文本或 React 节点。 */
   title?: ReactNode;
@@ -203,11 +204,13 @@ function Floating({
       if (anchor) {
         const rect = anchor.getBoundingClientRect();
         const next = resolveFloatingPosition(rect, overlayRef.current.getBoundingClientRect(), placement, typeof arrow === "object" && !!arrow.pointAtCenter, autoAdjustOverflow);
-        next.hidden = isFloatingAnchorHidden(anchor, rect);
+        next.hidden = isFloatingAnchorHidden(anchor, rect) || isAnchorBehindOverlay(anchor);
         setPosition(next);
       }
     };
     update();
+    // 校验气泡是受控常显，不能只靠鼠标移出关闭；跟随模态栈隐藏而不清除业务校验错误。
+    const unsubscribeLayers = subscribeOverlayLayers(update);
     window.addEventListener("resize", update);
     window.addEventListener("scroll", update, true);
     // 弹框/抽屉的 transform 动画不会触发 ResizeObserver，结束后重新校准锚点可见性和视口坐标。
@@ -224,6 +227,7 @@ function Floating({
       window.removeEventListener("animationend", update, true);
       window.removeEventListener("transitionend", update, true);
       observer.disconnect();
+      unsubscribeLayers();
     };
   }, [children, content, placement, visible, portalContainer, autoAdjustOverflow, typeof arrow === "object" && arrow.pointAtCenter]);
   useEffect(() => () => {

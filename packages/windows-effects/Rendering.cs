@@ -8,14 +8,9 @@ namespace SiaWebUI.Windows.Effects;
 
 public sealed partial class EffectsWindow
 {
-    readonly List<IntPtr> dimPanes = [];
-    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern IntPtr CreateWindowEx(int exStyle, string name, string? text, uint style, int x, int y, int width, int height, IntPtr parent, IntPtr menu, IntPtr instance, IntPtr parameter);
-    [DllImport("user32.dll")] static extern bool DestroyWindow(IntPtr window);
-    [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr window, int command);
-    [DllImport("user32.dll")] static extern bool SetLayeredWindowAttributes(IntPtr window, uint color, byte alpha, uint flags);
+    readonly LocatorLayer locatorLayer = new();
     readonly CursorTail tail = new();
     Int32Rect viewport;
-    double lastDim = -1;
     /// <summary>动态覆盖层物理像素面积；只覆盖指针附近区域，用于性能诊断。</summary>
     public long DynamicPixelArea => (long)viewport.Width * viewport.Height;
     void EnsureViewport(NativePoint point, bool force = false)
@@ -30,7 +25,6 @@ public sealed partial class EffectsWindow
         if (previous is Point old) previous = old + delta;
         viewport = next;
         SetWindowPos(hwnd, new IntPtr(-1), next.X, next.Y, edge, edge, 0x0010);
-        UpdateDimming(true);
     }
     Point TailPoint(Point hotspot)
     {
@@ -38,33 +32,16 @@ public sealed partial class EffectsWindow
         var scale = VisualTreeHelper.GetDpi(this);
         return hotspot + new Vector(offset.X / scale.DpiScaleX, offset.Y / scale.DpiScaleY);
     }
+    // 遮罩以屏幕物理坐标单次提交，与移动的粒子画布脱钩。
     void UpdateDimming(bool moved = false)
     {
-        double dim = canvas.LocatorVisible ? Options.Locator.Dim : 0;
-        if (!moved && dim == lastDim) return;
-        lastDim = dim;
-        if (dim == 0) { foreach (var pane in dimPanes) ShowWindow(pane, 0); return; }
-        // 四块静态外围遮罩不订阅逐帧绘制；只有局部窗口中的圆形镂空跟随指针重绘。
-        while (dimPanes.Count < 4)
-        {
-            // 原生纯色分层窗口由 DWM 合成，不创建全屏 WPF 渲染目标或参与逐帧回调。
-            var pane = CreateWindowEx(0x80800A8, "STATIC", null, 0x80000004, -10000, -10000, 1, 1, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
-            if (pane == IntPtr.Zero) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), "无法创建定位遮罩。");
-            dimPanes.Add(pane);
-        }
-        int left = GetSystemMetrics(76), top = GetSystemMetrics(77), right = left + GetSystemMetrics(78), bottom = top + GetSystemMetrics(79);
-        int x1 = Math.Clamp(viewport.X, left, right), x2 = Math.Clamp(viewport.X + viewport.Width, left, right);
-        int y1 = Math.Clamp(viewport.Y, top, bottom), y2 = Math.Clamp(viewport.Y + viewport.Height, top, bottom);
-        var rects = new[] { new Int32Rect(left, top, right-left, y1-top), new Int32Rect(left, y2, right-left, bottom-y2), new Int32Rect(left, y1, x1-left, y2-y1), new Int32Rect(x2, y1, right-x2, y2-y1) };
-        for (int i = 0; i < 4; i++)
-        {
-            var rect = rects[i]; var pane = dimPanes[i];
-            if (rect.Width == 0 || rect.Height == 0) { ShowWindow(pane, 0); continue; }
-            SetLayeredWindowAttributes(pane, 0, (byte)Math.Round(dim * 255), 2); ShowWindow(pane, 4);
-            SetWindowPos(pane, new IntPtr(-1), rect.X, rect.Y, rect.Width, rect.Height, 0x0010);
-        }
-        SetWindowPos(hwnd, new IntPtr(-1), 0, 0, 0, 0, 0x0013);
+        var scale = VisualTreeHelper.GetDpi(this);
+        var frame = canvas.CurrentLocatorFrame;
+        if (frame is LocatorFrame value)
+            frame = value with { Center = new Point(viewport.X + value.Center.X * scale.DpiScaleX, viewport.Y + value.Center.Y * scale.DpiScaleY), Radius = value.Radius * scale.DpiScaleX };
+        locatorLayer.Sync(frame, new Int32Rect(GetSystemMetrics(76), GetSystemMetrics(77), GetSystemMetrics(78), GetSystemMetrics(79)), scale.DpiScaleX);
     }
+
 }
 
 // 按实际指针的可见底边计算尾端；缓存句柄结果，不逐帧解码位图或反复获取 GDI 对象。
@@ -104,6 +81,18 @@ public sealed partial class ParticleCanvas
     static readonly Dictionary<string, Color> colors = [];
     static readonly Dictionary<(Color, int), SolidColorBrush> brushes = [];
     static readonly Dictionary<(Brush, int), Pen> pens = [];
+    // 遮罩采用同一份 8 位 alpha；不使用粒子画笔的 32 档透明度量化，避免拼接亮度差。
+    static readonly Dictionary<byte, SolidColorBrush> dimmingBrushes = [];
+    internal static byte DimmingAlpha(double opacity) => (byte)Math.Round(Math.Clamp(opacity, 0, 1) * 255);
+    static SolidColorBrush DimmingBrush(double opacity)
+    {
+        byte alpha = DimmingAlpha(opacity);
+        if (!dimmingBrushes.TryGetValue(alpha, out var brush))
+        {
+            brush = new SolidColorBrush(Color.FromArgb(alpha,0,0,0)); brush.Freeze(); dimmingBrushes[alpha] = brush;
+        }
+        return brush;
+    }
     static Color ParseColor(string hex)
     {
         if (colors.TryGetValue(hex, out var value)) return value;
@@ -128,7 +117,7 @@ public sealed partial class ParticleCanvas
         for (int i = 0; i < particles.Count; i++) particles[i] = particles[i] with { Position = particles[i].Position + delta };
         for (int i = 0; i < sprites.Count; i++) sprites[i] = sprites[i] with { Position = sprites[i].Position + delta };
         for (int i = 0; i < ribbons.Count; i++) ribbons[i] = ribbons[i] with { From = ribbons[i].From + delta, To = ribbons[i].To + delta };
-        advancedPoint += delta;
+        advancedPoint += delta; ShiftExtras(delta);
     }
     /// <summary>从透明指针位图最底部可见像素计算尾端相对热点的物理像素偏移；忽略透明留白，空图返回零偏移。</summary>
     public static Vector FindTailOffset(BitmapSource image, Point hotspot)

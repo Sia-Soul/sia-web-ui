@@ -1,5 +1,5 @@
 import { withTitleTooltip } from "./titleTooltip";
-import { Children, useEffect, useMemo, useRef, useState } from "react";
+import { Children, createContext, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { CSSProperties, HTMLAttributes, ImgHTMLAttributes, ReactElement, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "./Icon";
@@ -449,6 +449,12 @@ export function Collapse({ items, activeKey, defaultActiveKey = [], accordion = 
 
 /** 图片预览的属性配置。 */
 export interface ImagePreviewProps {
+  /** 分组中当前图片的序号，从 0 开始；与 count、onCurrentChange 一起提供时显示切换按钮。 */
+  current?: number;
+  /** 分组图片数量；大于 1 时允许按钮及左右方向键切换，首尾不循环。 */
+  count?: number;
+  /** 切换图片时回调新的序号，由外部同步 current、src 与 alt。 */
+  onCurrentChange?: (current: number) => void;
   /** 是否打开；传入后由外部控制显示状态。 */
   open: boolean;
   /** 图片或资源地址。 */
@@ -463,7 +469,7 @@ export interface ImagePreviewProps {
 }
 
 /** 图片预览弹层，初始按窗口适配大图，支持水平/垂直翻转、左右旋转、缩放及拖动；重新打开或更换图片时重置视图。 */
-export function ImagePreview({ open, src, alt = "", onOpenChange }: ImagePreviewProps) {
+export function ImagePreview({ open, src, alt = "", onOpenChange, current = 0, count = 1, onCurrentChange }: ImagePreviewProps) {
   const previewRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const [natural, setNatural] = useState({ src: "", width: 0, height: 0 });
@@ -477,6 +483,18 @@ export function ImagePreview({ open, src, alt = "", onOpenChange }: ImagePreview
   useOverlayLifecycle(open, previewRef, () => onOpenChange(false));
   const reset = () => { setZoom(1); setRotation(0); setFlip({ x: 1, y: 1 }); setPan({ x: 0, y: 0 }); drag.current = undefined; };
   useEffect(() => { reset(); setFailed(false); }, [open, src]);
+  // 分组切换仅在预览打开时处理，不干扰底层表格的方向键操作。
+  useEffect(() => {
+    if (!open || !onCurrentChange || count < 2) return;
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      event.preventDefault(); event.stopPropagation();
+      const next = current + (event.key === "ArrowRight" ? 1 : -1);
+      if (next >= 0 && next < count) onCurrentChange(next);
+    };
+    document.addEventListener("keydown", handleKey, true);
+    return () => document.removeEventListener("keydown", handleKey, true);
+  }, [open, current, count, onCurrentChange]);
   useEffect(() => {
     const stage = stageRef.current;
     if (!open || !stage) return;
@@ -505,6 +523,11 @@ export function ImagePreview({ open, src, alt = "", onOpenChange }: ImagePreview
         onPointerUp={() => { drag.current = undefined; }} onPointerCancel={() => { drag.current = undefined; }} onLostPointerCapture={() => { drag.current = undefined; }} />}
     </div>
     <div className="sia-image-preview__toolbar" role="toolbar" aria-label="图片操作" onClick={event => event.stopPropagation()}>
+      {count > 1 && onCurrentChange ? <>
+        <Button variant="text" aria-label="上一张" disabled={current === 0} onClick={() => onCurrentChange(current - 1)}><Icon name="chevron-left" /></Button>
+        <output aria-label="图片序号">{current + 1} / {count}</output>
+        <Button variant="text" aria-label="下一张" disabled={current >= count - 1} onClick={() => onCurrentChange(current + 1)}><Icon name="chevron-right" /></Button>
+      </> : null}
       <Button variant="text" title="水平翻转" aria-label="水平翻转" disabled={!ready} onClick={() => setFlip(value => ({ ...value, x: -value.x }))}><Icon name="flip-horizontal" size={20} /></Button>
       <Button variant="text" title="垂直翻转" aria-label="垂直翻转" disabled={!ready} onClick={() => setFlip(value => ({ ...value, y: -value.y }))}><Icon name="flip-vertical" size={20} /></Button>
       <Button variant="text" title="向左旋转" aria-label="向左旋转" disabled={!ready} onClick={() => { setRotation(value => value - 90); setPan({ x: 0, y: 0 }); }}><Icon name="rotate-left" size={20} /></Button>
@@ -530,6 +553,8 @@ export interface ImagePreviewConfig {
   mask?: ReactNode }
 /** 图片的属性配置。 */
 export interface ImageProps extends ImgHTMLAttributes<HTMLImageElement> {
+  /** 图片成功加载后触发，传入原生图片的 React 加载事件；在框架更新占位状态后调用，可用于恢复业务预览状态。 */
+  onLoad?: ImgHTMLAttributes<HTMLImageElement>["onLoad"];
   /** 资源加载失败时使用的替代内容或地址。 */
   fallback?: string;
   /** 未填写或未选择时的提示内容。 */
@@ -546,8 +571,43 @@ export interface ImageProps extends ImgHTMLAttributes<HTMLImageElement> {
   rootClassName?: string;
 }
 
+type GroupImage = { src: string; alt: string; element: HTMLSpanElement };
+const ImageGroupContext = createContext<{
+  register: (id: string, image: GroupImage) => () => void;
+  open: (id: string) => void;
+} | null>(null);
+
+/** 图片预览组的配置。 */
+export interface ImagePreviewGroupProps {
+  /** 包含 Image 的内容，可嵌套布局容器；preview=false 或受控预览的 Image 不加入分组。 */
+  children?: ReactNode;
+}
+
+/** 按图片在页面中的顺序组织预览，支持按钮和方向键切换；删除当前图片时关闭预览。 */
+export function ImagePreviewGroup({ children }: ImagePreviewGroupProps) {
+  const images = useRef(new Map<string, GroupImage>());
+  const [active, setActive] = useState<string>();
+  const [, setRevision] = useState(0);
+  const context = useMemo(() => ({
+    register: (id: string, image: GroupImage) => {
+      images.current.set(id, image); setRevision(value => value + 1);
+      return () => { images.current.delete(id); setRevision(value => value + 1); };
+    },
+    open: (id: string) => setActive(id),
+  }), []);
+  // 按实际 DOM 排序，兼容图片列表重排和外层布局嵌套。
+  const entries = [...images.current].sort((a, b) => a[1].element.compareDocumentPosition(b[1].element) & 4 ? -1 : 1);
+  const index = entries.findIndex(([id]) => id === active);
+  const image = entries[index]?.[1];
+  useEffect(() => { if (active && index < 0) setActive(undefined); }, [active, index]);
+  return <ImageGroupContext.Provider value={context}>{children}<ImagePreview
+    open={Boolean(image)} src={image?.src} alt={image?.alt} current={index} count={entries.length}
+    onOpenChange={open => { if (!open) setActive(undefined); }} onCurrentChange={next => setActive(entries[next]?.[0])}
+  /></ImageGroupContext.Provider>;
+}
+
 /** 图片组件。 */
-export function Image({ fallback, placeholder, preview = true, rootClassName = "", className = "", src, alt = "", onError, style, ...props }: ImageProps) {
+export function Image({ fallback, placeholder, preview = true, rootClassName = "", className = "", src, alt = "", onLoad, onError, style, ...props }: ImageProps) {
   const config = typeof preview === "object" ? preview : {};
   const controlled = typeof preview === "object" && preview.open !== undefined;
   const [internalOpen, setInternalOpen] = useState(false);
@@ -555,15 +615,23 @@ export function Image({ fallback, placeholder, preview = true, rootClassName = "
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const displaySrc = failed && fallback ? fallback : src;
+  const group = useContext(ImageGroupContext);
+  const groupId = useId();
+  const rootRef = useRef<HTMLSpanElement>(null);
+  const grouped = Boolean(group && preview && !controlled && displaySrc);
+  useEffect(() => {
+    if (grouped && group && displaySrc && rootRef.current) return group.register(groupId, { src: displaySrc, alt, element: rootRef.current });
+  }, [group, grouped, groupId, displaySrc, alt]);
   const radius = typeof style?.borderRadius === "number" ? `${style.borderRadius}px` : style?.borderRadius;
   const rootStyle = {
     ...style,
     "--sia-image-radius": radius ?? "var(--sia-radius)",
   } as CSSProperties;
-  function setOpen(next: boolean) { if (!controlled) setInternalOpen(next); config.onOpenChange?.(next); }
-  return <span className={`sia-image ${rootClassName}`.trim()} style={rootStyle}>
+  function setOpen(next: boolean) { if (grouped && next) group?.open(groupId); else if (!controlled) setInternalOpen(next); config.onOpenChange?.(next); }
+  return <span ref={rootRef} className={`sia-image ${rootClassName}`.trim()} style={rootStyle}>
     {!loaded && placeholder ? <span className="sia-image__placeholder">{placeholder}</span> : null}
-    <img {...withTitleTooltip(props)} src={displaySrc} alt={alt} className={className} onLoad={() => setLoaded(true)} onError={(event) => { if (!failed && fallback) setFailed(true); onError?.(event); }} />
+    {/* 更新占位状态后继续通知调用方，确保图片恢复加载时预览组件能解除失败状态。 */}
+    <img {...withTitleTooltip(props)} src={displaySrc} alt={alt} className={className} onLoad={event => { setLoaded(true); onLoad?.(event); }} onError={(event) => { if (!failed && fallback) setFailed(true); onError?.(event); }} />
     {preview ? <button type="button" className="sia-image__mask" aria-label="预览图片" onClick={() => setOpen(true)}>{config.mask ?? <><Icon name="eye" />预览</>}</button> : null}
     <ImagePreview open={open} src={config.src ?? displaySrc} alt={alt} onOpenChange={setOpen} />
   </span>;

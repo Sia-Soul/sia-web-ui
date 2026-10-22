@@ -67,7 +67,7 @@ function UploadItem({ file, files, props, actions }: { file: UploadFile; files: 
 type UploadTask = { controller: AbortController; handle?: UploadRequestHandle; done: Promise<void>; finish: () => void };
 
 /** 上传根实现：选择同步占位，校验和请求独立执行，防止多入口并发绕过数量上限。 */
-const UploadRoot = forwardRef<UploadRef, UploadProps>(function UploadRoot({ accept, multiple = false, directory = false, recursive = true, pastable = false,
+const UploadRoot = forwardRef<UploadRef, UploadProps>(function UploadRoot({ accept, acceptMode = "validate", multiple = false, directory = false, recursive = true, pastable = false,
   disabled = false, autoUpload = true, maxCount, fileList, defaultFileList = [], listType = "text", cardSize, showUploadList = true,
   beforeUpload, request, customRequest, onChange, onRemove, onReject, onReadError, onPreview, downloadRequest, itemRender, children, onChoose,
   className = "", style, onDragOver, onDragLeave, onDrop, onPaste, tabIndex, ...props }, ref) {
@@ -188,7 +188,8 @@ const UploadRoot = forwardRef<UploadRef, UploadProps>(function UploadRoot({ acce
     const selected = multiple || directory ? filtered : filtered.slice(0, 1);
     const added: UploadFile[] = [];
     for (const { file, path } of selected) {
-      if (!acceptsUploadFile(file, accept)) { onReject?.({ file, reason: "accept" }); continue; }
+      // 导入场景需要保留原始批次，统一生成包含格式错误的失败明细；默认上传仍严格过滤。
+      if (acceptMode === "validate" && !acceptsUploadFile(file, accept)) { onReject?.({ file, reason: "accept" }); continue; }
       if (filesRef.current.length >= limit) { onReject?.({ file, reason: "max-count" }); continue; }
       const item: UploadFile = { uid: `upload-${Date.now()}-${Math.random().toString(36).slice(2)}`, name: file.name, size: file.size, type: file.type, relativePath: path, originFileObj: file, status: "ready", percent: 0 };
       emit(item, [...filesRef.current, item], "add");

@@ -1,6 +1,23 @@
 // SVG 原始几何边界（不含描边），包含曲线极值和已有子组变换；更新路径后必须重新测量。
 // 静态数据避免每个图标挂载后测量 DOM，保持 SSR 与首帧一致。
 export const outlineIconBounds = {
+  // 业务单据与库存图标原始边界；与目录路径同步，由图标组件统一归一化到 18 单位。
+  "package": [3, 5, 18, 16],
+  "order-receipt": [5, 3, 14, 18],
+  "after-sales": [5, 3, 16, 18],
+  "warehouse": [3, 3.778461, 18, 17.221539],
+  "shop-products": [3, 3, 18, 18],
+  "partner-products": [3, 3, 19, 18],
+  "purchase-return": [5, 3, 16, 18],
+  "purchase-inbound": [5, 3, 15.585855, 18],
+  "stock-movement": [3, 3, 18, 18],
+  "stocktaking": [5, 3, 16, 18],
+  "platform-message": [3, 3, 18, 18],
+  "analytics-message": [3, 3, 18, 18],
+  "sales-return": [3, 3, 18, 18],
+  "sales-outbound": [3, 3, 17.585855, 18],
+  "transfer-outbound": [3, 3.778461, 18, 17.221539],
+  "transfer-inbound": [3, 3.778461, 18, 17.221539],
   "activity": [3, 6, 18, 13],
   "align-center": [4, 6, 16, 12],
   "align-justify": [4, 6, 16, 12],

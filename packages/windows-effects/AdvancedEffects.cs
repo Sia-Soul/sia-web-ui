@@ -83,7 +83,7 @@ public sealed partial class EffectsWindow
 {
     [DllImport("user32.dll")] static extern short GetAsyncKeyState(int key);
     /// <summary>是否正在独立输入线程监听双击 Ctrl；关闭、暂停及释放后为 false。</summary>
-    public bool CtrlListening => input?.KeyboardListening == true;
+    public bool CtrlListening => Options.Locator.Enabled && input?.KeyboardListening == true;
     /// <summary>立即定位当前鼠标；定位未开启或特效暂停时返回 false，否则重置定位时长并返回 true。不产生键盘或鼠标输入。</summary>
     public bool Locate()
     {
@@ -105,8 +105,13 @@ public sealed partial class ParticleCanvas
     Point advancedPoint;
     double locatorBorn = -100, lastEmission = -100;
     LocatorOptions? locator;
+    // 独立 ParticleCanvas 仍可绘制预览；桌面宿主使用同一帧的完整遮罩快照。
+    internal bool ExternalLocatorRendering;
+    internal LocatorFrame? CurrentLocatorFrame => locator != null
+        ? new(advancedPoint, locator.Radius, locator.Dim, ParseColor(locator.Color), Math.Clamp((1-(clock.Elapsed.TotalSeconds-locatorBorn)*1000/locator.DurationMs)*5,0,1), true)
+        : extraOptions.Spotlight.Enabled ? new(advancedPoint, extraOptions.Spotlight.Size, extraOptions.Spotlight.Opacity, Colors.Transparent, 0, false) : null;
     /// <summary>是否存在长按或定位动画；用于宿主决定是否继续逐帧驱动。</summary>
-    public bool HasAdvancedActivity => charges.Count > 0 || locator != null;
+    public bool HasAdvancedActivity => charges.Count > 0 || locator != null || ExtraActivity;
     /// <summary>当前正在追踪的长按按键数量，最多两个。</summary>
     public int ChargeCount => charges.Count;
     /// <summary>是否正在显示定位光圈。</summary>
@@ -157,17 +162,18 @@ public sealed partial class ParticleCanvas
         }
         Activity?.Invoke();
     }
-    void EnsureRoom() { if (Count >= 240) { if (particles.Count > 0) particles.RemoveAt(0); else if (sprites.Count > 0) sprites.RemoveAt(0); else ribbons.RemoveAt(0); } }
-    void ClearAdvanced() { charges.Clear(); sprites.Clear(); ribbons.Clear(); locator = null; lastEmission = -100; }
+    void EnsureRoom() { if (Count >= 240) { if (particles.Count > 0) particles.RemoveAt(0); else if (sprites.Count > 0) sprites.RemoveAt(0); else if (ribbons.Count > 0) ribbons.RemoveAt(0); else if (accents.Count > 0) accents.RemoveAt(0); else streams.RemoveAt(0); } }
+    void ClearAdvanced() { ClearExtras(); charges.Clear(); sprites.Clear(); ribbons.Clear(); locator = null; lastEmission = -100; }
     void AdvanceAdvanced(double now)
     {
+        AdvanceExtras(now);
         ribbons.RemoveAll(segment => now - segment.Born > .34);
         sprites.RemoveAll(sprite => now - sprite.Born > sprite.Life);
         if (locator != null && (now - locatorBorn) * 1000 >= locator.DurationMs) locator = null;
     }
     void RenderAdvanced(DrawingContext drawing, double now)
     {
-        if (locator != null)
+        if (locator != null && !ExternalLocatorRendering)
         {
             double age = now - locatorBorn, progress = Math.Clamp(age * 1000 / locator.DurationMs, 0, 1);
             double fade = Math.Min(1, (1 - progress) * 5), radius = locator.Radius;
@@ -176,7 +182,8 @@ public sealed partial class ParticleCanvas
                 var mask = new GeometryGroup { FillRule = FillRule.EvenOdd };
                 mask.Children.Add(new RectangleGeometry(new Rect(0, 0, ActualWidth, ActualHeight)));
                 mask.Children.Add(new EllipseGeometry(advancedPoint, radius, radius));
-                drawing.DrawGeometry(BrushFor(Colors.Black, locator.Dim), null, mask);
+                // 定位孔外使用与原生外围窗口完全一致的黑色和 alpha。
+                drawing.DrawGeometry(DimmingBrush(locator.Dim), null, mask);
             }
             var brush = BrushFor(ParseColor(locator.Color), fade);
             drawing.DrawEllipse(null, PenFor(brush, 4), advancedPoint, radius, radius);

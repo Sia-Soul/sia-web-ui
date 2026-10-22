@@ -57,8 +57,12 @@ export type SortableKey = string | number;
 export interface SortableListProps {
   /** 按当前顺序排列的唯一稳定标识，不允许重复。 */
   items: readonly SortableKey[];
-  /** 根据标识渲染条目内容；拖动仅由框架手柄发起，内容输入控件保持原生操作。 */
-  renderItem: (key: SortableKey, index: number) => ReactNode;
+  /** 根据标识渲染条目内容；第三个参数为框架手柄，handlePlacement="custom" 时须将其放入标题等位置；拖动和键盘排序仅由该手柄发起。 */
+  renderItem: (key: SortableKey, index: number, handle: ReactNode) => ReactNode;
+  /** 手柄位置；before 在条目前独占一行，custom 由 renderItem 放置框架提供的手柄。@defaultValue "before" */
+  handlePlacement?: "before" | "custom";
+  /** 手柄的内容，接收稳定标识和当前位置；未指定时显示拖动图标，可返回卡片标题文字。 */
+  handleContent?: (key: SortableKey, index: number) => ReactNode;
   /** 拖放或手柄方向键完成移动时返回新顺序；无变化、取消、禁用时不触发。 */
   onOrderChange: (items: SortableKey[]) => void;
   /** 排列方向；横向内容超出时在列表内滚动。@defaultValue "horizontal" */
@@ -67,7 +71,7 @@ export interface SortableListProps {
   disabled?: boolean;
 }
 /** 拖放与键盘共用受控顺序，输入控件无需参与拖动事件。 */
-export function SortableList({ items, renderItem, onOrderChange, direction = "horizontal", disabled = false }: SortableListProps) {
+export function SortableList({ items, renderItem, onOrderChange, direction = "horizontal", disabled = false, handlePlacement = "before", handleContent }: SortableListProps) {
   const [dragging, setDragging] = useState<SortableKey | null>(null);
   const [target, setTarget] = useState<number | null>(null);
   const clear = () => { setDragging(null); setTarget(null); };
@@ -85,21 +89,24 @@ export function SortableList({ items, renderItem, onOrderChange, direction = "ho
   return <div className={`sia-sortable-list sia-sortable-list--${direction}`} role="list" onDragLeave={event => {
     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setTarget(null);
   }}>
-    {items.map((key, index) => <div role="listitem" key={key} className={`sia-sortable-list__item${dragging === key ? " is-dragging" : ""}${target === index ? " is-drop-before" : ""}${target === items.length && index === items.length - 1 ? " is-drop-after" : ""}`}
+    {items.map((key, index) => {
+      // 自定义位置复用同一个手柄实现，保证鼠标、键盘和禁用行为完全一致。
+      const handle = <button type="button" className={`sia-sortable-list__handle${handlePlacement === "custom" ? " sia-sortable-list__handle--custom" : ""}`} draggable={!disabled} disabled={disabled} aria-label={`调整第 ${index + 1} 项顺序`} title="拖动排序，或使用方向键移动"
+        onDragStart={event => { if (disabled) { event.preventDefault(); return; } setDragging(key); event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", String(key)); }}
+        onDragEnd={clear} onKeyDown={event => {
+          const previous = direction === "horizontal" ? "ArrowLeft" : "ArrowUp";
+          const next = direction === "horizontal" ? "ArrowRight" : "ArrowDown";
+          if (event.key === previous || event.key === next) { event.preventDefault(); move(key, event.key === previous ? index - 1 : index + 2); }
+        }}>{handleContent ? handleContent(key, index) : <Icon name="menu" size={16} />}</button>;
+      return <div role="listitem" key={key} className={`sia-sortable-list__item${dragging === key ? " is-dragging" : ""}${target === index ? " is-drop-before" : ""}${target === items.length && index === items.length - 1 ? " is-drop-after" : ""}`}
       onDragOver={event => {
         if (disabled || dragging === null) return;
         event.preventDefault(); event.dataTransfer.dropEffect = "move";
         const rect = event.currentTarget.getBoundingClientRect();
         setTarget(index + (direction === "horizontal" ? Number(event.clientX > rect.left + rect.width / 2) : Number(event.clientY > rect.top + rect.height / 2)));
       }} onDrop={event => { if (dragging === null || disabled) return; event.preventDefault(); if (target !== null) move(dragging, target); clear(); }}>
-      <button type="button" className="sia-sortable-list__handle" draggable={!disabled} disabled={disabled} aria-label={`调整第 ${index + 1} 项顺序`} title="拖动排序，或使用方向键移动"
-        onDragStart={event => { if (disabled) { event.preventDefault(); return; } setDragging(key); event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", String(key)); }}
-        onDragEnd={clear} onKeyDown={event => {
-          const previous = direction === "horizontal" ? "ArrowLeft" : "ArrowUp";
-          const next = direction === "horizontal" ? "ArrowRight" : "ArrowDown";
-          if (event.key === previous || event.key === next) { event.preventDefault(); move(key, event.key === previous ? index - 1 : index + 2); }
-        }}><Icon name="menu" size={16} /></button>
-      {renderItem(key, index)}
-    </div>)}
+      {handlePlacement === "before" ? handle : null}
+      {renderItem(key, index, handle)}
+    </div>; })}
   </div>;
 }

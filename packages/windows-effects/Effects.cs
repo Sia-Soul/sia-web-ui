@@ -34,6 +34,8 @@ public sealed partial class EffectOptions
     public void Validate()
     {
         ValidateAdvanced();
+        if (Extras == null) throw new ArgumentException("附加效果配置不能为 null。");
+        Extras.Validate();
         if (Intensity < 1 || Intensity > 3 || new[] { Click, ClickFor(true) }.Any(value => !new[] { "无", "水波纹", "彩纸礼炮", "礼炮 + 水波纹" }.Contains(value)) || new[] { Color, ColorFor(false), ColorFor(true) }.Any(value => !System.Text.RegularExpressions.Regex.IsMatch(value ?? "", "^#[0-9a-fA-F]{6}$")))
             throw new ArgumentException("特效强度须为 1～3，颜色须为六位十六进制，并使用受支持的点击效果。");
     }
@@ -51,6 +53,13 @@ public sealed partial class EffectsWindow : Window, IDisposable
     [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")] static extern IntPtr SetWindowLongPtr(IntPtr window, int index, IntPtr value);
     [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr window, IntPtr after, int x, int y, int width, int height, uint flags);
     readonly ParticleCanvas canvas = new();
+    readonly StationaryStarLayer starLayer = new();
+    // 待机动画与鼠标移动窗口分离，退出时保留原屏幕位置。
+    readonly IdleLayer idleLayer = new();
+    // 辅助线使用独立细条图层，避免扩张已有粒子画布到整屏。
+    readonly CrosshairLayer crosshairLayer = new();
+    // 原生定位、待机与星光使用独立轻量时钟，避免依赖 WPF 空闲画布的刷新。
+    readonly DispatcherTimer nativeTimer = new(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(8) };
     readonly Stopwatch layoutClock = Stopwatch.StartNew();
     InputListener? input;
     IntPtr hwnd;
@@ -66,7 +75,7 @@ public sealed partial class EffectsWindow : Window, IDisposable
     // 诊断只读属性供自动测试检查穿透样式和钩子释放，不操作用户输入。
     /// <summary>当前是否持有全局鼠标钩子；仅用于状态诊断。</summary>
     public bool Listening => input?.Listening == true;
-    /// <summary>当前是否订阅逐帧绘制；仅点击模式在没有粒子时为 false，下一次点击自动恢复。可用于诊断空闲和暂停状态。</summary>
+    /// <summary>当前是否运行动画驱动；定位、聚光灯、十字辅助线、待机或星光启用时使用8ms目标间隔的原生图层时钟，其余使用WPF呈现事件。实际频率取决于系统调度；仅点击模式空闲时停止。</summary>
     public bool IsAnimating => rendering;
     /// <summary>窗口是否同时启用点击穿透与不激活样式。</summary>
     public bool IsClickThrough => hwnd != IntPtr.Zero && (GetWindowLongPtr(hwnd, -20).ToInt64() & 0x8000020) == 0x8000020;
@@ -77,9 +86,18 @@ public sealed partial class EffectsWindow : Window, IDisposable
         WindowStyle = WindowStyle.None; AllowsTransparency = true; Background = Brushes.Transparent;
         ShowInTaskbar = false; ShowActivated = false; Topmost = true; IsHitTestVisible = false; Focusable = false;
         Left = -10000; Top = -10000; Width = 1; Height = 1; Content = canvas;
+        nativeTimer.Tick += Tick;
+        // 宿主的定位和聚光灯统一交给原生图层，主画布不再保留遮罩旧帧。
+        canvas.ExternalLocatorRendering = true;
+        // 星光在出生时固定物理屏幕坐标，与主窗口的后续重定位解耦。
+        canvas.StarScreenCoordinates = point =>
+        {
+            var dpi = VisualTreeHelper.GetDpi(this);
+            return (new Point(viewport.X+point.X*dpi.DpiScaleX,viewport.Y+point.Y*dpi.DpiScaleY),dpi.DpiScaleX);
+        };
         // 绘制线程繁忙时，专用输入线程仍能立即放行系统鼠标和键盘事件。
-        input = new InputListener((kind, x, y) => Dispatcher.BeginInvoke(() => HandleClick(kind, new NativePoint { X = x, Y = y })),
-            () => Dispatcher.BeginInvoke(() => { if (!Paused) Locate(); }));
+        input = new InputListener((kind, x, y, delta) => Dispatcher.BeginInvoke(() => HandleClick(kind, new NativePoint { X = x, Y = y }, delta)),
+            () => Dispatcher.BeginInvoke(() => { if (!Paused) Locate(); }), () => { if (Options.Extras.Idle.Enabled) Dispatcher.BeginInvoke(() => canvas.ResetIdle()); });
         SourceInitialized += (_, _) =>
         {
             hwnd = new WindowInteropHelper(this).Handle;
@@ -100,9 +118,11 @@ public sealed partial class EffectsWindow : Window, IDisposable
     {
         ArgumentNullException.ThrowIfNull(options);
         options.Validate();
-        var enabled = !paused && (options.Trail || options.Click != "无" || options.ClickFor(true) != "无" || options.Charge.Enabled || options.ThemeParticles.Enabled || options.Locator.Enabled);
-        input!.Configure(enabled, !paused && options.Locator.Enabled, options.Locator.DoubleTapMs);
-        canvas.Clear(); previous = null;
+        var enabled = !paused && (options.Trail || options.Click != "无" || options.ClickFor(true) != "无" || options.Charge.Enabled || options.ThemeParticles.Enabled || options.Locator.Enabled || options.Extras.Enabled);
+        input!.Configure(enabled, !paused && (options.Locator.Enabled || options.Extras.Idle.Enabled), options.Locator.DoubleTapMs);
+        // 参数切换可能改变动画驱动，先停旧时钟，再按新选项恢复。
+        StopRendering();
+        starLayer.Clear(); idleLayer.Dispose(); crosshairLayer.Dispose(); canvas.Clear(); previous = null;
         Options = options; Paused = paused; tail.Clear(); UpdateDimming();
         if (enabled)
         {
@@ -111,14 +131,15 @@ public sealed partial class EffectsWindow : Window, IDisposable
         }
         else { StopRendering(); canvas.Clear(); previous = null; Hide(); }
     }
-    void HandleClick(int kind, NativePoint point)
+    void HandleClick(int kind, NativePoint point, int delta)
     {
         if (Paused || !IsVisible) return;
         bool down = kind is 0x201 or 0x204, right = kind is 0x204 or 0x205;
         EnsureViewport(point);
         var local = Local(point);
-        if (down) { var emission = TailPoint(local); canvas.Click(local, Options, right, emission); canvas.BeginCharge(local, Options.Charge, right); canvas.EmitTheme(emission, Options.ThemeParticles); }
-        else canvas.EndCharge(local, right);
+        if (kind is 0x20A or 0x20E) { canvas.ExtraWheel(TailPoint(local), delta, kind == 0x20E, Options.Extras); return; }
+        if (down) { canvas.ExtraDown(local, TailPoint(local), Options.Extras, right); var emission = TailPoint(local); canvas.Click(local, Options, right, emission); canvas.BeginCharge(local, Options.Charge, right); canvas.EmitTheme(emission, Options.ThemeParticles); }
+        else { canvas.EndCharge(local, right); canvas.ExtraUp(right); }
     }
     Point Local(NativePoint point)
     {
@@ -130,12 +151,14 @@ public sealed partial class EffectsWindow : Window, IDisposable
     {
         if (rendering || Paused || !IsVisible) return;
         rendering = true; lastRenderingTime = TimeSpan.MinValue;
-        CompositionTarget.Rendering += Tick;
+        if (Options.Extras.Stars.Enabled || Options.Locator.Enabled || Options.Extras.Spotlight.Enabled || Options.Extras.Crosshair.Enabled || Options.Extras.Idle.Enabled) nativeTimer.Start();
+        else CompositionTarget.Rendering += Tick;
     }
     void StopRendering()
     {
         if (!rendering) return;
         CompositionTarget.Rendering -= Tick;
+        nativeTimer.Stop();
         rendering = false;
     }
     void Tick(object? sender, EventArgs args)
@@ -149,9 +172,11 @@ public sealed partial class EffectsWindow : Window, IDisposable
                 lastRenderingTime = frame.RenderingTime;
             }
             if (layoutClock.ElapsedMilliseconds >= 2000) ResizeDesktop();
-            if ((Options.Trail || Options.ThemeMoves || canvas.HasAdvancedActivity) && GetCursorPos(out var screen))
+            if ((Options.Trail || Options.ThemeMoves || Options.Extras.Tracking || canvas.HasAdvancedActivity) && GetCursorPos(out var screen))
             {
                 EnsureViewport(screen);
+                // 使用系统热点和当前显示器DPI，不能以贴图尾端或局部画布坐标定位。
+                crosshairLayer.Sync(screen.X, screen.Y, Options.Extras.Crosshair);
                 var point = Local(screen);
                 var emission = TailPoint(point);
                 if (previous is Point last && (emission - last).Length > 2)
@@ -159,7 +184,9 @@ public sealed partial class EffectsWindow : Window, IDisposable
                     if (Options.Trail) canvas.Trail(last, emission, Options);
                     if (Options.ThemeMoves) canvas.EmitTheme(emission, Options.ThemeParticles, true);
                 }
-                canvas.UpdatePointer(point);
+                canvas.UpdatePointer(point); canvas.TrackExtras(point, emission, Options.Extras);
+                if ((GetAsyncKeyState(1) & 0x8000) == 0) canvas.ExtraUp(false);
+                if ((GetAsyncKeyState(2) & 0x8000) == 0) canvas.ExtraUp(true);
                 // 防止释放消息因窗口切换丢失而留下永久蓄力环。
                 if (canvas.ChargeCount > 0)
                 {
@@ -168,13 +195,13 @@ public sealed partial class EffectsWindow : Window, IDisposable
                 }
                 previous = emission;
             }
-            canvas.Advance(); UpdateDimming();
-            if (!Options.Trail && !Options.ThemeMoves && !canvas.HasAdvancedActivity && canvas.Count == 0) StopRendering();
+            canvas.Advance(); starLayer.Sync(canvas); idleLayer.Sync(canvas.CurrentIdleVisual); UpdateDimming();
+            if (!Options.Trail && !Options.ThemeMoves && !Options.Extras.Tracking && !canvas.HasAdvancedActivity && canvas.Count == 0) StopRendering();
         }
         catch (Exception error) { Configure(Options, true); Failed?.Invoke("特效已暂停：" + error.Message); }
     }
     /// <summary>停止动画并释放全局鼠标钩子，关闭窗口；实例不能再次使用。</summary>
-    public void Dispose() { StopRendering(); input?.Dispose(); input = null; canvas.Clear(); canvas.Activity -= StartRendering; foreach (var pane in dimPanes) DestroyWindow(pane); Close(); }
+    public void Dispose() { StopRendering(); nativeTimer.Tick -= Tick; input?.Dispose(); input = null; starLayer.Dispose(); idleLayer.Dispose(); crosshairLayer.Dispose(); canvas.Clear(); canvas.Activity -= StartRendering; locatorLayer.Dispose(); Close(); }
 }
 
 // 粒子数量及存活时间都有上限，静止后停止重绘，避免常驻时持续消耗 CPU。
@@ -188,7 +215,7 @@ public sealed partial class ParticleCanvas : FrameworkElement
     // 仅供同一框架内的覆盖层订阅，以便空闲后新粒子能恢复绘制。
     internal event Action? Activity;
     /// <summary>当前保留的粒子数量，包含尚未开始或等待清理的粒子。</summary>
-    public int Count => particles.Count + sprites.Count + ribbons.Count;
+    public int Count => particles.Count + sprites.Count + ribbons.Count + AccentCount;
     /// <summary>每次完成 WPF 绘图命令提交后触发，参数为画布创建以来的时间；用于采样绘图间隔，不代表显示器实际呈现帧率。回调在 UI 线程执行，应保持轻量。</summary>
     public event Action<TimeSpan>? FrameRendered;
     /// <summary>清空全部粒子并请求重绘。</summary>
@@ -223,18 +250,21 @@ public sealed partial class ParticleCanvas : FrameworkElement
         }
     }
     void Add(Particle particle) { EnsureRoom(); particles.Add(particle); Activity?.Invoke(); }
-    /// <summary>按实际经过时间移除过期粒子并请求重绘；宿主负责安排调用频率。</summary>
+    /// <summary>按实际经过时间移除过期粒子并请求绘制节拍；星光内容由固定原生图层提交，不随本画布移动。宿主负责安排调用频率。</summary>
     public void Advance()
     {
         if (Count == 0 && !HasAdvancedActivity) return;
+        // 原生星光有独立时钟；只存在星光时无需重绘跟随鼠标的空 WPF 画布。
+        bool repaint = HasAdvancedActivity || particles.Count > 0 || sprites.Count > 0 || ribbons.Count > 0 || streams.Count > 0 || accents.Any(value => value.Kind != 0 || StarScreenCoordinates == null);
         particles.RemoveAll(p => clock.Elapsed.TotalSeconds - p.Born > p.Life);
         AdvanceAdvanced(clock.Elapsed.TotalSeconds);
-        InvalidateVisual();
+        if (repaint) InvalidateVisual();
     }
     /// <summary>按粒子年龄绘制当前透明效果，不改变鼠标输入。</summary>
     protected override void OnRender(DrawingContext drawing)
     {
         var now = clock.Elapsed.TotalSeconds;
+        RenderExtras(drawing, now);
         RenderRibbon(drawing, now);
         RenderAdvanced(drawing, now);
         foreach (var p in particles)

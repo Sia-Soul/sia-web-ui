@@ -1,5 +1,7 @@
 # 公开 API 的编辑器注释
 
+Tooltip（包含 Form.Item 的校验提示）随模态层级显示：打开 Modal/Drawer 后，页面或父弹层上的提示暂时隐藏，当前层的提示仍正常显示；关闭动画完成后恢复尚未清除的校验提示。受控 open 与表单错误值不会因暂时遮挡而改变，业务不需要清空校验或设置 z-index。
+
 QueryForm 的字段可指定 `settingsHideDisabled: true`，用于编码等必须保留的查询入口。该字段忽略云端隐藏值，在查询设置中始终勾选且不可取消，仍可排序；不影响 Form 的必填校验。例如 `{ key: "sku_id", name: "sku_id", settingsHideDisabled: true, children: <Input placeholder="商品编码" /> }`。未指定时沿用原来的可隐藏行为。
 
 `Form.useForm()` 实例允许在 Form 挂载前调用 `setFieldsValue` / `setFieldValue`，适用于延迟挂载页签中的接口回填。首次挂载时，已写入路径优先于 `initialValues`，未写入字段保留初始值；回填和挂载不触发业务保存。`resetFields` 仍恢复首次挂载的初始值，挂载前重置也按操作顺序生效。
@@ -35,6 +37,10 @@ modalThreshold?: number;
 公开静态方法也需要注释，例如 `Modal.open`、`message.success`、`Form.useForm`。通过工厂函数返回的状态类型、内联配置和嵌套类型也属于说明范围。
 
 ## 检查
+
+### 外部字段校验
+
+`form.setFields([{ name: ['rows', rowKey, 'code'], errors: ['编号重复'] }])` 可批量回填 Excel 或接口返回的字段错误；`errors: []` 清除错误，省略 `errors` 保留原错误。`value` 省略时不改变输入，显式 `undefined` 清空值。一次调用只通知视图一次，不触发 `onValuesChange`，未挂载的动态字段也可预先回填，挂载后呈现。调用方仍负责跨字段业务校验和重试；`resetFields()` 同时清除外部错误。
 
 ```sh
 # 检查六个发布入口可达的自有类型和成员是否缺少说明
@@ -207,3 +213,10 @@ Tree 指定高度或通过 flex 填充容器时，节点按自然行高从顶部
 ```tsx
 <Result status="success" title="文件已上传，正在后台导入中" extra={<Button onClick={openRecords}>前往查看导入记录</Button>} />
 ```
+
+
+## 表单剩余高度与图片组
+
+Form.fill 默认 false；开启后 Form 为纵向 flex 容器，父级需提供确定高度，内部列表可分配剩余空间。不会改变字段的横向/纵向布局和校验规则。
+
+ImagePreviewGroup 按内部 Image 的页面顺序提供分组预览，可嵌套布局。preview=false 和受控预览图片不加入组；左右方向键及上一张/下一张按钮首尾不循环，删除当前图片会关闭预览。ImagePreview 的 current、count、onCurrentChange 用于受控导航，切换时调用方同步 src 与 alt。

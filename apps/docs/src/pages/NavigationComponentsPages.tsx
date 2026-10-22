@@ -188,6 +188,7 @@ export function StepsPage() {
     { property: "items", description: "步骤标题、说明、状态和图标", type: "StepItem[]", defaultValue: "[]" },
     { property: "current", description: "当前步骤索引", type: "number", defaultValue: "0" },
     { property: "direction", description: "排列方向", type: "horizontal | vertical", defaultValue: "horizontal" },
+    { property: "labelPlacement", description: "横向标题位于图标下方或右侧；窄屏自动纵向排列", type: "vertical | horizontal", defaultValue: "vertical" },
     { property: "type / progressDot", description: "导航或点状形态", type: "default | navigation | dot / boolean", defaultValue: "default" },
     { property: "onChange", description: "点击步骤时触发", type: "(current) => void", defaultValue: "-" },
   ]}>
@@ -196,6 +197,8 @@ export function StepsPage() {
         { title: "填写信息", description: "录入项目资料" }, { title: "配置权限", description: "选择成员权限" }, { title: "完成创建", description: "检查并提交" },
       ]} />
     </DemoCard>
+    {/* 导入等紧凑流程把标题放在图标右侧，仍由组件负责窄屏堆叠。 */}
+    <DemoCard title="横向标题" description="标题紧邻步骤图标，连接线位于标题之后。" code={`<Steps labelPlacement="horizontal" current={1} items={items} />`}><Steps labelPlacement="horizontal" current={1} items={[{ title: "导入资料" }, { title: "完善工作表" }, { title: "提交结果" }]} /></DemoCard>
     <DemoCard title="点状进度" description="弱化序号，强调流程节点。" code={`<Steps current={2} progressDot items={items} />`}><Steps current={2} progressDot items={[{ title: "创建" }, { title: "审核" }, { title: "发布" }]} /></DemoCard>
   </ComponentDocPage>;
 }

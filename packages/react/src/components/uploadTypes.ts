@@ -114,8 +114,10 @@ export interface UploadRef {
 }
 /** 文件上传属性；未配置 request/customRequest 时仅选择文件，不模拟上传成功。 */
 export interface UploadProps extends Omit<HTMLAttributes<HTMLDivElement>, "defaultValue" | "onChange"> {
-  /** 扩展名或 MIME 类型，逗号分隔；点击、拖拽和粘贴均校验。 */
+  /** 扩展名或 MIME 类型，逗号分隔；默认对点击、拖拽和粘贴均校验，acceptMode="hint" 时仅作为系统文件选择器提示。 */
   accept?: string;
+  /** 文件类型校验方式：validate 在进入队列前按 accept 拒绝不匹配文件；hint 仅保留文件选择器过滤提示，全部所选文件继续交给 beforeUpload，便于业务生成完整失败明细。默认 validate；hint 模式须由业务校验类型，不改变 maxCount、禁用或目录规则。 */
+  acceptMode?: "validate" | "hint";
   /** 每批是否允许多个文件；false 仅取首个，directory 模式不受此限制。 @defaultValue false */
   multiple?: boolean;
   /** 选择或拖入文件夹，文件路径保存在 relativePath；不会上传空目录。 @defaultValue false */

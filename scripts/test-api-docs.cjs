@@ -8,6 +8,26 @@ const filename = path.join(packageRoot, '__api-doc-consumer__.tsx').replaceAll('
 // 上传新增的命令式句柄、OSS 配置及自定义渲染同样从发布产物检查悬停。
 // 通用布局能力从发布入口验证，避免页面被迫重新实现内部行为。
 const source = `import { IdleGameApp, createIdleEngine, sampleHexPlayback } from '@sia.soul/sia-react-ui/game';
+import type { FormInstance, FormFieldData, FormProps, ImagePreviewGroupProps, ImagePreviewProps, StepsProps } from '@sia.soul/sia-react-ui';
+declare const importSteps: StepsProps; importSteps.labelPlacement;
+declare const importUpload: UploadProps; importUpload.acceptMode;
+declare const externalValidationForm: FormInstance;
+externalValidationForm.setFields;
+declare const fillForm: FormProps; fillForm.fill;
+declare const imageGroup: ImagePreviewGroupProps; imageGroup.children;
+declare const previewNavigation: ImagePreviewProps; previewNavigation.onCurrentChange;
+declare const externalValidationField: FormFieldData;
+externalValidationField.errors;
+import type { FormItemProps } from '@sia.soul/sia-react-ui';
+// 弹框的默认输入聚焦行为必须保留到发布声明。
+import type { ModalProps } from '@sia.soul/sia-react-ui';
+declare const inputFocusModal: ModalProps;
+inputFocusModal.autoFocus;
+declare const centeredFormItem: FormItemProps;
+centeredFormItem.align;
+import type { IconProps } from '@sia.soul/sia-react-ui';
+declare const semanticIcon: IconProps;
+semanticIcon.tone;
 import type { IdleGameDefinition, GameUnitAsset, IdleEngine } from '@sia.soul/sia-react-ui/game';
 declare const gameConfig: IdleGameDefinition;
 gameConfig.offlineCapSeconds;
@@ -21,7 +41,14 @@ const gameView = <IdleGameApp definition={gameConfig} />;
 createIdleEngine(gameConfig);
 import type { CursorPreviewProps, CursorPreviewFrame } from '@sia.soul/sia-react-ui';
 // 菜单生效状态与图片尺寸的声明必须保留到发布产物。
-import type { MenuItem } from '@sia.soul/sia-react-ui';
+import type { MenuItem, MenuProps } from '@sia.soul/sia-react-ui';
+// 网格模式与热点标注必须从发布入口提供可读的中文说明。
+declare const gridMenu: MenuProps;
+gridMenu.mode;
+gridMenu.gridColumns;
+gridMenu.interactionCursor;
+// 自动定位的触发时机和保留手动滚动语义必须保留到发布声明。
+gridMenu.autoScrollSelected;
 declare const appliedMenuItem: MenuItem;
 // 桌面窗口的文本选择能力从发布入口验证中文声明。
 import type { WindowFrameProps } from '@sia.soul/sia-react-ui';
@@ -33,6 +60,8 @@ appliedMenuItem.iconSize;
 declare const cursorPreview: CursorPreviewProps;
 cursorPreview.followPointer;
 cursorPreview.size;
+cursorPreview.sizeUnit;
+cursorPreview.showHotspot;
 declare const cursorFrame: CursorPreviewFrame;
 cursorFrame.hotspotX;
 cursorFrame.duration;
@@ -43,6 +72,9 @@ declare const taskPanelProps: FloatingPanelProps;
 taskPanelProps.open;
 declare const sortableProps: SortableListProps;
 sortableProps.onOrderChange;
+sortableProps.handlePlacement;
+sortableProps.handleContent;
+sortableProps.renderItem;
 declare const widePopoverProps: PopoverProps;
 widePopoverProps.contentSize;
 import type { ResultProps } from "@sia.soul/sia-react-ui";
@@ -101,6 +133,7 @@ toolbarItem.title;
 // 卡片交互说明必须随发布声明保留。
 declare const cardProps: CardProps;
 cardProps.selectable;
+cardProps.interactionCursor;
 cardProps.onAction;
 cardProps.fill;
 cardProps.onSelectedChange;
@@ -191,6 +224,7 @@ declare const tableProps: TableProps;
 tableProps.cellSelection;
 tableProps.showIndex;
 tableProps.rowStatus;
+tableProps.maxBodyHeight;
 tableProps.fillRemaining;
 declare const remaining: Exclude<NonNullable<TableProps['fillRemaining']>, boolean>;
 remaining.container;
@@ -206,6 +240,7 @@ assert.equal(errors.length,0,ts.formatDiagnosticsWithColorAndContext(errors,{get
 const cases=[['tableProps.rowStatus','悬停和勾选反馈优先'],['showSettings', '两行'],['savedQueries', '业务方'],['onSaveQuery','快照'],['allowClear','清空'],['modalThreshold','阈值'],['Modal.open','打开'],['message.success','成功'],['Form.useForm','表单实例'],['createColumnSettingPlugin({','列设置'],['adapter.save','保存'],['chart.barCategoryGap','间距'],['selection.maxHeight','像素'],['selection.extraValues','浅拷贝'],['selection.onConfirm','取消'],['queryProps.fieldWidth','列间距'],['tableProps.cellSelection','单元格选择'],['tableProps.showIndex','序号列']];
 cases.push(['inputNumberProps.formatter', '原始草稿'], ['inputNumberProps.parser', '不经过 parser']);
   cases.push(['queryProps.defaultCollapsed', '达到 3 行'], ['queryProps.defaultCollapsed', '用户手动切换']);
+cases.push(['inputFocusModal.autoFocus', '首个可用输入组件'], ['inputFocusModal.autoFocus', '异步加载']);
 // 验证默认自适应排列及显式数量上限都能在编辑器悬停正文中读取。
 cases.push(['queryProps.collapsedCount', '自动填满一行'], ['queryProps.collapsedCount', '显式指定时作为数量上限']);
 // 不可隐藏是布局限制，不应被误解为表单必填校验。
@@ -248,14 +283,30 @@ cases.push(['treemapProps.aggregateOverflow', '紧凑网格'], ['treemapProps.sh
 cases.push(['helpOption.description', '说明'], ['groupedSelection.groupCheckable', '分组'], ['groupedModal.groupCheckable', '分组']);
 cases.push(['resultProps.icon', 'undefined'], ['resultProps.extra', '调用方']);
 cases.push(['autoSizeProps.children', '重新显示'], ['taskPanelProps.open', '不抢夺焦点'], ['sortableProps.onOrderChange', '取消'], ['widePopoverProps.contentSize', '宽']);
+// 标题手柄的摆放与第三参数语义须保留到实际发布声明。
+cases.push(['sortableProps.handlePlacement', 'custom'], ['sortableProps.handleContent', '卡片标题'], ['sortableProps.renderItem', '第三个参数']);
 // 指针预览的重要单位、热点和交互语义需保留在正式声明的悬停提示中。
 cases.push(['cursorPreview.followPointer', '热点'], ['cursorPreview.size', 'CSS 像素'], ['cursorFrame.hotspotX', '归一化'], ['cursorFrame.duration', '毫秒']);
+// 物理像素模式的提示必须随类型声明发布，避免使用方误认为 size 一直是 CSS 像素。
+cases.push(['cursorPreview.sizeUnit', '物理像素']);
+cases.push(['gridMenu.gridColumns', '88px']);
+// 普通指针模式须在发布声明保留默认值与使用场景。
+cases.push(['gridMenu.interactionCursor', '普通选择指针'], ['cardProps.interactionCursor', '内部独立控件']);
+cases.push(['gridMenu.autoScrollSelected', '手动滚动']);
+cases.push(['gridMenu.mode', '双列圆角卡片'], ['cursorPreview.showHotspot', '真实热点']);
 cases.push(['appliedMenuItem.applied', '浏览选中'], ['appliedMenuItem.appliedLabel', '当前使用'], ['appliedMenuItem.iconSize', 'px']);
 cases.push(['desktopWindow.textSelectable', '输入框']);
 // 六边形回放和在线/离线统一时钟的公开说明必须保留在发布声明中。
 cases.push(['gameConfig.turnDurationMs','毫秒'],['sampleHexPlayback;','命中前不扣血']);
 // 游戏独立入口同样验证真实编辑器悬停和时间单位。
 cases.push(['gameConfig.offlineCapSeconds','秒'],['gameAsset.flip','水平翻转'],['gameEngine.settleOffline','避免重复结算']);
+cases.push(['centeredFormItem.align', '整个内容区居中']);
+cases.push(['semanticIcon.tone', '图标语义色']);
+// 外部字段错误回填与清除语义须完整保留到业务端悬停提示。
+cases.push(['fillForm.fill', '剩余高度'], ['imageGroup.children', '不加入分组'], ['previewNavigation.onCurrentChange', '序号']);
+cases.push(['importSteps.labelPlacement', '图标右侧'], ['tableProps.maxBodyHeight', '自然高度']);
+cases.push(['importUpload.acceptMode', '完整失败明细']);
+cases.push(['externalValidationForm.setFields', '不触发'], ['externalValidationField.errors', '空数组']);
 for(const[needle,expected]of cases){const offset=needle.includes('.')?needle.lastIndexOf('.')+1:0;const pos=source.indexOf(needle)+offset+1;const info=service.getQuickInfoAtPosition(filename,pos);const text=ts.displayPartsToString(info?.documentation);assert(text.includes(expected),`${needle}: expected ${expected}, got ${JSON.stringify(text)}`);console.log(`PASS hover ${needle}: ${text.slice(0,70)}`);}
 for(const entry of ['index.d.ts','index.d.cts']){
   const text=fs.readFileSync(path.join(packageRoot,'dist',entry),'utf8');assert(text.includes('底部已保存快捷查询标签'));assert(text.includes('@defaultValue'));assert(!text.includes('\uFFFD'),'UTF-8 replacement character found');

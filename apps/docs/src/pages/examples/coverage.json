@@ -1,10 +1,60 @@
 [
   {
+    "name": "CursorPreview",
+    "props": [
+      {
+        "name": "frames",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "size",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "sizeUnit",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "playing",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "followPointer",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "showHotspot",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "height",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "empty",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "alt",
+        "example": null,
+        "supplement": null
+      }
+    ]
+  },
+  {
     "name": "AutoSizer",
     "props": [
       {
         "name": "children",
-        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:22",
+        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:25",
         "supplement": null
       }
     ]
@@ -14,22 +64,22 @@
     "props": [
       {
         "name": "open",
-        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:23",
+        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:26",
         "supplement": null
       },
       {
         "name": "title",
-        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:23",
+        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:26",
         "supplement": null
       },
       {
         "name": "children",
-        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:23",
+        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:26",
         "supplement": null
       },
       {
         "name": "placement",
-        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:23",
+        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:26",
         "supplement": null
       }
     ]
@@ -39,27 +89,37 @@
     "props": [
       {
         "name": "items",
-        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:20",
+        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:23",
         "supplement": null
       },
       {
         "name": "renderItem",
-        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:20",
+        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:23",
+        "supplement": null
+      },
+      {
+        "name": "handlePlacement",
+        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:23",
+        "supplement": null
+      },
+      {
+        "name": "handleContent",
+        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:23",
         "supplement": null
       },
       {
         "name": "onOrderChange",
-        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:20",
+        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:23",
         "supplement": null
       },
       {
         "name": "direction",
-        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:20",
+        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:23",
         "supplement": null
       },
       {
         "name": "disabled",
-        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:20",
+        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:23",
         "supplement": null
       }
     ]
@@ -178,6 +238,16 @@
         "supplement": "apps/docs/src/pages/examples/NavigationExamples.tsx:17"
       },
       {
+        "name": "gridColumns",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "interactionCursor",
+        "example": null,
+        "supplement": null
+      },
+      {
         "name": "theme",
         "example": "apps/docs/src/pages/examples/NavigationExamples.tsx:17",
         "supplement": "apps/docs/src/pages/examples/NavigationExamples.tsx:17"
@@ -186,6 +256,11 @@
         "name": "selectedKeys",
         "example": "apps/docs/src/pages/examples/NavigationExamples.tsx:17",
         "supplement": "apps/docs/src/pages/examples/NavigationExamples.tsx:17"
+      },
+      {
+        "name": "autoScrollSelected",
+        "example": null,
+        "supplement": null
       },
       {
         "name": "defaultSelectedKeys",
@@ -963,6 +1038,11 @@
     "name": "Image",
     "props": [
       {
+        "name": "onLoad",
+        "example": null,
+        "supplement": null
+      },
+      {
         "name": "fallback",
         "example": "apps/docs/src/pages/examples/DisplayExamples.tsx:20",
         "supplement": "apps/docs/src/pages/examples/DisplayExamples.tsx:20"
@@ -1074,7 +1154,7 @@
     "props": [
       {
         "name": "contentSize",
-        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:17",
+        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:19",
         "supplement": null
       },
       {
@@ -1784,17 +1864,17 @@
     "props": [
       {
         "name": "bordered",
-        "example": "apps/docs/src/pages/CardPage.tsx:77",
+        "example": "apps/docs/src/pages/CardPage.tsx:90",
         "supplement": null
       },
       {
         "name": "title",
-        "example": "apps/docs/src/pages/CardPage.tsx:77",
+        "example": "apps/docs/src/pages/CardPage.tsx:82",
         "supplement": "apps/docs/src/pages/examples/BasicExamples.tsx:22"
       },
       {
         "name": "description",
-        "example": "apps/docs/src/pages/CardPage.tsx:77",
+        "example": "apps/docs/src/pages/CardPage.tsx:90",
         "supplement": null
       },
       {
@@ -1804,22 +1884,27 @@
       },
       {
         "name": "selectable",
-        "example": "apps/docs/src/pages/CardPage.tsx:80",
+        "example": "apps/docs/src/pages/CardPage.tsx:93",
+        "supplement": null
+      },
+      {
+        "name": "interactionCursor",
+        "example": null,
         "supplement": null
       },
       {
         "name": "selected",
-        "example": "apps/docs/src/pages/CardPage.tsx:80",
+        "example": "apps/docs/src/pages/CardPage.tsx:93",
         "supplement": null
       },
       {
         "name": "showSelectedIndicator",
-        "example": "apps/docs/src/pages/CardPage.tsx:86",
+        "example": "apps/docs/src/pages/CardPage.tsx:99",
         "supplement": null
       },
       {
         "name": "defaultSelected",
-        "example": "apps/docs/src/pages/CardPage.tsx:86",
+        "example": "apps/docs/src/pages/CardPage.tsx:99",
         "supplement": null
       },
       {
@@ -1829,17 +1914,22 @@
       },
       {
         "name": "onSelectedChange",
-        "example": "apps/docs/src/pages/CardPage.tsx:80",
+        "example": "apps/docs/src/pages/CardPage.tsx:93",
+        "supplement": null
+      },
+      {
+        "name": "onAction",
+        "example": "apps/docs/src/pages/CardPage.tsx:82",
         "supplement": null
       },
       {
         "name": "hoverActions",
-        "example": "apps/docs/src/pages/CardPage.tsx:80",
+        "example": "apps/docs/src/pages/CardPage.tsx:93",
         "supplement": null
       },
       {
         "name": "accent",
-        "example": "apps/docs/src/pages/CardPage.tsx:90",
+        "example": "apps/docs/src/pages/CardPage.tsx:103",
         "supplement": null
       },
       {
@@ -1849,7 +1939,7 @@
       },
       {
         "name": "collapsible",
-        "example": "apps/docs/src/pages/CardPage.tsx:95",
+        "example": "apps/docs/src/pages/CardPage.tsx:108",
         "supplement": "apps/docs/src/pages/examples/BasicExamples.tsx:22"
       },
       {
@@ -1869,12 +1959,17 @@
       },
       {
         "name": "bodyHeight",
-        "example": "apps/docs/src/pages/CardPage.tsx:103",
+        "example": "apps/docs/src/pages/CardPage.tsx:116",
+        "supplement": null
+      },
+      {
+        "name": "fill",
+        "example": "apps/docs/src/pages/CardPage.tsx:82",
         "supplement": null
       },
       {
         "name": "bodyClassName",
-        "example": "apps/docs/src/pages/CardPage.tsx:103",
+        "example": "apps/docs/src/pages/CardPage.tsx:116",
         "supplement": null
       },
       {
@@ -2296,6 +2391,11 @@
         "name": "titleBar",
         "example": "apps/docs/src/pages/WindowFramePage.tsx:116",
         "supplement": "apps/docs/src/pages/examples/DisplayExamples.tsx:32"
+      },
+      {
+        "name": "textSelectable",
+        "example": null,
+        "supplement": null
       }
     ]
   },
@@ -2484,12 +2584,12 @@
       },
       {
         "name": "onFinish",
-        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:307",
+        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:311",
         "supplement": null
       },
       {
         "name": "onFinishFailed",
-        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:307",
+        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:311",
         "supplement": null
       },
       {
@@ -2511,6 +2611,11 @@
         "name": "label",
         "example": "apps/docs/src/pages/examples/FormExamples.tsx:15",
         "supplement": "apps/docs/src/pages/examples/FormExamples.tsx:15"
+      },
+      {
+        "name": "align",
+        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:297",
+        "supplement": null
       },
       {
         "name": "rules",
@@ -2539,7 +2644,7 @@
       },
       {
         "name": "valuePropName",
-        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:313",
+        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:317",
         "supplement": null
       },
       {
@@ -2664,12 +2769,12 @@
       },
       {
         "name": "children",
-        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:13",
+        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:14",
         "supplement": null
       },
       {
         "name": "onChange",
-        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:13",
+        "example": "apps/docs/src/pages/NativeLayoutDemo.tsx:14",
         "supplement": null
       }
     ]
@@ -2804,7 +2909,7 @@
       },
       {
         "name": "value",
-        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:356",
+        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:360",
         "supplement": null
       },
       {
@@ -2824,7 +2929,7 @@
       },
       {
         "name": "buttonStyle",
-        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:360",
+        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:364",
         "supplement": null
       },
       {
@@ -2849,7 +2954,7 @@
       },
       {
         "name": "onChange",
-        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:356",
+        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:360",
         "supplement": null
       }
     ]
@@ -2859,7 +2964,7 @@
     "props": [
       {
         "name": "value",
-        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:392",
+        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:396",
         "supplement": null
       },
       {
@@ -2879,12 +2984,12 @@
       },
       {
         "name": "step",
-        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:394",
+        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:398",
         "supplement": null
       },
       {
         "name": "range",
-        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:392",
+        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:396",
         "supplement": null
       },
       {
@@ -2904,17 +3009,17 @@
       },
       {
         "name": "marks",
-        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:392",
+        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:396",
         "supplement": null
       },
       {
         "name": "tooltip",
-        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:392",
+        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:396",
         "supplement": null
       },
       {
         "name": "onChange",
-        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:392",
+        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:396",
         "supplement": null
       },
       {
@@ -3349,17 +3454,17 @@
       },
       {
         "name": "defaultValue",
-        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:422",
+        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:426",
         "supplement": null
       },
       {
         "name": "size",
-        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:430",
+        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:434",
         "supplement": null
       },
       {
         "name": "status",
-        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:430",
+        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:434",
         "supplement": null
       },
       {
@@ -3369,12 +3474,12 @@
       },
       {
         "name": "use12Hours",
-        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:427",
+        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:431",
         "supplement": null
       },
       {
         "name": "showSecond",
-        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:422",
+        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:426",
         "supplement": null
       },
       {
@@ -3404,7 +3509,7 @@
     "props": [
       {
         "name": "value",
-        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:424",
+        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:428",
         "supplement": null
       },
       {
@@ -3424,7 +3529,7 @@
       },
       {
         "name": "onChange",
-        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:424",
+        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:428",
         "supplement": null
       },
       {
@@ -3484,7 +3589,7 @@
       },
       {
         "name": "value",
-        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:469",
+        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:473",
         "supplement": null
       },
       {
@@ -3514,7 +3619,7 @@
       },
       {
         "name": "treeDefaultExpandAll",
-        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:469",
+        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:473",
         "supplement": null
       },
       {
@@ -3649,7 +3754,7 @@
       },
       {
         "name": "onChange",
-        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:469",
+        "example": "apps/docs/src/pages/DataEntryComponentsPages.tsx:473",
         "supplement": null
       },
       {
@@ -4528,6 +4633,11 @@
     "name": "Icon",
     "props": [
       {
+        "name": "tone",
+        "example": "apps/docs/src/pages/IconPage.tsx:51",
+        "supplement": null
+      },
+      {
         "name": "name",
         "example": "apps/docs/src/pages/IconPage.tsx:23",
         "supplement": "apps/docs/src/pages/examples/ResultExamples.tsx:13"
@@ -4574,17 +4684,22 @@
     "props": [
       {
         "name": "open",
-        "example": "apps/docs/src/pages/ModalPage.tsx:112",
+        "example": "apps/docs/src/pages/ModalPage.tsx:107",
         "supplement": "apps/docs/src/pages/examples/OverlayExamples.tsx:13"
       },
       {
+        "name": "autoFocus",
+        "example": "apps/docs/src/pages/ModalPage.tsx:107",
+        "supplement": null
+      },
+      {
         "name": "title",
-        "example": "apps/docs/src/pages/ModalPage.tsx:112",
+        "example": "apps/docs/src/pages/ModalPage.tsx:107",
         "supplement": "apps/docs/src/pages/examples/OverlayExamples.tsx:13"
       },
       {
         "name": "children",
-        "example": "apps/docs/src/pages/ModalPage.tsx:112",
+        "example": "apps/docs/src/pages/ModalPage.tsx:107",
         "supplement": "apps/docs/src/pages/examples/OverlayExamples.tsx:13"
       },
       {
@@ -4674,7 +4789,7 @@
       },
       {
         "name": "onOk",
-        "example": "apps/docs/src/pages/ModalPage.tsx:112",
+        "example": "apps/docs/src/pages/ModalPage.tsx:119",
         "supplement": "apps/docs/src/pages/examples/OverlayExamples.tsx:13"
       },
       {
@@ -4684,7 +4799,7 @@
       },
       {
         "name": "onOpenChange",
-        "example": "apps/docs/src/pages/ModalPage.tsx:112",
+        "example": "apps/docs/src/pages/ModalPage.tsx:107",
         "supplement": "apps/docs/src/pages/examples/OverlayExamples.tsx:13"
       },
       {
@@ -5429,7 +5544,7 @@
       },
       {
         "name": "children",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:426",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:427",
         "supplement": null
       },
       {
@@ -5449,7 +5564,7 @@
       },
       {
         "name": "collapsible",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:426",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:427",
         "supplement": null
       },
       {
@@ -5474,17 +5589,17 @@
       },
       {
         "name": "quickQueries",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:266",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:267",
         "supplement": null
       },
       {
         "name": "quickQuerySize",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:266",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:267",
         "supplement": null
       },
       {
         "name": "savedQueries",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:266",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:267",
         "supplement": null
       },
       {
@@ -5494,12 +5609,12 @@
       },
       {
         "name": "onSaveQuery",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:266",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:267",
         "supplement": "apps/docs/src/pages/examples/FormExamples.tsx:25"
       },
       {
         "name": "onRemoveQuery",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:266",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:267",
         "supplement": null
       },
       {
@@ -5544,7 +5659,7 @@
       },
       {
         "name": "form",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:266",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:267",
         "supplement": null
       },
       {
@@ -5554,7 +5669,7 @@
       },
       {
         "name": "initialValues",
-        "example": "apps/docs/src/pages/QueryFormPage.tsx:266",
+        "example": "apps/docs/src/pages/QueryFormPage.tsx:267",
         "supplement": null
       },
       {
@@ -5744,7 +5859,7 @@
       },
       {
         "name": "size",
-        "example": "apps/docs/src/pages/TablePage.tsx:940",
+        "example": "apps/docs/src/pages/TablePage.tsx:941",
         "supplement": null
       },
       {
@@ -5754,12 +5869,12 @@
       },
       {
         "name": "rowBordered",
-        "example": "apps/docs/src/pages/TablePage.tsx:949",
+        "example": "apps/docs/src/pages/TablePage.tsx:959",
         "supplement": null
       },
       {
         "name": "columnBordered",
-        "example": "apps/docs/src/pages/TablePage.tsx:949",
+        "example": "apps/docs/src/pages/TablePage.tsx:959",
         "supplement": null
       },
       {
@@ -5831,6 +5946,11 @@
         "name": "onCellContextMenu",
         "example": "apps/docs/src/pages/examples/FormExamples.tsx:29",
         "supplement": "apps/docs/src/pages/examples/FormExamples.tsx:29"
+      },
+      {
+        "name": "rowStatus",
+        "example": "apps/docs/src/pages/TablePage.tsx:946",
+        "supplement": null
       },
       {
         "name": "rowClassName",
@@ -12236,6 +12356,396 @@
         "name": "onOpenChange",
         "example": "apps/docs/src/pages/examples/SelectionExamples.tsx:23",
         "supplement": "apps/docs/src/pages/examples/SelectionExamples.tsx:23"
+      }
+    ]
+  },
+  {
+    "name": "GameSprite",
+    "props": [
+      {
+        "name": "asset",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "className",
+        "example": null,
+        "supplement": null
+      }
+    ]
+  },
+  {
+    "name": "GameButton",
+    "props": [
+      {
+        "name": "variant",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "size",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "loading",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "block",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "danger",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "icon",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "iconPosition",
+        "example": null,
+        "supplement": null
+      }
+    ]
+  },
+  {
+    "name": "GameShell",
+    "props": [
+      {
+        "name": "page",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "children",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "engine",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "state",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "onAction",
+        "example": null,
+        "supplement": null
+      }
+    ]
+  },
+  {
+    "name": "GameCharacterPanel",
+    "props": [
+      {
+        "name": "engine",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "state",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "onAction",
+        "example": null,
+        "supplement": null
+      }
+    ]
+  },
+  {
+    "name": "GameBattleStage",
+    "props": [
+      {
+        "name": "event",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "sequence",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "engine",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "state",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "onAction",
+        "example": null,
+        "supplement": null
+      }
+    ]
+  },
+  {
+    "name": "GameResourceSummary",
+    "props": [
+      {
+        "name": "state",
+        "example": null,
+        "supplement": null
+      }
+    ]
+  },
+  {
+    "name": "GameBossPanel",
+    "props": [
+      {
+        "name": "engine",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "state",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "onAction",
+        "example": null,
+        "supplement": null
+      }
+    ]
+  },
+  {
+    "name": "GameLogPanel",
+    "props": [
+      {
+        "name": "engine",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "state",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "onAction",
+        "example": null,
+        "supplement": null
+      }
+    ]
+  },
+  {
+    "name": "GameMapPanel",
+    "props": [
+      {
+        "name": "engine",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "state",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "onAction",
+        "example": null,
+        "supplement": null
+      }
+    ]
+  },
+  {
+    "name": "GamePetPanel",
+    "props": [
+      {
+        "name": "engine",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "state",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "onAction",
+        "example": null,
+        "supplement": null
+      }
+    ]
+  },
+  {
+    "name": "GameEquipmentPanel",
+    "props": [
+      {
+        "name": "engine",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "state",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "onAction",
+        "example": null,
+        "supplement": null
+      }
+    ]
+  },
+  {
+    "name": "GameSavePanel",
+    "props": [
+      {
+        "name": "onExport",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "onImport",
+        "example": null,
+        "supplement": null
+      }
+    ]
+  },
+  {
+    "name": "GameDialog",
+    "props": [
+      {
+        "name": "open",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "title",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "children",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "onClose",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "container",
+        "example": null,
+        "supplement": null
+      }
+    ]
+  },
+  {
+    "name": "GameEquipmentComparison",
+    "props": [
+      {
+        "name": "itemId",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "engine",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "state",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "onAction",
+        "example": null,
+        "supplement": null
+      }
+    ]
+  },
+  {
+    "name": "IdleGameApp",
+    "props": [
+      {
+        "name": "definition",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "className",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "style",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "onStateChange",
+        "example": null,
+        "supplement": null
+      }
+    ]
+  },
+  {
+    "name": "GameHexBattlefield",
+    "props": [
+      {
+        "name": "event",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "sequence",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "engine",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "state",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "onAction",
+        "example": null,
+        "supplement": null
+      }
+    ]
+  },
+  {
+    "name": "GameLoadoutPanel",
+    "props": [
+      {
+        "name": "engine",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "state",
+        "example": null,
+        "supplement": null
+      },
+      {
+        "name": "onAction",
+        "example": null,
+        "supplement": null
       }
     ]
   }

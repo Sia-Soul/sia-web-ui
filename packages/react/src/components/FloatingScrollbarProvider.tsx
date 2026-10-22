@@ -103,7 +103,7 @@ function createTrack(axis: ScrollAxis) {
   return { track, thumb };
 }
 
-/** 浮动滚动条接入组件组件。 */
+/** 为页面或指定容器接入浮动滚动条；布局变化重新发现滚动容器，定尺寸脱离文档流元素的定位变化仅复核相关子树与祖先。 */
 export function FloatingScrollbarProvider({ disabled = false, targetRef }: FloatingScrollbarProviderProps) {
   useScrollbarProximity();
   useEffect(() => {
@@ -117,6 +117,9 @@ export function FloatingScrollbarProvider({ disabled = false, targetRef }: Float
     const entries = new Map<HTMLElement, ScrollbarEntry>();
     let scanFrame = 0;
     let updateFrame = 0;
+    // 高频定位样式只会影响所在子树及祖先的溢出；尺寸等布局变化仍须发现兄弟容器。
+    const dirtyStyles = new Set<HTMLElement>();
+    let fullScan = true;
 
     const setEntryVisible = (entry: ScrollbarEntry, visible: boolean) => {
       entry.horizontalTrack.classList.toggle("sia-floating-scrollbar--visible", visible);
@@ -341,13 +344,18 @@ export function FloatingScrollbarProvider({ disabled = false, targetRef }: Float
       scanFrame = 0;
       // 表格视口拥有独立滚动条，不扫描其数万单元格；原生滚动区域同样由自身负责。
       const managedSelector = ".sia-table__viewport, [data-sia-native-scrollbar], .sia-scrollbar-track, .sia-floating-scrollbar-layer";
-      const discovered: HTMLElement[] = [];
+      const discovered = new Set<HTMLElement>();
       if (!targetRef) {
-        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT, {
-          acceptNode: node => (node as Element).matches(managedSelector) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
-        });
-        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-          if (node instanceof HTMLElement) discovered.push(node);
+        const roots = fullScan ? [document.body] : [...dirtyStyles].filter(node => node.isConnected);
+        for (const root of roots) {
+          const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT, {
+            acceptNode: node => (node as Element).matches(managedSelector) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
+          });
+          for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+            if (node instanceof HTMLElement) discovered.add(node);
+          }
+          // 子元素的尺寸、定位和显示变化可能让任意祖先开始或停止滚动。
+          for (let node: HTMLElement | null = root; node; node = node.parentElement) discovered.add(node);
         }
       }
       const candidates = (targetRef ? [targetRef.current] : [document.scrollingElement, ...discovered])
@@ -361,32 +369,53 @@ export function FloatingScrollbarProvider({ disabled = false, targetRef }: Float
         }
       });
       entries.forEach((_entry, target) => {
-        if (!target.isConnected || !nextTargets.has(target)) removeTarget(target);
+        if (!target.isConnected || ((fullScan || candidates.includes(target)) && !nextTargets.has(target))) removeTarget(target);
         else updateEntry(_entry);
       });
+      dirtyStyles.clear();
+      fullScan = false;
     };
 
-    const scheduleScan = () => {
+    const scheduleScan = (complete = true) => {
+      fullScan ||= complete;
       if (scanFrame) return;
       scanFrame = window.requestAnimationFrame(scanTargets);
     };
 
+    const previousStyle = document.createElement("div").style;
+    const positionProperties = new Set(["left", "top", "transform"]);
     const mutationObserver = new MutationObserver((mutations) => {
       // 滚动条位置、虚拟行增删与单元格高亮均不改变外部滚动容器，不能触发全页扫描。
-      if (mutations.some((mutation) => {
+      let relevant = false;
+      for (const mutation of mutations) {
         const target = mutation.target instanceof Element ? mutation.target : mutation.target.parentElement;
-        return target && !layer.contains(target) && !target.closest(".sia-table__viewport, [data-sia-native-scrollbar], .sia-scrollbar-track");
-      })) scheduleScan();
+        if (!target || layer.contains(target) || target.closest(".sia-table__viewport, [data-sia-native-scrollbar], .sia-scrollbar-track")) continue;
+        relevant = true;
+        // 只有定尺寸、脱离文档流元素的纯定位更新可局部处理；flex 兄弟缩放等必须全量发现。
+        let positionOnly = false;
+        if (mutation.type === "attributes" && mutation.attributeName === "style" && target instanceof HTMLElement) {
+          previousStyle.cssText = mutation.oldValue ?? "";
+          const keys = new Set([...Array.from(previousStyle), ...Array.from(target.style)]);
+          const changed = [...keys].filter(key => previousStyle.getPropertyValue(key) !== target.style.getPropertyValue(key) || previousStyle.getPropertyPriority(key) !== target.style.getPropertyPriority(key));
+          if (!changed.length) continue;
+          const fixedSize = target.style.width.endsWith("px") && target.style.height.endsWith("px");
+          positionOnly = fixedSize && changed.every(key => positionProperties.has(key)) && ["absolute", "fixed"].includes(getComputedStyle(target).position);
+        }
+        if (positionOnly && target instanceof HTMLElement) dirtyStyles.add(target);
+        else fullScan = true;
+      }
+      if (relevant) scheduleScan(false);
     });
-    mutationObserver.observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ["class", "style", "hidden"] });
-    window.addEventListener("resize", scheduleScan);
+    mutationObserver.observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeOldValue: true, attributeFilter: ["class", "style", "hidden"] });
+    const onResize = () => scheduleScan();
+    window.addEventListener("resize", onResize);
     window.addEventListener("scroll", scheduleUpdateAll, true);
     scheduleScan();
 
     return () => {
       mutationObserver.disconnect();
       resizeObserver.disconnect();
-      window.removeEventListener("resize", scheduleScan);
+      window.removeEventListener("resize", onResize);
       window.removeEventListener("scroll", scheduleUpdateAll, true);
       if (scanFrame) window.cancelAnimationFrame(scanFrame);
       if (updateFrame) window.cancelAnimationFrame(updateFrame);

@@ -9,6 +9,8 @@ type IconGroup = {
 };
 
 const groups: readonly IconGroup[] = [
+  // 单据方向、仓储及报文分别提供语义图标，供业务通过 Icon.name 直接引用。
+  { title: "商品、单据与库存", names: [ "package", "order-receipt", "after-sales", "warehouse", "shop-products", "partner-products", "purchase-return", "purchase-inbound", "stock-movement", "stocktaking", "platform-message", "analytics-message", "sales-return", "sales-outbound", "transfer-outbound", "transfer-inbound"] },
   { title: "实色图标", names: FILLED_ICON_NAMES, variant: "filled" },
   { title: "方向与导航", names: ["arrow-left", "arrow-right", "arrow-up", "arrow-down", "chevron-left", "chevron-right", "chevron-up", "chevron-down", "double-left", "double-right", "step-backward", "step-forward", "fast-backward", "fast-forward", "corner-up-left", "corner-up-right", "swap-horizontal", "swap-vertical", "expand", "shrink", "fullscreen", "fullscreen-exit", "menu", "menu-fold", "menu-unfold", "more-horizontal", "more-vertical", "move", "vertical-align-top", "vertical-align-middle", "vertical-align-bottom", "login", "logout", "home"] },
   { title: "通用操作", names: ["search", "plus", "minus", "close", "check", "square-plus", "square-minus", "square-check", "square-close", "edit", "copy", "trash", "scissors", "save", "clipboard", "clipboard-check", "download", "upload", "refresh", "settings", "undo", "redo", "zoom-in", "zoom-out", "filter", "sort-ascending", "sort-descending"] },

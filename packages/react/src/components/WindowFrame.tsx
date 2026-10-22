@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { withTitleTooltip } from "./titleTooltip";
 import type {
   HTMLAttributes,
@@ -98,7 +99,7 @@ export interface WindowTitleBarProps extends HTMLAttributes<HTMLElement> {
   disabledActions?: readonly WindowControlAction[];
   /** 窗口控制按钮的文案。 */
   controlLabels?: Partial<WindowControlLabels>;
-  /** 窗口控制操作触发时调用。 */
+  /** 操作发生时调用；主键按住并移动至少 2 CSS 像素时触发 start-dragging，静止按住不触发；双击触发 toggle-maximize。 */
   onWindowAction?: WindowActionHandler;
 }
 
@@ -231,7 +232,11 @@ export function WindowTitleBar({
   onMouseDown,
   ...props
 }: WindowTitleBarProps) {
+  // 等待真实拖动意图再交给宿主，避免静止按住时进入 Windows 非客户区等待循环。
+  const cancelDrag = useRef<(() => void) | null>(null);
+  useEffect(() => () => cancelDrag.current?.(), [draggable]);
   function handleMouseDown(event: ReactMouseEvent<HTMLElement>) {
+    cancelDrag.current?.();
     onMouseDown?.(event);
     if (
       event.defaultPrevented
@@ -244,7 +249,25 @@ export function WindowTitleBar({
     if (!(target instanceof Element) || target.closest(NON_DRAG_SELECTOR)) return;
 
     event.preventDefault();
-    void onWindowAction(event.detail > 1 ? "toggle-maximize" : "start-dragging");
+    if (event.detail > 1) { void onWindowAction("toggle-maximize"); return; }
+    const origin = { x: event.clientX, y: event.clientY };
+    const run = onWindowAction;
+    function cancel() {
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", cancel, true);
+      window.removeEventListener("blur", cancel);
+      cancelDrag.current = null;
+    }
+    function move(next: MouseEvent) {
+      if ((next.buttons & 1) === 0) { cancel(); return; }
+      if (Math.hypot(next.clientX - origin.x, next.clientY - origin.y) < 2) return;
+      cancel();
+      void run("start-dragging");
+    }
+    cancelDrag.current = cancel;
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", cancel, true);
+    window.addEventListener("blur", cancel);
   }
 
   const renderedControls = controls === true ? (

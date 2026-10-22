@@ -136,6 +136,12 @@ const normalizedFilledPaths = normalizeIconPaths(filledIconPaths, filledIconBoun
 
 /** 图标的属性配置。 */
 export interface IconProps extends Omit<HTMLAttributes<HTMLSpanElement>, "children"> {
+  /**
+   * 图标语义色：inherit 继承文字颜色，primary 使用主题蓝色，success/warning/danger 分别表示成功、警告和危险。
+   * 仅改变图形颜色，不改变相邻文字、尺寸或交互；颜色跟随主题变量，显式 style.color 优先。
+   * @defaultValue "inherit"
+   */
+  tone?: "inherit" | "primary" | "success" | "warning" | "danger";
   /** 名称或字段标识。 */
   name: IconName;
   /**
@@ -179,11 +185,13 @@ type IconStyle = CSSProperties & {
 
 /** 图标组件。 */
 export const Icon = forwardRef<HTMLSpanElement, IconProps>(function Icon(
-  { name, size = "1em", strokeWidth = 1.8, rotate = 0, spin = false, pulse = false, label, variant = "outline", className = "", style, ...props },
+  { name, tone = "inherit", size = "1em", strokeWidth = 1.8, rotate = 0, spin = false, pulse = false, label, variant = "outline", className = "", style, ...props },
   ref,
 ) {
   const resolvedSize = typeof size === "number" ? `${size}px` : size;
-  const mergedStyle: IconStyle = { "--sia-icon-size": resolvedSize, "--sia-icon-rotate": `${rotate}deg`, ...style };
+  // 语义颜色由框架主题提供；默认继承保持既有按钮及文字中的图标表现。
+  const toneColor = tone === "inherit" ? undefined : `var(--sia-color-${tone === "danger" ? "error" : tone === "primary" ? "primary-text" : tone})`;
+  const mergedStyle: IconStyle = { "--sia-icon-size": resolvedSize, "--sia-icon-rotate": `${rotate}deg`, color: toneColor, ...style };
   const animationClass = spin ? " sia-icon--spin" : pulse ? " sia-icon--pulse" : "";
   const filledPath = filledIconPaths[name as FilledIconName];
   const resolvedVariant = variant === "filled" && filledPath ? "filled" : "outline";

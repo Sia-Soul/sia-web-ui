@@ -79,6 +79,7 @@ export function UploadPage() {
     { property: "cardSize", description: "照片墙卡片宽高，单位 px；数字为正方形，对象分别设置宽高。每边最小 48px，宽或高小于 88px 时隐藏文件名", type: "number | { width?: number; height?: number }", defaultValue: "112" },
     { property: "multiple / maxCount / accept", description: "批量、总数量和类型限制；达到数量上限后隐藏上传入口，删除至低于上限后恢复；拖拽、粘贴同样校验，超限触发 onReject", type: "boolean / number / string", defaultValue: "false / 不限 / 不限" },
     { property: "directory / recursive", description: "目录上传及是否包含子文件夹，路径保存在 relativePath", type: "boolean / boolean", defaultValue: "false / true" },
+    { property: "acceptMode", description: "默认 validate 校验类型；hint 仅保留系统选择器提示，原始文件交给 beforeUpload，由业务统一校验并生成完整失败明细", type: "validate | hint", defaultValue: "validate" },
     { property: "pastable", description: "焦点在上传区域内时接收剪贴板文件和截图", type: "boolean", defaultValue: "false" },
     { property: "fileList / defaultFileList", description: "受控列表需在 onChange 回填；外部删除会中止请求", type: "UploadFile[]", defaultValue: "[]" },
     { property: "autoUpload / ref", description: "手动模式使用 upload(uid?)、abort(uid?)、remove(uid)", type: "boolean / UploadRef", defaultValue: "true" },
@@ -91,6 +92,13 @@ export function UploadPage() {
     { property: "onReject / onReadError", description: "文件类型、数量拒绝与目录读取失败通知", type: "回调", defaultValue: "-" },
     { property: "onChoose", description: "点击或键盘激活上传入口时调用；返回 false 接管为业务弹框，不打开系统选择器", type: "() => boolean | void", defaultValue: "-" },
   ]}>
+    {/* 导入业务接收原始文件再统一报告类型错误，示例不发送上传请求。 */}
+    <DemoCard title="统一导入校验" description="accept 仍提示系统文件选择器；拖入其他类型时交给业务统一汇总，不提前丢失失败记录。" code={'<Upload.Dragger accept=".png,.jpg" acceptMode="hint" multiple beforeUpload={validateImportFiles} />'}>
+      <Upload.Dragger accept=".png,.jpg" acceptMode="hint" multiple beforeUpload={(file, files) => {
+        if (file === files[0]) message.info(`收到 ${files.length} 个文件，业务可在此统一校验并生成失败明细`);
+        return Upload.LIST_IGNORE;
+      }} />
+    </DemoCard>
     {/* 仅选择的场景直接展示文件卡片与收紧后的入口，移除后可对比空态高度。 */}
     {/* 单文件上限示例：已有文件时只显示列表，移除后恢复拖拽入口。 */}
     <DemoCard title="已选文件反馈" description="最多选择一个文件，达到上限后隐藏上方拖拽区，仅保留数量和文件卡片；移除文件后恢复上传区域。此示例仅选择 Excel 文件，不发送上传请求。" code={'<Upload.Dragger accept=".xls,.xlsx" autoUpload={false} maxCount={1} hint="支持 xls、xlsx 格式，单次选择一个文件" />'}>

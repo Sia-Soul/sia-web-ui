@@ -6,3 +6,11 @@
 .sia-cursor-preview__bitmap img { display: block; object-fit: contain; }
 .sia-cursor-preview__empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--sia-color-text-tertiary); }
 .sia-cursor-preview__caption { position: absolute; bottom: 14px; left: 16px; right: 16px; text-align: center; color: var(--sia-color-text-secondary); pointer-events: none; }
+/* 热点说明覆盖在位图上且不接收输入；亮色提高对比，暗色保持示意图的青线与金色文字。 */
+.sia-cursor-preview__hotspot { position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: visible; }
+.sia-cursor-preview__hotspot polyline { fill: none; stroke: #007cb8; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.sia-cursor-preview__hotspot circle { fill: #007cb8; }
+.sia-cursor-preview__hotspot text { fill: #946100; font-size: 14px; font-weight: 600; }
+[data-sia-theme="dark"] .sia-cursor-preview__hotspot polyline { stroke: #00b5f5; }
+[data-sia-theme="dark"] .sia-cursor-preview__hotspot circle { fill: #00b5f5; }
+[data-sia-theme="dark"] .sia-cursor-preview__hotspot text { fill: #ffc444; }

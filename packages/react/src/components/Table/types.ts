@@ -296,6 +296,8 @@ export interface TableProps<T extends Record<string, unknown> = Record<string, u
   emptyText?: ReactNode;
   /** 高度；数值按像素处理，字符串可使用 CSS 尺寸。 */
   height?: number | string;
+  /** 数据内容区的最大高度（不含表头、工具栏和分页）；数值为 px，字符串为 CSS 长度。少量行按自然高度展示，超出后内部滚动；不设置则不额外限制。与 height 同时使用时两者共同约束。 */
+  maxBodyHeight?: number | string;
   /**
    * 自动填充从表格顶部到可视区域底部的剩余高度，包含工具栏和分页；true 使用当前窗口视口。
    * 查询区尺寸、祖先布局、窗口尺寸及隐藏页签显示后自动重测。height / tableHeight 显式设置时优先。
@@ -364,11 +366,11 @@ export interface TableProps<T extends Record<string, unknown> = Record<string, u
     event: ReactMouseEvent<HTMLTableCellElement>,
   ) => void;
   /**
-   * 行的语义状态，使用框架成功、警告、错误背景色；默认不设置。
+   * 行的语义状态，info 使用主题蓝色表示进行中或提示，success / warning / error 分别使用成功、警告、错误背景色；默认不设置。
    * 可传固定状态或计算函数，函数参数为当前记录和原始数据索引，返回 undefined 时沿用普通行背景。
    * 状态背景覆盖斑马纹，悬停和勾选反馈优先；普通列、固定列及 Canvas 模式行为一致。
    */
-  rowStatus?: "success" | "warning" | "error" | ((record: T, index: number) => "success" | "warning" | "error" | undefined);
+  rowStatus?: "info" | "success" | "warning" | "error" | ((record: T, index: number) => "info" | "success" | "warning" | "error" | undefined);
   /** 行的 CSS 类名或计算函数。 */
   rowClassName?: string | ((record: T, index: number) => string);
   /** 表格元素的内联样式。 */

@@ -171,7 +171,7 @@ function defaultFilterOption(query: string, option: SelectOption) {
   return [option.label, option.value].some(value => String(value).toLowerCase().includes(keyword));
 }
 
-/** 选择器组件。下拉面板每次展开自动定位到列表顺序中的第一个已选项，支持普通和虚拟列表；未选中时从顶部显示。 */
+/** 选择器组件。下拉面板每次展开自动定位到列表顺序中的第一个已选项，支持普通和虚拟列表；未选中时从顶部显示。展开时 Escape 只收起选择器，不关闭外层弹框或抽屉。 */
 export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select(
   {
     options,
@@ -436,8 +436,17 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
     setCurrentValue(multiple ? [] : null);
   }
 
+  // 触发器、搜索框和多选底部按钮共同消费本层 Escape，避免传播到外层弹框的 document 监听。
+  function handleDropdownEscape(event: KeyboardEvent<HTMLElement>) {
+    if (event.key !== "Escape" || !open || popupMode !== "dropdown") return false;
+    event.preventDefault();
+    event.stopPropagation();
+    closeDropdown();
+    return true;
+  }
+
   function handleInteractionKeyDown(event: KeyboardEvent<HTMLButtonElement | HTMLInputElement>, fromSearch = false) {
-    if (popupMode === "modal" && open) return;
+    if (handleDropdownEscape(event) || (popupMode === "modal" && open)) return;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       if (!open) openDropdown();
@@ -540,7 +549,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
         <Icon className="sia-select__arrow" name="chevron-down" size={15} />
       </button>
       {allowClear && hasValue && !disabled && !loading ? <button className="sia-select__clear" type="button" aria-label="清空选择" onClick={clearValue}><Icon name="circle-close" variant="filled" size={15} /></button> : null}
-      <PopupPortal ref={popupRef} anchorRef={rootRef} open={open && popupMode === "dropdown"} style={{ fontSize: dropdownFontSize }} className={`sia-select__dropdown${filteredOptions.length === 0 && !canSubmitInput ? " sia-select__dropdown--empty" : ""}`}>
+      <PopupPortal ref={popupRef} onKeyDown={handleDropdownEscape} anchorRef={rootRef} open={open && popupMode === "dropdown"} style={{ fontSize: dropdownFontSize }} className={`sia-select__dropdown${filteredOptions.length === 0 && !canSubmitInput ? " sia-select__dropdown--empty" : ""}`}>
         <FloatingScrollbarProvider targetRef={listRef} />
         {showSearch || allowInput ? <label className="sia-select__search"><Icon name="search" size={15} /><input ref={searchRef} value={query} maxLength={inputMaxLength} onChange={handleSearchChange} onKeyDown={(event) => handleInteractionKeyDown(event, true)} placeholder={searchPlaceholder} aria-label={searchPlaceholder} /></label> : null}
         {canSubmitInput ? <button type="button" className="sia-select__input-option" onMouseDown={(event) => event.preventDefault()} onClick={submitInputValue}><Icon name="plus" size={14} /><span>使用“{inputValue}”</span></button> : null}

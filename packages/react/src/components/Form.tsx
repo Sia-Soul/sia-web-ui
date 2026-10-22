@@ -110,6 +110,16 @@ export interface FormErrorField {
   errors: readonly ReactNode[];
 }
 
+/** 外部校验或接口回填的字段更新；未提供的值、错误保持不变。 */
+export interface FormFieldData {
+  /** 字段路径，支持尚未挂载的动态字段。 */
+  name: NamePath;
+  /** 新字段值；显式传入 undefined 清空值，省略则保留当前值。 */
+  value?: unknown;
+  /** 替换该字段的全部错误；空数组清除错误，省略则保留。 */
+  errors?: readonly ReactNode[];
+}
+
 /** 表单操作实例，提供读写字段值、校验、重置和提交方法。 */
 export interface FormInstance {
   /** 读取指定字段的当前值，支持嵌套字段路径。 */
@@ -122,6 +132,8 @@ export interface FormInstance {
   setFieldValue: (name: NamePath, value: unknown) => void;
   /** 批量设置表单字段值，不触发 onValuesChange；首次挂载前回填的字段会保留并优先于 initialValues。 */
   setFieldsValue: (values: FormValues) => void;
+  /** 批量回填字段值及外部校验错误，一次通知视图，不触发 onValuesChange；仅更新提供的成员。未挂载字段的状态在挂载后生效。 */
+  setFields: (fields: readonly FormFieldData[]) => void;
   /** 将字段恢复到初始值，并清理相关校验状态。 */
   resetFields: (names?: readonly NamePath[]) => void;
   /** 执行字段校验；成功返回字段值，失败抛出校验错误信息。 */
@@ -265,6 +277,23 @@ class FormStore implements FormInstance {
     this.notify();
   };
 
+  setFields = (fields: readonly FormFieldData[]) => {
+    if (!fields.length) return;
+    fields.forEach((field) => {
+      const path = pathArray(field.name);
+      // 必须区分省略和显式 undefined：服务端可以只回填错误，也可以清空字段。
+      if (Object.prototype.hasOwnProperty.call(field, "value")) {
+        if (!this.initialized) this.pendingWrites.push({ path: [...path], value: cloneFormValue(field.value) });
+        this.values = setValue(this.values, path, field.value);
+      }
+      if (field.errors !== undefined) {
+        if (field.errors.length) this.errors.set(pathKey(path), [...field.errors]);
+        else this.errors.delete(pathKey(path));
+      }
+    });
+    this.notify();
+  };
+
   resetFields = (names?: readonly NamePath[]) => {
     if (!names) {
       this.pendingWrites = [];
@@ -363,6 +392,8 @@ export function useForm(form?: FormInstance): readonly [FormInstance] {
 
 /** 表单的属性配置。 */
 export interface FormProps extends Omit<FormHTMLAttributes<HTMLFormElement>, "onSubmit"> {
+  /** 是否作为纵向弹性容器填满父容器剩余高度；父容器需提供确定高度，子列表可用 flex 分配剩余空间。默认 false。 */
+  fill?: boolean;
   /** 组件尺寸；用于调整控件高度、字号和间距。 */
   size?: ControlSize;
   /** 表单实例；可由 Form.useForm() 或 useForm() 创建。 */
@@ -399,6 +430,7 @@ export interface FormProps extends Omit<FormHTMLAttributes<HTMLFormElement>, "on
 }
 
 function FormRoot({
+  fill = false,
   form,
   initialValues,
   layout = "horizontal",
@@ -454,7 +486,7 @@ function FormRoot({
     <form
       ref={formRef}
       {...withTitleTooltip(props)}
-      className={`sia-form sia-form--${layout} sia-form--${size}${disabled ? " is-disabled" : ""} ${className}`.trim()}
+      className={`sia-form sia-form--${layout} sia-form--${size}${fill ? " sia-form--fill" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()}
       data-required-mark={requiredMark}
       onSubmit={(event) => {
         event.preventDefault();
@@ -468,12 +500,16 @@ function FormRoot({
   </ControlSizeContext.Provider></PlaceholderModeContext.Provider></FormContext.Provider>;
 }
 
-/** 表单项的字段绑定、标签、校验及内容配置。 */
+/** 表单项的字段绑定、标签、校验及内容配置；默认保留 8px 下外边距，noStyle 不生成布局容器或间距。 */
 export interface FormItemProps {
   /** 绑定到表单值的字段名或嵌套路径，例如 ["user", "name"]。 */
   name?: NamePath;
   /** 字段标签，支持文本或 React 节点；横向及行内布局未指定标签列宽时，与同一 Form 内最宽的可见标签对齐，测量包含必填标记。未渲染标签时，控件占据表单项整行宽度。 */
   label?: ReactNode;
+  /** 横向表单中标签与内容的垂直对齐：start 对齐首行控件，center 将标签与整个内容区居中，适合只读文字和多行信息。纵向、行内、窄屏堆叠及 noStyle 布局不受影响。
+   * @defaultValue "start"
+   */
+  align?: "start" | "center";
   /**
    * 字段的校验规则，按配置执行。
    * @defaultValue []
@@ -531,6 +567,7 @@ function defaultEventValue(valuePropName: string, args: unknown[]) {
 function FormItem({
   name,
   label,
+  align = "start",
   rules = [],
   required,
   extra,
@@ -606,7 +643,7 @@ function FormItem({
   if (noStyle) return <>{content}</>;
   const inputWrap = <div className="sia-form-item__input-wrap">{content}</div>;
   const hasError = status === "error" && Boolean(helpContent);
-  return <div ref={itemRef} className={`sia-form-item${status ? ` sia-form-item--${status}` : ""} ${className}`.trim()} data-sia-form-field={key || undefined}>
+  return <div ref={itemRef} className={`sia-form-item${align === "center" ? " sia-form-item--align-center" : ""}${status ? ` sia-form-item--${status}` : ""} ${className}`.trim()} data-sia-form-field={key || undefined}>
     {label ? <div id={labelId} className="sia-form-item__label"><span className="sia-form-item__label-content">{ruleRequired ? <span className="sia-form-item__required-mark" aria-hidden="true">*</span> : null}{label}</span></div> : null}
     <div className="sia-form-item__control">
       <Tooltip
