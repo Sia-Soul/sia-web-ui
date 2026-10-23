@@ -43,7 +43,7 @@ body.browser-tab-panel-document__body,
   background: transparent !important;
 }
 
-/* 20px 透明留白与原生 MENU_SHADOW_SPACE 一致，让两层轻阴影在窗口边界前自然消散。 */
+/* 20px 留白与原生布局一致；桌面窗口按可见表面裁剪以穿透空白，Web 预览保留外侧轻阴影。 */
 .browser-window-menu,
 .browser-panel {
   width: calc(100% - 40px);
@@ -59,6 +59,14 @@ body.browser-tab-panel-document__body,
   border: 1px solid var(--sia-color-border);
   border-radius: 12px;
 }
+
+/* 主菜单保持原有紧凑行高；子菜单由框架 Portal 侧向展开，长列表限制在原生画布内滚动。 */
+.browser-window-menu--cascade > .sia-menu { padding: 0; border: 0; background: transparent; }
+.browser-window-menu--cascade .sia-menu__item,
+.browser-menu-document .sia-menu__popup .sia-menu__item { min-height: 32px; font-size: 13px; }
+.browser-window-menu--cascade { overflow-y: auto; }
+.browser-menu-document .sia-menu__popup { width: 260px; max-width: calc(100vw - 16px); }
+.browser-menu-document .sia-menu__popup-list { max-height: calc(100vh - 40px); overflow-y: auto; }
 
 /* 工具面板和内部按钮即时响应，避免框架默认过渡延缓开关或菜单切换。 */
 .browser-menu-document *,
@@ -940,9 +948,9 @@ input {
 }
 
 .browser-titlebar.is-vertical .browser-brand {
-  /* 28px 品牌标志配合两侧各 4px 留白，提高辨识度而不增加标题栏高度。 */
-  width: 36px;
-  min-width: 36px;
+  /* 28px 高的横向签名按原比例展示，左右保留空隙而不增加标题栏高度。 */
+  width: 56px;
+  min-width: 56px;
 }
 
 .vertical-titlebar-navigation {
@@ -1749,7 +1757,7 @@ input {
 }
 
 .browser-brand-glyph {
-  /* 标签图标直接使用品牌资源，避免字符渐变与桌面图标不一致。 */
+  /* 炫彩渐变与白色描边直接使用原色，深浅主题均不加滤镜，保持与原生图标一致。 */
   display: block;
   flex: 0 0 auto;
   object-fit: contain;
@@ -1945,13 +1953,13 @@ input {
 
 .new-tab-logo {
   display: grid;
-  width: 72px;
+  width: 116px;
   height: 72px;
   margin: 0 auto 18px;
   place-items: center;
 }
 
-/* 飞燕标志保留透明镂空，直接显示平面轮廓，不叠加底板或旋转。 */
+/* S1-E 横向签名保留透明背景与原始比例，避免字母和收笔线被拉伸。 */
 .new-tab-logo img {
   display: block;
   width: 100%;

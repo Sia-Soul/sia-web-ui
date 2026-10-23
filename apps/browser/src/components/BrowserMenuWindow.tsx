@@ -37,6 +37,10 @@ export interface BrowserPanelEntry {
 }
 
 export interface BrowserMenuPayload {
+  /** 原生面板显示批次；命中范围回传时用于拒绝旧面板的异步结果。 */
+  hitRegionRevision?: number;
+  /** 原生窗口为级联菜单预留空间后，主菜单在窗口内的位置与尺寸，单位为 CSS 像素。 */
+  menuLayout?: { left: number; top: number; width: number; height: number };
   darkMode: boolean;
   kind?: "menu" | "back-history" | "downloads" | "history" | "bookmarks" | "extensions";
   /** 面板入口标识；自动显示和用户切换共享此身份。 */
@@ -96,7 +100,7 @@ function historyGroupLabel(timestamp = Date.now()) {
 
 export default function BrowserMenuWindow() {
   const [payload, setPayload] = useState<BrowserMenuPayload | null>(null);
-  const [submenu, setSubmenu] = useState<BrowserMenuItem | null>(null);
+  const [openKeys, setOpenKeys] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [searchVisible, setSearchVisible] = useState(false);
   const [historyTab, setHistoryTab] = useState<"all" | "recent">("all");
@@ -122,7 +126,7 @@ export default function BrowserMenuWindow() {
         window.clearInterval(pollTimer);
         pollTimer = undefined;
       }
-      setSubmenu(null);
+      setOpenKeys([]);
       setQuery("");
       setSearchVisible(false);
       setHistoryTab("all");
@@ -207,19 +211,71 @@ export default function BrowserMenuWindow() {
         setDownloadContextMenu(null);
         return;
       }
-      if (submenu) {
-        setSubmenu(null);
+      if (openKeys.length) {
+        setOpenKeys([]);
         return;
       }
       void invokeNative("close_browser_menu").catch(() => undefined);
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [downloadContextMenu, submenu, extensionMenu]);
+  }, [downloadContextMenu, openKeys, extensionMenu]);
+
+  useEffect(() => {
+    if (!payload?.menuLayout) return;
+    // 扩展的透明画布只承载子菜单；点击菜单之外的留白时正常关闭。
+    const dismissOnBlank = (event: PointerEvent) => {
+      if (event.target instanceof Element && !event.target.closest('.browser-window-menu, .sia-menu__popup')) {
+        void invokeNative('close_browser_menu').catch(() => undefined);
+      }
+    };
+    document.addEventListener('pointerdown', dismissOnBlank);
+    return () => document.removeEventListener('pointerdown', dismissOnBlank);
+  }, [payload?.menuLayout]);
+
+  useEffect(() => {
+    if (payload?.hitRegionRevision === undefined) return;
+    const revision = payload.hitRegionRevision;
+    let frame = 0;
+    let previous = "";
+    // 只报告可见表面，不把全屏遮罩、阴影留白或预留的子菜单画布交给原生命中。
+    const selector = '.browser-panel, .browser-window-menu, .sia-menu__popup.is-open, .browser-download-context-menu, .browser-extension-context-menu';
+    const resize = new ResizeObserver(() => schedule());
+    const report = () => {
+      frame = 0;
+      const regions = [...document.querySelectorAll<HTMLElement>(selector)].flatMap(element => {
+        resize.observe(element);
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        if (!rect.width || !rect.height || style.visibility === 'hidden' || style.display === 'none') return [];
+        return [{ x: rect.x, y: rect.y, width: rect.width, height: rect.height,
+          radius: parseFloat(style.borderTopLeftRadius) || 0 }];
+      });
+      const serialized = JSON.stringify(regions);
+      if (serialized === previous) return;
+      previous = serialized;
+      void invokeNative('update_browser_menu_regions', { revision, regions }).catch(() => undefined);
+    };
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(report); };
+    // Portal 插入、开关及定位变化都需更新；每帧合并，避免列表渲染产生大量原生调用。
+    const mutations = new MutationObserver(schedule);
+    mutations.observe(document.body, { subtree: true, childList: true, attributes: true,
+      attributeFilter: ['style', 'class', 'hidden'] });
+    window.addEventListener('resize', schedule);
+    document.addEventListener('scroll', schedule, true);
+    schedule();
+    return () => {
+      cancelAnimationFrame(frame);
+      resize.disconnect();
+      mutations.disconnect();
+      window.removeEventListener('resize', schedule);
+      document.removeEventListener('scroll', schedule, true);
+    };
+  }, [payload]);
 
   const items = useMemo(
-    () => submenu?.children ?? payload?.items ?? [],
-    [payload, submenu],
+    () => payload?.items ?? [],
+    [payload],
   );
   const entries = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -313,10 +369,7 @@ export default function BrowserMenuWindow() {
 
   async function selectItem(item: BrowserMenuItem) {
     if (item.disabled) return;
-    if (item.children?.length) {
-      setSubmenu(item);
-      return;
-    }
+    if (item.children?.length) return;
     if (!item.key) return;
     await dispatchAction(item.key);
   }
@@ -724,28 +777,45 @@ export default function BrowserMenuWindow() {
   if (payload.kind === "history") return renderHistory();
   if (payload.kind === "bookmarks") return renderBookmarks();
 
+  if (items.some((item) => item.children?.length)) {
+    // 框架 Menu 负责悬停延迟、跨面板保持和边缘翻转；主菜单不因展开子项而被替换。
+    const convertItems = (source: BrowserMenuItem[], prefix = "root"): MenuItem[] => source.map((item, index) => ({
+      key: item.key ?? `${prefix}-${index}`,
+      type: item.type,
+      disabled: item.disabled,
+      danger: item.danger,
+      label: <span className="browser-window-menu__copy">
+        <span className="browser-window-menu__label">{item.label}</span>
+        {item.subtitle ? <span className="browser-window-menu__subtitle">{item.subtitle}</span> : null}
+      </span>,
+      extra: item.variant === "theme" ? (
+        <span className={`browser-window-menu__theme${item.checked ? " is-dark" : ""}`}>
+          <span className={!item.checked ? "is-active" : ""}><Icon name="sun" size={13} /></span>
+          <span className={item.checked ? "is-active" : ""}><Icon name="moon" size={13} /></span>
+        </span>
+      ) : item.checked !== undefined ? (item.checked ? "✓" : undefined)
+        : item.shortcut ? <span className="browser-window-menu__shortcut">{item.shortcut}</span> : undefined,
+      children: item.children ? convertItems(item.children, item.key ?? `${prefix}-${index}`) : undefined,
+    }));
+    const layout = payload.menuLayout;
+    return <div className="browser-window-menu browser-window-menu--cascade"
+      style={layout ? { position: 'absolute', left: layout.left, top: layout.top, width: layout.width, height: layout.height, margin: 0 } : undefined}>
+      {payload.heading ? <div className="browser-window-menu__heading">{payload.heading}</div> : null}
+      <Menu items={convertItems(items)} mode="vertical" theme={payload.darkMode ? 'dark' : 'light'}
+        interactionCursor="default" selectable={false} triggerSubMenuAction="hover"
+        openKeys={openKeys} onOpenChange={setOpenKeys}
+        onClick={({ key }) => void dispatchAction(key)} />
+    </div>;
+  }
+
   return (
     <div
       className={`browser-window-menu${payload.kind === "back-history" ? " is-navigation-history" : ""}`}
       role="menu"
       onContextMenu={(event) => event.preventDefault()}
     >
-      {!submenu && payload.heading ? (
+      {payload.heading ? (
         <div className="browser-window-menu__heading">{payload.heading}</div>
-      ) : null}
-      {submenu ? (
-        <>
-          <Button
-            className="browser-window-menu__item browser-window-menu__back"
-            variant="text"
-            size="small"
-            icon={<Icon name="chevron-left" size={14} />}
-            onClick={() => setSubmenu(null)}
-          >
-            {submenu.label}
-          </Button>
-          <div className="browser-window-menu__divider" role="separator" />
-        </>
       ) : null}
       {items.map((item, index) => {
         if (item.type === "divider") {

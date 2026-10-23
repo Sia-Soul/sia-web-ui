@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent } from "react";
+import type { DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import { Button, FloatingScrollbarProvider, Icon } from "@sia.soul/sia-react-ui";
 import { ROOT_GROUP_ID, type BrowserGroup, type BrowserTab } from "../browserTypes";
 import BrowserFavicon from "./BrowserFavicon";
@@ -226,22 +226,11 @@ export default function VerticalTabTree({
     onPinPanel?.();
   }
 
-  /** 分组按钮与右键菜单共用入口，坐标取按钮边缘以兼容独立面板窗口。 */
-  function renderGroupActions(group: BrowserGroup, smallGroupId?: string) {
-    const name = group.smallGroups.find((item) => item.id === smallGroupId)?.name ?? group.name;
-    return (
-      <Button
-        className="vertical-tree-icon-button"
-        variant="text"
-        size="small"
-        icon={<Icon name="more-horizontal" size={15} />}
-        aria-label={`${name}的更多操作`}
-        onClick={(event) => {
-          const rect = event.currentTarget.getBoundingClientRect();
-          onTreeActionsOpen(group.id, smallGroupId, rect.left, rect.bottom);
-        }}
-      />
-    );
+  /** 展开与收缩状态都在组项右键位置打开菜单，阻止冒泡以免触发其他节点菜单。 */
+  function openGroupContextMenu(event: ReactMouseEvent<HTMLElement>, groupId: string, smallGroupId?: string) {
+    event.preventDefault();
+    event.stopPropagation();
+    onTreeActionsOpen(groupId, smallGroupId, event.clientX, event.clientY);
   }
 
   /** 树节点不显示悬停标题；完整名称通过 aria-label 提供给辅助技术。 */
@@ -412,10 +401,7 @@ export default function VerticalTabTree({
             >
               <div
                 className="vertical-tree-node-context"
-                onContextMenu={(event) => {
-                  event.preventDefault();
-                  onTreeActionsOpen(group.id, undefined, event.clientX, event.clientY);
-                }}
+                onContextMenu={(event) => openGroupContextMenu(event, group.id)}
               >
                 <div className="vertical-tree-group__heading">
                   <Button
@@ -439,7 +425,6 @@ export default function VerticalTabTree({
                     aria-label={`在分组 ${group.name} 的根节点新建标签页`}
                     onClick={() => onNewTab(group.id)}
                   />
-                  {renderGroupActions(group)}
                 </div>
               </div>
 
@@ -453,15 +438,7 @@ export default function VerticalTabTree({
                       <section key={smallGroup.id} className="vertical-tree-small-group" {...dropHandlers(group.id, smallGroup.id)}>
                         <div
                           className="vertical-tree-node-context"
-                          onContextMenu={(event) => {
-                            event.preventDefault();
-                            onTreeActionsOpen(
-                              group.id,
-                              smallGroup.id,
-                              event.clientX,
-                              event.clientY,
-                            );
-                          }}
+                          onContextMenu={(event) => openGroupContextMenu(event, group.id, smallGroup.id)}
                         >
                           <div className="vertical-tree-small-group__heading">
                             <Button
@@ -485,7 +462,6 @@ export default function VerticalTabTree({
                               aria-label={`在小分组 ${smallGroup.name} 中新建标签`}
                               onClick={() => onNewTab(group.id, smallGroup.id)}
                             />
-                            {renderGroupActions(group, smallGroup.id)}
                           </div>
                         </div>
                         {!smallGroupCollapsed ? (
@@ -535,6 +511,7 @@ export default function VerticalTabTree({
                   aria-label={`分组：${group.name}`}
                   {...compactTooltip.handlers({ title: group.name, detail: `${groupTabs.length} 个标签页` })}
                   aria-expanded={!groupCollapsed}
+                  onContextMenu={(event) => openGroupContextMenu(event, group.id)}
                   onClick={() => onToggleGroup?.(group.id)}
                 >
                   {compactGroupTitle(group.name)}
@@ -560,6 +537,7 @@ export default function VerticalTabTree({
                             aria-label={`小分组：${smallGroup.name}`}
                             {...compactTooltip.handlers({ title: smallGroup.name, detail: `${group.name} · ${smallGroupTabs.length} 个标签页` })}
                             aria-expanded={!smallGroupCollapsed}
+                            onContextMenu={(event) => openGroupContextMenu(event, group.id, smallGroup.id)}
                             onClick={() => onToggleSmallGroup?.(smallGroup.id)}
                           >
                             {compactGroupTitle(smallGroup.name)}

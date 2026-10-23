@@ -20,16 +20,24 @@ function resolveFaviconUrl(url: string) {
   }
 }
 
-/** 标题栏、内部页与缺少站点图标的标签共用西娅品牌图标。 */
-export function BrowserBrandGlyph({ size = 15 }: { size?: number }) {
+interface BrowserBrandGlyphProps {
+  /** 显示高度，单位 px，默认 15；方形图标宽高相同，签名字标宽度按比例增加。 */
+  size?: number;
+  /** 是否使用透明横向 S1-E 签名；默认 false，标签等小尺寸位置使用透明方形画布。 */
+  wordmark?: boolean;
+}
+
+/** 显示 S1-E 品牌资源；标题栏与内部页可选横向签名，缺少站点图标的标签保持方形占位。 */
+export function BrowserBrandGlyph({ size = 15, wordmark = false }: BrowserBrandGlyphProps) {
+  const width = wordmark ? Math.round(size * 1.6) : size;
   return (
     <img
-      className="browser-brand-glyph"
-      src="/brand/sia-browser-small.png"
+      className={`browser-brand-glyph${wordmark ? " browser-brand-glyph--wordmark" : ""}`}
+      src={wordmark ? "/brand/sia-wordmark.png" : "/brand/sia-browser-small.png"}
       // 按实际显示尺寸与屏幕像素密度选图，避免高 DPI 标题栏放大低分辨率资源。
-      srcSet="/brand/sia-browser-small.png 64w, /brand/sia-browser.png 256w"
-      sizes={`${size}px`}
-      width={size}
+      srcSet={wordmark ? "/brand/sia-wordmark.png 512w" : "/brand/sia-browser-small.png 64w, /brand/sia-browser.png 256w"}
+      sizes={`${width}px`}
+      width={width}
       height={size}
       alt=""
       aria-hidden="true"

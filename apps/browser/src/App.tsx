@@ -328,6 +328,8 @@ export default function App() {
   const addressInputRef = useRef<HTMLInputElement | null>(null);
   // 鼠标聚焦保留原生光标命中位置，键盘或快捷键聚焦仍全选地址。
   const addressPointerFocusRef = useRef(false);
+  // 首次鼠标聚焦延迟到点击完成才全选；记录移动，避免覆盖原生拖选结果。
+  const addressPointerSelectionRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   // 行内候选保留原始协议；显示时省略的 http:// 不能在提交时被误转为 https://。
   const addressCompletionRef = useRef<{
     /** 用户实际输入的前缀长度，也是待接受后缀的选区起点。 */
@@ -2766,9 +2768,29 @@ export default function App() {
             autoComplete="off"
             onPointerDown={(event) => {
               addressPointerFocusRef.current = event.button === 0 && document.activeElement !== event.currentTarget;
+              addressPointerSelectionRef.current = addressPointerFocusRef.current
+                ? { x: event.clientX, y: event.clientY, moved: false } : null;
+            }}
+            onPointerMove={(event) => {
+              const gesture = addressPointerSelectionRef.current;
+              if (gesture && Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 3) {
+                gesture.moved = true;
+              }
             }}
             onPointerUp={() => { addressPointerFocusRef.current = false; }}
-            onPointerCancel={() => { addressPointerFocusRef.current = false; }}
+            onPointerCancel={() => {
+              addressPointerFocusRef.current = false;
+              addressPointerSelectionRef.current = null;
+            }}
+            onClick={(event) => {
+              const gesture = addressPointerSelectionRef.current;
+              addressPointerSelectionRef.current = null;
+              // click 在原生鼠标选区处理之后触发；仅首次单击全选，拖选和已聚焦编辑保持原生行为。
+              if (gesture && !gesture.moved && event.detail === 1
+                && event.currentTarget.selectionStart === event.currentTarget.selectionEnd) {
+                event.currentTarget.select();
+              }
+            }}
             onFocus={(event) => {
               addressCompletionRef.current = null;
               addressFocusedRef.current = true;
@@ -2783,6 +2805,7 @@ export default function App() {
               event.currentTarget.scrollLeft = 0;
               addressFocusedRef.current = false;
               addressPointerFocusRef.current = false;
+              addressPointerSelectionRef.current = null;
               addressCompletionRef.current = null;
               setAddressDraft(activeTab?.url ?? "");
             }}
@@ -2854,8 +2877,8 @@ export default function App() {
             // 树形标签固定在左侧，顶部只保留品牌图标、导航及窗口操作。
             leading={(
               <div className="browser-brand" aria-label="西娅浏览器">
-                {/* 增大品牌标志的可见面积，保持现有标题栏高度。 */}
-                <BrowserBrandGlyph size={28} />
+                {/* 横向签名保留原比例，保持现有标题栏高度。 */}
+                <BrowserBrandGlyph size={28} wordmark />
               </div>
             )}
             actions={renderTitlebarActions()}
@@ -2964,8 +2987,8 @@ export default function App() {
             <div className="new-tab-page__ambient new-tab-page__ambient--two" />
             <div className="new-tab-content">
               <div className="new-tab-logo" aria-hidden="true">
-                {/* 新标签页与桌面程序使用同一套西娅图标。 */}
-                <img src="/brand/sia-browser.png" width={72} height={72} alt="" />
+                {/* 新标签页显示已确认的完整 S1-E 签名与收笔线。 */}
+                <BrowserBrandGlyph size={72} wordmark />
               </div>
               <h1>去探索，去创造。</h1>
               <p>由 Sia WebUI 与 Tauri 驱动的轻量浏览器</p>

@@ -654,41 +654,47 @@ input {
   box-shadow: none;
 }
 
-/* 方块已有明确布局尺寸，使用尺寸容器让扫描标记按可用空间自动降级。 */
-.space-treemap .sia-treemap__tile {
-  container-type: size;
-}
-
-/* 扫描态默认显示小圆点，不改变分隔线、背景色或布局，也不拦截点击。 */
+/* 扫描态以纯色亮度层缓慢呼吸，仅动画透明度，不影响面积比例或白色分隔线。 */
 .space-treemap .sia-treemap__tile.is-active::after {
   content: "";
   display: block;
-  inset: 3px auto auto 3px;
-  width: 7px;
-  height: 7px;
+  inset: 0;
+  z-index: 0;
   padding: 0;
-  border: 1px solid #fff;
-  border-radius: 50%;
-  background: #0969da;
-  color: #fff;
+  border: 0;
+  border-radius: 0;
+  background: #fff;
   -webkit-mask: none;
   mask: none;
   pointer-events: none;
-  animation: none;
+  opacity: .12;
+  animation: space-scan-surface-breathe 2.4s ease-in-out infinite;
 }
 
-/* 仅在空间充足的收起方块中显示文字；展开方块保留圆点，避免覆盖标题操作。 */
-@container (min-width: 140px) and (min-height: 80px) {
-  .space-treemap .sia-treemap__tile.is-active:not(.is-expanded)::after {
-    content: "正在探查";
-    inset: 8px auto auto 8px;
-    width: auto;
-    height: auto;
-    padding: 3px 8px;
-    border-radius: 3px;
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 18px;
+/* 文字与标题栏位于亮度层上方，保持对比度；不提高父方块层级以免遮住子块。 */
+.space-treemap .sia-treemap__tile.is-active > .sia-treemap__content {
+  z-index: 1;
+}
+.space-treemap .sia-treemap__tile.is-active > .sia-treemap__header {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}
+
+/* 暗色主题降低提亮幅度，避免大面积方块在深色背景中过于刺眼。 */
+[data-sia-theme="dark"] .space-treemap .sia-treemap__tile.is-active::after {
+  --space-scan-peak-opacity: .2;
+}
+@keyframes space-scan-surface-breathe {
+  0%, 100% { opacity: .12; }
+  50% { opacity: var(--space-scan-peak-opacity, .38); }
+}
+
+/* 减少动态效果时保留静态提亮，仍能区分当前扫描方块。 */
+@media (prefers-reduced-motion: reduce) {
+  .space-treemap .sia-treemap__tile.is-active::after {
+    animation: none;
+    opacity: var(--space-scan-peak-opacity, .38);
   }
 }
 

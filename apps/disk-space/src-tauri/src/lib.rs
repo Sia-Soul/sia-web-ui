@@ -1,4 +1,7 @@
 use serde::Serialize;
+// 清理模块独立保存扫描快照，避免与空间探测的数据或取消状态混用。
+#[cfg(windows)]
+mod cleanup;
 use std::{
     collections::HashMap,
     fs,
@@ -646,16 +649,28 @@ fn disk_entry_action(action: String, path: String) -> Result<(), String> {
 }
 
 pub fn run() {
-    tauri::Builder::default()
-        .manage(ScanRuntime::default())
+    let builder = tauri::Builder::default().manage(ScanRuntime::default());
+    // Windows 清理接口不影响其他平台已有的空间探测能力。
+    #[cfg(windows)]
+    let builder = builder
+        .manage(cleanup::CleanupRuntime::default())
         .invoke_handler(tauri::generate_handler![
             list_volumes,
             choose_directory,
             start_scan,
             cancel_scan,
             disk_space_window_action,
-            disk_entry_action
-        ])
-        .run(tauri::generate_context!())
+            disk_entry_action,
+            cleanup::scan_cleanup,
+            cleanup::execute_cleanup,
+            cleanup::cancel_cleanup,
+            cleanup::cleanup_progress
+        ]);
+    #[cfg(not(windows))]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        list_volumes, choose_directory, start_scan, cancel_scan,
+        disk_space_window_action, disk_entry_action
+    ]);
+    builder.run(tauri::generate_context!())
         .expect("启动 Sia 磁盘空间探测器失败");
 }

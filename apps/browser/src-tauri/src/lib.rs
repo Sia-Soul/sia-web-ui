@@ -1693,6 +1693,8 @@ pub fn run() {
             floating_windows::close_floating_tab_panel_if_pointer_outside,
             floating_windows::floating_tab_panel_action,
             floating_windows::get_browser_menu_state,
+            // 菜单透明留白不参与原生命中，范围由可见面板和子菜单同步。
+            floating_windows::update_browser_menu_regions,
             floating_windows::show_browser_tab_tooltip,
             floating_windows::present_browser_tab_tooltip,
             floating_windows::close_browser_tab_tooltip,

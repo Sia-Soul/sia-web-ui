@@ -14,6 +14,11 @@ use tauri::{
 #[cfg(windows)]
 use windows::Win32::Foundation::{POINT, RECT};
 #[cfg(windows)]
+use windows::Win32::Graphics::Gdi::{
+    CombineRgn, CreateRectRgn, CreateRoundRectRgn, DeleteObject, GetWindowRgn, PtInRegion,
+    SetWindowRgn, HRGN, RGN_OR,
+};
+#[cfg(windows)]
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     GetAsyncKeyState, VK_LBUTTON, VK_MBUTTON, VK_RBUTTON,
 };
@@ -29,13 +34,85 @@ const MENU_LABEL: &str = "browser-menu";
 const TAB_TOOLTIP_LABEL: &str = "sia-tab-tooltip-window";
 static TAB_TOOLTIP_GENERATION: AtomicU64 = AtomicU64::new(0);
 const TAB_PANEL_SHADOW_SPACE: f64 = 8.0;
-// 菜单和工具面板四周的透明留白（逻辑像素），与 styles.css 中的 20px 外边距保持一致，避免阴影被裁切。
+// 菜单布局留白（逻辑像素）与 CSS 外边距一致；原生窗口形状排除此留白，不拦截底层点击。
 const MENU_SHADOW_SPACE: f64 = 20.0;
 const TAB_PANEL_TRANSITION_DURATION: Duration = Duration::from_millis(190);
 static TAB_PANEL_VISIBLE: AtomicBool = AtomicBool::new(false);
 static TAB_PANEL_VISIBILITY_GENERATION: AtomicU64 = AtomicU64::new(0);
 static TAB_PANEL_MENU_HOLD: AtomicBool = AtomicBool::new(false);
 static MENU_VISIBILITY_GENERATION: AtomicU64 = AtomicU64::new(0);
+// 显示批次和外部点击监视代次独立，避免旧 DOM 测量覆盖刚切换的面板。
+static MENU_REGION_REVISION: AtomicU64 = AtomicU64::new(0);
+
+/// 菜单实际可见表面的客户区范围，单位为 CSS 像素；不包含透明外边距。
+#[derive(Clone, Debug, Deserialize)]
+pub struct MenuSurfaceRegion {
+    /// 表面左边缘相对窗口客户区的位置。
+    x: f64,
+    /// 表面上边缘相对窗口客户区的位置。
+    y: f64,
+    /// 表面的可见宽度。
+    width: f64,
+    /// 表面的可见高度。
+    height: f64,
+    /// 圆角半径；零表示矩形。
+    radius: f64,
+}
+
+/// 将可见表面合并为原生窗口形状，区域之外不绘制也不拦截底层窗口的鼠标。
+#[cfg(windows)]
+fn create_menu_region(regions: &[MenuSurfaceRegion], scale: f64) -> Result<HRGN, String> {
+    let combined = unsafe { CreateRectRgn(0, 0, 0, 0) };
+    if combined.is_invalid() { return Err("无法创建菜单命中区域".into()); }
+    for rect in regions {
+        if ![rect.x, rect.y, rect.width, rect.height, rect.radius].iter().all(|v| v.is_finite())
+            || rect.width <= 0.0 || rect.height <= 0.0 { continue; }
+        let diameter = (rect.radius.max(0.0).min(rect.width / 2.0).min(rect.height / 2.0) * 2.0 * scale).round() as i32;
+        let part = unsafe { CreateRoundRectRgn(
+            (rect.x * scale).floor() as i32, (rect.y * scale).floor() as i32,
+            ((rect.x + rect.width) * scale).ceil() as i32,
+            ((rect.y + rect.height) * scale).ceil() as i32, diameter, diameter,
+        ) };
+        if part.is_invalid() {
+            unsafe { let _ = DeleteObject(combined.into()); }
+            return Err("无法创建菜单表面区域".into());
+        }
+        let result = unsafe { CombineRgn(Some(combined), Some(combined), Some(part), RGN_OR) };
+        unsafe { let _ = DeleteObject(part.into()); }
+        if result.0 == 0 {
+            unsafe { let _ = DeleteObject(combined.into()); }
+            return Err("无法合并菜单表面区域".into());
+        }
+    }
+    Ok(combined)
+}
+
+/// 必须在窗口线程设置形状；成功后区域句柄归 Windows 所有，失败时自行释放。
+fn apply_menu_regions(window: &WebviewWindow, regions: &[MenuSurfaceRegion]) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        let hwnd = window.hwnd().map_err(|error| error.to_string())?;
+        let region = create_menu_region(regions, window.scale_factor().map_err(|error| error.to_string())?)?;
+        if unsafe { SetWindowRgn(hwnd, Some(region), true) } == 0 {
+            unsafe { let _ = DeleteObject(region.into()); }
+            return Err("无法应用菜单命中区域".into());
+        }
+    }
+    Ok(())
+}
+
+/// 由菜单 WebView 回传表面；只接受当前批次，并在主线程再次校验以避免切换竞态。
+#[tauri::command]
+pub async fn update_browser_menu_regions(window: WebviewWindow, revision: u64, regions: Vec<MenuSurfaceRegion>) -> Result<(), String> {
+    if window.label() != MENU_LABEL || regions.len() > 32 { return Err("无效的菜单区域请求".into()); }
+    let app = window.app_handle().clone();
+    window.clone().run_on_main_thread(move || {
+        if MENU_REGION_REVISION.load(Ordering::SeqCst) != revision { return; }
+        if let Err(error) = apply_menu_regions(&window, &regions) {
+            let _ = app.emit("sia://browser-menu-error", error);
+        }
+    }).map_err(|error| error.to_string())
+}
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -369,6 +446,10 @@ fn show_and_sync_window(
     bounds: FloatingWindowBounds,
 ) -> Result<(), String> {
     sync_window_bounds(app, window, source_window, bounds)?;
+    if window.label() == MENU_LABEL {
+        // 新面板尚未完成 DOM 布局时先保持空形状，避免旧范围或整块透明画布短暂拦截点击。
+        apply_menu_regions(window, &[])?;
+    }
     set_owned_window_visible(window, true)
 }
 
@@ -418,6 +499,49 @@ fn menu_outer_bounds(bounds: FloatingWindowBounds) -> FloatingWindowBounds {
         width: bounds.width + MENU_SHADOW_SPACE * 2.0,
         height: bounds.height + MENU_SHADOW_SPACE * 2.0,
     }
+}
+
+/// 为级联菜单预留横向空间，优先向右；靠右时向左扩展，主菜单屏幕坐标保持不变。
+fn cascade_canvas(root: (i32, i32, u32, u32), main: (i32, i32, u32, u32), scale: f64, depth: usize) -> (i32, i32, u32, u32) {
+    let width = main.2.min(root.2.saturating_add((284.0 * scale * depth as f64).round() as u32));
+    let height = main.3.min(root.3.max((480.0 * scale).round() as u32));
+    let right_limit = main.0.saturating_add(main.2.saturating_sub(width) as i32);
+    // 预留空间必须完整落在同一侧，不能把空间分散到左右后两侧都放不下子菜单。
+    let x = if root.0 <= right_limit { root.0 }
+        else { root.0.saturating_sub(width.saturating_sub(root.2) as i32).max(main.0) };
+    let bottom_limit = main.1.saturating_add(main.3.saturating_sub(height) as i32);
+    (x, root.1.clamp(main.1, bottom_limit), width, height)
+}
+
+/// 只为含 children 的普通菜单扩大透明画布，工具面板与没有子项的菜单仍使用原尺寸。
+fn prepare_cascade_menu(app: &AppHandle, payload: &mut Value, source: String, bounds: FloatingWindowBounds) -> Result<(String, FloatingWindowBounds), String> {
+    fn depth(items: &Value) -> usize {
+        items.as_array().map(|items| items.iter().map(|item| {
+            item.get("children").filter(|children| children.as_array().is_some_and(|items| !items.is_empty()))
+                .map(|children| 1 + depth(children)).unwrap_or(0)
+        }).max().unwrap_or(0)).unwrap_or(0)
+    }
+    let levels = depth(&payload["items"]);
+    if levels == 0 { return Ok((source, bounds)); }
+    let main = app.get_window("main").ok_or("找不到浏览器主窗口")?;
+    let origin = main.inner_position().map_err(|error| error.to_string())?;
+    let size = main.inner_size().map_err(|error| error.to_string())?;
+    let scale = main.scale_factor().map_err(|error| error.to_string())?;
+    let root = resolve_window_geometry(app, &source, menu_outer_bounds(bounds))?;
+    let (x, y, width, height) = cascade_canvas(root, (origin.x, origin.y, size.width, size.height), scale, levels);
+    payload["menuLayout"] = serde_json::json!({
+        "left": (root.0 - x) as f64 / scale + MENU_SHADOW_SPACE,
+        "top": (root.1 - y) as f64 / scale + MENU_SHADOW_SPACE,
+        "width": bounds.width,
+        "height": bounds.height,
+    });
+    // 转回主窗口逻辑坐标；随后 menu_outer_bounds 只补一次阴影边距。
+    Ok(("main".to_string(), FloatingWindowBounds {
+        x: (x - origin.x) as f64 / scale + MENU_SHADOW_SPACE,
+        y: (y - origin.y) as f64 / scale + MENU_SHADOW_SPACE,
+        width: width as f64 / scale - MENU_SHADOW_SPACE * 2.0,
+        height: height as f64 / scale - MENU_SHADOW_SPACE * 2.0,
+    }))
 }
 
 fn hide_tab_panel(app: &AppHandle) -> Result<(), String> {
@@ -566,7 +690,7 @@ fn start_menu_pointer_watcher(app: &AppHandle) {
             };
             let mut cursor = POINT::default();
             let mut rect = RECT::default();
-            let cursor_inside = unsafe {
+            let mut cursor_inside = unsafe {
                 GetCursorPos(&mut cursor).is_ok()
                     && GetWindowRect(hwnd, &mut rect).is_ok()
                     && cursor.x >= rect.left
@@ -574,6 +698,16 @@ fn start_menu_pointer_watcher(app: &AppHandle) {
                     && cursor.y >= rect.top
                     && cursor.y < rect.bottom
             };
+            if cursor_inside {
+                // 用实际窗口形状判断外部点击，级联菜单预留的透明画布也属于外部。
+                let region = unsafe { CreateRectRgn(0, 0, 0, 0) };
+                if !region.is_invalid() {
+                    if unsafe { GetWindowRgn(hwnd, region) }.0 != 0 {
+                        cursor_inside = unsafe { PtInRegion(region, cursor.x - rect.left, cursor.y - rect.top) }.as_bool();
+                    }
+                    unsafe { let _ = DeleteObject(region.into()); }
+                }
+            }
             let pointer_down = unsafe {
                 [VK_LBUTTON, VK_RBUTTON, VK_MBUTTON]
                     .into_iter()
@@ -807,7 +941,7 @@ pub fn floating_tab_panel_action(
 pub fn show_menu(
     app: &AppHandle,
     store: &BrowserMenuStore,
-    payload: Value,
+    mut payload: Value,
     source_window: String,
     bounds: FloatingWindowBounds,
 ) -> Result<(), String> {
@@ -825,6 +959,8 @@ pub fn show_menu(
             raise_tab_panel_if_visible(app);
         }
     }
+    let (source_window, bounds) = prepare_cascade_menu(app, &mut payload, source_window, bounds)?;
+    payload["hitRegionRevision"] = Value::from(MENU_REGION_REVISION.fetch_add(1, Ordering::SeqCst) + 1);
     {
         let mut state = store
             .0
@@ -890,6 +1026,51 @@ pub fn browser_menu_action(app: AppHandle, action: FloatingWindowAction) -> Resu
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[cfg(windows)]
+    #[test]
+    fn menu_region_excludes_transparent_padding_and_unused_cascade_canvas() {
+        // 直接使用 Windows 区域 API 验证缩放后的命中，不以 CSS 透明度代替原生结果。
+        for scale in [1.0, 1.25, 1.5, 2.0] {
+            let root = MenuSurfaceRegion { x: 20.0, y: 20.0, width: 304.0, height: 494.0, radius: 12.0 };
+            let child = MenuSurfaceRegion { x: 330.0, y: 60.0, width: 260.0, height: 160.0, radius: 8.0 };
+            let contains = |region: HRGN, x: f64, y: f64| unsafe {
+                PtInRegion(region, (x * scale) as i32, (y * scale) as i32).as_bool()
+            };
+            let region = create_menu_region(&[root.clone()], scale).unwrap();
+            assert!(contains(region, 100.0, 100.0));
+            assert!(!contains(region, 100.0, 10.0), "面板上方透明边距必须穿透");
+            assert!(!contains(region, 10.0, 100.0));
+            assert!(!contains(region, 400.0, 100.0), "预留画布不能挡住底层网页");
+            assert!(!contains(region, 20.0, 20.0), "圆角外的透明角落必须穿透");
+            unsafe { let _ = DeleteObject(region.into()); }
+            let region = create_menu_region(&[root, child], scale).unwrap();
+            assert!(contains(region, 400.0, 100.0), "已展开的子菜单必须能够点击");
+            assert!(!contains(region, 400.0, 300.0));
+            assert!(!contains(region, 327.0, 100.0), "两个面板之间不应连成大矩形");
+            unsafe { let _ = DeleteObject(region.into()); }
+            let region = create_menu_region(&[], scale).unwrap();
+            assert!(!contains(region, 100.0, 100.0), "等待新布局时不可沿用上次的命中范围");
+            unsafe { let _ = DeleteObject(region.into()); }
+        }
+    }
+
+    #[test]
+    fn cascade_canvas_keeps_root_and_fits_both_edges_at_high_dpi() {
+        // 左侧菜单向右展开，右侧菜单向左腾出空间；坐标支持负屏幕原点及缩放。
+        for scale in [1.0, 1.5, 2.0] {
+            let main = (-1000, 80, (1000.0 * scale) as u32, (800.0 * scale) as u32);
+            let root_width = (344.0 * scale) as u32;
+            for x in [main.0, main.0 + (main.2 - root_width) as i32] {
+                let root = (x, 100, root_width, (534.0 * scale) as u32);
+                let canvas = cascade_canvas(root, main, scale, 1);
+                assert!(canvas.0 <= root.0);
+                assert!(canvas.0 + canvas.2 as i32 >= root.0 + root.2 as i32);
+                assert!(canvas.0 >= main.0 && canvas.0 + canvas.2 as i32 <= main.0 + main.2 as i32);
+                assert!(canvas.1 >= main.1 && canvas.1 + canvas.3 as i32 <= main.1 + main.3 as i32);
+            }
+        }
+    }
 
     #[test]
     fn toolbar_toggle_uses_identity_and_explicit_user_intent() {

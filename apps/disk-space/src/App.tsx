@@ -37,6 +37,7 @@ import {
   startNativeScan,
 } from "./diskGateway";
 import type { DiskVolume, ScanBatch, ScanNodeRecord, ScanPhase, SkippedEntry } from "./types";
+import { CleanupView } from "./CleanupView";
 
 const FILE_COLORS = [
   "#88bde6",
@@ -332,6 +333,9 @@ export default function App() {
   const [loadingVolumes, setLoadingVolumes] = useState(true);
   const [selectedPath, setSelectedPath] = useState("");
   const [view, setView] = useState<"selection" | "scanner">("selection");
+  // 清理独立于空间探测视图，返回时保留已有探测结果；执行期间禁止切换。
+  const [cleanupOpen, setCleanupOpen] = useState(false);
+  const [cleanupBusy, setCleanupBusy] = useState(false);
   const [phase, setPhase] = useState<ScanPhase>("started");
   const [activeScanId, setActiveScanId] = useState<number | null>(null);
   const [activeNodeId, setActiveNodeId] = useState<number | null>(null);
@@ -604,6 +608,11 @@ export default function App() {
   }
 
   function runWindowAction(action: WindowAction) {
+    // 清理任务关闭前先由用户停止，避免结果尚未展示就退出进程。
+    if (action === "close" && cleanupBusy) {
+      message.warning("请先停止垃圾扫描或清理，再关闭窗口");
+      return;
+    }
     const invoke = window.__TAURI__?.core?.invoke;
     if (!isDesktopRuntime || !invoke) return;
     if (action === "toggle-maximize") setWindowMaximized((value) => !value);
@@ -625,7 +634,12 @@ export default function App() {
       )}
       actions={(
         <>
-          {view === "scanner" ? (
+          <Button className="titlebar-action-button" size="small" variant="text"
+            disabled={cleanupBusy || (view === "scanner" && isScanning)}
+            onClick={() => setCleanupOpen((value) => !value)}>
+            {cleanupOpen ? "返回空间探测" : "垃圾清理"}
+          </Button>
+          {!cleanupOpen && view === "scanner" ? (
             <>
               <Button
                 className="titlebar-action-button"
@@ -656,6 +670,12 @@ export default function App() {
       onWindowAction={runWindowAction}
     />
   );
+
+  if (cleanupOpen) {
+    return <WindowFrame className="disk-window-frame" titleBar={windowTitleBar}>
+      <CleanupView onBack={() => setCleanupOpen(false)} onBusyChange={setCleanupBusy} />
+    </WindowFrame>;
+  }
 
   if (view === "selection") {
     return (

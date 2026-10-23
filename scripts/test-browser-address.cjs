@@ -124,11 +124,19 @@ const { chromium } = require(require('node:path').join(process.argv[2], 'playwri
       assert.deepEqual(await input.evaluate(el => [el.selectionStart, el.selectionEnd]), [Math.min(from, to), Math.max(from, to)], '拖选必须以按下位置为起点');
     }
     assert.equal(await page.evaluate(() => window.addressTest.textDrags), 0, '首次拖选不能启动地址文本拖拽');
+    // 普通首次单击在释放后全选，随后已聚焦的点击仍可定位光标进行编辑。
+    await input.evaluate(el => el.blur());
+    await page.waitForTimeout(600);
+    await input.click({ position: { x: 80, y: 12 } });
+    assert.deepEqual(await input.evaluate(el => [el.selectionStart, el.selectionEnd]), [0, (await input.inputValue()).length], '首次单击应全选地址');
+    await page.waitForTimeout(600);
+    await input.click({ position: { x: 120, y: 12 } });
+    assert.equal(await input.evaluate(el => el.selectionStart === el.selectionEnd), true, '已聚焦时允许定位光标');
     // 键盘进入地址栏仍应全选，方便直接输入新地址。
     await input.evaluate(el => el.blur());
     await page.keyboard.press('Control+l');
     assert.deepEqual(await input.evaluate(el => [el.selectionStart, el.selectionEnd]), [0, (await input.inputValue()).length]);
     assert.deepEqual(errors, [], '页面不能出现未捕获异常');
-    console.log('PASS 地址栏：首次按下定位、双向拖选且不触发拖拽、Ctrl+L 全选、历史/收藏补全、Tab 接受与移焦、输入法、回车导航及原始协议。');
+    console.log('PASS 地址栏：首次单击全选、聚焦后定位、双向拖选且不触发拖拽、Ctrl+L 全选、历史/收藏补全、Tab 接受与移焦、输入法、回车导航及原始协议。');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

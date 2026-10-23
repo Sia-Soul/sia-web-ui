@@ -38,7 +38,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
 OutputBaseFilename={#OutputName}
 SetupIconFile={#PayloadDir}\app.ico
-UninstallDisplayIcon={app}\app.ico
+UninstallDisplayIcon={app}\app-s1e-iridescent.ico
 UninstallDisplayName={#ProductName}
 Compression=lzma2/fast
 SolidCompression=yes
@@ -56,22 +56,44 @@ Name: "chinesesimp"; MessagesFile: "ChineseSimplified.isl"
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "快捷方式："; Flags: unchecked
 
 [Files]
-; 只允许这两个运行文件进入安装包，前端已内嵌到 EXE，不收集浏览数据或发布目录杂项。
+; 显式列出程序与品牌图标，前端已内嵌到 EXE，不收集浏览数据或发布目录杂项。
 Source: "{#PayloadDir}\sia-browser.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#PayloadDir}\app.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#PayloadDir}\app-s1e-iridescent.ico"; DestDir: "{app}"; Flags: ignoreversion
 ; 迁移脚本只解压到安装临时目录，不留在应用目录中。
 Source: "migrate-legacy.ps1"; Flags: dontcopy
 Source: "close-running-browser.ps1"; Flags: dontcopy
+Source: "update-pinned-shortcuts.ps1"; Flags: dontcopy
 
 [Icons]
-Name: "{group}\{#ProductName}"; Filename: "{app}\sia-browser.exe"; IconFilename: "{app}\app.ico"; WorkingDir: "{app}"
+Name: "{group}\{#ProductName}"; Filename: "{app}\sia-browser.exe"; IconFilename: "{app}\app-s1e-iridescent.ico"; WorkingDir: "{app}"
 Name: "{group}\卸载{#ProductName}"; Filename: "{uninstallexe}"
-Name: "{userdesktop}\{#ProductName}"; Filename: "{app}\sia-browser.exe"; IconFilename: "{app}\app.ico"; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{userdesktop}\{#ProductName}"; Filename: "{app}\sia-browser.exe"; IconFilename: "{app}\app-s1e-iridescent.ico"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\sia-browser.exe"; Description: "启动{#ProductName}"; Flags: nowait postinstall skipifsilent
 
 [Code]
+// 文件安装完成后更新已有任务栏链接；验证包不访问用户的真实固定项目。
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ExitCode: Integer;
+begin
+#ifndef ValidationBuild
+  if CurStep = ssPostInstall then
+  begin
+    ExtractTemporaryFile('update-pinned-shortcuts.ps1');
+    if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+      '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' +
+      ExpandConstant('{tmp}\update-pinned-shortcuts.ps1') + '" -InstallDirectory "' + ExpandConstant('{app}') + '"',
+      '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then
+      Log('无法启动任务栏快捷方式更新程序。')
+    else if ExitCode <> 0 then
+      Log('任务栏快捷方式更新未完成，退出码：' + IntToStr(ExitCode));
+  end;
+#endif
+end;
+
 // 用户选择强制关闭后才运行固定脚本，按产品身份和会话筛选，不按名称批量结束其他软件。
 function ForceCloseBrowser: String;
 var

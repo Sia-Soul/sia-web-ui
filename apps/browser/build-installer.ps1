@@ -46,6 +46,9 @@ if (-not $SkipBuild) {
 
 # 即使显式复用构建产物，也必须校验版本、产品名称和 x64 架构，避免交付错包。
 $info = (Get-Item -LiteralPath $exe).VersionInfo
+# 校验 EXE 的真实资源帧，避免只更新外置 ICO 却把旧内嵌图标打进安装包。
+& node (Join-Path $PSScriptRoot '../../scripts/test-browser-icon-resource.cjs') $exe
+if ($LASTEXITCODE -ne 0) { throw '主程序内嵌图标与正式图稿不一致，未生成安装包。' }
 # Tauri 的显示版本省略末尾 .0，使用 PE 数值字段比较，避免三段与四段版本被误判。
 $builtVersion = "$($info.FileMajorPart).$($info.FileMinorPart).$($info.FileBuildPart)"
 if ($builtVersion -ne $version -or $info.FilePrivatePart -ne 0 -or $info.ProductName -ne $config.productName) {
@@ -57,6 +60,8 @@ if ([BitConverter]::ToUInt16($pe, $header + 4) -ne 0x8664) { throw '当前安装
 New-Item -ItemType Directory -Path $stage,$output -Force | Out-Null
 Copy-Item -LiteralPath $exe -Destination $stage
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'src-tauri\icons\icon.ico') -Destination (Join-Path $stage 'app.ico')
+# 品牌专用文件名使升级后的快捷方式不复用旧图标缓存，保留 app.ico 兼容已有引用。
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'src-tauri\icons\icon.ico') -Destination (Join-Path $stage 'app-s1e-iridescent.ico')
 $compileArgs = @("/DAppVersion=$version", "/DPayloadDir=$stage", "/O$output")
 $baseName = "Sia-Browser-Setup-$version-x64"
 if ($ValidationBuild) {
