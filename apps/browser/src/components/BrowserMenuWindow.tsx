@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { extensionMatchesScope, type ExtensionScope } from "../extensionScopes";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Icon, Input, Menu, applySiaTheme } from "@sia.soul/sia-react-ui";
 import type { MenuItem } from "@sia.soul/sia-react-ui";
+import type { BrowserExtensionRecord } from "./BrowserSettingsPage";
 
 export interface BrowserMenuItem {
   type?: "divider";
@@ -36,12 +38,22 @@ export interface BrowserPanelEntry {
 
 export interface BrowserMenuPayload {
   darkMode: boolean;
-  kind?: "menu" | "back-history" | "downloads" | "history" | "bookmarks";
+  kind?: "menu" | "back-history" | "downloads" | "history" | "bookmarks" | "extensions";
+  /** 面板入口标识；自动显示和用户切换共享此身份。 */
+  panelKey?: string;
+  /** 仅用户点击时设置，相同入口再次点击关闭面板。 */
+  toggleKey?: string;
+  /** 主窗口客户区内的触发按钮范围，单位为逻辑像素。 */
+  triggerBounds?: { x: number; y: number; width: number; height: number };
   heading?: string;
   items: BrowserMenuItem[];
   entries?: BrowserPanelEntry[];
   currentTitle?: string;
   currentUrl?: string;
+  /** 预加载的受管扩展列表，打开后在后台刷新。 */
+  extensions?: BrowserExtensionRecord[];
+  /** 当前标签的隔离范围，用于过滤列表和固定入口。 */
+  extensionScope?: ExtensionScope;
 }
 
 interface BrowserMenuAction {
@@ -90,6 +102,14 @@ export default function BrowserMenuWindow() {
   const [historyTab, setHistoryTab] = useState<"all" | "recent">("all");
   const [expandedFavorites, setExpandedFavorites] = useState(true);
   const [downloadContextMenu, setDownloadContextMenu] = useState<DownloadContextMenuState | null>(null);
+  const [extensions, setExtensions] = useState<BrowserExtensionRecord[]>([]);
+  const [extensionMenu, setExtensionMenu] = useState<{ id: string; y: number } | null>(null);
+  const [extensionBusy, setExtensionBusy] = useState(false);
+  const [extensionError, setExtensionError] = useState("");
+  const [extensionLoading, setExtensionLoading] = useState(false);
+  const [removeConfirmation, setRemoveConfirmation] = useState(false);
+  // 面板重新打开或切换后，旧异步操作不能覆盖新一轮列表和错误状态。
+  const payloadRevision = useRef(0);
 
   useEffect(() => {
     let disposed = false;
@@ -97,6 +117,7 @@ export default function BrowserMenuWindow() {
     let pollTimer: number | undefined;
     const acceptPayload = (nextPayload: BrowserMenuPayload) => {
       if (disposed) return;
+      payloadRevision.current += 1;
       if (pollTimer !== undefined) {
         window.clearInterval(pollTimer);
         pollTimer = undefined;
@@ -106,6 +127,12 @@ export default function BrowserMenuWindow() {
       setSearchVisible(false);
       setHistoryTab("all");
       setDownloadContextMenu(null);
+      setExtensionMenu(null);
+      setRemoveConfirmation(false);
+      setExtensionError("");
+      setExtensionBusy(false);
+      setExtensionLoading(nextPayload.kind === "extensions");
+      setExtensions(nextPayload.extensions ?? []);
       setPayload(nextPayload);
     };
     const readCurrentState = () => {
@@ -141,8 +168,41 @@ export default function BrowserMenuWindow() {
   }, [payload]);
 
   useEffect(() => {
+    if (!window.__TAURI__) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void window.__TAURI__.event.listen<Pick<BrowserMenuPayload, "extensionScope" | "heading">>("sia://extension-context-changed", ({ payload: context }) => {
+      payloadRevision.current += 1;
+      setExtensionBusy(false);
+      setExtensionError("");
+      setRemoveConfirmation(false);
+      setExtensionMenu(null);
+      setPayload((current) => current?.kind === "extensions" ? { ...current, ...context } : current);
+    }).then((dispose) => { if (disposed) dispose(); else unlisten = dispose; });
+    return () => { disposed = true; unlisten?.(); };
+  }, []);
+
+  useEffect(() => {
+    if (payload?.kind !== "extensions") return;
+    let disposed = false;
+    setExtensionLoading(true);
+    // 首帧使用缓存，刷新失败时保留已有列表并展示错误，避免空白闪烁。
+    void invokeNative<BrowserExtensionRecord[]>("list_browser_extensions").then((records) => {
+      if (!disposed) setExtensions(records);
+    }).catch((error) => {
+      if (!disposed) setExtensionError(String(error));
+    }).finally(() => { if (!disposed) setExtensionLoading(false); });
+    return () => { disposed = true; };
+  }, [payload]);
+
+  useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
+      if (extensionMenu) {
+        setExtensionMenu(null);
+        setRemoveConfirmation(false);
+        return;
+      }
       if (downloadContextMenu) {
         setDownloadContextMenu(null);
         return;
@@ -155,7 +215,7 @@ export default function BrowserMenuWindow() {
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [downloadContextMenu, submenu]);
+  }, [downloadContextMenu, submenu, extensionMenu]);
 
   const items = useMemo(
     () => submenu?.children ?? payload?.items ?? [],
@@ -173,6 +233,7 @@ export default function BrowserMenuWindow() {
   }, [payload?.entries, query]);
 
   async function dispatchAction(action: string) {
+    payloadRevision.current += 1;
     setDownloadContextMenu(null);
     setPayload(null);
     await invokeNative("browser_menu_action", {
@@ -185,7 +246,7 @@ export default function BrowserMenuWindow() {
   function openDownloadContextMenu(event: React.MouseEvent, entry: BrowserPanelEntry) {
     event.preventDefault();
     event.stopPropagation();
-    const menuWidth = 320;
+    const menuWidth = 280;
     const menuHeight = 350;
     setDownloadContextMenu({
       entry,
@@ -567,7 +628,98 @@ export default function BrowserMenuWindow() {
     );
   }
 
+  /** 扩展写操作完成后更新当前列表；失败保留原状态，允许用户重试。 */
+  async function changeExtension(extension: BrowserExtensionRecord, action: "pin" | "enabled" | "remove") {
+    // 刷新期间不提交写操作，避免旧列表响应覆盖刚保存的固定或启停状态。
+    if (extensionBusy || extensionLoading) return;
+    const revision = payloadRevision.current;
+    setExtensionBusy(true);
+    setExtensionError("");
+    try {
+      if (action === "pin") {
+        await invokeNative("set_browser_extension_pinned", { id: extension.id, pinned: !extension.pinned });
+        if (revision !== payloadRevision.current) return;
+        setExtensions((records) => records.map((record) => record.id === extension.id ? { ...record, pinned: !extension.pinned } : record));
+      } else if (action === "enabled") {
+        await invokeNative("set_browser_extension_enabled", { id: extension.id, enabled: !extension.enabled });
+        if (revision !== payloadRevision.current) return;
+        setExtensions((records) => records.map((record) => record.id === extension.id ? { ...record, enabled: !extension.enabled } : record));
+      } else {
+        await invokeNative("remove_browser_extension", { id: extension.id });
+        if (revision !== payloadRevision.current) return;
+        setExtensions((records) => records.filter((record) => record.id !== extension.id));
+      }
+      setExtensionMenu(null);
+      setRemoveConfirmation(false);
+    } catch (error) { if (revision === payloadRevision.current) setExtensionError(String(error)); }
+    finally { if (revision === payloadRevision.current) setExtensionBusy(false); }
+  }
+
+  /** 紧凑扩展面板：名称与状态分两行，固定和更多操作始终占用独立列。 */
+  function renderExtensions() {
+    // 缺少上下文时仅显示全局扩展，避免旧窗口消息泄漏其他分组入口。
+    const visibleExtensions = extensions.filter((extension) => extensionMatchesScope(extension.scopes, payload?.extensionScope?.groupId ?? "", payload?.extensionScope?.smallGroupId));
+    const selected = visibleExtensions.find((extension) => extension.id === extensionMenu?.id);
+    const contextItems: MenuItem[] = selected ? [
+      { key: "name", label: selected.name, disabled: true },
+      { key: "enabled", label: selected.enabled ? "停用扩展" : "启用扩展", disabled: extensionBusy || extensionLoading },
+      { key: "options", label: "扩展选项", disabled: !selected.enabled || !selected.optionsPage },
+      { key: "pin", label: selected.pinned ? "从工具栏取消固定" : "固定到工具栏", disabled: extensionBusy || extensionLoading },
+      { key: "divider", type: "divider" },
+      { key: "manage", label: "管理扩展" },
+      { key: "remove", label: removeConfirmation ? "确认移除此扩展" : "从浏览器中移除", danger: true, disabled: extensionBusy || extensionLoading },
+    ] : [];
+    return (
+      <section className="browser-panel browser-panel--extensions" aria-label="扩展面板">
+        <header className="browser-panel__header"><strong>扩展</strong></header>
+        {/* 当前引擎只提供全局启停，不把它误标成单个网站的访问权限。 */}
+        <div className="browser-extensions-summary">{payload?.heading ? `${payload.heading} · ` : ""}已启用 {visibleExtensions.filter((extension) => extension.enabled).length} 个扩展</div>
+        {extensionError ? <div className="browser-extensions-error" role="alert">{extensionError}</div> : null}
+        <div className="browser-panel__scroll">
+          {visibleExtensions.length ? visibleExtensions.map((extension) => (
+            <article className={`browser-extension-row${extension.enabled ? "" : " is-disabled"}`} key={extension.id}>
+              {extension.iconUrl ? <img className="browser-extension-icon" src={extension.iconUrl} alt="" /> : <Icon name="puzzle" size={22} />}
+              <div className="browser-extension-copy">
+                <span className="browser-extension-name" title={extension.name}>{extension.name}</span>
+                <span className="browser-extension-status">{extension.enabled ? "已启用" : "已停用"}</span>
+              </div>
+              <Button className="browser-panel__toolbar-button" variant="text" size="small"
+                icon={<Icon name={extension.pinned ? "pin-off" : "pin"} size={17} />}
+                aria-label={`${extension.pinned ? "取消固定" : "固定"} ${extension.name}`} aria-pressed={Boolean(extension.pinned)}
+                title={extension.pinned ? "从工具栏取消固定" : "固定到工具栏"} disabled={extensionBusy || extensionLoading}
+                onClick={() => void changeExtension(extension, "pin")} />
+              <Button className="browser-panel__toolbar-button" variant="text" size="small"
+                icon={<Icon name="more-horizontal" size={18} />} aria-label={`${extension.name} 更多操作`}
+                aria-expanded={extensionMenu?.id === extension.id}
+                onClick={(event) => {
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  setRemoveConfirmation(false);
+                  setExtensionMenu(extensionMenu?.id === extension.id ? null : { id: extension.id, y: Math.max(24, Math.min(rect.bottom, window.innerHeight - 290)) });
+                }} />
+            </article>
+          )) : <div className="browser-panel__empty">{extensionLoading ? "正在读取扩展…" : "当前分组没有可用扩展"}</div>}
+        </div>
+        <footer className="browser-extensions-footer">
+          <Button variant="text" icon={<Icon name="puzzle" size={18} />} onClick={() => void dispatchAction("panel|extensions|manage")}>管理扩展</Button>
+          <Button variant="text" icon={<Icon name="external-link" size={18} />} onClick={() => void dispatchAction("panel|extensions|store")}>获取 Microsoft Edge 扩展</Button>
+        </footer>
+        {extensionMenu && selected ? (
+          <div className="browser-download-context-layer" onPointerDown={() => { setExtensionMenu(null); setRemoveConfirmation(false); }}>
+            <Menu className="browser-extension-context-menu" style={{ right: 24, top: extensionMenu.y }} items={contextItems}
+              mode="vertical" theme={payload?.darkMode ? "dark" : "light"} selectable={false}
+              onPointerDown={(event) => event.stopPropagation()} onClick={({ key }) => {
+                if (key === "remove" && !removeConfirmation) { setRemoveConfirmation(true); return; }
+                if (key === "pin" || key === "enabled" || key === "remove") void changeExtension(selected, key);
+                else void dispatchAction(`panel|extensions|${key}|${selected.id}`);
+              }} />
+          </div>
+        ) : null}
+      </section>
+    );
+  }
+
   if (!payload) return null;
+  if (payload.kind === "extensions") return renderExtensions();
   if (payload.kind === "downloads") return renderDownloads();
   if (payload.kind === "history") return renderHistory();
   if (payload.kind === "bookmarks") return renderBookmarks();

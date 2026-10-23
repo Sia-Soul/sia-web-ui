@@ -12,7 +12,7 @@ export type MessageKey = string | number;
 export interface MessageConfig {
   /** 唯一标识；同一集合内应保持唯一且稳定，用于定位、渲染和状态关联。 */
   key?: MessageKey;
-  /** 类型标识，用于选择对应的表现形式。 */
+  /** 消息类型；信息、成功、警告和错误使用实心状态图标，loading 使用旋转加载图标。 */
   type?: MessageType;
   /** 消息正文，支持文本或 React 节点。 */
   content: ReactNode;
@@ -45,11 +45,12 @@ let defaultDuration = 3;
 let maxCount = 5;
 const messageTimers = new Map<MessageKey, number>();
 
+// 提示状态优先使用框架实心图标；关闭及加载等操作图标保持各自语义。
 const messageIcons: Record<MessageType, ReactNode> = {
-  info: <Icon name="info" size={18} />,
-  success: <Icon name="circle-check" size={18} />,
-  warning: <Icon name="warning" size={18} />,
-  error: <Icon name="circle-close" size={18} />,
+  info: <Icon name="info" size={18} variant="filled" />,
+  success: <Icon name="circle-check" size={18} variant="filled" />,
+  warning: <Icon name="warning" size={18} variant="filled" />,
+  error: <Icon name="circle-close" size={18} variant="filled" />,
   loading: <Icon name="loader" size={18} spin />,
 };
 

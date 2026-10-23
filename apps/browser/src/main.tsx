@@ -1,11 +1,13 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { Alert } from "@sia.soul/sia-react-ui";
 import "@sia.soul/sia-react-ui/styles.css";
 import App from "./App";
 import BrowserMenuWindow from "./components/BrowserMenuWindow";
 import BrowserOverlayWindow from "./components/BrowserOverlayWindow";
 import BrowserTabPanelWindow from "./components/BrowserTabPanelWindow";
 import "./styles.css";
+import "./shellContextMenu";
 
 async function resolveCurrentWindowLabel() {
   const globalLabel = window.__TAURI__?.window?.getCurrentWindow().label;
@@ -15,6 +17,10 @@ async function resolveCurrentWindowLabel() {
 }
 
 async function renderApplication() {
+  // 页面脚本可能早于原生 WebView 创建完成执行；挂载前等待，避免布局 Effect 重入创建子视图。
+  if (window.__TAURI__) {
+    await window.__TAURI__.core.invoke("wait_browser_ready");
+  }
   const searchParams = new URLSearchParams(window.location.search);
   const windowMode = window.location.hash.replace(/^#\/?/, "");
   const currentWindowLabel = await resolveCurrentWindowLabel().catch(() => "main");
@@ -60,4 +66,9 @@ async function renderApplication() {
   );
 }
 
-void renderApplication();
+// 初始化错误必须可见，避免永久停留在连接中的空白页面。
+void renderApplication().catch((error: unknown) => {
+  ReactDOM.createRoot(document.getElementById("root")!).render(
+    <Alert status="error" message="浏览器启动失败" description={String(error)} showIcon />,
+  );
+});

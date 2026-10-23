@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { FormEvent, MouseEvent as ReactMouseEvent, ReactNode } from "react";
+import { extensionMatchesScope } from "./extensionScopes";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { ChangeEvent, FormEvent, MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import {
   Button,
   Icon,
@@ -11,7 +12,7 @@ import {
   type IconName,
   type WindowAction,
 } from "@sia.soul/sia-react-ui";
-import HorizontalTabStrip from "./components/HorizontalTabStrip";
+import BrowserFavicon, { BrowserBrandGlyph } from "./components/BrowserFavicon";
 import VerticalTabTree from "./components/VerticalTabTree";
 import type { BrowserOverlayPayload } from "./components/BrowserOverlayWindow";
 import type { FloatingTabPanelPayload } from "./components/BrowserTabPanelWindow";
@@ -31,7 +32,6 @@ import {
   ROOT_GROUP_ID,
   type BrowserGroup,
   type BrowserTab,
-  type TabLayoutMode,
 } from "./browserTypes";
 
 interface BrowserBounds {
@@ -43,7 +43,9 @@ interface BrowserBounds {
 
 interface BrowserNativeEvent {
   tabId: string;
-  kind: "load" | "title" | "new-window" | "audio" | "error";
+  kind: "load" | "title" | "new-window" | "audio" | "error" | "favicon";
+  /** 网页内核读取的 PNG 数据地址，空字符串表示清除当前站点图标。 */
+  faviconUrl?: string;
   groupId?: string;
   url?: string;
   title?: string;
@@ -72,8 +74,6 @@ interface BrowserPersistedState {
   tabs: BrowserTab[];
   groups: BrowserGroup[];
   activeId: string;
-  tabLayout: TabLayoutMode;
-  layoutPreferenceSet?: boolean;
   bookmarks?: Bookmark[];
   showBookmarksBar?: boolean;
   verticalPanelPinned?: boolean;
@@ -158,7 +158,8 @@ const GROUP_COLOR_PALETTE = [
   "#0086b3",
 ] as const;
 
-const TAB_SLEEP_DELAY_MS = 30 * 60 * 1000;
+/** 已加载的后台标签连续未激活 1 小时后自动休眠，单位为毫秒。 */
+const TAB_SLEEP_DELAY_MS = 60 * 60 * 1000;
 const COMPACT_VERTICAL_PANEL_WIDTH = 56;
 const DEFAULT_VERTICAL_PANEL_WIDTH = 292;
 const FLOATING_TAB_PANEL_SHADOW_SPACE = 8;
@@ -230,14 +231,86 @@ export default function App() {
   const [addressDraft, setAddressDraft] = useState("");
   const [newTabQuery, setNewTabQuery] = useState("");
   const [darkMode, setDarkMode] = useState(false);
+  // 扩展信息预加载，点击面板时无需等待磁盘扫描。
+  const [toolbarExtensions, setToolbarExtensions] = useState<BrowserExtensionRecord[]>([]);
+  useEffect(() => {
+    // 网页中的密码候选面板是独立 Shadow DOM，需要显式同步浏览器当前的 Sia 主题变量。
+    applySiaTheme(darkMode ? "dark" : "light");
+    if (!isDesktopRuntime) return;
+    // 网页 Profile 独立于外壳 CSS，显式同步以覆盖系统主题和以前保存的深色偏好。
+    void invokeNative("set_browser_theme", { darkMode })
+      .catch(() => message.error("网页主题同步失败，请重试切换主题"));
+    const syncPasswordTheme = () => {
+      const styles = getComputedStyle(document.documentElement);
+      const color = (name: string) => styles.getPropertyValue(name).trim();
+      void invokeNative("set_browser_password_theme", {
+        theme: {
+          darkMode,
+          colors: {
+            surface: color("--sia-color-surface"), text: color("--sia-color-text"),
+            secondary: color("--sia-color-text-secondary"), border: color("--sia-color-border"),
+            primary: color("--sia-color-primary"), hover: color("--sia-color-primary-light"),
+            scrollbar: color("--sia-scrollbar-thumb"),
+          },
+        },
+      }).catch(() => message.error("密码面板主题同步失败，请重试切换主题"));
+    };
+    syncPasswordTheme();
+    const observer = new MutationObserver(syncPasswordTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["style", "data-sia-theme"] });
+    return () => observer.disconnect();
+  }, [darkMode]);
   const [groups, setGroups] = useState<BrowserGroup[]>(() => [...BROWSER_GROUPS]);
-  const [tabLayout, setTabLayout] = useState<TabLayoutMode>("vertical");
-  const [layoutPreferenceSet, setLayoutPreferenceSet] = useState(false);
   const [stateHydrated, setStateHydrated] = useState(!isDesktopRuntime);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([...DEFAULT_BOOKMARKS]);
-  const [showBookmarksBar, setShowBookmarksBar] = useState(true);
+  // 首次启动保留单行导航布局；恢复会话时仍尊重已保存的书签栏偏好。
+  const [showBookmarksBar, setShowBookmarksBar] = useState(false);
   const [closedTabs, setClosedTabs] = useState<BrowserTab[]>([]);
   const [windowMaximized, setWindowMaximized] = useState(false);
+  const [windowActive, setWindowActive] = useState(() => document.hasFocus());
+  const [windowResizeEdges, setWindowResizeEdges] = useState("");
+  useEffect(() => {
+    if (!isDesktopRuntime || !window.__TAURI__) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    // 缩放命中来自原生窗口边缘；主文档无法通过 CSS :hover 读取该区域。
+    void window.__TAURI__.event.listen<string>("sia://window-resize-edges", ({ payload }) => {
+      if (!disposed) setWindowResizeEdges(payload);
+    }).then((dispose) => { if (disposed) dispose(); else unlisten = dispose; });
+    return () => { disposed = true; unlisten?.(); };
+  }, []);
+  useEffect(() => {
+    let disposed = false;
+    let revision = 0;
+    const disposers: (() => void)[] = [];
+    // 原生网页获得焦点也会让外壳 document 失焦，桌面模式必须查询整个窗口的激活状态。
+    const refresh = () => {
+      const request = ++revision;
+      if (!isDesktopRuntime) {
+        setWindowActive(document.hasFocus());
+        return;
+      }
+      void invokeNative<boolean>("is_browser_window_active").then((active) => {
+        if (!disposed && request === revision) setWindowActive(active === true);
+      }).catch((error) => console.error("读取浏览器窗口激活状态失败", error));
+    };
+    window.addEventListener("focus", refresh);
+    window.addEventListener("blur", refresh);
+    if (isDesktopRuntime && window.__TAURI__) {
+      for (const name of ["tauri://focus", "tauri://blur"]) {
+        void window.__TAURI__.event.listen(name, refresh).then((dispose) => {
+          if (disposed) dispose(); else { disposers.push(dispose); refresh(); }
+        });
+      }
+    }
+    refresh();
+    return () => {
+      disposed = true;
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("blur", refresh);
+      disposers.forEach((dispose) => dispose());
+    };
+  }, []);
   const [verticalPanelPinned, setVerticalPanelPinned] = useState(true);
   const [verticalPanelWidth, setVerticalPanelWidth] = useState(DEFAULT_VERTICAL_PANEL_WIDTH);
   const [collapsedGroupIds, setCollapsedGroupIds] = useState<string[]>([]);
@@ -253,6 +326,17 @@ export default function App() {
   const downloadButtonRef = useRef<HTMLButtonElement | null>(null);
   const verticalPanelAnchorRef = useRef<HTMLDivElement | null>(null);
   const addressInputRef = useRef<HTMLInputElement | null>(null);
+  // 鼠标聚焦保留原生光标命中位置，键盘或快捷键聚焦仍全选地址。
+  const addressPointerFocusRef = useRef(false);
+  // 行内候选保留原始协议；显示时省略的 http:// 不能在提交时被误转为 https://。
+  const addressCompletionRef = useRef<{
+    /** 用户实际输入的前缀长度，也是待接受后缀的选区起点。 */
+    prefixLength: number;
+    /** 地址栏显示的完整候选。 */
+    value: string;
+    /** 导航使用的原始完整网址。 */
+    url: string;
+  } | null>(null);
   const addressFocusedRef = useRef(false);
   const previewNoticeShownRef = useRef(false);
   const boundsRef = useRef<BrowserBounds>({ x: 0, y: 126, width: 1200, height: 700 });
@@ -262,6 +346,8 @@ export default function App() {
   const showDownloadsPanelRef = useRef<() => void>(() => undefined);
   const activeTabRef = useRef<BrowserTab>(FIRST_TAB);
   const tabsRef = useRef<BrowserTab[]>([FIRST_TAB]);
+  // 同一标签切换数据空间时禁止重复移动，避免旧 WebView 的关闭回调影响新实例。
+  const movingTabIdsRef = useRef(new Set<string>());
   const navigationStacksRef = useRef<Record<string, BrowserNavigationStack>>({});
   const navigationTargetRef = useRef<Record<string, number | undefined>>({});
   const nativeMenuActionHandlerRef = useRef<(action: string) => void>(() => undefined);
@@ -304,12 +390,6 @@ export default function App() {
   useEffect(() => {
     tabsRef.current = tabs;
   }, [tabs]);
-
-  useEffect(() => {
-    const preventDefaultContextMenu = (event: Event) => event.preventDefault();
-    document.addEventListener("contextmenu", preventDefaultContextMenu);
-    return () => document.removeEventListener("contextmenu", preventDefaultContextMenu);
-  }, []);
 
   useEffect(() => {
     const candidates = tabs.filter((tab) => (
@@ -381,6 +461,8 @@ export default function App() {
       await invokeNative("open_browser_tab", {
         tabId: tab.id,
         groupId: tab.groupId,
+        // 新开及唤醒标签均传递小分组标识，保持其 WebView2 数据空间一致。
+        smallGroupId: tab.smallGroupId ?? null,
         url: tab.url,
         bounds: boundsRef.current,
       });
@@ -396,6 +478,8 @@ export default function App() {
 
     const found = await invokeNative<boolean>("switch_browser_tab", {
       tabId: tab.id,
+      groupId: tab.groupId,
+      smallGroupId: tab.smallGroupId ?? null,
       bounds: boundsRef.current,
     });
     if (found) return;
@@ -442,6 +526,9 @@ export default function App() {
 
     const absoluteOptionsUrl = /^[a-z][a-z\d+.-]*:\/\//i.test(optionsPage);
     const currentTab = activeTabRef.current;
+    if (!extension.enabled || !extensionMatchesScope(extension.scopes, currentTab.groupId, currentTab.smallGroupId)) {
+      throw new Error("当前分组未启用此扩展，请切换到允许的分组或调整生效分组");
+    }
     const nextTab = {
       ...createBlankTab(
         currentTab.groupId ?? DEFAULT_GROUP_ID,
@@ -472,11 +559,11 @@ export default function App() {
       await activateNativeTab(nextTab, true);
       if (absoluteOptionsUrl) return extension.browserId;
 
-      const browserId = extension.browserId ?? await invokeNative<string>(
+      const browserId = await invokeNative<string>(
         "resolve_browser_extension_id",
         {
           id: extension.id,
-          name: extension.name,
+          tabId: nextTab.id,
         },
       );
       if (!browserId) throw new Error(`无法获取扩展“${extension.name}”的运行时标识`);
@@ -596,24 +683,18 @@ export default function App() {
     });
   }
 
-  function showIndependentTabPanel() {
-    if (
-      !isDesktopRuntime
-      || tabLayout !== "vertical"
-      || verticalPanelPinned
-      || floatingPanelOpenRef.current
-    ) {
-      return;
-    }
-    floatingPanelOpenRef.current = true;
-    presentIndependentTabPanel();
-  }
+  // 窗口尺寸监听长期存在，必须读取最近一次提交的主题、标签与分组，避免旧闭包覆盖面板状态。
+  const presentIndependentTabPanelRef = useRef(presentIndependentTabPanel);
+  useLayoutEffect(() => {
+    presentIndependentTabPanelRef.current = presentIndependentTabPanel;
+  });
 
   function hideIndependentTabPanel() {
     floatingPanelOpenRef.current = false;
     void invokeNative("close_floating_tab_panel").catch(() => undefined);
   }
 
+  /** 仅通过面板按钮切换展开状态，鼠标经过紧凑列表时保持收缩。 */
   function toggleVerticalPanelPinned() {
     if (verticalPanelPinned) {
       floatingPanelOpenRef.current = false;
@@ -628,7 +709,6 @@ export default function App() {
   useEffect(() => {
     if (
       !isDesktopRuntime
-      || tabLayout !== "vertical"
       || (!verticalPanelPinned && !floatingPanelOpenRef.current)
     ) {
       return;
@@ -643,7 +723,6 @@ export default function App() {
     collapsedSmallGroupIds,
     darkMode,
     groups,
-    tabLayout,
     tabs,
     verticalPanelPinned,
     verticalPanelWidth,
@@ -651,7 +730,7 @@ export default function App() {
 
   useEffect(() => {
     if (!isDesktopRuntime) return undefined;
-    if (!stateHydrated || tabLayout !== "vertical") {
+    if (!stateHydrated) {
       floatingPanelOpenRef.current = false;
       void invokeNative("close_floating_tab_panel").catch(() => undefined);
       return undefined;
@@ -659,14 +738,14 @@ export default function App() {
     let presentFrame = 0;
     if (verticalPanelPinned) {
       floatingPanelOpenRef.current = true;
-      presentFrame = window.requestAnimationFrame(presentIndependentTabPanel);
+      presentFrame = window.requestAnimationFrame(() => presentIndependentTabPanelRef.current());
     } else {
       floatingPanelOpenRef.current = false;
       void invokeNative("close_floating_tab_panel").catch(() => undefined);
     }
     const handleWindowResize = () => {
       if (verticalPanelPinned || floatingPanelOpenRef.current) {
-        presentIndependentTabPanel();
+        presentIndependentTabPanelRef.current();
       }
     };
     window.addEventListener("resize", handleWindowResize);
@@ -676,9 +755,10 @@ export default function App() {
     };
   }, [
     stateHydrated,
-    tabLayout,
     verticalPanelPinned,
     verticalPanelWidth,
+    // 收藏夹栏改变标题区高度，原生标签面板也必须重新测量顶部与可用高度。
+    showBookmarksBar,
   ]);
 
   useEffect(() => {
@@ -709,6 +789,8 @@ export default function App() {
           const internal = isInternalBrowserUrl(tab.url);
           return {
             ...tab,
+            // 仅更新旧版自动生成的设置标题，保留用户自定义名称和既有内部地址。
+            title: tab.url === SETTINGS_URL && ["Sia设置", "栖页设置"].includes(tab.title) ? "西娅设置" : tab.title,
             loading: active && Boolean(tab.url) && !internal,
             hasWebview: active && Boolean(tab.url) && !internal,
             sleeping: !active && Boolean(tab.url) && !internal,
@@ -724,12 +806,7 @@ export default function App() {
         setGroups(Array.isArray(state.groups) ? state.groups : [...BROWSER_GROUPS]);
         setActiveId(restoredActiveTab.id);
         setAddressDraft(restoredActiveTab.url);
-        setTabLayout(
-          state.layoutPreferenceSet
-            ? (state.tabLayout === "horizontal" ? "horizontal" : "vertical")
-            : "vertical",
-        );
-        setLayoutPreferenceSet(Boolean(state.layoutPreferenceSet));
+        // 所有会话统一使用左侧树形标签；旧版布局偏好不再读取，标签和分组仍完整恢复。
         if (Array.isArray(state.bookmarks)) setBookmarks(state.bookmarks);
         if (Array.isArray(state.history)) setHistoryEntries(state.history.slice(0, 1000));
         if (Array.isArray(state.downloads)) {
@@ -753,7 +830,7 @@ export default function App() {
           setDownloadDirectory(state.downloadDirectory);
         }
         setAskBeforeDownload(Boolean(state.askBeforeDownload));
-        setShowBookmarksBar(state.showBookmarksBar !== false);
+        setShowBookmarksBar(state.showBookmarksBar ?? false);
         const restoredPanelPinned = state.verticalPanelPinned !== false;
         setVerticalPanelPinned(restoredPanelPinned);
         setVerticalPanelWidth(
@@ -772,6 +849,7 @@ export default function App() {
               void invokeNative("open_browser_tab", {
                 tabId: restoredActiveTab.id,
                 groupId: restoredActiveTab.groupId,
+                smallGroupId: restoredActiveTab.smallGroupId ?? null,
                 url: restoredActiveTab.url,
                 bounds: boundsRef.current,
               }).then(() => {
@@ -810,8 +888,6 @@ export default function App() {
       const state: BrowserPersistedState = {
         version: 3,
         activeId,
-        tabLayout,
-        layoutPreferenceSet,
         groups,
         bookmarks,
         history: historyEntries,
@@ -842,10 +918,8 @@ export default function App() {
     downloadDirectory,
     groups,
     historyEntries,
-    layoutPreferenceSet,
     showBookmarksBar,
     stateHydrated,
-    tabLayout,
     tabs,
     allDownloadTasks,
     verticalPanelPinned,
@@ -949,6 +1023,10 @@ export default function App() {
       }
       setTabs((current) => current.map((tab) => {
         if (tab.id !== payload.tabId) return tab;
+        // 图标事件不改变导航和加载状态；文档地址随图标保存，避免跳转过程中串图。
+        if (payload.kind === "favicon") {
+          return { ...tab, faviconUrl: payload.faviconUrl, faviconPageUrl: usableEventUrl };
+        }
         if (payload.kind === "title") {
           return { ...tab, title: payload.title?.trim() || hostLabel(tab.url) || "新标签页" };
         }
@@ -1043,9 +1121,9 @@ export default function App() {
     if (!isDesktopRuntime || !window.__TAURI__) return;
     let disposed = false;
     let unlisten: (() => void) | undefined;
-    void window.__TAURI__.event.listen("sia://extensions-changed", () => {
+    void window.__TAURI__.event.listen<{ tabIds?: string[] }>("sia://extensions-changed", ({ payload }) => {
       setTabs((current) => current.map((tab) => (
-        isInternalBrowserUrl(tab.url)
+        isInternalBrowserUrl(tab.url) || (payload?.tabIds && !payload.tabIds.includes(tab.id))
           ? tab
           : {
               ...tab,
@@ -1070,6 +1148,13 @@ export default function App() {
   }, [activeId, activeTab?.url]);
 
   useEffect(() => {
+    // 焦点进入独立网页 WebView 或其他窗口时，主动结束地址编辑，避免外壳保留选区和焦点样式。
+    const blurAddressInput = () => addressInputRef.current?.blur();
+    window.addEventListener("blur", blurAddressInput);
+    return () => window.removeEventListener("blur", blurAddressInput);
+  }, []);
+
+  useEffect(() => {
     const frame = window.requestAnimationFrame(syncBrowserBounds);
     const transitionTimer = window.setTimeout(syncBrowserBounds, 220);
     const settledTimer = window.setTimeout(syncBrowserBounds, 700);
@@ -1081,7 +1166,6 @@ export default function App() {
   }, [
     stateHydrated,
     syncBrowserBounds,
-    tabLayout,
     verticalPanelPinned,
     verticalPanelWidth,
   ]);
@@ -1105,6 +1189,7 @@ export default function App() {
     void invokeNative("open_browser_tab", {
       tabId,
       groupId: tabs.find((tab) => tab.id === tabId)?.groupId ?? DEFAULT_GROUP_ID,
+      smallGroupId: tabs.find((tab) => tab.id === tabId)?.smallGroupId ?? null,
       url: targetUrl,
       bounds: boundsRef.current,
     }).catch((error) => {
@@ -1113,9 +1198,53 @@ export default function App() {
     });
   }
 
+  // 受控值提交到 DOM 后再选中后缀，连续输入会自然替换候选而不是追加到完整网址末尾。
+  useLayoutEffect(() => {
+    const input = addressInputRef.current;
+    const completion = addressCompletionRef.current;
+    if (input === document.activeElement && completion?.value === addressDraft) {
+      input?.setSelectionRange(completion.prefixLength, completion.value.length);
+    }
+  }, [addressDraft]);
+
+  /** 仅在末尾键入时生成行内候选，删除、粘贴、中间编辑和输入法组词保留原生编辑行为。 */
+  function handleAddressChange(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const value = input.value;
+    const nativeEvent = event.nativeEvent as InputEvent;
+    addressCompletionRef.current = null;
+    if (nativeEvent.inputType === "insertText" && !nativeEvent.isComposing
+      && value && !/\s/.test(value) && input.selectionStart === value.length
+      && input.selectionEnd === value.length) {
+      // 最近历史优先，其次收藏与已打开标签；只补全 HTTP(S) 地址，不补全内部设置页。
+      const urls = [
+        ...[...historyEntries].sort((left, right) => right.visitedAt - left.visitedAt),
+        ...bookmarks,
+        ...tabs,
+      ];
+      for (const { url } of urls) {
+        if (!/^https?:\/\//i.test(url)) continue;
+        const candidate = /^https?:/i.test(value) ? url : url.replace(/^https?:\/\//i, "");
+        // 路径可能区分大小写，使用精确前缀匹配避免改变用户输入的地址语义。
+        if (candidate.length <= value.length || !candidate.startsWith(value)) continue;
+        addressCompletionRef.current = { prefixLength: value.length, value: candidate, url };
+        setAddressDraft(candidate);
+        // 连续输入的候选值可能不变，此时 React 不会再次提交，需要立即更新选区。
+        input.value = candidate;
+        input.setSelectionRange(value.length, candidate.length);
+        return;
+      }
+    }
+    setAddressDraft(value);
+  }
+
   function handleAddressSubmit(event: FormEvent) {
     event.preventDefault();
-    navigate(addressDraft);
+    // 先保存输入再失焦，避免 onBlur 回填旧网址覆盖本次提交；导航随后更新为解析后的网址。
+    const completion = addressCompletionRef.current;
+    const submittedAddress = completion?.value === addressDraft ? completion.url : addressDraft;
+    addressInputRef.current?.blur();
+    navigate(submittedAddress);
   }
 
   function handleNewTabSearch(event: FormEvent) {
@@ -1124,6 +1253,7 @@ export default function App() {
   }
 
   function selectTab(tabId: string) {
+    if (movingTabIdsRef.current.has(tabId)) return;
     const selected = tabs.find((tab) => tab.id === tabId);
     if (!selected || tabId === activeId) return;
     const shouldRestore = selected.sleeping && Boolean(selected.url) && !isInternalBrowserUrl(selected.url);
@@ -1200,29 +1330,6 @@ export default function App() {
       .catch(() => undefined);
   }
 
-  function goHome() {
-    if (!activeTab) return;
-    const homeTab: BrowserTab = {
-      ...activeTab,
-      title: "新标签页",
-      url: "",
-      loading: false,
-      hasWebview: false,
-      sleeping: false,
-      inactiveSince: undefined,
-      audible: false,
-      muted: false,
-    };
-    activeTabRef.current = homeTab;
-    setTabs((current) => current.map((tab) => tab.id === homeTab.id ? homeTab : tab));
-    setAddressDraft("");
-    if (isDesktopRuntime) {
-      void invokeNative("close_browser_tab", { tabId: homeTab.id }).catch((error) => {
-        message.error(error instanceof Error ? error.message : String(error));
-      });
-    }
-  }
-
   function runPageAction(
     action: "back" | "forward" | "reload" | "reload-hard" | "reload-clear-cache" | "stop",
   ) {
@@ -1244,21 +1351,72 @@ export default function App() {
     });
   }
 
+  useEffect(() => {
+    if (!isDesktopRuntime || !window.__TAURI__) return;
+    let disposed = false;
+    let revision = 0;
+    const disposers: (() => void)[] = [];
+    // 事件到达时重读缓存；旧请求不得覆盖较新的固定或启停状态。
+    const refresh = () => {
+      const request = ++revision;
+      void invokeNative<BrowserExtensionRecord[]>("list_browser_extensions").then((records) => {
+        if (!disposed && request === revision) setToolbarExtensions(records ?? []);
+      }).catch(() => undefined);
+    };
+    for (const name of ["sia://extensions-changed", "sia://extension-toolbar-changed"]) {
+      void window.__TAURI__.event.listen(name, refresh).then((dispose) => {
+        if (disposed) dispose(); else disposers.push(dispose);
+      });
+    }
+    refresh();
+    return () => { disposed = true; disposers.forEach((dispose) => dispose()); };
+  }, []);
+
+  // 面板标题和上下文事件共用当前父子分组名称，重命名后同步刷新。
+  const activeExtensionGroup = groups.find((group) => group.id === activeTab.groupId);
+  const activeExtensionHeading = [
+    activeExtensionGroup?.name ?? "未分组",
+    activeExtensionGroup?.smallGroups.find((small) => small.id === activeTab.smallGroupId)?.name,
+  ].filter(Boolean).join(" / ");
+
+  useEffect(() => {
+    if (!isDesktopRuntime || !window.__TAURI__) return;
+    void invokeNative("update_browser_extension_context", {
+      extensionScope: { groupId: activeTab.groupId, smallGroupId: activeTab.smallGroupId },
+      heading: activeExtensionHeading,
+    }).catch(() => undefined);
+  }, [activeTab.groupId, activeTab.smallGroupId, activeExtensionHeading]);
+
+  /** 使用缓存立即展示扩展列表，面板自身在后台校准最新安装状态。 */
+  function showExtensionsPanel(trigger: HTMLElement) {
+    const rect = trigger.getBoundingClientRect();
+    showBrowserPanel({
+      darkMode, kind: "extensions", panelKey: "extensions", toggleKey: "extensions",
+      items: [], extensions: toolbarExtensions, currentUrl: activeTab?.url,
+      extensionScope: { groupId: activeTab.groupId, smallGroupId: activeTab.smallGroupId },
+      heading: activeExtensionHeading,
+    }, { x: rect.right - 340, y: rect.bottom }, { width: 340, height: 560 }, trigger);
+  }
+
   function showBrowserPanel(
     payload: BrowserMenuPayload,
     anchor: { x: number; y: number },
     size: { width: number; height: number },
+    trigger?: HTMLElement,
   ) {
     if (!isDesktopRuntime) {
       showPreviewNotice();
       return;
     }
-    const width = Math.min(size.width, Math.max(260, window.innerWidth - 20));
-    const height = Math.min(size.height, Math.max(160, window.innerHeight - 20));
-    const x = Math.max(0, Math.min(anchor.x, window.innerWidth - width));
-    const y = Math.max(0, Math.min(anchor.y, window.innerHeight - height));
+    // 面板靠近窗口边缘时仍预留完整阴影空间，与原生 MENU_SHADOW_SPACE 和面板外边距保持一致。
+    const shadowSpace = 20;
+    const width = Math.min(size.width, Math.max(260, window.innerWidth - shadowSpace * 2));
+    const height = Math.min(size.height, Math.max(160, window.innerHeight - shadowSpace * 2));
+    const x = Math.max(shadowSpace, Math.min(anchor.x, window.innerWidth - width - shadowSpace));
+    const y = Math.max(shadowSpace, Math.min(anchor.y, window.innerHeight - height - shadowSpace));
     void invokeNative("show_browser_panel", {
-      payload,
+      // 按钮范围随每次点击更新，缩放或窗口移动后仍能正确识别重复点击。
+      payload: { ...payload, triggerBounds: trigger?.getBoundingClientRect().toJSON() ?? payload.triggerBounds },
       sourceWindow: "main",
       x,
       y,
@@ -1297,7 +1455,7 @@ export default function App() {
       },
       { x, y },
       {
-        width: 380,
+        width: 320,
         height: Math.min(430, 54 + Math.max(1, items.length) * 50),
       },
     );
@@ -1315,7 +1473,7 @@ export default function App() {
         ],
       },
       { x, y },
-      { width: 310, height: 136 },
+      { width: 280, height: 136 },
     );
   }
 
@@ -1341,27 +1499,32 @@ export default function App() {
       }));
   }
 
-  function showDownloadsPanel(x: number, y: number) {
+  function showDownloadsPanel(x: number, y: number, trigger?: HTMLElement) {
     showBrowserPanel(
       {
         darkMode,
         kind: "downloads",
+        panelKey: "downloads",
+        toggleKey: trigger ? "downloads" : undefined,
+        // 自动打开下载面板后，仍允许通过下载按钮一次点击收起。
+        triggerBounds: downloadButtonRef.current?.getBoundingClientRect().toJSON(),
         items: [],
         entries: downloadPanelEntries(),
       },
       { x, y },
-      { width: 440, height: 720 },
+      { width: 360, height: 640 },
+      trigger,
     );
   }
   showDownloadsPanelRef.current = () => {
     const rect = downloadButtonRef.current?.getBoundingClientRect();
     showDownloadsPanel(
-      rect ? rect.right - 440 : Math.max(12, window.innerWidth - 460),
+      rect ? rect.right - 360 : Math.max(12, window.innerWidth - 380),
       rect ? rect.bottom : 76,
     );
   };
 
-  function showHistoryPanel(x = window.innerWidth - 520, y = 48) {
+  function showHistoryPanel(x = window.innerWidth - 380, y = 48, trigger?: HTMLElement) {
     const entries: BrowserPanelEntry[] = historyEntries.map((entry) => ({
       id: entry.id,
       title: entry.title,
@@ -1377,15 +1540,18 @@ export default function App() {
       {
         darkMode,
         kind: "history",
+        panelKey: "history",
+        toggleKey: trigger ? "history" : undefined,
         items: [],
         entries,
       },
       { x, y },
-      { width: 500, height: 760 },
+      { width: 360, height: 640 },
+      trigger,
     );
   }
 
-  function showBookmarksPanel(x = window.innerWidth - 520, y = 48) {
+  function showBookmarksPanel(x = window.innerWidth - 380, y = 48, trigger?: HTMLElement) {
     const entries: BrowserPanelEntry[] = bookmarks.map((bookmark, index) => ({
       id: `bookmark-${index}`,
       title: bookmark.title,
@@ -1396,13 +1562,16 @@ export default function App() {
       {
         darkMode,
         kind: "bookmarks",
+        panelKey: "bookmarks",
+        toggleKey: trigger ? "bookmarks" : undefined,
         items: [],
         entries,
         currentTitle: activeTab?.title,
         currentUrl: activeTab?.url,
       },
       { x, y },
-      { width: 500, height: 760 },
+      { width: 360, height: 640 },
+      trigger,
     );
   }
 
@@ -1440,40 +1609,92 @@ export default function App() {
     });
   }
 
-  function moveTabToGroup(tabId: string, groupId: string) {
+  /** 同组按锚点排序且保留网页实例；跨组重建隔离空间，后台页继续休眠。null 锚点表示目标列表末尾。 */
+  function moveTabToGroup(tabId: string, groupId: string, smallGroupId?: string, beforeTabId?: string | null) {
     const tab = tabs.find((item) => item.id === tabId);
-    if (!tab || !groups.some((group) => group.id === groupId)) return;
+    const group = groups.find((item) => item.id === groupId);
+    if (!tab || movingTabIdsRef.current.has(tabId) || (!group && groupId !== ROOT_GROUP_ID)) return;
+    if (smallGroupId !== undefined && !group?.smallGroups.some((item) => item.id === smallGroupId)) return;
+    if (beforeTabId !== undefined && beforeTabId !== null && !tabs.some((item) => item.id === beforeTabId
+      && item.id !== tabId && item.groupId === groupId && item.smallGroupId === smallGroupId)) return;
+    const sameGroup = tab.groupId === groupId && tab.smallGroupId === smallGroupId;
+    // 仅重排数组，不触发原生关闭/打开命令；顺序由现有会话保存流程持久化。
+    const place = (current: BrowserTab[], updated: BrowserTab) => {
+      if (beforeTabId === undefined) return current.map((item) => item.id === tabId ? updated : item);
+      const remaining = current.filter((item) => item.id !== tabId);
+      let index = beforeTabId === null ? -1 : remaining.findIndex((item) => item.id === beforeTabId);
+      if (index < 0) {
+        // 目标为空时追加全局数组；非空时插在最后一个同组标签之后，不改变其他分组的相对顺序。
+        index = remaining.length;
+        for (let i = remaining.length - 1; i >= 0; i--) {
+          if (remaining[i].groupId === groupId && remaining[i].smallGroupId === smallGroupId) { index = i + 1; break; }
+        }
+      }
+      remaining.splice(index, 0, updated);
+      return remaining;
+    };
+    if (sameGroup) {
+      if (beforeTabId === undefined) return;
+      setTabs((current) => place(current, current.find((item) => item.id === tabId) ?? tab));
+      tabsRef.current = place(tabsRef.current, tabsRef.current.find((item) => item.id === tabId) ?? tab);
+      return;
+    }
     const active = tab.id === activeId;
+    const remote = Boolean(tab.url) && !isInternalBrowserUrl(tab.url);
+    // 跨组关闭失败时连同原顺序一起回退，优先使用原后继锚点，避免覆盖其他标签的并发更新。
+    const originalIndex = tabs.findIndex((item) => item.id === tabId);
+    const originalNextId = tabs[originalIndex + 1]?.id;
     const updatedTab: BrowserTab = {
       ...tab,
       groupId,
-      smallGroupId: undefined,
-      loading: active && Boolean(tab.url),
-      hasWebview: active && Boolean(tab.url),
-      sleeping: !active && Boolean(tab.url),
+      smallGroupId,
+      loading: active && remote,
+      hasWebview: false,
+      sleeping: !active && remote,
       audible: false,
     };
-    setTabs((current) => current.map((item) => item.id === tabId ? updatedTab : item));
+    setTabs((current) => place(current, updatedTab));
+    tabsRef.current = place(tabsRef.current, updatedTab);
+    setCollapsedGroupIds((current) => current.filter((id) => id !== groupId));
+    if (smallGroupId) setCollapsedSmallGroupIds((current) => current.filter((id) => id !== smallGroupId));
     if (active) activeTabRef.current = updatedTab;
-    if (!isDesktopRuntime || !tab.hasWebview) return;
+    if (!isDesktopRuntime) return;
+    movingTabIdsRef.current.add(tabId);
+    let oldWebviewClosed = false;
 
     void invokeNative("close_browser_tab", { tabId }).then(() => {
-      if (!active || !tab.url) return undefined;
-      return invokeNative("open_browser_tab", {
-        tabId,
-        groupId,
-        url: tab.url,
-        bounds: boundsRef.current,
-      }).then(() => {
-        if (tab.muted) {
-          return invokeNative("set_browser_tab_muted", { tabId, muted: true });
-        }
-        return undefined;
-      });
+      oldWebviewClosed = true;
+      const latest = tabsRef.current.find((item) => item.id === tabId);
+      if (!latest || latest.groupId !== groupId || latest.smallGroupId !== smallGroupId) return;
+      // 移动期间切换到了其他页时，当前移动页回到休眠状态，不在后台持续显示加载中。
+      if (activeTabRef.current.id !== tabId) {
+        updateTab(tabId, { loading: false, hasWebview: false, sleeping: Boolean(latest.url) && !isInternalBrowserUrl(latest.url) });
+        return;
+      }
+      return activateNativeTab(latest, true);
     }).catch((error) => {
-      updateTab(tabId, { loading: false, hasWebview: false, sleeping: Boolean(tab.url) });
+      // 旧实例未能关闭时恢复原归属，不能把仍使用旧 Cookie 的页面显示为目标分组页面。
+      if (!oldWebviewClosed) {
+        const restore = (item: BrowserTab) => item.id === tabId ? {
+          ...item, groupId: tab.groupId, smallGroupId: tab.smallGroupId,
+          loading: false, hasWebview: tab.hasWebview, sleeping: tab.sleeping,
+        } : item;
+        const restorePlacement = (current: BrowserTab[]) => {
+          const item = current.find((candidate) => candidate.id === tabId);
+          if (!item) return current;
+          const remaining = current.filter((candidate) => candidate.id !== tabId);
+          const nextIndex = remaining.findIndex((candidate) => candidate.id === originalNextId);
+          remaining.splice(nextIndex >= 0 ? nextIndex : Math.min(originalIndex, remaining.length), 0, restore(item));
+          return remaining;
+        };
+        setTabs(restorePlacement);
+        tabsRef.current = restorePlacement(tabsRef.current);
+        if (activeTabRef.current.id === tabId) activeTabRef.current = restore(activeTabRef.current);
+      } else {
+        updateTab(tabId, { loading: false, hasWebview: false, sleeping: remote });
+      }
       message.error(error instanceof Error ? error.message : String(error));
-    });
+    }).finally(() => movingTabIdsRef.current.delete(tabId));
   }
 
   function togglePinnedTab(tabId: string) {
@@ -1561,6 +1782,17 @@ export default function App() {
       return;
     }
 
+    // 扩展面板的导航动作沿用主窗口标签管理，确保新页面进入左侧树。
+    if (action.startsWith("panel|extensions|")) {
+      const [, , key, id] = action.split("|");
+      if (key === "store") openTab("https://microsoftedge.microsoft.com/addons/Microsoft-Edge-Extensions-Home");
+      else if (key === "options") {
+        const extension = toolbarExtensions.find((entry) => entry.id === id);
+        if (extension) void openExtensionOptionsTab(extension).catch((error) => message.error(String(error)));
+      } else openSettingsTab("extensions");
+      return;
+    }
+
     if (action.startsWith("panel|downloads|")) {
       const [, , key, id] = action.split("|");
       const task = id ? downloadTasks[id] : undefined;
@@ -1605,7 +1837,7 @@ export default function App() {
           ...current,
           [task.id]: { ...current[task.id], unsafe: true },
         }));
-        message.warning("已在 Sia 中将该下载标记为不安全");
+        message.warning("已在西娅浏览器中将该下载标记为不安全");
       } else if (key === "delete-file" && task?.filePath && !task.fileDeleted) {
         void invokeNative("delete_download_file", { path: task.filePath })
           .then(() => {
@@ -1695,9 +1927,7 @@ export default function App() {
 
     if (action.startsWith("more:")) {
       const key = action.slice("more:".length);
-      if (key === "tab-layout") {
-        changeTabLayout(tabLayout === "horizontal" ? "vertical" : "horizontal");
-      } else if (key === "bookmarks") {
+      if (key === "bookmarks") {
         showBookmarksPanel();
       } else if (key === "bookmark-bar") {
         setShowBookmarksBar((current) => !current);
@@ -1760,6 +1990,17 @@ export default function App() {
     else if (action === "toggle-audio" && value) toggleTabAudio(value);
     else if (action === "new-root-tab") openTab(undefined, ROOT_GROUP_ID);
     else if (action === "new-group") openNewGroupModal();
+    else if (action === "move-tab") {
+      // 独立面板传入 JSON；仅接受已存在标签与分组，非法消息不改变状态。
+      try {
+        const target = JSON.parse(value) as { tabId?: unknown; groupId?: unknown; smallGroupId?: unknown; beforeTabId?: unknown };
+        if (typeof target?.tabId === "string" && typeof target.groupId === "string"
+          && (target.smallGroupId === undefined || typeof target.smallGroupId === "string")
+          && (target.beforeTabId === undefined || target.beforeTabId === null || typeof target.beforeTabId === "string")) {
+          moveTabToGroup(target.tabId, target.groupId, target.smallGroupId, target.beforeTabId);
+        }
+      } catch { /* 忽略格式无效的面板消息。 */ }
+    }
     else if (action === "new-tab") {
       const [groupId, smallGroupId] = value.split("|");
       if (groupId) openTab(undefined, groupId, smallGroupId || undefined);
@@ -1791,8 +2032,8 @@ export default function App() {
   browserOverlayActionHandlerRef.current = handleBrowserOverlayAction;
   floatingPanelActionHandlerRef.current = handleFloatingTabPanelAction;
 
+  /** 按左侧分组、小分组和根标签的显示顺序计算相邻与批量关闭范围。 */
   function getLayoutOrderedTabs() {
-    if (tabLayout === "horizontal") return [...tabs];
     const ordered: BrowserTab[] = [];
     for (const group of groups) {
       const groupTabs = tabs.filter((tab) => tab.groupId === group.id);
@@ -1830,7 +2071,7 @@ export default function App() {
     const currentTab = activeTabRef.current;
     const settingsTab: BrowserTab = {
       ...createBlankTab(currentTab.groupId, currentTab.smallGroupId),
-      title: "Sia设置",
+      title: "西娅设置",
       url: SETTINGS_URL,
     };
     const inactiveSince = Date.now();
@@ -1855,7 +2096,8 @@ export default function App() {
     const contextTabIndex = orderedTabs.findIndex((tab) => tab.id === contextTab.id);
     void invokeNative("show_browser_tab_menu", {
       tabId: contextTab.id,
-      adjacentDirection: tabLayout === "vertical" ? "下方" : "右侧",
+      // 相邻标签始终按左侧树的可见顺序排列。
+      adjacentDirection: "下方",
       groups: groups.map((group) => ({
         id: group.id,
         name: group.name,
@@ -1940,13 +2182,6 @@ export default function App() {
 
   function handleThemeChange(checked: boolean) {
     setDarkMode(checked);
-    applySiaTheme(checked ? "dark" : "light");
-  }
-
-  function changeTabLayout(layout: TabLayoutMode) {
-    setLayoutPreferenceSet(true);
-    setTabLayout(layout);
-    window.requestAnimationFrame(syncBrowserBounds);
   }
 
   function openNewGroupModal() {
@@ -1956,7 +2191,7 @@ export default function App() {
       title: "新建分组",
       label: "分组名称",
       placeholder: "例如：测试环境",
-      description: "每个分组使用独立的 Cookie 数据目录。",
+      description: "每个小分组独立保存 Cookie；大分组直属标签使用单独的数据空间。",
       darkMode,
     });
   }
@@ -2108,7 +2343,7 @@ export default function App() {
       kind: "confirm",
       title: "清除浏览数据",
       description: smallGroup
-        ? `${targetName}与所属分组共享 Cookie。继续后将清除相关 WebView 的缓存、Cookie 和站点数据。`
+        ? `确定清除${targetName}的缓存、Cookie 和站点数据吗？其他小分组不受影响。`
         : `确定清除${targetName}的缓存、Cookie 和站点数据吗？`,
       okText: "清除",
       danger: true,
@@ -2311,7 +2546,8 @@ export default function App() {
         openTab();
         return;
       }
-      if (commandKey && event.key.toLowerCase() === "l") {
+      // F4 与 Ctrl+L 共用地址栏聚焦入口。
+      if ((commandKey && event.key.toLowerCase() === "l") || (event.key === "F4" && !event.altKey)) {
         event.preventDefault();
         addressInputRef.current?.focus();
         addressInputRef.current?.select();
@@ -2346,6 +2582,7 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKeyboardShortcut);
   }, [activeId, activeTab?.loading, openTab, tabs]);
 
+  /** 单行导航按收藏、历史、扩展、下载、菜单排列，面板展开和收起由左侧面板自身的按钮控制。 */
   function renderTitlebarActions() {
     const activeDownloadCount = activeDownloadTasks.length;
     const downloadPercent = Math.round(downloadProgress * 100);
@@ -2355,21 +2592,16 @@ export default function App() {
           className="toolbar-icon-button"
           variant="text"
           size="small"
-          icon={<Icon name="puzzle" size={18} />}
-          aria-label="扩展"
-          title="扩展"
-          onClick={() => openSettingsTab("extensions")}
-        />
-        <Button
-          className="toolbar-icon-button"
-          variant="text"
-          size="small"
           icon={<Icon name="star" size={18} />}
           aria-label="收藏夹"
           title="收藏夹"
+          onContextMenu={(event) => {
+            event.preventDefault();
+            toggleBookmark();
+          }}
           onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
             const rect = event.currentTarget.getBoundingClientRect();
-            showBookmarksPanel(rect.right - 500, rect.bottom);
+            showBookmarksPanel(rect.right - 360, rect.bottom, event.currentTarget);
           }}
         />
         <Button
@@ -2381,9 +2613,31 @@ export default function App() {
           title="历史记录"
           onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
             const rect = event.currentTarget.getBoundingClientRect();
-            showHistoryPanel(rect.right - 500, rect.bottom);
+            showHistoryPanel(rect.right - 360, rect.bottom, event.currentTarget);
           }}
         />
+        <Button
+          className="toolbar-icon-button"
+          variant="text"
+          size="small"
+          icon={<Icon name="puzzle" size={18} />}
+          aria-label="扩展"
+          title="扩展"
+          onClick={(event) => showExtensionsPanel(event.currentTarget)}
+        />
+        {/* 只展示有限数量的快捷入口，避免挤出地址栏和窗口控制；完整列表仍在扩展面板中。 */}
+        <div className="browser-pinned-extensions">
+        {toolbarExtensions.filter((extension) => extension.pinned && extension.enabled && extensionMatchesScope(extension.scopes, activeTab.groupId, activeTab.smallGroupId)).slice(0, 4).map((extension) => (
+          <Button key={extension.id} className="toolbar-icon-button" variant="text" size="small"
+            aria-label={`${extension.name} · ${extension.optionsPage ? "扩展选项" : "管理扩展"}`}
+            title={`${extension.name} · ${extension.optionsPage ? "扩展选项" : "管理扩展"}`}
+            icon={extension.iconUrl ? <img className="browser-extension-icon" src={extension.iconUrl} alt="" /> : <Icon name="puzzle" size={18} />}
+            onClick={() => {
+              if (extension.optionsPage) void openExtensionOptionsTab(extension).catch((error) => message.error(String(error)));
+              else openSettingsTab("extensions");
+            }} />
+        ))}
+        </div>
         <div
           className={`browser-download-action${activeDownloadCount > 0 ? " is-active" : ""}${downloadHasUnknownSize ? " is-indeterminate" : ""}`}
           aria-label={activeDownloadCount > 0
@@ -2422,36 +2676,26 @@ export default function App() {
               : "下载"}
             onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
               const rect = event.currentTarget.getBoundingClientRect();
-              showDownloadsPanel(rect.right - 440, rect.bottom);
+              showDownloadsPanel(rect.right - 360, rect.bottom, event.currentTarget);
             }}
           />
         </div>
         <Button
-          className="profile-button"
-          variant="filled"
-          size="small"
-          aria-label="用户"
-          title="用户"
-          onClick={() => message.info("多用户配置将在下一阶段接入。")}
-        >
-          S
-        </Button>
-        <Button
           className="toolbar-icon-button browser-more-trigger"
           variant="text"
           size="small"
-          icon={<Icon name="more-vertical" size={18} />}
+          icon={<Icon name="menu" size={18} />}
           aria-label="更多"
           title="更多"
           onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
             const rect = event.currentTarget.getBoundingClientRect();
             void invokeNative("show_browser_more_menu", {
-              tabLayout,
               showBookmarksBar,
               darkMode,
               sourceWindow: "main",
-              x: rect.left,
+              x: rect.right - 240,
               y: rect.bottom,
+              triggerBounds: rect.toJSON(),
             }).catch((error) => {
               message.error(error instanceof Error ? error.message : String(error));
             });
@@ -2461,6 +2705,7 @@ export default function App() {
     );
   }
 
+  /** 标题栏保留后退、前进和刷新三个导航按钮，地址栏占满其余可用宽度。 */
   function renderNavigationControls() {
     return (
       <>
@@ -2505,177 +2750,189 @@ export default function App() {
               showRefreshPanel(rect.left, rect.bottom);
             }}
           />
-          <Button
-            className="toolbar-icon-button"
-            variant="text"
-            size="small"
-            icon={<Icon name="home" size={17} />}
-            aria-label="主页"
-            title="主页"
-            onClick={goHome}
-          />
         </div>
 
-        <form className="address-form" onSubmit={handleAddressSubmit}>
+        {/* 地址栏自行管理行内补全，关闭浏览器表单历史浮层。 */}
+        <form className="address-form" autoComplete="off" onSubmit={handleAddressSubmit}>
           <Input
             ref={addressInputRef}
             className="address-input"
             value={addressDraft}
-            prefix={<Icon name={activeTab?.url?.startsWith("https://") ? "lock" : "search"} size={14} />}
-            suffix={activeTab?.url ? <span className="address-host">{hostLabel(activeTab.url)}</span> : undefined}
-            allowClear
+            prefix={<Icon name={activeTab?.url?.startsWith("https://") ? "shield" : "search"} size={16} />}
+            allowClear={false}
             aria-label="地址和搜索栏"
             placeholder="搜索或输入网址"
             spellCheck={false}
-            onFocus={(event) => {
-              addressFocusedRef.current = true;
-              event.currentTarget.select();
+            autoComplete="off"
+            onPointerDown={(event) => {
+              addressPointerFocusRef.current = event.button === 0 && document.activeElement !== event.currentTarget;
             }}
-            onBlur={() => {
+            onPointerUp={() => { addressPointerFocusRef.current = false; }}
+            onPointerCancel={() => { addressPointerFocusRef.current = false; }}
+            onFocus={(event) => {
+              addressCompletionRef.current = null;
+              addressFocusedRef.current = true;
+              // 清除内核恢复的上次选区，再由本次按下命中字符，避免把旧选区当成拖拽源。
+              if (addressPointerFocusRef.current) event.currentTarget.setSelectionRange(0, 0);
+              else event.currentTarget.select();
+              addressPointerFocusRef.current = false;
+            }}
+            onBlur={(event) => {
+              // 仅清除选中范围，保留当前网址；从开头显示以便查看协议和域名。
+              event.currentTarget.setSelectionRange(0, 0);
+              event.currentTarget.scrollLeft = 0;
               addressFocusedRef.current = false;
+              addressPointerFocusRef.current = false;
+              addressCompletionRef.current = null;
               setAddressDraft(activeTab?.url ?? "");
             }}
-            onChange={(event) => setAddressDraft(event.target.value)}
-          />
-          <Button
-            className={`bookmark-button${activeBookmarked ? " is-active" : ""}`}
-            variant="text"
-            size="small"
-            icon={<Icon name="star" variant={activeBookmarked ? "filled" : "outline"} size={17} />}
-            aria-label="打开收藏夹"
-            title="打开收藏夹"
-            onClick={() => showBookmarksPanel()}
-            onContextMenu={(event: ReactMouseEvent<HTMLButtonElement>) => {
+            onChange={handleAddressChange}
+            onKeyDown={(event) => {
+              const input = event.currentTarget;
+              const completion = addressCompletionRef.current;
+              // 仅普通 Tab 接受仍被选中的候选；Shift+Tab、无候选和输入法期间保持原生行为。
+              if (event.key !== "Tab" || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey
+                || event.nativeEvent.isComposing || !completion || input.value !== completion.value
+                || input.selectionStart !== completion.prefixLength || input.selectionEnd !== completion.value.length) return;
               event.preventDefault();
-              toggleBookmark();
+              input.setSelectionRange(input.value.length, input.value.length);
             }}
           />
         </form>
-        {activeTab?.loading ? <span className="browser-loading-line" aria-hidden="true" /> : null}
       </>
+    );
+  }
+
+  /** 收藏夹栏属于完整标题区，使用已有原生收藏面板访问窄窗口内放不下的项目。 */
+  function renderBookmarksBar() {
+    if (!showBookmarksBar) return null;
+    return (
+      <nav className="bookmarks-bar" aria-label="收藏夹栏">
+        <div className="bookmarks-bar__items">
+          {bookmarks.map((bookmark) => (
+            <Button
+              key={bookmark.url}
+              className="bookmark-link"
+              variant="text"
+              size="small"
+              title={`${bookmark.title}\n${bookmark.url}`}
+              icon={<BrowserFavicon url={bookmark.url} size={15} />}
+              onClick={() => navigate(bookmark.url)}
+            >
+              <span className="bookmark-link__title">{bookmark.title}</span>
+            </Button>
+          ))}
+          {bookmarks.length === 0 ? <span className="bookmarks-bar__empty">收藏的网页会显示在这里</span> : null}
+        </div>
+        <Button
+          className="bookmarks-bar__more"
+          variant="text"
+          size="small"
+          aria-label="更多收藏"
+          title="查看全部收藏"
+          icon={<Icon name="chevron-right" size={16} />}
+          onClick={(event) => {
+            // 原生浮层锚定收藏栏按钮下方，标题区增高后仍与触发位置一致。
+            const rect = event.currentTarget.getBoundingClientRect();
+            showBookmarksPanel(rect.right - 360, rect.bottom, event.currentTarget);
+          }}
+        />
+      </nav>
     );
   }
 
   return (
     <WindowFrame
-      className={`browser-shell browser-shell--${tabLayout}`}
+      className="browser-shell"
+      data-window-active={windowActive}
+      data-resize-edges={windowResizeEdges}
       titleBar={(
-        <WindowTitleBar
-          className={`browser-titlebar${tabLayout === "vertical" ? " is-vertical" : ""}`}
-          leading={(
-            <div className="browser-brand" aria-label="Sia Browser">
-              <span className="browser-brand__mark" aria-hidden="true">
-                <strong>Sia</strong>
-                <small>browser</small>
-              </span>
-            </div>
-          )}
-          actions={renderTitlebarActions()}
-          maximized={windowMaximized}
-          onWindowAction={runWindowAction}
-        >
-          {tabLayout === "horizontal" ? (
-            renderTabContextScope(
-              <HorizontalTabStrip
-                tabs={tabs}
-                activeId={activeId}
-                onSelect={selectTab}
-                onClose={closeTab}
-                onToggleAudio={toggleTabAudio}
-                onNew={() => openTab()}
-              />,
-            )
-          ) : (
+        // WindowFrame 的标题区组合导航与收藏行；收藏行增高不拉伸地址栏和窗口控制按钮。
+        <div className="browser-titlebar-area">
+          <WindowTitleBar
+            className="browser-titlebar is-vertical"
+            // 树形标签固定在左侧，顶部只保留品牌图标、导航及窗口操作。
+            leading={(
+              <div className="browser-brand" aria-label="西娅浏览器">
+                {/* 增大品牌标志的可见面积，保持现有标题栏高度。 */}
+                <BrowserBrandGlyph size={28} />
+              </div>
+            )}
+            actions={renderTitlebarActions()}
+            maximized={windowMaximized}
+            onWindowAction={runWindowAction}
+          >
             <div className="vertical-titlebar-navigation">
               {renderNavigationControls()}
             </div>
-          )}
-        </WindowTitleBar>
+          </WindowTitleBar>
+          {renderBookmarksBar()}
+        </div>
       )}
     >
 
-      {tabLayout === "horizontal" ? (
-        <section className="browser-toolbar" aria-label="浏览器工具栏">
-          {renderNavigationControls()}
-        </section>
-      ) : null}
-
       <div className="browser-workspace">
-        {tabLayout === "vertical" ? (
-          <div
-            ref={verticalPanelAnchorRef}
-            className={`vertical-tab-panel-main${verticalPanelPinned ? " is-pinned" : " is-auto-hide"}`}
-            style={{
-              width: verticalPanelPinned
-                ? verticalPanelWidth
-                : COMPACT_VERTICAL_PANEL_WIDTH,
-              minWidth: verticalPanelPinned
-                ? verticalPanelWidth
-                : COMPACT_VERTICAL_PANEL_WIDTH,
-            }}
-            onPointerEnter={showIndependentTabPanel}
-          >
-            {!verticalPanelPinned ? renderTabContextScope(
-              <VerticalTabTree
-                groups={groups}
-                tabs={tabs}
-                activeId={activeId}
-                collapsedGroupIds={collapsedGroupIds}
-                collapsedSmallGroupIds={collapsedSmallGroupIds}
-                panelExpanded={verticalPanelPinned}
-                panelPinned={verticalPanelPinned}
-                panelWidth={verticalPanelWidth}
-                onSelect={selectTab}
-                onClose={closeTab}
-                onToggleAudio={toggleTabAudio}
-                onNewTab={(groupId, smallGroupId) => openTab(undefined, groupId, smallGroupId)}
-                onNewRootTab={() => openTab(undefined, ROOT_GROUP_ID)}
-                onNewGroup={openNewGroupModal}
-                onToggleGroup={(groupId) => {
-                  setCollapsedGroupIds((current) => (
-                    current.includes(groupId)
-                      ? current.filter((id) => id !== groupId)
-                      : [...current, groupId]
-                  ));
-                }}
-                onToggleSmallGroup={(smallGroupId) => {
-                  setCollapsedSmallGroupIds((current) => (
-                    current.includes(smallGroupId)
-                      ? current.filter((id) => id !== smallGroupId)
-                      : [...current, smallGroupId]
-                  ));
-                }}
-                onTreeActionsOpen={openTreeActionMenu}
-                onPinPanel={toggleVerticalPanelPinned}
-                onPanelWidthChange={(width) => {
-                  setVerticalPanelWidth(Math.min(440, Math.max(220, Math.round(width))));
-                }}
-              />,
-            ) : null}
-          </div>
-        ) : null}
-        <div className="browser-content">
-          {showBookmarksBar && activeTab?.url !== SETTINGS_URL ? (
-            <nav className="bookmarks-bar" aria-label="书签栏">
-              <span className="bookmarks-bar__label"><Icon name="star" size={13} />书签</span>
-              {bookmarks.map((bookmark) => (
-                <Button
-                  key={bookmark.url}
-                  className="bookmark-link"
-                  variant="text"
-                  size="small"
-                  onClick={() => navigate(bookmark.url)}
-                >
-                  {bookmark.title}
-                </Button>
-              ))}
-              <span className="bookmarks-bar__spacer" />
-            </nav>
+        <div
+          ref={verticalPanelAnchorRef}
+          className={`vertical-tab-panel-main${verticalPanelPinned ? " is-pinned" : " is-collapsed"}`}
+          style={{
+            width: verticalPanelPinned
+              ? verticalPanelWidth
+              : COMPACT_VERTICAL_PANEL_WIDTH,
+            minWidth: verticalPanelPinned
+              ? verticalPanelWidth
+              : COMPACT_VERTICAL_PANEL_WIDTH,
+          }}
+        >
+          {/* 桌面固定面板使用原生子 WebView；网页预览直接渲染同一 Sia 组件以保留完整树。 */}
+          {!isDesktopRuntime || !verticalPanelPinned ? renderTabContextScope(
+            <VerticalTabTree
+              groups={groups}
+              tabs={tabs}
+              activeId={activeId}
+              collapsedGroupIds={collapsedGroupIds}
+              collapsedSmallGroupIds={collapsedSmallGroupIds}
+              panelExpanded={verticalPanelPinned}
+              panelPinned={verticalPanelPinned}
+              panelWidth={verticalPanelWidth}
+              onSelect={selectTab}
+              onMoveTab={moveTabToGroup}
+              onClose={closeTab}
+              onToggleAudio={toggleTabAudio}
+              onNewTab={(groupId, smallGroupId) => openTab(undefined, groupId, smallGroupId)}
+              onNewRootTab={() => openTab(undefined, ROOT_GROUP_ID)}
+              onNewGroup={openNewGroupModal}
+              onToggleGroup={(groupId) => {
+                setCollapsedGroupIds((current) => (
+                  current.includes(groupId)
+                    ? current.filter((id) => id !== groupId)
+                    : [...current, groupId]
+                ));
+              }}
+              onToggleSmallGroup={(smallGroupId) => {
+                setCollapsedSmallGroupIds((current) => (
+                  current.includes(smallGroupId)
+                    ? current.filter((id) => id !== smallGroupId)
+                    : [...current, smallGroupId]
+                ));
+              }}
+              onTreeActionsOpen={openTreeActionMenu}
+              onPinPanel={toggleVerticalPanelPinned}
+              onPanelWidthChange={(width) => {
+                setVerticalPanelWidth(Math.min(440, Math.max(220, Math.round(width))));
+              }}
+            />,
           ) : null}
-
+        </div>
+        <div className="browser-content">
+          {/* 上边框独立于网页宿主占位，避免流光被原生 WebView 覆盖或加载时挤动网页。 */}
+          <div className="browser-page-top-border" aria-hidden="true">
+            {activeTab?.loading ? <span className="browser-loading-line" /> : null}
+          </div>
           <main ref={pageHostRef} className="browser-page-host">
         {activeTab?.url === SETTINGS_URL ? (
           <BrowserSettingsPage
+            groups={groups}
             activeDownloadCount={activeDownloadTasks.length}
             askBeforeDownload={askBeforeDownload}
             downloadDirectory={downloadDirectory}
@@ -2707,7 +2964,8 @@ export default function App() {
             <div className="new-tab-page__ambient new-tab-page__ambient--two" />
             <div className="new-tab-content">
               <div className="new-tab-logo" aria-hidden="true">
-                <span>S</span>
+                {/* 新标签页与桌面程序使用同一套西娅图标。 */}
+                <img src="/brand/sia-browser.png" width={72} height={72} alt="" />
               </div>
               <h1>去探索，去创造。</h1>
               <p>由 Sia WebUI 与 Tauri 驱动的轻量浏览器</p>
@@ -2744,7 +3002,7 @@ export default function App() {
             </div>
             <footer className="new-tab-footer">
               <span><Icon name="shield-check" size={14} /> 隐私保护已开启</span>
-              <span>Sia Browser 0.1</span>
+              <span>西娅浏览器 0.1</span>
             </footer>
           </section>
         ) : !isDesktopRuntime ? (

@@ -21,7 +21,7 @@ export interface AlertProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"
   /** 警告内容旁的业务操作节点。 */
   action?: ReactNode;
   /**
-   * 是否显示状态图标。
+   * 是否显示实心状态图标；仅影响图标显隐，不改变状态颜色。
    * @defaultValue false
    */
   showIcon?: boolean;
@@ -43,11 +43,12 @@ export interface AlertProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"
   afterClose?: () => void;
 }
 
+// 提示状态优先使用框架实心图标；关闭及加载等操作图标保持各自语义。
 const alertIcons: Record<AlertStatus, ReactNode> = {
-  info: <Icon name="info" size={20} />,
-  success: <Icon name="circle-check" size={20} />,
-  warning: <Icon name="warning" size={20} />,
-  error: <Icon name="circle-close" size={20} />,
+  info: <Icon name="info" size={20} variant="filled" />,
+  success: <Icon name="circle-check" size={20} variant="filled" />,
+  warning: <Icon name="warning" size={20} variant="filled" />,
+  error: <Icon name="circle-close" size={20} variant="filled" />,
 };
 
 /** 警告提示组件。 */

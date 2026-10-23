@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:startup": "node ../../scripts/test-browser-startup.cjs",
+    "test:input-reentrancy": "node ../../scripts/test-browser-input-reentrancy.cjs",
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b --pretty false",
@@ -11,7 +13,8 @@
     "tauri": "cargo tauri",
     "tauri:dev": "cargo tauri dev",
     "tauri:build": "cargo tauri build",
-    "tauri:build:bin": "cargo tauri build --no-bundle"
+    "tauri:build:bin": "cargo tauri build --no-bundle",
+    "installer:build": "powershell -NoProfile -ExecutionPolicy Bypass -File build-installer.ps1"
   },
   "dependencies": {
     "@sia.soul/sia-react-ui": "workspace:*",

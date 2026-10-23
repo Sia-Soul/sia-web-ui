@@ -5,7 +5,6 @@ import type {
   MouseEvent as ReactMouseEvent,
   ReactNode,
 } from "react";
-import { Icon } from "./Icon";
 
 /** 窗口控制操作名称。 */
 export type WindowAction = "start-dragging" | "minimize" | "toggle-maximize" | "close";
@@ -39,7 +38,8 @@ export interface WindowFrameProps extends HTMLAttributes<HTMLDivElement> {
 /** 窗口控制按钮的属性配置。 */
 export interface WindowControlsProps extends HTMLAttributes<HTMLDivElement> {
   /**
-   * 当前窗口是否已最大化。
+   * 当前窗口是否已最大化；true 显示叠放方框的还原图标，false 显示单方框的最大化图标。
+   * 由宿主在窗口状态改变后更新，点击按钮只通过 onAction 请求切换。
    * @defaultValue false
    */
   maximized?: boolean;
@@ -86,7 +86,8 @@ export interface WindowTitleBarProps extends HTMLAttributes<HTMLElement> {
    */
   controls?: boolean | ReactNode;
   /**
-   * 当前窗口是否已最大化。
+   * 当前窗口是否已最大化；默认控制组在 true 时显示叠放方框的还原图标，否则显示单方框。
+   * 由宿主在窗口状态改变后更新，点击按钮通过 onWindowAction 请求切换。
    * @defaultValue false
    */
   maximized?: boolean;
@@ -148,7 +149,20 @@ export function WindowFrame({
   );
 }
 
-/** 窗口控制按钮组件。 */
+/** 绘制 12px 窗体控制符号，使用 1px 细描边区分窗口最大化与页面全屏操作。 */
+function renderWindowControlGlyph(action: WindowControlAction, maximized: boolean) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1" aria-hidden="true" focusable="false">
+      {action === "minimize" ? <path d="M1 6.5h10" /> : action === "close" ? (
+        <path d="m1.5 1.5 9 9m0-9-9 9" />
+      ) : maximized ? (
+        <><path d="M3.5 3.5v-2h7v7h-2" /><rect x="1.5" y="3.5" width="7" height="7" /></>
+      ) : <rect x="1.5" y="1.5" width="9" height="9" />}
+    </svg>
+  );
+}
+
+/** 窗口控制按钮组件，采用横线、单方框/叠放方框及叉号表示最小化、最大化/还原和关闭；实际窗口操作由 onAction 交给宿主执行。 */
 export function WindowControls({
   maximized = false,
   showMinimize = true,
@@ -185,7 +199,7 @@ export function WindowControls({
           disabled={isDisabled("minimize")}
           onClick={() => runAction("minimize")}
         >
-          <Icon name="minus" size={14} />
+          {renderWindowControlGlyph("minimize", maximized)}
         </button>
       ) : null}
       {showMaximize ? (
@@ -197,7 +211,7 @@ export function WindowControls({
           disabled={isDisabled("toggle-maximize")}
           onClick={() => runAction("toggle-maximize")}
         >
-          <Icon name={maximized ? "fullscreen-exit" : "fullscreen"} size={13} />
+          {renderWindowControlGlyph("toggle-maximize", maximized)}
         </button>
       ) : null}
       {showClose ? (
@@ -209,7 +223,7 @@ export function WindowControls({
           disabled={isDisabled("close")}
           onClick={() => runAction("close")}
         >
-          <Icon name="close" size={14} />
+          {renderWindowControlGlyph("close", maximized)}
         </button>
       ) : null}
     </div>

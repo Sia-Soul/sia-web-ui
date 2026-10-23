@@ -1,8 +1,11 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tsbuildinfo",
+    // 类型检查的增量缓存随构建目录迁移，避免继续写入 C 盘 node_modules。
+    "tsBuildInfoFile": "D:/SiaBuild/SiaWebUI/typescript/browser.tsbuildinfo",
     "noEmit": true,
+    // 浏览器通过源码别名消费 Sia，允许框架内部显式 .ts 扩展名；输出由 Vite 负责。
+    "allowImportingTsExtensions": true,
     "baseUrl": ".",
     "paths": {
       "@sia.soul/sia-react-ui": ["../../packages/react/src/index.ts"]

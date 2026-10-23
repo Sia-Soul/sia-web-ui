@@ -104,13 +104,14 @@ const SKIPPED_COLUMNS: readonly TableColumn<SkippedEntry>[] = [
 
 const SKIPPED_TABLE_PLUGINS = [createResizePlugin<SkippedEntry>()] as const;
 
-function formatBytes(value: number) {
-  if (!Number.isFinite(value) || value <= 0) return "0 B";
+/** 格式化容量；指定小数位时固定补齐，省略时按容量自动选择精度。 */
+function formatBytes(value: number, fractionDigits?: number) {
+  if (!Number.isFinite(value) || value <= 0) return `${(0).toFixed(fractionDigits ?? 0)} B`;
   const units = ["B", "KB", "MB", "GB", "TB", "PB"];
   const power = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
   const amount = value / 1024 ** power;
-  const maximumFractionDigits = amount >= 100 ? 0 : amount >= 10 ? 1 : 2;
-  return `${amount.toLocaleString("zh-CN", { maximumFractionDigits })} ${units[power]}`;
+  const maximumFractionDigits = fractionDigits ?? (amount >= 100 ? 0 : amount >= 10 ? 1 : 2);
+  return `${amount.toLocaleString("zh-CN", { minimumFractionDigits: fractionDigits ?? 0, maximumFractionDigits })} ${units[power]}`;
 }
 
 function colorForNode(record: ScanNodeRecord) {
@@ -749,14 +750,14 @@ export default function App() {
           popupStyle={{ minWidth: 214 }}
           onContextMenu={prepareTreemapContextMenu}
         >
-          {/* 保留每个真实文件和文件夹，并用紧凑尺寸显示被截断的名称与大小。 */}
+          {/* 零间距让矩形边缘紧密相接；小块继续显示截断后的名称与大小。 */}
           <Treemap
             className="space-treemap"
             data={data}
             activeKey={activeTreemapKey}
             expandedKeys={expandedKeys}
             focusedKey={focusedKey}
-            gap={0.5}
+            gap={0}
             minTileWidth={44}
             minTileHeight={30}
             minLabelWidth={8}
@@ -764,7 +765,7 @@ export default function App() {
             aggregateOverflow={false}
             showValueInCompactTiles
             emptyContent={isScanning ? <Spin tip="正在发现文件和文件夹" /> : "没有可显示的内容"}
-            valueFormatter={(value) => formatBytes(value)}
+            valueFormatter={(value) => formatBytes(value, 2)}
             onExpandedChange={setExpandedKeys}
             onFocusedChange={setFocusedKey}
             onNodeClick={({ node }) => setSelectedNode(node.kind === "file" ? findRecord(node.key) : null)}

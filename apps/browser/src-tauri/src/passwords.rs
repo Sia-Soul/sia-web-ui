@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::HashMap,
+    sync::Mutex,
     sync::atomic::{AtomicU64, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -25,6 +27,32 @@ use windows::{
 const PASSWORD_VAULT_FILE: &str = "password-vault.bin";
 const MAX_CREDENTIALS: usize = 10_000;
 static PASSWORD_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
+
+/// 浏览器外壳提供的主题快照；颜色取自 Sia CSS 变量，而非网页或系统配色。
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PasswordSuggestionTheme {
+    dark_mode: bool,
+    colors: HashMap<String, String>,
+}
+
+/// 保存当前主题，供新网页首次请求密码候选项时读取。
+#[derive(Default)]
+pub struct PasswordThemeStore(Mutex<PasswordSuggestionTheme>);
+
+/// 更新候选面板主题，并通知已经加载的网页立即重绘面板配色。
+#[tauri::command]
+pub fn set_browser_password_theme(app: AppHandle, theme: PasswordSuggestionTheme) -> Result<(), String> {
+    *app.state::<PasswordThemeStore>().0.lock().map_err(|_| "无法更新密码面板主题")? = theme.clone();
+    let payload = serde_json::to_string(&theme).map_err(|error| error.to_string())?;
+    let script = format!("window.dispatchEvent(new CustomEvent('sia-password-theme', {{ detail: {payload} }}));");
+    for (label, webview) in app.webviews() {
+        if label.starts_with(crate::BROWSER_WEBVIEW_PREFIX) {
+            webview.eval(&script).map_err(|error| error.to_string())?;
+        }
+    }
+    Ok(())
+}
 
 pub const PASSWORD_AUTOFILL_SCRIPT: &str = r#"
 (() => {
@@ -58,26 +86,38 @@ pub const PASSWORD_AUTOFILL_SCRIPT: &str = r#"
   let fillingCredential = false;
   let lastSubmission = "";
   let lastSubmissionAt = 0;
+  // 默认使用 Sia 浅色值；面板显示前用外壳返回的主题覆盖，禁止跟随网页或系统深色偏好。
+  let suggestionTheme = { darkMode: false, colors: {} };
+  const themeDefaults = {
+    surface: '#ffffff', text: '#1f1f1f', secondary: '#666666', border: '#d9d9d9',
+    primary: '#1677ff', hover: '#e6f4ff', scrollbar: "rgba(82,82,82,.68)",
+  };
+  const applySuggestionTheme = () => {
+    if (!suggestionHost) return;
+    suggestionHost.style.setProperty("color-scheme", suggestionTheme.darkMode ? "dark" : "light");
+    for (const [key, fallback] of Object.entries(themeDefaults)) {
+      const value = suggestionTheme.colors?.[key];
+      suggestionHost.style.setProperty(`--sia-password-${key}`, CSS.supports("color", value) ? value : fallback);
+    }
+  };
+  window.addEventListener("sia-password-theme", (event) => {
+    if (!event.detail || typeof event.detail.darkMode !== "boolean") return;
+    suggestionTheme = event.detail;
+    applySuggestionTheme();
+  });
   const suggestionContentStyles = `
     * { box-sizing: border-box; }
-    .panel { overflow:hidden; color:#182033; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif; background:#fff; border:1px solid rgba(15,23,42,.16); border-radius:10px; box-shadow:0 8px 24px rgba(15,23,42,.16); }
-    .title { display:flex; min-height:36px; align-items:center; padding:8px 12px; color:#5b6475; font-size:12px; font-weight:600; border-bottom:1px solid #e8ebf0; }
-    .list { max-height:220px; overflow:auto; padding:4px; }
+    .panel { overflow:hidden; color:var(--sia-password-text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif; background:var(--sia-password-surface); border:1px solid var(--sia-password-border); border-radius:10px; box-shadow:0 2px 4px rgba(15,23,42,.06),0 6px 12px -2px rgba(15,23,42,.1); }
+    .title { display:flex; min-height:36px; align-items:center; padding:8px 12px; color:var(--sia-password-secondary); font-size:12px; font-weight:600; border-bottom:1px solid var(--sia-password-border); }
+    .list { max-height:220px; overflow:auto; padding:4px; scrollbar-width:thin; scrollbar-color:var(--sia-password-scrollbar) transparent; }
     .option { display:grid; width:100%; min-height:48px; align-items:center; padding:6px 8px; color:inherit; font:inherit; text-align:left; background:transparent; border:0; border-radius:7px; cursor:pointer; grid-template-columns:30px minmax(0,1fr); gap:8px; }
-    .option:hover,.option:focus-visible { outline:none; background:#edf5ff; }
-    .mark { display:grid; width:28px; height:28px; color:#fff; font-size:16px; font-weight:750; place-items:center; background:linear-gradient(135deg,#845ef7,#2684ff 50%,#16b8a6); border-radius:8px; }
+    .option:hover,.option:focus-visible { outline:none; background:var(--sia-password-hover); }
+    .mark { display:grid; width:28px; height:28px; color:#fff; font-size:16px; font-weight:750; place-items:center; background:var(--sia-password-primary); border-radius:8px; }
     .copy { display:grid; min-width:0; gap:2px; }
     .username,.name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .username { color:#182033; font-size:13px; font-weight:600; }
-    .name { color:#6c7484; font-size:11px; }
-    .footer { padding:7px 12px; color:#7a8290; font-size:10px; border-top:1px solid #e8ebf0; }
-    @media (prefers-color-scheme:dark) {
-      .panel { color:#edf0f7; background:#20232a; border-color:rgba(255,255,255,.16); }
-      .title,.footer { color:#aeb5c2; border-color:rgba(255,255,255,.1); }
-      .option:hover,.option:focus-visible { background:#2d3d55; }
-      .username { color:#f4f6fb; }
-      .name { color:#aeb5c2; }
-    }
+    .username { color:var(--sia-password-text); font-size:13px; font-weight:600; }
+    .name { color:var(--sia-password-secondary); font-size:11px; }
+    .footer { padding:7px 12px; color:var(--sia-password-secondary); font-size:10px; border-top:1px solid var(--sia-password-border); }
   `;
 
   const isVisible = (element) => {
@@ -154,7 +194,6 @@ pub const PASSWORD_AUTOFILL_SCRIPT: &str = r#"
         top: ${top}px;
         width: ${width}px;
         box-sizing: border-box;
-        color-scheme: light dark;
       }
       :host([hidden]) { display: none !important; }
       ${suggestionContentStyles}
@@ -169,6 +208,7 @@ pub const PASSWORD_AUTOFILL_SCRIPT: &str = r#"
     suggestionRoot = suggestionHost.attachShadow({ mode: "closed" });
     suggestionSheet = new CSSStyleSheet();
     suggestionRoot.adoptedStyleSheets = [suggestionSheet];
+    applySuggestionTheme();
     applySuggestionStyles();
     document.documentElement.append(suggestionHost);
   };
@@ -223,6 +263,7 @@ pub const PASSWORD_AUTOFILL_SCRIPT: &str = r#"
       });
       const mark = document.createElement("span");
       mark.className = "mark";
+      // 登录候选面板使用中文品牌简称，跟随当前主题主色显示。
       mark.textContent = "S";
       const copy = document.createElement("span");
       copy.className = "copy";
@@ -238,7 +279,7 @@ pub const PASSWORD_AUTOFILL_SCRIPT: &str = r#"
     }
     const footer = document.createElement("div");
     footer.className = "footer";
-    footer.textContent = "Sia Browser 密码管理";
+    footer.textContent = "西娅浏览器 密码管理";
     panel.append(title, list, footer);
     suggestionRoot.append(panel);
     suggestionHost.hidden = false;
@@ -286,6 +327,10 @@ pub const PASSWORD_AUTOFILL_SCRIPT: &str = r#"
     const message = event.data;
     if (!message || message.origin !== location.origin) return;
     if (message.kind === "sia-password-options") {
+      if (message.theme) {
+        suggestionTheme = message.theme;
+        applySuggestionTheme();
+      }
       allSuggestionOptions = Array.isArray(message.credentials) ? message.credentials : [];
       if (
         allSuggestionOptions.length > 0
@@ -498,6 +543,7 @@ struct PasswordOptionsMessage {
     kind: &'static str,
     origin: String,
     credentials: Vec<PasswordOption>,
+    theme: PasswordSuggestionTheme,
 }
 
 fn now_millis() -> u64 {
@@ -561,7 +607,7 @@ fn protect_vault_data(data: &[u8]) -> Result<Vec<u8>, String> {
     let result = unsafe {
         CryptProtectData(
             &input,
-            windows::core::w!("Sia Browser Password Vault"),
+            windows::core::w!("西娅浏览器 Password Vault"),
             None,
             None,
             None,
@@ -715,7 +761,7 @@ pub fn save_browser_password(
         existing.username = username;
         existing.password = credential.password;
         existing.updated_at = now;
-        existing.source = "Sia Browser".to_string();
+        existing.source = "西娅浏览器".to_string();
         existing.clone()
     } else {
         if credentials.len() >= MAX_CREDENTIALS {
@@ -733,7 +779,7 @@ pub fn save_browser_password(
             origin,
             username,
             password: credential.password,
-            source: "Sia Browser".to_string(),
+            source: "西娅浏览器".to_string(),
             created_at: now,
             updated_at: now,
         };
@@ -906,6 +952,8 @@ pub fn attach_password_bridge(
                             });
                             let response = PasswordOptionsMessage {
                                 kind: "sia-password-options",
+                                theme: handler_app.state::<PasswordThemeStore>().0.lock()
+                                    .map(|theme| theme.clone()).unwrap_or_default(),
                                 origin,
                                 credentials: credentials
                                     .into_iter()
@@ -1063,7 +1111,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn windows_dpapi_round_trip() {
-        let plaintext = b"Sia Browser password vault test";
+        let plaintext = "西娅浏览器 password vault test".as_bytes();
         let encrypted = protect_vault_data(plaintext).unwrap();
         assert_ne!(encrypted, plaintext);
         assert_eq!(unprotect_vault_data(&encrypted).unwrap(), plaintext);

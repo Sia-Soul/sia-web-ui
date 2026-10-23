@@ -56,10 +56,15 @@ fn sync_overlay_bounds(app: &AppHandle, overlay: &Webview) -> Result<(), String>
         .get_window("main")
         .ok_or_else(|| "找不到浏览器主窗口".to_string())?;
     let size = main.inner_size().map_err(|error| error.to_string())?;
+    // 与外壳 1px 边框加 3px 内边距一致，模态子 WebView 也不能覆盖四周边框。
+    let inset = (4.0 * main.scale_factor().map_err(|error| error.to_string())?).ceil() as u32;
     overlay
         .set_bounds(Rect {
-            position: Position::Physical(PhysicalPosition::new(0, 0)),
-            size: Size::Physical(size),
+            position: Position::Physical(PhysicalPosition::new(inset as i32, inset as i32)),
+            size: Size::Physical(tauri::PhysicalSize::new(
+                size.width.saturating_sub(inset * 2).max(1),
+                size.height.saturating_sub(inset * 2).max(1),
+            )),
         })
         .map_err(|error| error.to_string())
 }

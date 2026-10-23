@@ -151,7 +151,8 @@ export const extendedIconPaths = {
   experiment: <><path d="M9 3h6M10 3v6l-6 10a2 2 0 0 0 2 3h12a2 2 0 0 0 2-3L14 9V3" /><path d="M7 16h10" /></>,
   tool: <><path d="M14 6a5 5 0 0 0-6-3l3 3-3 3-3-3a5 5 0 0 0 6 6l7 7a2 2 0 0 0 3-3l-7-7Z" /></>,
   appstore: <><rect x="3" y="3" width="7" height="7" rx="2" /><rect x="14" y="3" width="7" height="7" rx="2" /><rect x="3" y="14" width="7" height="7" rx="2" /><rect x="14" y="14" width="7" height="7" rx="2" /></>,
-  puzzle: <><path d="M9 3h4.2a2.8 2.8 0 1 0 5.6 0H21v6h-2.2a2.8 2.8 0 1 0 0 5.6H21V21h-6.4v-2.2a2.8 2.8 0 1 0-5.6 0V21H3v-6.4h2.2a2.8 2.8 0 1 0 0-5.6H3V3h6Z" /></>,
+  /** 扩展与插件：圆角拼图轮廓，顶部及右侧凸出接口，左侧内凹接口。 */
+  puzzle: <><path d="M9 6V5a2 2 0 0 1 4 0v1h3a2 2 0 0 1 2 2v2h1a2 2 0 0 1 0 4h-1v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4h1a2 2 0 0 0 0-4H4V8a2 2 0 0 1 2-2h3Z" /></>,
   partition: <><path d="M12 5v5M6 14v-2h12v2M6 18v3M12 18v3M18 18v3" /><circle cx="12" cy="3" r="2" /><circle cx="6" cy="16" r="2" /><circle cx="12" cy="16" r="2" /><circle cx="18" cy="16" r="2" /></>,
   branches: <><circle cx="6" cy="5" r="2" /><circle cx="18" cy="7" r="2" /><circle cx="6" cy="19" r="2" /><path d="M6 7v10M8 10c6 0 4-3 8-3M8 14c6 0 4 3 8 3" /></>,
   scan: <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5M7 12h10" />,

@@ -1,9 +1,9 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Sia Browser 外壳的基础窗口与事件权限",
-  "windows": ["main", "browser-overlay", "browser-tab-panel", "browser-menu"],
-  "webviews": ["main", "browser-overlay", "browser-tab-panel", "browser-menu"],
+  "description": "西娅浏览器 外壳的基础窗口与事件权限",
+  "windows": ["main", "browser-overlay", "browser-tab-panel", "browser-menu", "sia-tab-tooltip-window"],
+  "webviews": ["main", "browser-overlay", "browser-tab-panel", "browser-menu", "sia-tab-tooltip-window"],
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging"

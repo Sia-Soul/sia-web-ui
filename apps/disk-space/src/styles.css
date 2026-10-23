@@ -635,6 +635,61 @@ input {
 [data-sia-theme="dark"] .space-treemap .sia-treemap__tile,
 [data-sia-theme="dark"] .space-treemap .sia-treemap__tile.is-expanded {
   background: var(--sia-treemap-tile-color);
+  /* 零间距下相邻两侧各绘制 0.5px 白色内描边，组成 1px 分隔线且不改变布局尺寸。 */
+  border: 0;
+  border-radius: 0;
+  outline: 0.5px solid #fff;
+  outline-offset: -0.5px;
+  box-shadow: none;
+}
+
+/* 交互状态维持相同分隔线宽度，避免悬停或聚焦时线条变粗。 */
+.space-treemap button.sia-treemap__tile:hover,
+.space-treemap button.sia-treemap__tile:focus-visible,
+.space-treemap .sia-treemap__tile.is-expanded:has(.sia-treemap__header:hover),
+.space-treemap .sia-treemap__tile.is-expanded:has(.sia-treemap__header:focus-within) {
+  border: 0;
+  outline: 0.5px solid #fff;
+  outline-offset: -0.5px;
+  box-shadow: none;
+}
+
+/* 方块已有明确布局尺寸，使用尺寸容器让扫描标记按可用空间自动降级。 */
+.space-treemap .sia-treemap__tile {
+  container-type: size;
+}
+
+/* 扫描态默认显示小圆点，不改变分隔线、背景色或布局，也不拦截点击。 */
+.space-treemap .sia-treemap__tile.is-active::after {
+  content: "";
+  display: block;
+  inset: 3px auto auto 3px;
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  background: #0969da;
+  color: #fff;
+  -webkit-mask: none;
+  mask: none;
+  pointer-events: none;
+  animation: none;
+}
+
+/* 仅在空间充足的收起方块中显示文字；展开方块保留圆点，避免覆盖标题操作。 */
+@container (min-width: 140px) and (min-height: 80px) {
+  .space-treemap .sia-treemap__tile.is-active:not(.is-expanded)::after {
+    content: "正在探查";
+    inset: 8px auto auto 8px;
+    width: auto;
+    height: auto;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 18px;
+  }
 }
 
 .treemap-legend {

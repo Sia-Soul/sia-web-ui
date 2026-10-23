@@ -2,6 +2,9 @@
   box-sizing: border-box;
 }
 
+/* 窗口边缘与 Tree 拖动线共用橙色；独立侧栏 WebView 也读取本地文档中的同一默认值。 */
+:root { --browser-resize-color: #fa8c16; }
+
 html,
 body,
 #root {
@@ -40,17 +43,89 @@ body.browser-tab-panel-document__body,
   background: transparent !important;
 }
 
+/* 20px 透明留白与原生 MENU_SHADOW_SPACE 一致，让两层轻阴影在窗口边界前自然消散。 */
+.browser-window-menu,
+.browser-panel {
+  width: calc(100% - 40px);
+  height: calc(100% - 40px);
+  margin: 20px;
+  box-shadow: 0 2px 4px rgb(15 23 42 / 6%), 0 6px 12px -2px rgb(15 23 42 / 10%);
+}
+
 .browser-window-menu {
-  width: calc(100% - 16px);
-  height: calc(100% - 16px);
-  margin: 8px;
   padding: 6px;
   overflow: hidden;
   background: var(--sia-color-surface);
   border: 1px solid var(--sia-color-border);
   border-radius: 12px;
-  box-shadow: 0 5px 16px rgb(15 23 42 / 16%);
 }
+
+/* 工具面板和内部按钮即时响应，避免框架默认过渡延缓开关或菜单切换。 */
+.browser-menu-document *,
+.browser-menu-document *::before,
+.browser-menu-document *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+
+/* 扩展面板保持紧凑宽度，长名称省略，操作列不参与压缩。 */
+.browser-extensions-summary {
+  padding: 12px 16px 6px;
+  color: var(--sia-color-text-secondary);
+  font-size: 12px;
+}
+
+.browser-extension-row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 28px 28px;
+  align-items: center;
+  gap: 8px;
+  min-height: 64px;
+  padding: 8px;
+}
+
+.browser-extension-icon { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
+/* 窄窗口优先保留导航和窗口控制，隐藏的快捷入口仍可在扩展面板中管理。 */
+.browser-pinned-extensions { display: flex; flex: 0 0 auto; }
+.browser-pinned-extensions:empty { display: none; }
+@media (max-width: 1200px) {
+  .browser-pinned-extensions > :nth-child(n + 3) { display: none; }
+}
+@media (max-width: 1050px) {
+  .browser-pinned-extensions { display: none; }
+}
+.browser-extension-copy { display: grid; gap: 5px; min-width: 0; }
+.browser-extension-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 13px; }
+.browser-extension-status { font-size: 12px; color: var(--sia-color-text-secondary); }
+.browser-extension-row.is-disabled .browser-extension-copy { opacity: 0.55; }
+.browser-extension-row .browser-panel__toolbar-button.sia-button { width: 28px; min-width: 28px; height: 28px; }
+.browser-extensions-footer { display: grid; padding: 6px 12px; border-top: 1px solid var(--sia-color-border); }
+.browser-extensions-footer .sia-button { justify-content: flex-start; min-width: 0; font-size: 13px; }
+.browser-extensions-error { color: var(--sia-color-danger); padding: 8px 16px; font-size: 12px; overflow-wrap: anywhere; }
+
+/* 子菜单限制在所属原生窗口中，底部项目打开时向上避让窗口边界。 */
+.browser-extension-context-menu.sia-menu {
+  position: absolute;
+  width: 248px;
+  max-height: calc(100% - 48px);
+  overflow-y: auto;
+  background: var(--sia-color-surface);
+  border: 1px solid var(--sia-color-border);
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 14%);
+}
+.browser-extension-context-menu .sia-menu__item { min-width: 0; font-size: 13px; }
+
+/* 收缩列表的气泡保持只读与即时显示，不遮挡指针或引入开关动画。 */
+.browser-tab-tooltip-anchor { position: fixed; display: block; width: 1px; height: 1px; pointer-events: none; }
+.browser-tab-tooltip.sia-floating__overlay { width: 280px; max-width: 280px; pointer-events: none; animation: none; transition: none; }
+.browser-tab-tooltip-content { display: grid; gap: 6px; white-space: normal; overflow-wrap: anywhere; text-align: left; font-size: 12px; line-height: 18px; }
+.browser-tab-tooltip-url { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+/* 标题和分组名称完整换行，桌面提示窗口根据实际排版高度调整。 */
+.browser-tab-tooltip-content > strong { font-size: 13px; }
+.browser-tab-tooltip-url { opacity: 0.85; }
+.browser-tab-tooltip-detail { opacity: 0.7; }
 
 .browser-window-menu__item.sia-button {
   display: flex;
@@ -190,15 +265,11 @@ body.browser-tab-panel-document__body,
 
 .browser-panel {
   display: flex;
-  width: calc(100% - 16px);
-  height: calc(100% - 16px);
-  margin: 8px;
   overflow: hidden;
   flex-direction: column;
   background: var(--sia-color-surface);
   border: 1px solid var(--sia-color-border);
   border-radius: 12px;
-  box-shadow: 0 5px 16px rgb(15 23 42 / 16%);
 }
 
 .browser-panel__header {
@@ -381,7 +452,7 @@ body.browser-tab-panel-document__body,
 
 .browser-download-context-menu.sia-menu {
   position: absolute;
-  width: 320px;
+  width: 280px;
   padding: 6px;
   overflow: hidden;
   border: 1px solid var(--sia-color-border);
@@ -682,6 +753,8 @@ input {
 }
 
 .browser-shell {
+  /* 1px 外框加 3px 内边距，为原生网页和侧栏预留四周 4px，不让子视图盖住边框。 */
+  padding: 3px;
   --browser-titlebar: #eaf2ff;
   --browser-toolbar: rgb(255 255 255 / 94%);
   --browser-toolbar-border: #dce6f3;
@@ -703,6 +776,37 @@ input {
   --browser-page: #101419;
 }
 
+/* 活动窗口沿用 WindowFrame 的 1px 边框：浅色酒红边、深色蓝边；失活时恢复默认边框。 */
+.browser-shell[data-window-active="true"] {
+  --sia-window-border-color: #800020;
+}
+
+[data-sia-theme="dark"] .browser-shell[data-window-active="true"] {
+  --sia-window-border-color: #4096ff;
+}
+
+/* 强调线覆盖在保留区域内，不改变布局；角落命中时同时点亮两条边。 */
+.browser-shell::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  border: 3px solid transparent;
+}
+.browser-shell[data-resize-edges~="left"]::after { border-left-color: var(--browser-resize-color); }
+.browser-shell[data-resize-edges~="right"]::after { border-right-color: var(--browser-resize-color); }
+.browser-shell[data-resize-edges~="top"]::after { border-top-color: var(--browser-resize-color); }
+.browser-shell[data-resize-edges~="bottom"]::after { border-bottom-color: var(--browser-resize-color); }
+
+/* 标题区按内容增高；导航行保留原尺寸，收藏行位于整个标题区底部并横跨窗口。 */
+.browser-titlebar-area {
+  flex: 0 0 auto;
+  min-width: 0;
+  width: 100%;
+  background: var(--browser-toolbar);
+}
+
 .browser-titlebar {
   position: relative;
   z-index: 10;
@@ -717,243 +821,22 @@ input {
 
 .browser-brand {
   display: flex;
-  width: 70px;
-  min-width: 70px;
+  width: 36px;
+  min-width: 36px;
   align-items: center;
   justify-content: center;
+  /* 顶部只保留品牌图标，将可用宽度留给地址栏。 */
 }
 
-.browser-brand__mark {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  color: transparent;
-  line-height: 1;
-  background: linear-gradient(115deg, #ff3d81 0%, #8b5cf6 35%, #178bff 68%, #14c9a2 100%);
-  background-clip: text;
-  -webkit-background-clip: text;
-}
-
-.browser-brand__mark strong {
-  font-size: 17px;
-  font-weight: 850;
-  letter-spacing: -0.05em;
-}
-
-.browser-brand__mark small {
-  margin-top: 1px;
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.13em;
-}
-
-.horizontal-tab-strip {
-  display: flex;
-  min-width: 0;
-  max-width: min(920px, calc(100vw - 330px));
-  flex: 0 1 auto;
-  align-items: end;
-  align-self: end;
-  gap: 3px;
-}
-
-.horizontal-tab-scroll {
-  min-width: 0;
-  flex: 0 1 auto;
-  overflow: hidden;
-  overscroll-behavior-x: contain;
-  scrollbar-width: none;
-}
-
-.horizontal-tab-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-.horizontal-tab-list {
-  display: flex;
-  width: max-content;
-  height: 38px;
-  align-items: end;
-  gap: 3px;
-}
-
-.browser-tab {
-  position: relative;
-  display: flex;
-  width: 178px;
-  min-width: 118px;
-  height: 36px;
-  align-items: center;
-  color: color-mix(in srgb, var(--sia-color-text) 72%, transparent);
-  border-radius: 9px 9px 0 0;
-}
-
-.browser-tab:hover {
-  color: var(--sia-color-text);
-  background: rgb(255 255 255 / 46%);
-}
-
-[data-sia-theme="dark"] .browser-tab:hover {
-  background: rgb(255 255 255 / 7%);
-}
-
-.browser-tab.is-active {
-  color: var(--sia-color-text);
-  background: var(--browser-toolbar);
-  box-shadow: 0 -1px 0 rgb(255 255 255 / 32%);
-}
-
-.browser-tab__select.sia-button {
-  width: 100%;
-  min-width: 0;
-  height: 36px;
-  justify-content: flex-start;
-  padding: 0 32px 0 12px;
-  overflow: hidden;
-  color: inherit;
-  font-size: 12px;
-  border-radius: inherit;
-}
-
-.browser-tab.has-audio .browser-tab__select.sia-button {
-  padding-right: 56px;
-}
-
-.browser-tab__select.sia-button > span:last-child {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  align-items: center;
-  gap: 5px;
-  overflow: hidden;
-}
-
-.browser-tab__title {
-  min-width: 0;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.browser-tab__sleeping {
-  flex: 0 0 auto;
-  padding: 2px 4px;
-  color: var(--sia-color-text-secondary);
-  font-size: 8px;
-  line-height: 1;
-  background: var(--sia-color-control-active);
-  border-radius: 4px;
-}
-
-.browser-tab__select.sia-button:hover:not(:disabled) {
-  color: inherit;
-  background: transparent;
-}
-
-.browser-tab__close.sia-button {
-  position: absolute;
-  top: 8px;
-  right: 7px;
-  width: 20px;
-  min-width: 20px;
-  height: 20px;
-  padding: 0;
-  color: var(--sia-color-text-secondary);
-  border-radius: 5px;
-}
-
-.browser-tab__audio.sia-button {
-  position: absolute;
-  z-index: 1;
-  top: 9px;
-  right: 31px;
-  width: 18px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0;
-  color: var(--sia-color-primary);
-  border-radius: 50%;
-}
-
-.browser-tab__audio.sia-button:hover:not(:disabled) {
-  color: var(--sia-color-primary);
-  background: color-mix(in srgb, var(--sia-color-primary) 11%, transparent);
-}
-
-.browser-tab__audio.is-muted.sia-button {
-  color: var(--sia-color-text-secondary);
-}
-
-.browser-tab-add.sia-button {
-  width: 30px;
-  min-width: 30px;
-  height: 30px;
-  margin-bottom: 3px;
-  padding: 0;
-  border-radius: 7px;
-}
-
-.browser-tab-overflow.sia-button {
-  width: 30px;
-  min-width: 30px;
-  height: 30px;
-  padding: 0;
-  border-radius: 7px;
-}
-
-.browser-tab-overflow.sia-button {
-  margin-bottom: 3px;
-}
-
-.browser-tab-overflow-popup {
-  min-width: 270px;
-  max-width: 340px;
-  max-height: 380px;
-  overflow: auto;
+/* 品牌图标参与标题栏拖动，不触发图片原生拖拽。 */
+.browser-brand .browser-brand-glyph {
+  pointer-events: none;
+  -webkit-user-drag: none;
 }
 
 .browser-shell .sia-dropdown__popup,
 .browser-shell .sia-menu__popup {
   box-shadow: none;
-}
-
-.browser-tab-overflow-popup .sia-menu__item {
-  min-width: 0;
-}
-
-.browser-tab-overflow-popup .sia-menu__label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.browser-tab-overflow__label {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 8px;
-}
-
-.browser-tab-overflow__label > span:first-child {
-  min-width: 0;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.browser-toolbar {
-  position: relative;
-  z-index: 9;
-  display: flex;
-  height: 54px;
-  min-height: 54px;
-  align-items: center;
-  gap: 12px;
-  padding: 0 12px;
-  background: var(--browser-toolbar);
-  border-bottom: 1px solid var(--browser-toolbar-border);
-  box-shadow: 0 3px 12px rgb(32 61 96 / 5%);
 }
 
 .browser-toolbar__navigation {
@@ -967,16 +850,25 @@ input {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 2px;
+  /* 功能按钮紧密排列，窗口控制区仍保持框架默认的点击宽度。 */
+  gap: 0;
+}
+
+.browser-titlebar-actions .toolbar-icon-button.sia-button {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  border-radius: 6px;
 }
 
 .browser-download-action {
   position: relative;
   display: grid;
-  width: 38px;
-  min-width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
+  /* 下载入口与相邻按钮等宽，进度环围绕缩小后的点击区域绘制。 */
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
   place-items: center;
   isolation: isolate;
 }
@@ -990,8 +882,8 @@ input {
   position: absolute;
   z-index: 3;
   inset: -1px;
-  width: 40px;
-  height: 40px;
+  width: 30px;
+  height: 30px;
   overflow: visible;
   pointer-events: none;
   transform: rotate(-90deg);
@@ -1035,9 +927,10 @@ input {
 }
 
 .browser-titlebar.is-vertical {
-  --sia-window-titlebar-height: 48px;
-  height: 48px;
-  min-height: 48px;
+  /* 单行标题栏采用 40px 高度，地址栏与操作按钮在内部居中排列。 */
+  --sia-window-titlebar-height: 40px;
+  height: 40px;
+  min-height: 40px;
   align-items: center;
   gap: 8px;
   padding-left: 4px;
@@ -1047,8 +940,9 @@ input {
 }
 
 .browser-titlebar.is-vertical .browser-brand {
-  width: 70px;
-  min-width: 70px;
+  /* 28px 品牌标志配合两侧各 4px 留白，提高辨识度而不增加标题栏高度。 */
+  width: 36px;
+  min-width: 36px;
 }
 
 .vertical-titlebar-navigation {
@@ -1067,6 +961,18 @@ input {
   max-height: calc(100% - 10px);
 }
 
+/* 单行地址栏仅覆盖尺寸，背景和边框统一随聚焦状态切换；快捷键由 Sia Input suffix 占位。 */
+.vertical-titlebar-navigation .address-input .sia-input-control {
+  height: 30px;
+  padding-inline: 10px;
+  border-radius: 10px;
+}
+
+/* 导航按钮适配紧凑标题栏，保留地址栏上下各 5px 的间隙。 */
+.vertical-titlebar-navigation .toolbar-icon-button.sia-button {
+  height: 28px;
+}
+
 .browser-titlebar.is-vertical .sia-window-titlebar__drag-region {
   min-width: 0;
   flex: 0 0 0;
@@ -1075,7 +981,7 @@ input {
 
 .browser-titlebar.is-vertical .sia-window-controls,
 .browser-titlebar.is-vertical .sia-window-control {
-  height: 48px;
+  height: 40px;
   max-height: 100%;
 }
 
@@ -1111,8 +1017,7 @@ input {
   flex-direction: column;
 }
 
-.toolbar-icon-button.sia-button,
-.bookmark-button.sia-button {
+.toolbar-icon-button.sia-button {
   width: 34px;
   min-width: 34px;
   height: 34px;
@@ -1121,8 +1026,7 @@ input {
   border-radius: 9px;
 }
 
-.toolbar-icon-button.sia-button:hover:not(:disabled),
-.bookmark-button.sia-button:hover:not(:disabled) {
+.toolbar-icon-button.sia-button:hover:not(:disabled) {
   color: var(--sia-color-text);
 }
 
@@ -1150,14 +1054,21 @@ input {
 .address-input .sia-input-control {
   height: 38px;
   padding: 0 44px 0 13px;
-  background: color-mix(in srgb, var(--sia-color-background) 72%, var(--sia-color-surface));
+  background: transparent;
   border-color: transparent;
   border-radius: 12px;
 }
 
-.address-input .sia-input-control:hover {
-  background: var(--sia-color-surface);
-  border-color: color-mix(in srgb, var(--sia-color-primary) 32%, var(--sia-color-border));
+/* 未聚焦时透出所在标题栏/导航栏背景，悬停也不显示边框；透明边框避免尺寸跳动。 */
+.address-input .sia-input-control:not(:focus-within) {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* 未编辑时悬停显示浅灰底，使用主题色混合使深色模式保留相同的轻微强调。 */
+.address-input .sia-input-control:not(:focus-within):hover {
+  background: color-mix(in srgb, var(--sia-color-text) 6%, var(--sia-color-surface));
 }
 
 .address-input .sia-input-control:focus-within {
@@ -1167,26 +1078,6 @@ input {
 
 .address-input .sia-input {
   font-size: 13px;
-}
-
-.address-host {
-  max-width: 150px;
-  overflow: hidden;
-  color: var(--sia-color-text-secondary);
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.bookmark-button.sia-button {
-  position: absolute;
-  right: 5px;
-  z-index: 2;
-  color: var(--sia-color-text-secondary);
-}
-
-.bookmark-button.is-active.sia-button {
-  color: #f5a623;
 }
 
 .profile-button.sia-button {
@@ -1207,13 +1098,17 @@ input {
   border-radius: 50%;
 }
 
+/* 固定预留网页上边框，原生网页从边框下方开始，加载状态切换不改变网页尺寸。 */
+.browser-page-top-border {
+  position: relative;
+  flex: 0 0 3px;
+  background: var(--browser-page);
+}
+
 .browser-loading-line {
   position: absolute;
   z-index: 12;
-  right: 0;
-  bottom: -1px;
-  left: 0;
-  height: 2px;
+  inset: 0;
   overflow: hidden;
   pointer-events: none;
 }
@@ -1229,8 +1124,6 @@ input {
 }
 
 [data-sia-theme="dark"] .browser-loading-line {
-  bottom: 0;
-  height: 3px;
   background: rgb(88 196 255 / 12%);
   box-shadow: inset 0 -1px 0 rgb(131 218 255 / 18%);
 }
@@ -1258,33 +1151,57 @@ input {
   min-height: 32px;
   align-items: center;
   gap: 2px;
-  padding: 0 14px;
+  padding: 0 8px;
   overflow: hidden;
   background: var(--browser-toolbar);
   border-bottom: 1px solid var(--browser-toolbar-border);
 }
 
-.bookmarks-bar__label {
-  display: inline-flex;
+/* 收藏不换行，窄窗口可横向滚动，也可通过右侧入口打开原生收藏面板。 */
+.bookmarks-bar__items {
+  display: flex;
+  min-width: 0;
+  flex: 1;
   align-items: center;
-  gap: 5px;
-  margin-right: 3px;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.bookmarks-bar__items::-webkit-scrollbar {
+  display: none;
+}
+
+.bookmarks-bar__empty {
+  padding: 0 6px;
   color: var(--sia-color-text-secondary);
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
 .bookmark-link.sia-button {
+  flex: 0 0 auto;
   min-width: auto;
-  height: 25px;
-  padding: 0 9px;
-  color: var(--sia-color-text-secondary);
-  font-size: 11px;
-  border-radius: 6px;
+  height: 26px;
+  padding: 0 7px;
+  color: var(--sia-color-text);
+  font-size: 12px;
+  border-radius: 4px;
 }
 
-.bookmarks-bar__spacer {
-  flex: 1;
+.bookmark-link__title {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 独立保留更多入口，收藏数量再多也不能挤出窗口。 */
+.bookmarks-bar__more.sia-button {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 26px;
+  padding: 0;
 }
 
 .vertical-tab-tree {
@@ -1332,16 +1249,6 @@ input {
   margin-left: auto;
 }
 
-.vertical-tab-tree__cookie-note {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--sia-color-text-tertiary);
-  font-size: 11px;
-  line-height: 20px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .vertical-tree-header-action.sia-button {
   width: 30px;
   min-width: 30px;
@@ -1355,7 +1262,18 @@ input {
   color: var(--sia-color-primary);
 }
 
-.vertical-tree-header-action--pin.is-active.sia-button {
+/* 新增操作按文字内容分配宽度，保留旁边收起按钮的紧凑图标尺寸。 */
+.vertical-tree-header-action--text.sia-button {
+  width: auto;
+  min-width: 0;
+  flex-shrink: 0;
+  padding-inline: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* 展开状态强调收起入口，使用箭头表达面板开关而非固定操作。 */
+.vertical-tree-header-action--toggle.is-active.sia-button {
   color: var(--sia-color-primary);
   background: color-mix(in srgb, var(--sia-color-primary) 10%, transparent);
 }
@@ -1371,47 +1289,6 @@ input {
   height: 100%;
   padding: 7px 8px 12px;
   overflow: auto;
-  scrollbar-color: transparent transparent;
-  scrollbar-width: none;
-}
-
-.vertical-tab-tree__scroll::-webkit-scrollbar {
-  width: 0;
-}
-
-.vertical-tab-tree__overlay-scrollbar {
-  --sia-scrollbar-hit-size: 10px;
-  position: absolute;
-  z-index: 5;
-  top: 0;
-  right: 2px;
-  bottom: 0;
-  width: 10px;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 100ms ease;
-}
-
-.vertical-tab-tree.has-overlay-scrollbar .vertical-tab-tree__overlay-scrollbar.is-visible {
-  pointer-events: auto;
-  opacity: 1;
-}
-
-.vertical-tab-tree__overlay-scrollbar-thumb {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: var(--sia-scrollbar-size);
-  min-height: 28px;
-  cursor: default;
-  background: color-mix(in srgb, var(--sia-color-text-secondary) 58%, transparent);
-  border-radius: 999px;
-  touch-action: none;
-  transition: background-color 120ms ease, width 150ms ease;
-}
-
-.vertical-tab-tree__overlay-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--sia-color-text-secondary) 76%, transparent);
 }
 
 .vertical-tab-tree.is-collapsed .vertical-tab-tree__scroll {
@@ -1427,13 +1304,8 @@ input {
   justify-items: center;
   gap: 5px;
   padding: 6px 5px 46px;
-  overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-width: none;
-}
-
-.vertical-tab-tree__compact-scroll::-webkit-scrollbar {
-  display: none;
+  /* 由框架按实际溢出接管滚动条，紧凑状态同样允许双向滚动。 */
+  overflow: auto;
 }
 
 .vertical-tree-compact-group {
@@ -1558,11 +1430,14 @@ input {
   border-radius: 999px;
 }
 
-.vertical-tree-compact-tab__state--sleeping {
-  top: -3px;
-  right: -3px;
-  color: #635bca;
-  background: #eeeefe;
+.vertical-tree-compact-tab__visual.is-sleeping::after {
+  /* 虚线框位于站点图标外围，不改变图标尺寸、标签行高或声音角标的位置。 */
+  position: absolute;
+  inset: -2px;
+  content: "";
+  pointer-events: none;
+  border: 1px dashed color-mix(in srgb, var(--group-color, var(--sia-color-primary)) 65%, var(--sia-color-text-secondary));
+  border-radius: 6px;
 }
 
 .vertical-tree-compact-tab__state--muted {
@@ -1606,7 +1481,8 @@ input {
   right: 0;
   bottom: 0;
   width: 8px;
-  cursor: col-resize;
+  /* 水平调宽与窗口左右边缘使用同类系统指针，避免列分隔指针绕过用户的水平缩放样式。 */
+  cursor: ew-resize;
   touch-action: none;
 }
 
@@ -1618,12 +1494,13 @@ input {
   width: 1px;
   content: "";
   background: transparent;
-  transition: background-color 140ms ease;
 }
 
-.vertical-tab-tree__resize-handle:hover::before,
+.vertical-tab-tree:not(.is-collapsed) .vertical-tab-tree__resize-handle:hover::before,
 .vertical-tab-tree.is-resizing .vertical-tab-tree__resize-handle::before {
-  background: var(--sia-color-primary);
+  /* 悬停和拖动时即时显示 3px 橙色线；绝对定位不占布局，移开后恢复原分隔线。 */
+  width: 3px;
+  background: var(--browser-resize-color);
 }
 
 .vertical-tab-tree.is-collapsed .vertical-tab-tree__resize-handle {
@@ -1637,12 +1514,14 @@ input {
 }
 
 .vertical-tree-group {
-  margin-bottom: 5px;
+  /* 环境之间保留少量分隔，避免空分组与下一组之间产生过大留白。 */
+  margin-bottom: 8px;
 }
 
 .vertical-tree-group__heading {
   display: flex;
-  height: 34px;
+  /* 环境标题略高于普通节点，保持层级区分和紧凑排列。 */
+  height: 30px;
   align-items: center;
   gap: 2px;
   padding: 0 3px 0 0;
@@ -1656,14 +1535,31 @@ input {
 
 .vertical-tree-group__toggle.sia-button {
   min-width: 0;
-  height: 29px;
+  height: 28px;
   justify-content: flex-start;
   flex: 1;
   gap: 3px;
   padding: 0 3px;
   color: var(--group-color);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 750;
+}
+
+/* 折叠箭头靠右，名称和右侧操作之间保持弹性距离。 */
+.vertical-tree-group__toggle.sia-button > span:last-child,
+.vertical-tree-small-group__toggle.sia-button > span:last-child {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.vertical-tree-group__toggle .sia-icon,
+.vertical-tree-small-group__toggle .sia-icon {
+  flex-shrink: 0;
+  color: var(--group-color);
 }
 
 .vertical-tree-group__toggle.sia-button:hover:not(:disabled) {
@@ -1672,11 +1568,13 @@ input {
 }
 
 .vertical-tree-group__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
   padding-bottom: 2px;
 }
 
 .vertical-tree-group__name.is-current-ancestor {
-  border-bottom: 2px solid var(--group-color);
+  color: var(--group-color);
 }
 
 .vertical-tree-group__heading .vertical-tree-icon-button.sia-button:hover:not(:disabled) {
@@ -1691,6 +1589,21 @@ input {
   padding: 0;
   color: var(--sia-color-text-secondary);
   border-radius: 6px;
+}
+
+/* 行尾操作默认不参与布局；仅当前行悬停或键盘聚焦时显示，避免占用名称宽度。
+   focus-visible 保留键盘操作入口，鼠标点击留下的焦点不会让按钮持续显示。 */
+:is(.vertical-tree-group__heading, .vertical-tree-small-group__heading) > .vertical-tree-icon-button,
+:is(.vertical-tree-group__heading, .vertical-tree-small-group__heading) .vertical-tree-node-chevron {
+  display: none;
+}
+
+:is(.vertical-tree-group__heading, .vertical-tree-small-group__heading):is(:hover, :has(:focus-visible)) > .vertical-tree-icon-button {
+  display: inline-flex;
+}
+
+:is(.vertical-tree-group__heading, .vertical-tree-small-group__heading):is(:hover, :has(:focus-visible)) .vertical-tree-node-chevron {
+  display: inline-block;
 }
 
 .vertical-tree-node-context {
@@ -1709,11 +1622,11 @@ input {
 }
 
 .vertical-tree-small-group__heading {
-  display: grid;
-  height: 30px;
+  /* 小分组与标签统一为 28px 行高；弹性布局在操作隐藏后释放标题宽度。 */
+  display: flex;
+  height: 28px;
   align-items: center;
-  padding: 0 3px 0 22px;
-  grid-template-columns: minmax(0, 1fr) 25px;
+  padding: 0 3px 0 14px;
   gap: 1px;
   color: var(--sia-color-text-secondary);
   border-radius: 6px;
@@ -1726,12 +1639,13 @@ input {
 
 .vertical-tree-small-group__toggle.sia-button {
   min-width: 0;
+  flex: 1;
   height: 27px;
   justify-content: flex-start;
   padding: 0 5px;
   overflow: hidden;
   color: color-mix(in srgb, var(--sia-color-text) 82%, var(--sia-color-text-secondary));
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 650;
 }
 
@@ -1754,7 +1668,7 @@ input {
 }
 
 .vertical-tree-small-group__name.is-current-ancestor {
-  border-bottom: 1.5px solid var(--group-color);
+  color: var(--sia-color-text);
 }
 
 .vertical-tree-small-group__toggle .sia-button__icon {
@@ -1768,17 +1682,18 @@ input {
 }
 
 .vertical-tree-small-group__tabs {
-  padding-left: 44px;
+  padding-left: 28px;
 }
 
 .vertical-tree-group__direct-tabs {
-  padding-left: 22px;
+  padding-left: 14px;
 }
 
 .vertical-tree-tab {
   position: relative;
   display: flex;
   min-width: 0;
+  /* 标签与小分组使用一致的紧凑行高，保留原有缩进和字号。 */
   height: 28px;
   align-items: center;
   border-radius: 6px;
@@ -1794,14 +1709,15 @@ input {
 }
 
 .vertical-tree-tab.is-active::after {
+  /* 活动页使用左侧分组色条，标题与未选中项保持同样的文字基线。 */
   position: absolute;
-  right: 7px;
-  bottom: 0;
-  left: 7px;
-  height: 2px;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  width: 3px;
   content: "";
   background: var(--group-color, var(--sia-color-primary));
-  border-radius: 999px;
+  pointer-events: none;
 }
 
 .vertical-tree-tab__select.sia-button {
@@ -1812,7 +1728,7 @@ input {
   padding: 0 7px;
   overflow: hidden;
   color: color-mix(in srgb, var(--sia-color-text) 84%, var(--sia-color-text-secondary));
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .vertical-tree-tab.has-audio .vertical-tree-tab__select.sia-button {
@@ -1833,14 +1749,49 @@ input {
 }
 
 .browser-brand-glyph {
-  display: inline-block;
+  /* 标签图标直接使用品牌资源，避免字符渐变与桌面图标不一致。 */
+  display: block;
   flex: 0 0 auto;
-  color: transparent;
-  font-weight: 900;
-  line-height: 1;
-  background: linear-gradient(135deg, #ff3d81 0%, #9b4dff 32%, #168cff 66%, #12cfa0 100%);
-  background-clip: text;
-  -webkit-background-clip: text;
+  object-fit: contain;
+}
+
+/* 分组拖放使用主题色描边，明确提示目标；源标签降低透明度但保留占位。 */
+.vertical-tab-tree [data-drop-active="true"] {
+  outline: 2px solid var(--sia-color-primary);
+  outline-offset: -2px;
+  background: color-mix(in srgb, var(--sia-color-primary) 10%, transparent);
+  border-radius: 6px;
+}
+
+.vertical-tree-tab.is-dragging { opacity: 0.45; }
+/* 插入线覆盖在行边缘，4px 粗线不占布局且不参与命中，避免跨行时反复触发离开。 */
+.vertical-tree-drop-line {
+  position: absolute;
+  z-index: 5;
+  top: -2px;
+  left: 0;
+  right: 0;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--sia-color-primary);
+  pointer-events: none;
+}
+.vertical-tree-drop-end {
+  position: relative;
+  height: 0;
+  pointer-events: none;
+}
+/* 展开与收缩列表中的节点统一保持普通箭头，拖放能力由 draggable 和事件处理保留。 */
+.vertical-tab-tree__scroll .sia-button,
+.vertical-tab-tree__compact-scroll .sia-button {
+  cursor: default;
+}
+.vertical-tree-tab__select[draggable="true"] img { pointer-events: none; }
+.vertical-tree-drop-hint {
+  display: block;
+  padding: 10px 8px;
+  color: var(--sia-color-text-secondary);
+  font-size: 12px;
 }
 
 .browser-page-favicon {
@@ -1861,8 +1812,8 @@ input {
 }
 
 .vertical-tree-tab.is-active .vertical-tree-tab__title {
-  color: var(--group-color, var(--sia-color-primary));
-  font-weight: 700;
+  color: var(--sia-color-text);
+  font-weight: 500;
 }
 
 .vertical-tree-tab__sleeping {
@@ -1994,25 +1945,18 @@ input {
 
 .new-tab-logo {
   display: grid;
-  width: 58px;
-  height: 58px;
+  width: 72px;
+  height: 72px;
   margin: 0 auto 18px;
-  color: #fff;
   place-items: center;
-  background: linear-gradient(145deg, #3b91ff, #105fd0);
-  border: 1px solid rgb(255 255 255 / 44%);
-  border-radius: 19px;
-  box-shadow:
-    0 16px 40px rgb(22 119 255 / 24%),
-    inset 0 1px 0 rgb(255 255 255 / 32%);
-  transform: rotate(-4deg);
 }
 
-.new-tab-logo span {
-  font-size: 30px;
-  font-weight: 850;
-  letter-spacing: -0.08em;
-  transform: rotate(4deg);
+/* 飞燕标志保留透明镂空，直接显示平面轮廓，不叠加底板或旋转。 */
+.new-tab-logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .new-tab-content h1 {
@@ -2622,47 +2566,49 @@ input {
   font-size: 14px;
 }
 
-.browser-settings-credential {
-  display: grid;
-  min-width: 0;
-  min-height: 76px;
-  align-items: center;
-  grid-template-columns: minmax(220px, 1fr) minmax(180px, 0.9fr) auto;
-  gap: 22px;
-  padding: 12px 22px;
-  border-bottom: 1px solid var(--sia-color-border);
-}
-
-.browser-settings-credential:last-child {
-  border-bottom: 0;
-}
-
-.browser-settings-credential__site,
-.browser-settings-credential__account {
+/* 网站名称与来源分两行显示，保持在表格的 56px 行高以内。 */
+.browser-settings-credential__site {
   display: grid;
   min-width: 0;
   gap: 4px;
 }
 
 .browser-settings-credential__site strong,
-.browser-settings-credential__site span,
-.browser-settings-credential__account span,
-.browser-settings-credential__account small {
+.browser-settings-credential__site span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.browser-settings-credential__site strong,
-.browser-settings-credential__account span {
+.browser-settings-credential__site strong {
   color: var(--sia-color-text);
   font-size: 14px;
 }
 
-.browser-settings-credential__site span,
-.browser-settings-credential__account small {
+.browser-settings-credential__site span {
   color: var(--sia-color-text-secondary);
   font-size: 12px;
+}
+
+/* 长密码可横向滚动查看，眼睛和复制按钮固定留在单元格右侧。 */
+.browser-password-cell {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.browser-password-cell__value {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: pre;
+  font-family: Consolas, monospace;
+  user-select: text;
+}
+
+.browser-password-cell > .sia-button {
+  flex-shrink: 0;
 }
 
 .browser-settings-extensions__actions {
@@ -2820,19 +2766,6 @@ input {
     padding-inline: 28px;
   }
 
-  .browser-settings-credential {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .browser-settings-credential__account {
-    grid-column: 1;
-  }
-
-  .browser-settings-credential > .sia-button {
-    grid-row: 1 / span 2;
-    grid-column: 2;
-  }
-
   .browser-settings-extension {
     grid-template-columns: 40px minmax(0, 1fr);
   }
@@ -2876,24 +2809,13 @@ input {
 }
 
 @media (max-width: 1120px) {
-  .horizontal-tab-strip {
-    max-width: 520px;
-  }
-
-  .address-host {
-    display: none;
-  }
-
-  .browser-toolbar {
-    gap: 7px;
-    padding-inline: 8px;
-  }
-
-  .browser-toolbar__actions .sia-theme-switch {
-    display: none;
-  }
-
   .vertical-titlebar-navigation {
     gap: 5px;
   }
 }
+
+/* 生效范围使用紧凑父子列表；只滚动候选区域，保存按钮保持可见。 */
+.browser-extension-scopes { display: grid; gap: 14px; }
+.browser-extension-scopes p { margin: 0; color: var(--sia-color-text-secondary); }
+.browser-extension-scopes__groups { display: grid; gap: 12px; max-height: 360px; overflow-y: auto; }
+.browser-extension-scopes__child { padding: 7px 0 0 24px; }

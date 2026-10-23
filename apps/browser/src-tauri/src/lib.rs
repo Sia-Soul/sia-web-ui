@@ -1,7 +1,17 @@
 mod browser_overlay;
+mod browser_profiles;
+mod browser_theme;
 mod extensions;
+mod extension_runtime;
 mod floating_windows;
 mod passwords;
+mod startup_diagnostics;
+mod browser_startup;
+mod window_resize;
+#[cfg(windows)]
+mod browser_favicon;
+#[cfg(windows)]
+mod popup_window;
 
 #[cfg(windows)]
 use std::{
@@ -45,6 +55,9 @@ use windows::Win32::UI::{
 
 const BROWSER_WEBVIEW_PREFIX: &str = "browser-tab-";
 const BROWSER_STATE_FILE: &str = "browser-state.json";
+/// 记录每个已创建 WebView 的数据目录，防止标签变更隔离范围后复用旧登录状态。
+#[derive(Default)]
+struct BrowserProfileStore(std::sync::Mutex<std::collections::HashMap<String, std::path::PathBuf>>);
 #[cfg(windows)]
 static NEXT_DOWNLOAD_ID: AtomicU64 = AtomicU64::new(1);
 
@@ -155,16 +168,17 @@ fn browser_state_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
     Ok(directory.join(BROWSER_STATE_FILE))
 }
 
+/// 按大分组和小分组的稳定标识创建独立 WebView2 数据目录，重命名不会改变目录。
 fn browser_group_data_directory(
     app: &AppHandle,
     group_id: &str,
+    small_group_id: Option<&str>,
 ) -> Result<std::path::PathBuf, String> {
     let directory = app
         .path()
         .app_local_data_dir()
         .map_err(|error| error.to_string())?
-        .join("browser-profiles")
-        .join(sanitize_identifier(group_id));
+        .join(browser_profiles::relative_profile_path(group_id, small_group_id));
     std::fs::create_dir_all(&directory).map_err(|error| {
         format!(
             "无法创建分组 Cookie 数据目录 {}：{error}",
@@ -592,9 +606,10 @@ fn attach_audio_monitor(
                 let core_webview: ICoreWebView2 =
                     unsafe { platform_webview.controller().CoreWebView2()? };
                 unsafe {
+                    // 内容网页保留 WebView2 默认右键菜单；外壳在自己的文档入口拦截，不影响网页与站点菜单。
                     core_webview
                         .Settings()?
-                        .SetAreDefaultContextMenusEnabled(false)?;
+                        .SetAreDefaultContextMenusEnabled(true)?;
                 }
                 let core_webview_8: ICoreWebView2_8 = core_webview.cast()?;
                 let event_app = monitor_app.clone();
@@ -671,19 +686,33 @@ async fn open_browser_tab(
     app: AppHandle,
     tab_id: String,
     group_id: String,
+    small_group_id: Option<String>,
     url: String,
     bounds: BrowserBounds,
 ) -> Result<(), String> {
+    // 外部页面创建也必须排在壳层和辅助视图预加载之后。
+    app.state::<browser_startup::BrowserStartup>().wait().await?;
+    // 导航与扩展策略修改串行执行，确保页面只能在最新策略同步成功后加载。
+    let extension_lock = app.state::<extension_runtime::ExtensionOperationLock>();
+    let _extension_guard = extension_lock.0.lock().await;
     let parsed_url = parse_browser_url(&url)?;
     let label = browser_label(&tab_id);
+    let data_directory = browser_group_data_directory(&app, &group_id, small_group_id.as_deref())?;
+    // 相同标签只有在隔离目录一致时才能复用；跨范围必须销毁旧 WebView 后重建。
+    let profile_matches = app.state::<BrowserProfileStore>().0.lock()
+        .map_err(|_| "无法读取标签数据目录")?.get(&label) == Some(&data_directory);
+    if app.get_webview(&label).is_some() && !profile_matches {
+        close_browser_tab(app.clone(), tab_id.clone())?;
+    }
     eprintln!(
         "[browser-view] open tab={tab_id} label={label} bounds=({}, {}, {}, {})",
         bounds.x, bounds.y, bounds.width, bounds.height
     );
     hide_browser_webviews(&app, Some(&label))?;
 
-    if let Some(webview) = app.get_webview(&label) {
+    if let Some(webview) = app.get_webview(&label).filter(|_| profile_matches) {
         eprintln!("[browser-view] reuse label={label}");
+        browser_theme::apply_browser_theme(&app, &webview).await?;
         webview
             .set_bounds(logical_rect(bounds))
             .map_err(|error| error.to_string())?;
@@ -699,9 +728,9 @@ async fn open_browser_tab(
     let window = app
         .get_window("main")
         .ok_or_else(|| "找不到浏览器主窗口".to_string())?;
-    let data_directory = browser_group_data_directory(&app, &group_id)?;
-    let extensions_directory = extensions::enabled_extensions_directory(&app)?;
+    let desired_extensions = extensions::profile_extensions(&app, &group_id, small_group_id.as_deref())?;
 
+    let suppress_initial_blank = parsed_url.as_str() != "about:blank";
     let page_event_app = app.clone();
     let page_event_tab_id = tab_id.clone();
     let page_event_group_id = group_id.clone();
@@ -712,10 +741,10 @@ async fn open_browser_tab(
     let new_window_tab_id = tab_id.clone();
     let new_window_group_id = group_id.clone();
 
-    let builder = WebviewBuilder::new(label, WebviewUrl::External(parsed_url))
-        .data_directory(data_directory)
+    // 先创建空白视图，禁止旧版已持久化扩展在权限校准前接触目标网页。
+    let builder = WebviewBuilder::new(label, WebviewUrl::External("about:blank".parse().unwrap()))
+        .data_directory(data_directory.clone())
         .browser_extensions_enabled(true)
-        .extensions_path(extensions_directory)
         .devtools(true)
         .initialization_script(PASSWORD_AUTOFILL_SCRIPT)
         .zoom_hotkeys_enabled(true)
@@ -726,6 +755,7 @@ async fn open_browser_tab(
             )
         })
         .on_page_load(move |_webview, payload| {
+            if suppress_initial_blank && payload.url().as_str() == "about:blank" { return; }
             emit_browser_event(
                 &page_event_app,
                 BrowserEvent {
@@ -788,6 +818,24 @@ async fn open_browser_tab(
             error.to_string()
         })?;
     eprintln!("[browser-view] created label={}", browser_label(&tab_id));
+    // 新建及休眠恢复都先应用浏览器主题，再加载网页或内核错误页。
+    if let Err(error) = browser_theme::apply_browser_theme(&app, &webview).await {
+        let _ = webview.close();
+        return Err(error);
+    }
+    if let Err(error) = extension_runtime::synchronize(&webview, &data_directory, desired_extensions).await {
+        let _ = webview.close();
+        return Err(format!("分组扩展初始化失败：{error}"));
+    }
+    app.state::<extensions::ExtensionScopeStore>().0.lock().map_err(|_| "无法记录扩展分组")?
+        .insert(browser_label(&tab_id), (tab_id.clone(), group_id.clone(), small_group_id));
+    app.state::<BrowserProfileStore>().0.lock()
+        .map_err(|_| "无法记录标签数据目录")?.insert(browser_label(&tab_id), data_directory);
+    // 在首次导航前订阅内核站点图标；旧运行时不支持时仍允许正常浏览网页。
+    if let Err(error) = browser_favicon::attach(&app, &webview, tab_id.clone()).await {
+        eprintln!("无法监听站点图标：{error}");
+    }
+    webview.navigate(parsed_url).map_err(|error| error.to_string())?;
     webview.set_focus().map_err(|error| error.to_string())?;
     floating_windows::raise_tab_panel_if_visible(&app);
 
@@ -843,9 +891,17 @@ async fn open_browser_tab(
 async fn switch_browser_tab(
     app: AppHandle,
     tab_id: String,
+    group_id: String,
+    small_group_id: Option<String>,
     bounds: BrowserBounds,
 ) -> Result<bool, String> {
     let label = browser_label(&tab_id);
+    // 激活已有标签也校验隔离范围；不匹配时让调用方走重建流程，不能显示旧空间的页面。
+    let expected_directory = browser_group_data_directory(&app, &group_id, small_group_id.as_deref())?;
+    if app.state::<BrowserProfileStore>().0.lock()
+        .map_err(|_| "无法读取标签数据目录")?.get(&label) != Some(&expected_directory) {
+        return Ok(false);
+    }
     eprintln!(
         "[browser-view] switch tab={tab_id} label={label} bounds=({}, {}, {}, {})",
         bounds.x, bounds.y, bounds.width, bounds.height
@@ -873,6 +929,10 @@ fn close_browser_tab(app: AppHandle, tab_id: String) -> Result<(), String> {
         webview.hide().map_err(|error| error.to_string())?;
         webview.close().map_err(|error| error.to_string())?;
     }
+    app.state::<extensions::ExtensionScopeStore>().0.lock()
+        .map_err(|_| "无法移除扩展分组记录")?.remove(&browser_label(&tab_id));
+    app.state::<BrowserProfileStore>().0.lock()
+        .map_err(|_| "无法移除标签数据目录记录")?.remove(&browser_label(&tab_id));
     Ok(())
 }
 
@@ -938,34 +998,29 @@ fn set_browser_tab_muted(app: AppHandle, tab_id: String, muted: bool) -> Result<
 }
 
 #[tauri::command]
+/// 打开浏览器功能菜单；标签固定使用左侧树形布局，不提供布局切换入口。
 fn show_browser_more_menu(
     app: AppHandle,
     menu_store: tauri::State<'_, floating_windows::BrowserMenuStore>,
-    tab_layout: String,
     show_bookmarks_bar: bool,
     dark_mode: bool,
     source_window: String,
     x: f64,
     y: f64,
+    trigger_bounds: Option<serde_json::Value>,
 ) -> Result<(), String> {
     eprintln!("[browser-menu] show more x={x} y={y}");
-    if floating_windows::menu_is_visible(&app) {
-        return floating_windows::close_browser_menu(app);
-    }
-    let layout_label = if tab_layout == "vertical" {
-        "切换到横向标签"
-    } else {
-        "切换到垂直标签"
-    };
+    // 与收藏、历史等面板共用切换规则，只关闭同一入口打开的菜单。
     let payload = json!({
         "darkMode": dark_mode,
+        "panelKey": "more",
+        "toggleKey": "more",
+        "triggerBounds": trigger_bounds,
         "items": [
-            { "key": "more:tab-layout", "label": layout_label },
-            { "type": "divider" },
             { "key": "more:bookmarks", "label": "收藏夹" },
             {
                 "key": "more:bookmark-bar",
-                "label": "显示书签栏",
+                "label": "显示收藏夹栏",
                 "checked": show_bookmarks_bar
             },
             { "type": "divider" },
@@ -990,7 +1045,7 @@ fn show_browser_more_menu(
         floating_windows::FloatingWindowBounds {
             x,
             y,
-            width: 276.0,
+            width: 240.0,
             height: 354.0,
         },
     )
@@ -1127,6 +1182,7 @@ fn show_browser_tab_menu(
 }
 
 #[tauri::command]
+/// 节点的更多按钮和右键共用此菜单；小分组仅提供新增标签、重命名和删除操作。
 fn show_browser_tree_menu(
     app: AppHandle,
     menu_store: tauri::State<'_, floating_windows::BrowserMenuStore>,
@@ -1155,27 +1211,28 @@ fn show_browser_tree_menu(
             "label": "重命名"
         }),
         json!({ "type": "divider" }),
-        json!({
-            "key": format!("{prefix}|clear-data"),
-            "label": if small_group_id.is_some() {
-                "清除此小分组的浏览数据"
-            } else {
-                "清除此组的浏览数据"
-            }
-        }),
-        json!({ "type": "divider" }),
-        json!({
-            "key": format!("{prefix}|delete"),
-            "label": if small_group_id.is_some() {
-                "删除小分组"
-            } else {
-                "删除标签组"
-            },
-            "danger": true
-        }),
     ]);
+    // 一级分组入口统一清理其已加载的数据空间；小分组菜单保留新增、重命名和删除布局。
+    if small_group_id.is_none() {
+        items.extend([
+            json!({
+                "key": format!("{prefix}|clear-data"),
+                "label": "清除此组的浏览数据"
+            }),
+            json!({ "type": "divider" }),
+        ]);
+    }
+    items.push(json!({
+        "key": format!("{prefix}|delete"),
+        "label": if small_group_id.is_some() {
+            "删除小分组"
+        } else {
+            "删除标签组"
+        },
+        "danger": true
+    }));
     let height = if small_group_id.is_some() {
-        214.0
+        160.0
     } else {
         252.0
     };
@@ -1195,12 +1252,12 @@ fn show_browser_tree_menu(
 
 #[tauri::command]
 fn clear_browser_tabs_data(app: AppHandle, tab_ids: Vec<String>) -> Result<(), String> {
+    // 一个大分组现在可能包含多个独立数据空间，必须遍历所有目标标签，不能清理首个后退出。
     for tab_id in tab_ids {
         if let Some(webview) = app.get_webview(&browser_label(&tab_id)) {
             webview
                 .clear_all_browsing_data()
                 .map_err(|error| error.to_string())?;
-            break;
         }
     }
     Ok(())
@@ -1550,29 +1607,55 @@ fn current_window_label(window: tauri::Window) -> String {
     window.label().to_string()
 }
 
+/// 查询主窗口是否为活动窗口；网页子视图之间切换焦点不会误判为浏览器失活。
+#[tauri::command]
+fn is_browser_window_active(app: AppHandle) -> Result<bool, String> {
+    let window = app.get_window("main").ok_or("找不到浏览器主窗口")?;
+    #[cfg(windows)]
+    {
+        let hwnd = window.hwnd().map_err(|error| error.to_string())?;
+        Ok(unsafe { windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow() } == hwnd)
+    }
+    #[cfg(not(windows))]
+    window.is_focused().map_err(|error| error.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // 只有显式诊断参数才切换到临时资料目录，正常启动保持原有数据路径。
+    let mut context = tauri::generate_context!();
+    startup_diagnostics::configure(&mut context).expect("配置启动诊断目录失败");
+    // 主窗口在 tauri.conf.json 中关闭系统阴影，窗口边界由 Sia WindowFrame 的细边框呈现。
     tauri::Builder::default()
+        .manage(browser_startup::BrowserStartup::default())
         .manage(browser_overlay::BrowserOverlayStore::default())
         .manage(floating_windows::TabPanelStore::default())
         .manage(floating_windows::BrowserMenuStore::default())
+        .manage(floating_windows::TabTooltipStore::default())
         .manage(DownloadRuntimeState::default())
+        .manage(BrowserProfileStore::default())
+        .manage(browser_theme::BrowserThemeStore::default())
+        .manage(extension_runtime::ExtensionOperationLock::default())
+        .manage(extensions::ExtensionScopeStore::default())
+        .manage(passwords::PasswordThemeStore::default())
         .setup(|app| {
+            // 先建立原生缩放边缘，再创建可能覆盖窗口四边的标签和辅助 WebView。
+            let main = app.get_window("main").ok_or("找不到浏览器主窗口")?;
+            window_resize::initialize(&main)?;
             if let Ok(directory) = app.path().download_dir() {
                 if let Ok(mut preferences) = app.state::<DownloadRuntimeState>().preferences.lock()
                 {
                     preferences.directory = directory;
                 }
             }
-            if let Err(error) = browser_overlay::initialize(app.handle()) {
-                eprintln!("无法预加载浏览器模态窗口：{error}");
-            }
-            if let Err(error) = floating_windows::initialize(app.handle()) {
-                eprintln!("无法预加载浏览器浮动窗口：{error}");
-            }
+            // WebView2 初始化会泵送 IPC；辅助视图建好后才允许主界面启动。
+            let result = browser_overlay::initialize(app.handle())
+                .and_then(|()| floating_windows::initialize(app.handle()));
+            app.state::<browser_startup::BrowserStartup>().finish(result);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            browser_startup::wait_browser_ready,
             open_browser_tab,
             switch_browser_tab,
             hide_browser_pages,
@@ -1598,6 +1681,7 @@ pub fn run() {
             open_default_browser_settings,
             browser_window_action,
             current_window_label,
+            is_browser_window_active,
             browser_overlay::open_browser_overlay,
             browser_overlay::get_browser_overlay_state,
             browser_overlay::close_browser_overlay,
@@ -1609,14 +1693,23 @@ pub fn run() {
             floating_windows::close_floating_tab_panel_if_pointer_outside,
             floating_windows::floating_tab_panel_action,
             floating_windows::get_browser_menu_state,
+            floating_windows::show_browser_tab_tooltip,
+            floating_windows::present_browser_tab_tooltip,
+            floating_windows::close_browser_tab_tooltip,
+            floating_windows::get_browser_tab_tooltip_state,
             floating_windows::close_browser_menu,
             floating_windows::browser_menu_action,
             passwords::list_browser_passwords,
+            passwords::set_browser_password_theme,
+            browser_theme::set_browser_theme,
             passwords::get_browser_password,
             passwords::save_browser_password,
             passwords::delete_browser_password,
             passwords::import_browser_passwords,
             extensions::list_browser_extensions,
+            extensions::set_browser_extension_pinned,
+            extensions::set_browser_extension_scopes,
+            extensions::update_browser_extension_context,
             extensions::scan_browser_extensions,
             extensions::pick_browser_extension_folder,
             extensions::install_browser_extension,
@@ -1624,6 +1717,6 @@ pub fn run() {
             extensions::resolve_browser_extension_id,
             extensions::remove_browser_extension,
         ])
-        .run(tauri::generate_context!())
-        .expect("启动 Sia Browser 失败");
+        .run(context)
+        .expect("启动 西娅浏览器 失败");
 }

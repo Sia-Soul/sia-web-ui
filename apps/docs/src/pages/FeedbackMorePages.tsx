@@ -6,7 +6,7 @@ import { ComponentDocPage } from "./ComponentDocPage";
 import { DemoCard } from "./DemoCard";
 
 export function AlertPage() {
-  return <ComponentDocPage eyebrow="组件 / 反馈 / Alert" title="Alert 警告提示" description="在页面中就地展示需要关注的信息、状态和后续操作。" name="Alert" apiRows={[
+  return <ComponentDocPage eyebrow="组件 / 反馈 / Alert" title="Alert 警告提示" description="在页面中就地展示需要关注的信息、状态和后续操作；显示图标时默认使用实心状态图标。" name="Alert" apiRows={[
     { property: "message / description", description: "标题与详细说明", type: "ReactNode", defaultValue: "-" },
     { property: "type / status", description: "提示类型", type: "info | success | warning | error", defaultValue: "info" },
     { property: "showIcon / banner", description: "显示图标与顶部横幅", type: "boolean", defaultValue: "false" },

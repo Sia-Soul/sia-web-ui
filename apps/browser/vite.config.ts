@@ -6,6 +6,8 @@ const host = process.env.TAURI_DEV_HOST;
 
 export default defineConfig({
   plugins: [react()],
+  // 开发预打包缓存也放到 D 盘，避免启动预览时重新累积源码盘缓存。
+  cacheDir: "D:/SiaBuild/SiaWebUI/vite-cache/browser",
   resolve: {
     alias: [
       {
@@ -20,6 +22,9 @@ export default defineConfig({
   },
   clearScreen: false,
   build: {
+    // 与 Tauri frontendDist 保持一致；目录仅保存本应用生成的前端产物。
+    outDir: "D:/SiaBuild/SiaWebUI/frontend-dist/browser",
+    emptyOutDir: true,
     rollupOptions: {
       input: {
         main: fileURLToPath(new URL("./index.html", import.meta.url)),

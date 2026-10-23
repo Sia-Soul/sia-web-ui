@@ -1,0 +1,9 @@
+# 浏览器原生编译缓存、EXE 和安装包统一写入 D 盘，避免耗尽源码所在的 C 盘。
+# 临时覆盖可设置 CARGO_TARGET_DIR；构建脚本通过 cargo metadata 读取最终路径。
+[build]
+target-dir = "D:/SiaBuild/SiaWebUI/target"
+
+# Cargo 启动的编译器及构建脚本使用 D 盘临时目录，不改变系统级环境变量。
+[env]
+TEMP = { value = "D:/SiaBuild/SiaWebUI/target/tmp", force = true }
+TMP = { value = "D:/SiaBuild/SiaWebUI/target/tmp", force = true }

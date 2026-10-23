@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { PointerEvent as ReactPointerEvent } from "react";
-import { Button, Icon, Tooltip } from "@sia.soul/sia-react-ui";
+import type { DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent } from "react";
+import { Button, FloatingScrollbarProvider, Icon } from "@sia.soul/sia-react-ui";
 import { ROOT_GROUP_ID, type BrowserGroup, type BrowserTab } from "../browserTypes";
 import BrowserFavicon from "./BrowserFavicon";
+import { useCompactTabTooltip } from "./BrowserTabTooltip";
 
 interface VerticalTabTreeProps {
   groups: readonly BrowserGroup[];
   tabs: readonly BrowserTab[];
   activeId: string;
   onSelect: (tabId: string) => void;
+  /** 将标签移入目标分组；beforeTabId 指定插入其前，null 表示末尾，省略时沿用原位置规则。 */
+  onMoveTab: (tabId: string, groupId: string, smallGroupId?: string, beforeTabId?: string | null) => void;
   onClose: (tabId: string) => void;
   onToggleAudio: (tabId: string) => void;
   onNewTab: (groupId: string, smallGroupId?: string) => void;
@@ -24,7 +27,6 @@ interface VerticalTabTreeProps {
   panelExpanded?: boolean;
   panelPinned?: boolean;
   panelWidth?: number;
-  showScrollbar?: boolean;
   collapsedGroupIds?: readonly string[];
   collapsedSmallGroupIds?: readonly string[];
   onToggleGroup?: (groupId: string) => void;
@@ -52,6 +54,7 @@ export default function VerticalTabTree({
   tabs,
   activeId,
   onSelect,
+  onMoveTab,
   onClose,
   onToggleAudio,
   onNewTab,
@@ -62,7 +65,6 @@ export default function VerticalTabTree({
   panelExpanded = true,
   panelPinned = true,
   panelWidth = 292,
-  showScrollbar = false,
   collapsedGroupIds = [],
   collapsedSmallGroupIds = [],
   onToggleGroup,
@@ -70,19 +72,15 @@ export default function VerticalTabTree({
   onPinPanel,
   onPanelWidthChange,
 }: VerticalTabTreeProps) {
+  const compactTooltip = useCompactTabTooltip(!panelExpanded);
   const [resizing, setResizing] = useState(false);
-  const [scrollbarMetrics, setScrollbarMetrics] = useState({
-    visible: false,
-    thumbHeight: 0,
-    thumbTop: 0,
-  });
+  const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+  // 插入位置独立于分组高亮，同一目标分组中移动时也能即时更新横线。
+  const [dropInsertion, setDropInsertion] = useState<{ key: string; beforeTabId: string | null } | null>(null);
+  const draggedTabRef = useRef<string | null>(null);
   const resizeStateRef = useRef<{ pointerId: number; startX: number; startWidth: number } | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-  const scrollbarDragRef = useRef<{
-    pointerId: number;
-    startY: number;
-    startScrollTop: number;
-  } | null>(null);
   const collapsedGroups = useMemo(() => new Set(collapsedGroupIds), [collapsedGroupIds]);
   const collapsedSmallGroups = useMemo(
     () => new Set(collapsedSmallGroupIds),
@@ -100,59 +98,97 @@ export default function VerticalTabTree({
   const rootTabs = tabsByGroup.get(ROOT_GROUP_ID) ?? [];
   const activeTab = tabs.find((tab) => tab.id === activeId);
 
-  useEffect(() => {
-    const scrollContainer = scrollContainerRef.current;
-    if (!panelExpanded || !scrollContainer) {
-      setScrollbarMetrics({ visible: false, thumbHeight: 0, thumbTop: 0 });
-      return undefined;
-    }
-
-    let frame: number | undefined;
-    const updateScrollbar = () => {
-      if (frame !== undefined) window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => {
-        const { clientHeight, scrollHeight, scrollTop } = scrollContainer;
-        const trackHeight = Math.max(0, clientHeight - 8);
-        if (scrollHeight <= clientHeight + 1 || trackHeight <= 0) {
-          setScrollbarMetrics({ visible: false, thumbHeight: 0, thumbTop: 0 });
-          return;
+  /** 仅接受当前树发起的标签拖动，外部网址、文件或文本不会触发分组迁移。 */
+  function dropHandlers(groupId: string, smallGroupId?: string) {
+    const key = JSON.stringify([groupId, smallGroupId ?? null]);
+    // 只比较目标列表直属标签的中线，跳过源标签与其他小分组；缩进空白同样参与命中。
+    const insertionBefore = (event: ReactDragEvent<HTMLElement>) => {
+      const ids = new Set(tabs.filter((tab) => tab.id !== draggedTabRef.current
+        && tab.groupId === groupId && tab.smallGroupId === smallGroupId).map((tab) => tab.id));
+      for (const row of event.currentTarget.querySelectorAll<HTMLElement>("[data-browser-tab-id]")) {
+        if (!ids.has(row.dataset.browserTabId!)) continue;
+        const rect = row.getBoundingClientRect();
+        if (event.clientY < rect.top + rect.height / 2) return row.dataset.browserTabId!;
+      }
+      return null;
+    };
+    // 进入子节点与周期性悬停均接受内部标签，避免切换命中元素时短暂显示禁止指针。
+    const acceptDrag = (event: ReactDragEvent<HTMLElement>) => {
+      event.stopPropagation();
+      const tab = tabs.find((item) => item.id === draggedTabRef.current);
+      if (!tab) { setDropTarget(null); return false; }
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      setDropTarget(key);
+      const beforeTabId = insertionBefore(event);
+      setDropInsertion((current) => current?.key === key && current.beforeTabId === beforeTabId
+        ? current : { key, beforeTabId });
+      return true;
+    };
+    return {
+      "data-drop-group": groupId,
+      "data-drop-small-group": smallGroupId,
+      "data-drop-active": dropTarget === key ? "true" : undefined,
+      onDragEnter: acceptDrag,
+      onDragOver: (event: ReactDragEvent<HTMLElement>) => {
+        if (!acceptDrag(event)) return;
+        // 拖到列表边缘时滚动，让较长的分组列表也能到达屏幕外的目标。
+        const container = scrollContainerRef.current;
+        if (container) {
+          const rect = container.getBoundingClientRect();
+          if (event.clientY < rect.top + 32) container.scrollTop -= 16;
+          else if (event.clientY > rect.bottom - 32) container.scrollTop += 16;
         }
-        const thumbHeight = Math.max(28, trackHeight * (clientHeight / scrollHeight));
-        const maxThumbTop = Math.max(0, trackHeight - thumbHeight);
-        const maxScrollTop = Math.max(1, scrollHeight - clientHeight);
-        setScrollbarMetrics({
-          visible: true,
-          thumbHeight,
-          thumbTop: 4 + (scrollTop / maxScrollTop) * maxThumbTop,
-        });
-      });
+      },
+      onDragLeave: (event: ReactDragEvent<HTMLElement>) => {
+        event.stopPropagation();
+        // Chromium 跨子元素可能不给 relatedTarget；用命中位置确认是否真的离开分组。
+        const next = event.relatedTarget instanceof Node
+          ? event.relatedTarget
+          : document.elementFromPoint(event.clientX, event.clientY);
+        if (!next || !event.currentTarget.contains(next)) {
+          setDropTarget((current) => current === key ? null : current);
+          setDropInsertion((current) => current?.key === key ? null : current);
+        }
+      },
+      onDrop: (event: ReactDragEvent<HTMLElement>) => {
+        event.stopPropagation();
+        const tab = tabs.find((item) => item.id === draggedTabRef.current);
+        if (!tab) return;
+        event.preventDefault();
+        const beforeTabId = insertionBefore(event);
+        finishTabDrag();
+        onMoveTab(tab.id, groupId, smallGroupId, beforeTabId);
+      },
     };
+  }
 
-    const resizeObserver = new ResizeObserver(updateScrollbar);
-    resizeObserver.observe(scrollContainer);
-    const mutationObserver = new MutationObserver(updateScrollbar);
-    mutationObserver.observe(scrollContainer, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-    });
-    scrollContainer.addEventListener("scroll", updateScrollbar, { passive: true });
-    updateScrollbar();
+  /** 拖动结束或按 Escape 取消后清理高亮，避免残留目标提示。 */
+  function finishTabDrag() {
+    draggedTabRef.current = null;
+    setDraggedTabId(null);
+    setDropTarget(null);
+    setDropInsertion(null);
+  }
 
-    return () => {
-      if (frame !== undefined) window.cancelAnimationFrame(frame);
-      resizeObserver.disconnect();
-      mutationObserver.disconnect();
-      scrollContainer.removeEventListener("scroll", updateScrollbar);
-    };
-  }, [
-    collapsedGroupIds,
-    collapsedSmallGroupIds,
-    groups,
-    panelExpanded,
-    panelWidth,
-    tabs,
-  ]);
+  /** 末尾或空列表使用零高度锚点显示插入线，不挤动行位置或改变拖放命中。 */
+  function renderDropEnd(groupId: string, smallGroupId?: string) {
+    return dropInsertion?.key === JSON.stringify([groupId, smallGroupId ?? null])
+      && dropInsertion.beforeTabId === null
+      ? <div className="vertical-tree-drop-end" aria-hidden="true"><span className="vertical-tree-drop-line" /></div>
+      : null;
+  }
+
+  // 悬停折叠分组后展开，便于继续拖入内部小分组；离开目标立即取消定时器。
+  useEffect(() => {
+    if (!dropTarget || !draggedTabId) return;
+    const [groupId, smallGroupId] = JSON.parse(dropTarget) as [string, string | null];
+    const timer = window.setTimeout(() => {
+      if (collapsedGroups.has(groupId)) onToggleGroup?.(groupId);
+      if (smallGroupId && collapsedSmallGroups.has(smallGroupId)) onToggleSmallGroup?.(smallGroupId);
+    }, 650);
+    return () => window.clearTimeout(timer);
+  }, [dropTarget, draggedTabId, collapsedGroups, collapsedSmallGroups, onToggleGroup, onToggleSmallGroup]);
 
   function handleResizeStart(event: ReactPointerEvent<HTMLDivElement>) {
     if (!panelExpanded || event.button !== 0) return;
@@ -185,56 +221,54 @@ export default function VerticalTabTree({
     }
   }
 
+  /** 点击按钮显式展开或收起面板，独立窗口与内嵌列表使用相同文案。 */
   function togglePanelPinned() {
     onPinPanel?.();
   }
 
-  function handleScrollbarDragStart(event: ReactPointerEvent<HTMLSpanElement>) {
-    const scrollContainer = scrollContainerRef.current;
-    if (!scrollContainer || event.button !== 0) return;
-    event.preventDefault();
-    event.stopPropagation();
-    scrollbarDragRef.current = {
-      pointerId: event.pointerId,
-      startY: event.clientY,
-      startScrollTop: scrollContainer.scrollTop,
-    };
-    event.currentTarget.setPointerCapture(event.pointerId);
+  /** 分组按钮与右键菜单共用入口，坐标取按钮边缘以兼容独立面板窗口。 */
+  function renderGroupActions(group: BrowserGroup, smallGroupId?: string) {
+    const name = group.smallGroups.find((item) => item.id === smallGroupId)?.name ?? group.name;
+    return (
+      <Button
+        className="vertical-tree-icon-button"
+        variant="text"
+        size="small"
+        icon={<Icon name="more-horizontal" size={15} />}
+        aria-label={`${name}的更多操作`}
+        onClick={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          onTreeActionsOpen(group.id, smallGroupId, rect.left, rect.bottom);
+        }}
+      />
+    );
   }
 
-  function handleScrollbarDragMove(event: ReactPointerEvent<HTMLSpanElement>) {
-    const drag = scrollbarDragRef.current;
-    const scrollContainer = scrollContainerRef.current;
-    if (!drag || !scrollContainer || drag.pointerId !== event.pointerId) return;
-    const trackHeight = Math.max(0, scrollContainer.clientHeight - 8);
-    const maxThumbTop = Math.max(1, trackHeight - scrollbarMetrics.thumbHeight);
-    const maxScrollTop = Math.max(0, scrollContainer.scrollHeight - scrollContainer.clientHeight);
-    scrollContainer.scrollTop = drag.startScrollTop
-      + ((event.clientY - drag.startY) / maxThumbTop) * maxScrollTop;
-  }
-
-  function finishScrollbarDrag(event: ReactPointerEvent<HTMLSpanElement>) {
-    if (scrollbarDragRef.current?.pointerId !== event.pointerId) return;
-    scrollbarDragRef.current = null;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  }
-
+  /** 树节点不显示悬停标题；完整名称通过 aria-label 提供给辅助技术。 */
   function renderTab(tab: BrowserTab) {
     const active = tab.id === activeId;
     return (
       <div
         key={tab.id}
-        className={`vertical-tree-tab${active ? " is-active" : ""}${tab.audible || tab.muted ? " has-audio" : ""}`}
+        className={`vertical-tree-tab${active ? " is-active" : ""}${tab.audible || tab.muted ? " has-audio" : ""}${draggedTabId === tab.id ? " is-dragging" : ""}`}
         data-browser-tab-id={tab.id}
       >
+        {dropInsertion?.beforeTabId === tab.id ? <span className="vertical-tree-drop-line" aria-hidden="true" /> : null}
         <Button
           className="vertical-tree-tab__select"
           variant="text"
           size="small"
-          icon={<BrowserFavicon url={tab.url} loading={tab.loading} size={15} />}
-          title={tab.title}
+          icon={<BrowserFavicon url={tab.url} faviconUrl={tab.faviconPageUrl === tab.url ? tab.faviconUrl : undefined} loading={tab.loading} size={15} />}
+          aria-label={tab.title}
+          aria-current={active ? "page" : undefined}
+          draggable
+          onDragStart={(event) => {
+            draggedTabRef.current = tab.id;
+            setDraggedTabId(tab.id);
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("application/x-sia-browser-tab", tab.id);
+          }}
+          onDragEnd={finishTabDrag}
           onClick={() => onSelect(tab.id)}
         >
           <span className="vertical-tree-tab__title">{tab.title}</span>
@@ -247,7 +281,6 @@ export default function VerticalTabTree({
             size="small"
             icon={<Icon name={tab.muted ? "speaker-muted" : "speaker-wave"} size={13} />}
             aria-label={tab.muted ? `取消静音 ${tab.title}` : `静音 ${tab.title}`}
-            title={tab.muted ? "取消静音" : "静音"}
             onClick={(event) => {
               event.stopPropagation();
               onToggleAudio(tab.id);
@@ -280,16 +313,9 @@ export default function VerticalTabTree({
         variant="text"
         size="small"
         icon={(
-          <span className="vertical-tree-compact-tab__visual">
-            <BrowserFavicon url={tab.url} loading={tab.loading} size={16} />
-            {tab.sleeping ? (
-              <span
-                className="vertical-tree-compact-tab__state vertical-tree-compact-tab__state--sleeping"
-                aria-hidden="true"
-              >
-                <Icon name="moon" size={6} />
-              </span>
-            ) : null}
+          // 收缩列表用图标外围的虚线框表示休眠，声音角标仍独立显示。
+          <span className={`vertical-tree-compact-tab__visual${tab.sleeping ? " is-sleeping" : ""}`}>
+            <BrowserFavicon url={tab.url} faviconUrl={tab.faviconPageUrl === tab.url ? tab.faviconUrl : undefined} loading={tab.loading} size={16} />
             {tab.muted || tab.audible ? (
               <span
                 className={`vertical-tree-compact-tab__state vertical-tree-compact-tab__state--${tab.muted ? "muted" : "audible"}`}
@@ -302,7 +328,8 @@ export default function VerticalTabTree({
         )}
         data-browser-tab-id={tab.id}
         aria-label={accessibleTitle}
-        title={accessibleTitle}
+        // 图标相同的页面通过完整标题、网址和状态区分，不依赖原生 title。
+        {...compactTooltip.handlers({ title: tab.title || "新标签页", url: tab.url, detail: statusText })}
         onClick={() => onSelect(tab.id)}
       />
     );
@@ -310,7 +337,7 @@ export default function VerticalTabTree({
 
   return (
     <aside
-      className={`vertical-tab-tree${panelExpanded ? "" : " is-collapsed"}${floatingWindow ? " is-floating-window" : panelPinned ? " is-pinned" : " is-floating"}${resizing ? " is-resizing" : ""}${showScrollbar ? " has-overlay-scrollbar" : ""}`}
+      className={`vertical-tab-tree${panelExpanded ? "" : " is-collapsed"}${floatingWindow ? " is-floating-window" : panelPinned ? " is-pinned" : " is-floating"}${resizing ? " is-resizing" : ""}`}
       style={{
         width: floatingWindow ? "calc(100vw - 8px)" : panelExpanded ? panelWidth : COMPACT_PANEL_WIDTH,
         minWidth: floatingWindow ? "calc(100vw - 8px)" : panelExpanded ? panelWidth : COMPACT_PANEL_WIDTH,
@@ -320,59 +347,50 @@ export default function VerticalTabTree({
       <div className="vertical-tab-tree__header">
         {panelExpanded ? (
           <>
-            <span className="vertical-tab-tree__cookie-note">分组间cookie不共享</span>
             <div className="vertical-tab-tree__actions">
-              <Tooltip title="新建页签" placement="bottom" mouseEnterDelay={0.2}>
-                <Button
-                  className="vertical-tree-header-action"
-                  variant="text"
-                  size="small"
-                  icon={<Icon name="tab-plus" size={16} />}
-                  aria-label="新建页签"
-                  onClick={onNewRootTab}
-                />
-              </Tooltip>
-              <Tooltip title="新建分组" placement="bottom" mouseEnterDelay={0.2}>
-                <Button
-                  className="vertical-tree-header-action"
-                  variant="text"
-                  size="small"
-                  icon={<Icon name="folder-plus" size={16} />}
-                  aria-label="新建分组"
-                  onClick={onNewGroup}
-                />
-              </Tooltip>
-              <Tooltip
-                title={floatingWindow || !panelPinned ? "固定标签面板" : "切换为浮动面板"}
-                placement="bottom"
-                mouseEnterDelay={0.2}
+              {/* 常用新增操作直接显示名称，与节点菜单统一使用“标签页”称呼。 */}
+              <Button
+                className="vertical-tree-header-action vertical-tree-header-action--text"
+                variant="text"
+                size="small"
+                aria-label="新建标签页"
+                onClick={onNewRootTab}
               >
-                <Button
-                  className={`vertical-tree-header-action vertical-tree-header-action--pin${panelPinned && !floatingWindow ? " is-active" : ""}`}
-                  variant="text"
-                  size="small"
-                  icon={<Icon name={panelPinned && !floatingWindow ? "pin" : "pin-off"} size={15} />}
-                  aria-label={floatingWindow || !panelPinned ? "固定标签面板" : "切换为浮动面板"}
-                  onClick={togglePanelPinned}
-                />
-              </Tooltip>
+                新建标签页
+              </Button>
+              <Button
+                className="vertical-tree-header-action vertical-tree-header-action--text"
+                variant="text"
+                size="small"
+                aria-label="新建分组"
+                onClick={onNewGroup}
+              >
+                新建分组
+              </Button>
+              <Button
+                // 左箭头表示收起当前展开的列表，与固定状态无关。
+                className="vertical-tree-header-action vertical-tree-header-action--toggle is-active"
+                variant="text"
+                size="small"
+                icon={<Icon name="chevron-left" size={17} />}
+                aria-label="收起标签面板"
+                aria-expanded={true}
+                onClick={togglePanelPinned}
+              />
             </div>
           </>
         ) : (
-          <Tooltip
-            title={panelPinned ? "切换为浮动面板" : "固定并展开标签面板"}
-            placement="right"
-            mouseEnterDelay={0.2}
-          >
-            <Button
-              className={`vertical-tree-header-action vertical-tree-header-action--pin${panelPinned ? " is-active" : ""}`}
-              variant="text"
-              size="small"
-              icon={<Icon name={panelPinned ? "pin" : "pin-off"} size={15} />}
-              aria-label={panelPinned ? "切换为浮动面板" : "固定并展开标签面板"}
-              onClick={togglePanelPinned}
-            />
-          </Tooltip>
+          <Button
+            // 右箭头表示向右展开标签列表，悬停提示与实际动作保持一致。
+            className="vertical-tree-header-action vertical-tree-header-action--toggle"
+            variant="text"
+            size="small"
+            icon={<Icon name="chevron-right" size={17} />}
+            aria-label="展开标签面板"
+            aria-expanded={false}
+            {...compactTooltip.handlers({ title: "展开标签面板" })}
+            onClick={togglePanelPinned}
+          />
         )}
       </div>
 
@@ -389,6 +407,8 @@ export default function VerticalTabTree({
               key={group.id}
               className="vertical-tree-group"
               style={{ "--group-color": group.color } as React.CSSProperties}
+              // 整个大分组都可接收；小分组处理器阻止冒泡以保持更精确的归属。
+              {...dropHandlers(group.id)}
             >
               <div
                 className="vertical-tree-node-context"
@@ -402,14 +422,14 @@ export default function VerticalTabTree({
                     className="vertical-tree-group__toggle"
                     variant="text"
                     size="small"
-                    icon={<Icon name={groupCollapsed ? "chevron-right" : "chevron-down"} size={13} />}
                     aria-expanded={!groupCollapsed}
-                    title={`分组：${group.name}`}
                     onClick={() => onToggleGroup?.(group.id)}
                   >
                     <span className={`vertical-tree-group__name${activeGroupParent ? " is-current-ancestor" : ""}`}>
                       {group.name}
                     </span>
+                    {/* 箭头与行尾操作一起按悬停状态显示，隐藏时释放标题宽度。 */}
+                    <Icon className="vertical-tree-node-chevron" name={groupCollapsed ? "chevron-right" : "chevron-down"} size={13} />
                   </Button>
                   <Button
                     className="vertical-tree-icon-button"
@@ -417,9 +437,9 @@ export default function VerticalTabTree({
                     size="small"
                     icon={<Icon name="plus" size={15} />}
                     aria-label={`在分组 ${group.name} 的根节点新建标签页`}
-                    title={`在“${group.name}”根节点新建标签页`}
                     onClick={() => onNewTab(group.id)}
                   />
+                  {renderGroupActions(group)}
                 </div>
               </div>
 
@@ -430,7 +450,7 @@ export default function VerticalTabTree({
                     const activeSmallGroupParent = activeGroupParent && activeTab?.smallGroupId === smallGroup.id;
                     const smallGroupTabs = groupTabs.filter((tab) => tab.smallGroupId === smallGroup.id);
                     return (
-                      <section key={smallGroup.id} className="vertical-tree-small-group">
+                      <section key={smallGroup.id} className="vertical-tree-small-group" {...dropHandlers(group.id, smallGroup.id)}>
                         <div
                           className="vertical-tree-node-context"
                           onContextMenu={(event) => {
@@ -448,14 +468,14 @@ export default function VerticalTabTree({
                               className="vertical-tree-small-group__toggle"
                               variant="text"
                               size="small"
-                              icon={<Icon name={smallGroupCollapsed ? "chevron-right" : "chevron-down"} size={12} />}
+                              icon={<Icon name="folder" size={16} />}
                               aria-expanded={!smallGroupCollapsed}
-                              title={`小分组：${smallGroup.name}`}
                               onClick={() => onToggleSmallGroup?.(smallGroup.id)}
                             >
                               <span className={`vertical-tree-small-group__name${activeSmallGroupParent ? " is-current-ancestor" : ""}`}>
                                 {smallGroup.name}
                               </span>
+                              <Icon className="vertical-tree-node-chevron" name={smallGroupCollapsed ? "chevron-right" : "chevron-down"} size={12} />
                             </Button>
                             <Button
                               className="vertical-tree-icon-button"
@@ -465,50 +485,39 @@ export default function VerticalTabTree({
                               aria-label={`在小分组 ${smallGroup.name} 中新建标签`}
                               onClick={() => onNewTab(group.id, smallGroup.id)}
                             />
+                            {renderGroupActions(group, smallGroup.id)}
                           </div>
                         </div>
                         {!smallGroupCollapsed ? (
                           <div className="vertical-tree-small-group__tabs">
                             {smallGroupTabs.map(renderTab)}
+                            {renderDropEnd(group.id, smallGroup.id)}
                           </div>
-                        ) : null}
+                        ) : renderDropEnd(group.id, smallGroup.id)}
                       </section>
                     );
                   })}
                   <div className="vertical-tree-group__direct-tabs">
                     {directTabs.map(renderTab)}
+                    {renderDropEnd(group.id)}
                   </div>
                 </div>
-              ) : null}
+              ) : renderDropEnd(group.id)}
             </section>
           );
           })}
-            {rootTabs.length > 0 ? (
-              <div className="vertical-tab-tree__root-tabs" aria-label="根级标签页">
+            {rootTabs.length > 0 || draggedTabId ? (
+              <div className="vertical-tab-tree__root-tabs" aria-label="根级标签页" {...dropHandlers(ROOT_GROUP_ID)}>
+                {draggedTabId ? <span className="vertical-tree-drop-hint">拖到此处移出分组</span> : null}
                 {rootTabs.map(renderTab)}
+                {renderDropEnd(ROOT_GROUP_ID)}
               </div>
             ) : null}
-          </div>
-          <div
-            className={`sia-scrollbar-track vertical-tab-tree__overlay-scrollbar${scrollbarMetrics.visible ? " is-visible" : ""}`}
-            aria-hidden="true"
-          >
-            <span
-              className="vertical-tab-tree__overlay-scrollbar-thumb"
-              style={{
-                height: scrollbarMetrics.thumbHeight,
-                transform: `translateY(${scrollbarMetrics.thumbTop}px)`,
-              }}
-              onPointerDown={handleScrollbarDragStart}
-              onPointerMove={handleScrollbarDragMove}
-              onPointerUp={finishScrollbarDrag}
-              onPointerCancel={finishScrollbarDrag}
-            />
           </div>
         </div>
       ) : null}
       {!panelExpanded ? (
-        <div className="vertical-tab-tree__compact-scroll" aria-label="紧凑标签列表">
+        <div ref={scrollContainerRef} className="vertical-tab-tree__compact-scroll" aria-label="紧凑标签列表">
           {groups.map((group) => {
             const groupTabs = tabsByGroup.get(group.id) ?? [];
             const groupCollapsed = collapsedGroups.has(group.id);
@@ -523,8 +532,8 @@ export default function VerticalTabTree({
                   className="vertical-tree-compact-group__title"
                   variant="text"
                   size="small"
-                  title={group.name}
                   aria-label={`分组：${group.name}`}
+                  {...compactTooltip.handlers({ title: group.name, detail: `${groupTabs.length} 个标签页` })}
                   aria-expanded={!groupCollapsed}
                   onClick={() => onToggleGroup?.(group.id)}
                 >
@@ -548,8 +557,8 @@ export default function VerticalTabTree({
                             className={`vertical-tree-compact-small-group__title${activeSmallGroupParent ? " is-current-ancestor" : ""}`}
                             variant="text"
                             size="small"
-                            title={`小分组：${smallGroup.name}`}
                             aria-label={`小分组：${smallGroup.name}`}
+                            {...compactTooltip.handlers({ title: smallGroup.name, detail: `${group.name} · ${smallGroupTabs.length} 个标签页` })}
                             aria-expanded={!smallGroupCollapsed}
                             onClick={() => onToggleSmallGroup?.(smallGroup.id)}
                           >
@@ -578,6 +587,9 @@ export default function VerticalTabTree({
           ) : null}
         </div>
       ) : null}
+      {/* 展开与收缩共享框架滚动条；切换时重新绑定当前滚动容器，统一支持双向溢出。 */}
+      <FloatingScrollbarProvider key={panelExpanded ? "expanded" : "compact"} targetRef={scrollContainerRef} />
+      {compactTooltip.bubble}
       {!floatingWindow ? (
         <div
           className="vertical-tab-tree__resize-handle"

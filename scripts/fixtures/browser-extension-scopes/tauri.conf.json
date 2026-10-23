@@ -1,0 +1,17 @@
+{
+  "productName": "Extension Scope Probe",
+  "version": "0.1.0",
+  "identifier": "com.sia.extension-scope-probe",
+  "build": {
+    "frontendDist": "assets"
+  },
+  "app": {
+    "windows": []
+  },
+  "bundle": {
+    "active": false,
+    "icon": [
+      "../../../apps/browser/src-tauri/icons/icon.ico"
+    ]
+  }
+}

@@ -14,6 +14,8 @@ declare const importUpload: UploadProps; importUpload.acceptMode;
 declare const externalValidationForm: FormInstance;
 externalValidationForm.setFields;
 declare const fillForm: FormProps; fillForm.fill;
+fillForm.onFinish;
+fillForm.onFinishFailed;
 declare const imageGroup: ImagePreviewGroupProps; imageGroup.children;
 declare const previewNavigation: ImagePreviewProps; previewNavigation.onCurrentChange;
 declare const externalValidationField: FormFieldData;
@@ -51,9 +53,12 @@ gridMenu.interactionCursor;
 gridMenu.autoScrollSelected;
 declare const appliedMenuItem: MenuItem;
 // 桌面窗口的文本选择能力从发布入口验证中文声明。
-import type { WindowFrameProps } from '@sia.soul/sia-react-ui';
+import type { WindowFrameProps, WindowControlsProps } from '@sia.soul/sia-react-ui';
 declare const desktopWindow: WindowFrameProps;
 desktopWindow.textSelectable;
+// 窗口最大化状态的图标语义应保留到发布声明。
+declare const windowControls: WindowControlsProps;
+windowControls.maximized;
 appliedMenuItem.applied;
 appliedMenuItem.appliedLabel;
 appliedMenuItem.iconSize;
@@ -296,6 +301,7 @@ cases.push(['gridMenu.autoScrollSelected', '手动滚动']);
 cases.push(['gridMenu.mode', '双列圆角卡片'], ['cursorPreview.showHotspot', '真实热点']);
 cases.push(['appliedMenuItem.applied', '浏览选中'], ['appliedMenuItem.appliedLabel', '当前使用'], ['appliedMenuItem.iconSize', 'px']);
 cases.push(['desktopWindow.textSelectable', '输入框']);
+cases.push(['windowControls.maximized', '叠放方框']);
 // 六边形回放和在线/离线统一时钟的公开说明必须保留在发布声明中。
 cases.push(['gameConfig.turnDurationMs','毫秒'],['sampleHexPlayback;','命中前不扣血']);
 // 游戏独立入口同样验证真实编辑器悬停和时间单位。
@@ -307,6 +313,8 @@ cases.push(['fillForm.fill', '剩余高度'], ['imageGroup.children', '不加入
 cases.push(['importSteps.labelPlacement', '图标右侧'], ['tableProps.maxBodyHeight', '自然高度']);
 cases.push(['importUpload.acceptMode', '完整失败明细']);
 cases.push(['externalValidationForm.setFields', '不触发'], ['externalValidationField.errors', '空数组']);
+// 校验失败与保存失败的区别必须保留在发布声明的编辑器提示中。
+cases.push(['fillForm.onFinish', '可返回 Promise'], ['fillForm.onFinishFailed', '仅字段校验失败']);
 for(const[needle,expected]of cases){const offset=needle.includes('.')?needle.lastIndexOf('.')+1:0;const pos=source.indexOf(needle)+offset+1;const info=service.getQuickInfoAtPosition(filename,pos);const text=ts.displayPartsToString(info?.documentation);assert(text.includes(expected),`${needle}: expected ${expected}, got ${JSON.stringify(text)}`);console.log(`PASS hover ${needle}: ${text.slice(0,70)}`);}
 for(const entry of ['index.d.ts','index.d.cts']){
   const text=fs.readFileSync(path.join(packageRoot,'dist',entry),'utf8');assert(text.includes('底部已保存快捷查询标签'));assert(text.includes('@defaultValue'));assert(!text.includes('\uFFFD'),'UTF-8 replacement character found');

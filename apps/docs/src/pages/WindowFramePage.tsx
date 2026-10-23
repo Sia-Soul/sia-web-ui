@@ -90,7 +90,8 @@ export function WindowFramePage() {
         { property: "WindowTitleBar.actionsAlign", description: "动作区放在标题栏左侧，或紧贴窗口控制按钮左侧。", type: "\"left\" | \"right\"", defaultValue: "\"right\"" },
         { property: "WindowTitleBar.controls", description: "显示默认控制组，或传入自定义控制节点。", type: "boolean | ReactNode", defaultValue: "true" },
         { property: "WindowTitleBar.draggable", description: "允许在非交互区域按下并触发拖动动作。", type: "boolean", defaultValue: "true" },
-        { property: "WindowTitleBar.maximized", description: "切换最大化按钮的图标和无障碍标签。", type: "boolean", defaultValue: "false" },
+        // 图标对应宿主窗口状态，最大化与页面全屏使用不同的视觉符号。
+        { property: "WindowTitleBar.maximized", description: "false 显示单方框，true 显示叠放方框和还原标签；由宿主回填真实窗口状态。", type: "boolean", defaultValue: "false" },
         { property: "WindowTitleBar.onWindowAction", description: "将拖动、最小化、最大化/还原和关闭动作交给桌面宿主。", type: "(action: WindowAction) => void | Promise<void>", defaultValue: "-" },
         { property: "WindowControls.disabledActions", description: "禁用指定窗口操作。", type: "WindowControlAction[]", defaultValue: "[]" },
       ]}

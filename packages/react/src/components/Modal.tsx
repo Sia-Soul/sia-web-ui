@@ -32,7 +32,7 @@ export interface ModalProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"
   /** 默认底部操作区左侧的扩展内容。 */
   footerExtra?: ReactNode;
   /**
-   * 类型标识，用于选择对应的表现形式。
+   * 弹框类型；default 不显示状态图标，其余类型默认显示对应的实心提示图标。
    * @defaultValue "default"
    */
   type?: ModalType;
@@ -118,12 +118,13 @@ export interface OverlayApiHandle<T> {
 const modalHandles = new Set<OverlayApiHandle<ModalOpenConfig>>();
 const MODAL_MOTION_DURATION = 220;
 
+// 提示状态优先使用框架实心图标；关闭及加载等操作图标保持各自语义。
 const typeIcons: Partial<Record<ModalType, ReactNode>> = {
-  info: <Icon name="info" size={23} />,
-  success: <Icon name="circle-check" size={23} />,
-  warning: <Icon name="warning" size={23} />,
-  error: <Icon name="circle-close" size={23} />,
-  confirm: <Icon name="question" size={23} />,
+  info: <Icon name="info" size={23} variant="filled" />,
+  success: <Icon name="circle-check" size={23} variant="filled" />,
+  warning: <Icon name="warning" size={23} variant="filled" />,
+  error: <Icon name="circle-close" size={23} variant="filled" />,
+  confirm: <Icon name="question" size={23} variant="filled" />,
 };
 
 const ModalRoot = forwardRef<HTMLDivElement, ModalProps>(function Modal(

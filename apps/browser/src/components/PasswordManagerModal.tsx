@@ -29,6 +29,11 @@ export interface PasswordCredentialSummary {
   updatedAt: number;
 }
 
+/** 兼容旧版本保存的来源名称，只变更展示文案，不改写密码库。 */
+function passwordSourceLabel(source: string) {
+  return !source || ["Sia Browser", "栖页浏览器"].includes(source) ? "西娅浏览器" : source;
+}
+
 interface PasswordCredential extends PasswordCredentialSummary {
   password: string;
 }
@@ -362,8 +367,8 @@ export default function PasswordManagerModal({
                       </span>
                       <small>更新于 {formatUpdatedAt(credential.updatedAt)}</small>
                     </div>
-                    <div className="password-manager__source" title={credential.source || "Sia Browser"}>
-                      <Tag>{credential.source || "Sia Browser"}</Tag>
+                    <div className="password-manager__source" title={passwordSourceLabel(credential.source)}>
+                      <Tag>{passwordSourceLabel(credential.source)}</Tag>
                     </div>
                     <div className="password-manager__actions">
                       <Button

@@ -24,7 +24,7 @@
     "database:web": "pnpm --filter @sia-ui/database-studio dev",
     "browser:dev": "pnpm --filter @sia-ui/browser tauri:dev",
     "browser:build": "pnpm --filter @sia-ui/browser tauri:build:bin",
-    "browser:bundle": "pnpm --filter @sia-ui/browser tauri:build",
+    "browser:bundle": "pnpm --filter @sia-ui/browser installer:build",
     "browser:web": "pnpm --filter @sia-ui/browser dev",
     "disk:dev": "pnpm --filter @sia-ui/disk-space tauri:dev",
     "disk:build": "pnpm --filter @sia-ui/disk-space tauri:build:bin",

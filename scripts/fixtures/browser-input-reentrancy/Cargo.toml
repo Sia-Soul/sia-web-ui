@@ -1,0 +1,10 @@
+[package]
+name = "sia-input-reentrancy-check"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+# 与浏览器实际使用的 Tao 保持一致，直接验证原生消息循环而非模拟锁实现。
+tao = "=0.37.1"
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }

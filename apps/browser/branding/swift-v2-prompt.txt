@@ -1,0 +1,12 @@
+生成工具：内置 image_gen，transparent_background=true。
+设计方向：折光飞燕，用翼形与负空间隐约组成 S，兼顾透明背景与小尺寸辨识度。
+
+初次生成提示词：
+Use case: logo-brand.
+Asset type: production desktop browser app icon for 西娅浏览器 / Sia Browser, transparent PNG.
+Design one imaginative, beautifully balanced iconic symbol called "折光飞燕": an abstract swift bird made from exactly two broad interlocking aerodynamic wing shapes whose combined negative space subtly suggests an S. It should feel like a nimble swallow banking forward through an open digital horizon, yet be a simple graphic emblem, not an illustration of a realistic bird. Strong compact almost square silhouette, bold sweeping shapes, elegantly controlled pointed wing tips, generous open negative-space separation that remains legible at 16–24 pixels. A single unified symbol, no detached ornaments. Upper wing solid vivid indigo-blue (#5650E8); lower wing solid saturated turquoise (#12B9AE). A restrained darker flat cel-shaded facet may occupy one small area only, if helpful, with no gradients. No white areas in the mark.
+Style: premium original vector-like flat identity design, clean precise contours, solid color fills, crisp smooth edges, highly simplified, striking at tiny sizes. Two-dimensional only.
+Composition: one centered large symbol, occupy 90–94 percent of square canvas width/height, minimal equal transparent margins, no clipping. Actual transparent alpha outside the mark AND through its negative spaces.
+Constraints: no rectangular or rounded-square background, no badge backing, no circle enclosing it, no letters or typography, no separate stars, no globe, no compass, no generic browser swirl, no tiny lines, no texture, no glow, no drop shadow, no bevel, no 3D, no painterly rendering, no glossy material, no mockup, no checkerboard painted into pixels. Return only one finished icon asset.
+
+精修要求：保留双色飞燕与 S 负空间，缩短尖端、使轮廓紧凑，采用干净平涂与少量赛璐璐色块，去掉噪点、纹理、渐变和立体效果；保持透明背景。

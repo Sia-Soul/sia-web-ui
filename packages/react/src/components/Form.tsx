@@ -138,7 +138,7 @@ export interface FormInstance {
   resetFields: (names?: readonly NamePath[]) => void;
   /** 执行字段校验；成功返回字段值，失败抛出校验错误信息。 */
   validateFields: (names?: readonly NamePath[]) => Promise<FormValues>;
-  /** 提交表单并执行校验；校验通过触发 onFinish，失败触发 onFinishFailed。 */
+  /** 提交表单并执行校验；校验通过触发并等待 onFinish，字段校验失败触发 onFinishFailed。提交回调异常由业务处理，不转成字段校验错误或清空表单。 */
   submit: () => void;
   /** 将指定字段滚动到可见区域。 */
   scrollToField: (name: NamePath) => void;
@@ -150,7 +150,7 @@ type FieldRegistration = {
   getElement: () => HTMLElement | null;
 };
 type FormCallbacks = {
-  onFinish?: (values: FormValues) => void;
+  onFinish?: (values: FormValues) => void | Promise<unknown>;
   onFinishFailed?: (info: { values: FormValues; errorFields: readonly FormErrorField[] }) => void;
   onValuesChange?: (changedValues: FormValues, values: FormValues) => void;
 };
@@ -358,9 +358,21 @@ class FormStore implements FormInstance {
   };
 
   submit = () => {
-    void this.validateFields().then(this.callbacks.onFinish).catch((info: { values: FormValues; errorFields: readonly FormErrorField[] }) => {
-      this.callbacks.onFinishFailed?.(info);
-      if (info.errorFields[0]) this.scrollToField(info.errorFields[0].name);
+    // 校验错误与保存接口异常属于不同阶段，不能把任意业务异常当作 errorFields 访问。
+    void this.validateFields().then(
+      async (values) => {
+        try {
+          await this.callbacks.onFinish?.(values);
+        } catch {
+          // 请求反馈由业务回调负责；框架保留字段值，也不重复调用校验失败回调。
+        }
+      },
+      (info: { values: FormValues; errorFields: readonly FormErrorField[] }) => {
+        this.callbacks.onFinishFailed?.(info);
+        if (info.errorFields[0]) this.scrollToField(info.errorFields[0].name);
+      },
+    ).catch(() => {
+      // 用户提供的校验失败回调也可能抛错，不能制造未处理的 Promise 拒绝。
     });
   };
 
@@ -417,9 +429,9 @@ export interface FormProps extends Omit<FormHTMLAttributes<HTMLFormElement>, "on
    * @defaultValue true
    */
   requiredMark?: boolean | "optional";
-  /** 当前表单提交并且校验通过时调用，参数为完整的表单字段值；提交事件不会冒泡触发祖先表单，包含 Portal 内的子表单。 */
-  onFinish?: (values: FormValues) => void;
-  /** 表单提交校验失败时调用，参数包含字段值和错误列表。 */
+  /** 当前表单提交且校验通过时调用，参数为完整字段值，可返回 Promise；异常由业务回调处理，框架保留字段值且不会调用 onFinishFailed。提交事件不会冒泡触发祖先表单，包含 Portal 内的子表单。 */
+  onFinish?: (values: FormValues) => void | Promise<unknown>;
+  /** 仅字段校验失败时调用，参数包含字段值和错误列表；onFinish 的同步异常或 Promise 拒绝不会触发此回调。 */
   onFinishFailed?: (info: {
   /** 字段值或选中值的集合。 */
   values: FormValues;

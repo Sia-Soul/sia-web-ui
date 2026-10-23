@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-#[cfg(windows)]
-use std::sync::{Arc, Mutex};
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     fs,
@@ -9,15 +7,6 @@ use std::{
     path::{Path, PathBuf},
 };
 use tauri::{AppHandle, Emitter, Manager};
-#[cfg(windows)]
-use webview2_com::{
-    CoTaskMemPWSTR,
-    Microsoft::Web::WebView2::Win32::{ICoreWebView2, ICoreWebView2Profile7, ICoreWebView2_13},
-    ProfileGetBrowserExtensionsCompletedHandler,
-};
-#[cfg(windows)]
-use windows::core::{Interface, PWSTR};
-
 const EXTENSIONS_DIRECTORY: &str = "browser-extensions";
 const ENABLED_DIRECTORY: &str = "enabled";
 const DISABLED_DIRECTORY: &str = "disabled";
@@ -34,7 +23,59 @@ pub struct BrowserExtensionRecord {
     description: String,
     source: String,
     enabled: bool,
+    /// None 兼容旧记录，表示所有分组；空列表表示不允许任何分组。
+    #[serde(default)]
+    scopes: Option<Vec<ExtensionScope>>,
     options_page: Option<String>,
+    /// 工具栏快捷入口的固定状态；旧版扩展记录默认为未固定。
+    #[serde(default)]
+    pinned: bool,
+    /// 从受管目录中的图标生成的数据地址，仅在查询列表时补充。
+    #[serde(default, skip_deserializing, skip_serializing_if = "Option::is_none")]
+    icon_url: Option<String>,
+}
+
+/// 父分组不指定子分组 ID，自动覆盖其现有及未来的子分组。
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtensionScope {
+    group_id: String,
+    #[serde(default)]
+    small_group_id: Option<String>,
+}
+
+impl BrowserExtensionRecord {
+    /// 总开关和范围白名单共同决定是否允许当前隔离空间运行扩展。
+    fn allows(&self, group: &str, small: Option<&str>) -> bool {
+        self.enabled && self.scopes.as_ref().map_or(true, |scopes| scopes.iter().any(|scope| {
+            scope.group_id == group && (scope.small_group_id.is_none() || scope.small_group_id.as_deref() == small)
+        }))
+    }
+}
+
+/// 为已有视图记录分组，配置变化时只销毁生效状态发生改变的页面。
+#[derive(Default)]
+pub struct ExtensionScopeStore(pub std::sync::Mutex<HashMap<String, (String, String, Option<String>)>>);
+
+/// 保持已安装扩展的来源路径稳定，旧版 disabled 目录也可直接作为统一安装源。
+fn extension_folder(base: &Path, id: &str) -> PathBuf {
+    let enabled = base.join(ENABLED_DIRECTORY).join(sanitized_id(id));
+    if enabled.is_dir() { enabled } else { base.join(DISABLED_DIRECTORY).join(sanitized_id(id)) }
+}
+
+/// 统一安装目录提供文件，实际装入哪些扩展由 Profile 同步器决定。
+pub fn profile_extensions(app: &AppHandle, group: &str, small: Option<&str>) -> Result<Vec<(String, PathBuf, bool)>, String> {
+    let base = extension_base_directory(app)?;
+    Ok(profile_extensions_from(&base, &load_records(app)?, group, small))
+}
+
+/// 使用指定配置计算期望状态，保存前也能撤销旧策略授权。
+fn profile_extensions_from(base: &Path, records: &[BrowserExtensionRecord], group: &str, small: Option<&str>) -> Vec<(String, PathBuf, bool)> {
+    records.iter().map(|record| (
+        record.id.clone(),
+        extension_folder(&base, &record.id),
+        record.allows(group, small),
+    )).collect()
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -72,10 +113,6 @@ fn extension_base_directory(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(directory)
 }
 
-pub fn enabled_extensions_directory(app: &AppHandle) -> Result<PathBuf, String> {
-    Ok(extension_base_directory(app)?.join(ENABLED_DIRECTORY))
-}
-
 fn state_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(extension_base_directory(app)?.join(EXTENSIONS_STATE_FILE))
 }
@@ -93,9 +130,7 @@ fn load_records(app: &AppHandle) -> Result<Vec<BrowserExtensionRecord>, String> 
 
 fn save_records(app: &AppHandle, records: &[BrowserExtensionRecord]) -> Result<(), String> {
     let path = state_path(app)?;
-    let content = serde_json::to_string_pretty(records)
-        .map_err(|error| format!("无法序列化扩展配置：{error}"))?;
-    fs::write(&path, content.as_bytes())
+    crate::extension_runtime::write_json_atomic(&path, &records)
         .map_err(|error| format!("无法写入扩展配置 {}：{error}", path.display()))
 }
 
@@ -256,14 +291,89 @@ fn remove_managed_directory(base: &Path, target: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn invalidate_browser_webviews(app: &AppHandle) {
+/// 失效通知带具体标签 ID，前端保留其他分组的网页和加载状态。
+fn invalidate_browser_webviews(app: &AppHandle, changed: Option<(&BrowserExtensionRecord, &BrowserExtensionRecord)>) -> Result<(), String> {
+    let scopes = app.state::<ExtensionScopeStore>().0.lock().map_err(|_| "无法读取扩展分组")?.clone();
+    let mut tabs = Vec::new();
     for (label, webview) in app.webviews() {
-        if label.starts_with(BROWSER_WEBVIEW_PREFIX) {
-            let _ = webview.hide();
-            let _ = webview.close();
+        if !label.starts_with(BROWSER_WEBVIEW_PREFIX) { continue; }
+        let affected = match (changed, scopes.get(&label)) {
+            (Some((before, after)), Some((_, group, small))) => before.allows(group, small.as_deref()) != after.allows(group, small.as_deref()),
+            _ => true,
+        };
+        if affected {
+            webview.hide().map_err(|error| error.to_string())?;
+            webview.close().map_err(|error| error.to_string())?;
+            if let Some((tab, _, _)) = scopes.get(&label) { tabs.push(tab.clone()); }
         }
     }
-    let _ = app.emit("sia://extensions-changed", ());
+    app.emit("sia://extensions-changed", serde_json::json!({ "tabIds": tabs })).map_err(|error| error.to_string())
+}
+
+/// 向独立扩展面板发送当前标签上下文，不改变面板的打开状态。
+#[tauri::command]
+pub fn update_browser_extension_context(app: AppHandle, extension_scope: ExtensionScope, heading: String) -> Result<(), String> {
+    app.emit("sia://extension-context-changed", serde_json::json!({ "extensionScope": extension_scope, "heading": heading })).map_err(|error| error.to_string())
+}
+
+/// 保存允许的父分组或子分组；空列表表示暂不在任何分组启用。
+#[tauri::command]
+pub async fn set_browser_extension_scopes(app: AppHandle, id: String, scopes: Option<Vec<ExtensionScope>>) -> Result<BrowserExtensionRecord, String> {
+    let state = app.state::<crate::extension_runtime::ExtensionOperationLock>();
+    let _guard = state.0.lock().await;
+    let mut records = load_records(&app)?;
+    let record = records.iter_mut().find(|record| record.id == id).ok_or("扩展不存在")?;
+    let before = record.clone();
+    if scopes.as_ref().is_some_and(|items| items.iter().any(|scope| scope.group_id.is_empty() || scope.small_group_id.as_deref() == Some(""))) {
+        return Err("分组标识不能为空".into());
+    }
+    record.scopes = scopes;
+    let result = record.clone();
+    apply_extension_change(&app, &records, &before, &result).await?;
+    Ok(result)
+}
+
+/// 保存前撤销全部已有 Profile 的旧授权，包含没有活跃视图的休眠空间。
+/// 新增授权留待保存成功后正常打开页面时加载，失败时不会提前授予权限。
+async fn apply_extension_change(app: &AppHandle, records: &[BrowserExtensionRecord], before: &BrowserExtensionRecord, after: &BrowserExtensionRecord) -> Result<(), String> {
+    let local = app.path().app_local_data_dir().map_err(|error| error.to_string())?;
+    let profiles = crate::browser_profiles::existing_profile_scopes(&local)?;
+    let base = extension_base_directory(app)?;
+    let open_profiles = app.state::<crate::BrowserProfileStore>().0.lock().map_err(|_| "无法读取页面配置")?.clone();
+    let mut failure = None;
+    for (group, small, directory) in profiles {
+        if !before.allows(&group, small.as_deref()) || after.allows(&group, small.as_deref()) { continue; }
+        let result = async {
+            let desired = profile_extensions_from(&base, records, &group, small.as_deref());
+            let live = open_profiles.iter().find_map(|(label, path)| {
+                if path == &directory { app.get_webview(label) } else { None }
+            });
+            if let Some(webview) = live {
+                crate::extension_runtime::synchronize(&webview, &directory, desired).await
+            } else {
+                // 校准窗口始终隐藏且不获焦，只打开空白页，不干扰用户当前页面。
+                static NEXT_SYNC: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+                let label = format!("extension-policy-sync-{}", NEXT_SYNC.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
+                let window = tauri::WebviewWindowBuilder::new(app, label, tauri::WebviewUrl::External("about:blank".parse().unwrap()))
+                    .visible(false).focused(false).skip_taskbar(true).data_directory(directory.clone())
+                    .browser_extensions_enabled(true)
+                    .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny)
+                    .build().map_err(|error| error.to_string())?;
+                let result = crate::extension_runtime::synchronize(window.as_ref(), &directory, desired).await;
+                let closed = window.close().map_err(|error| error.to_string());
+                result.and(closed)
+            }
+        }.await;
+        if let Err(error) = result { failure = Some(error); break; }
+    }
+    // 磁盘策略只在全部撤销成功后切换；失败则保留旧配置，关闭已变更页面以便按旧配置恢复。
+    let saved = match failure {
+        Some(error) => Err(format!("未保存生效范围，扩展权限校准失败：{error}")),
+        None => save_records(app, records),
+    };
+    invalidate_browser_webviews(app, Some((before, after)))?;
+    app.emit("sia://extension-toolbar-changed", ()).map_err(|error| error.to_string())?;
+    saved
 }
 
 fn install_extension_sync(
@@ -280,11 +390,15 @@ fn install_extension_sync(
     let base = extension_base_directory(app)?;
     let enabled_base = base.join(ENABLED_DIRECTORY);
     let disabled_base = base.join(DISABLED_DIRECTORY);
+    let mut records = load_records(app)?;
+    let previous = records.iter().find(|record| record.id == id).cloned();
+    let enabled = previous.as_ref().map_or(true, |record| record.enabled);
+    let previous_folder = extension_folder(&base, &id);
     let destination = enabled_base.join(&id);
     let disabled_destination = disabled_base.join(&id);
     remove_managed_directory(&enabled_base, &destination)?;
     remove_managed_directory(&disabled_base, &disabled_destination)?;
-    copy_directory(&source_directory, &destination)?;
+    copy_directory(&source_directory, if previous.is_some() { &previous_folder } else { &destination })?;
 
     let record = BrowserExtensionRecord {
         id: id.clone(),
@@ -293,15 +407,17 @@ fn install_extension_sync(
         version: manifest.version,
         description: manifest.description,
         source: source.to_string(),
-        enabled: true,
+        enabled,
+        scopes: previous.as_ref().and_then(|record| record.scopes.clone()),
         options_page: manifest.options_page,
+        pinned: previous.as_ref().is_some_and(|record| record.pinned),
+        icon_url: None,
     };
-    let mut records = load_records(app)?;
     records.retain(|item| item.id != id);
     records.push(record.clone());
     records.sort_by(|left, right| left.name.to_lowercase().cmp(&right.name.to_lowercase()));
     save_records(app, &records)?;
-    invalidate_browser_webviews(app);
+    invalidate_browser_webviews(app, None)?;
     Ok(record)
 }
 
@@ -409,7 +525,48 @@ fn scan_extensions_sync(app: &AppHandle) -> Result<Vec<BrowserExtensionCandidate
 pub async fn list_browser_extensions(
     app: AppHandle,
 ) -> Result<Vec<BrowserExtensionRecord>, String> {
-    load_records(&app)
+    // 磁盘读取在后台执行，面板使用前端缓存即时打开。
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut records = load_records(&app)?;
+        let base = extension_base_directory(&app)?;
+        for record in &mut records {
+            let folder = extension_folder(&base, &record.id);
+            record.icon_url = read_extension_icon(&folder);
+        }
+        Ok(records)
+    }).await.map_err(|error| format!("读取扩展列表失败：{error}"))?
+}
+
+/// 只读取扩展目录内有限大小的位图，避免路径穿越及不受信任的 SVG 脚本。
+fn read_extension_icon(folder: &Path) -> Option<String> {
+    let manifest = read_json(&folder.join("manifest.json")).ok()?;
+    let icons = manifest.get("icons")?.as_object()?;
+    let relative = ["32", "48", "16", "128"].into_iter()
+        .find_map(|size| icons.get(size).and_then(Value::as_str))?;
+    let root = folder.canonicalize().ok()?;
+    let path = root.join(relative).canonicalize().ok()?;
+    if !path.starts_with(&root) || fs::metadata(&path).ok()?.len() > 262_144 { return None; }
+    let mime = match path.extension()?.to_str()?.to_ascii_lowercase().as_str() {
+        "png" => "image/png", "jpg" | "jpeg" => "image/jpeg", "webp" => "image/webp",
+        _ => return None,
+    };
+    let bytes = fs::read(path).ok()?;
+    let encoded: String = bytes.iter().map(|byte| format!("%{byte:02X}")).collect();
+    Some(format!("data:{mime},{encoded}"))
+}
+
+/// 固定状态只改变工具栏，不销毁网页或重新加载扩展运行环境。
+#[tauri::command]
+pub async fn set_browser_extension_pinned(app: AppHandle, id: String, pinned: bool) -> Result<(), String> {
+    let state = app.state::<crate::extension_runtime::ExtensionOperationLock>();
+    let _guard = state.0.lock().await;
+
+    let mut records = load_records(&app)?;
+    let record = records.iter_mut().find(|record| record.id == id)
+        .ok_or_else(|| "扩展不存在".to_string())?;
+    record.pinned = pinned;
+    save_records(&app, &records)?;
+    app.emit("sia://extension-toolbar-changed", ()).map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -440,6 +597,10 @@ pub async fn install_browser_extension(
     source: String,
     browser_id: Option<String>,
 ) -> Result<BrowserExtensionRecord, String> {
+    let state = app.state::<crate::extension_runtime::ExtensionOperationLock>();
+    let _guard = state.0.lock().await;
+
+    let app = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
         install_extension_sync(&app, &path, &source, browser_id)
     })
@@ -453,176 +614,38 @@ pub async fn set_browser_extension_enabled(
     id: String,
     enabled: bool,
 ) -> Result<BrowserExtensionRecord, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let base = extension_base_directory(&app)?;
-        let enabled_base = base.join(ENABLED_DIRECTORY);
-        let disabled_base = base.join(DISABLED_DIRECTORY);
-        let safe_id = sanitized_id(&id);
-        if safe_id != id {
-            return Err("扩展标识无效".to_string());
-        }
-        let source = if enabled {
-            disabled_base.join(&id)
-        } else {
-            enabled_base.join(&id)
-        };
-        let destination = if enabled {
-            enabled_base.join(&id)
-        } else {
-            disabled_base.join(&id)
-        };
-        validate_managed_target(source.parent().unwrap_or(&base), &source)?;
-        validate_managed_target(destination.parent().unwrap_or(&base), &destination)?;
-        if !source.exists() && !destination.exists() {
-            return Err("找不到扩展文件，请重新安装该扩展".to_string());
-        }
-        if source.exists() {
-            remove_managed_directory(destination.parent().unwrap_or(&base), &destination)?;
-            fs::rename(&source, &destination).map_err(|error| {
-                format!(
-                    "无法{}扩展文件 {}：{error}",
-                    if enabled { "启用" } else { "停用" },
-                    source.display()
-                )
-            })?;
-        }
-        let mut records = load_records(&app)?;
-        let record = records
-            .iter_mut()
-            .find(|record| record.id == id)
-            .ok_or_else(|| "找不到扩展记录".to_string())?;
-        record.enabled = enabled;
-        let result = record.clone();
-        save_records(&app, &records)?;
-        invalidate_browser_webviews(&app);
-        Ok(result)
-    })
-    .await
-    .map_err(|error| format!("扩展状态更新任务失败：{error}"))?
-}
+    let state = app.state::<crate::extension_runtime::ExtensionOperationLock>();
+    let _guard = state.0.lock().await;
 
-#[cfg(windows)]
-#[tauri::command]
-pub async fn resolve_browser_extension_id(
-    app: AppHandle,
-    id: String,
-    name: String,
-) -> Result<String, String> {
-    let webview = app
-        .webviews()
-        .into_iter()
-        .find(|(label, _)| label.starts_with(BROWSER_WEBVIEW_PREFIX))
-        .map(|(_, webview)| webview)
-        .ok_or_else(|| "请先打开任意网页，再打开扩展配置页面".to_string())?;
-
-    let (sender, receiver) = tokio::sync::oneshot::channel::<Result<String, String>>();
-    let sender = Arc::new(Mutex::new(Some(sender)));
-    let callback_sender = Arc::clone(&sender);
-    let target_name = name.clone();
-
-    webview
-        .with_webview(move |platform_webview| {
-            let result = (|| -> windows::core::Result<()> {
-                let core_webview: ICoreWebView2 =
-                    unsafe { platform_webview.controller().CoreWebView2()? };
-                let profile = unsafe {
-                    core_webview
-                        .cast::<ICoreWebView2_13>()?
-                        .Profile()?
-                        .cast::<ICoreWebView2Profile7>()?
-                };
-                let handler = ProfileGetBrowserExtensionsCompletedHandler::create(Box::new(
-                    move |status, extensions| {
-                        let resolved = (|| -> Result<String, String> {
-                            status
-                                .map_err(|error| format!("无法读取 WebView2 扩展列表：{error}"))?;
-                            let extensions =
-                                extensions.ok_or_else(|| "WebView2 未返回扩展列表".to_string())?;
-                            let mut count = 0;
-                            unsafe {
-                                extensions.Count(&mut count).map_err(|error| {
-                                    format!("无法读取 WebView2 扩展数量：{error}")
-                                })?;
-                            }
-                            for index in 0..count {
-                                let extension = unsafe {
-                                    extensions.GetValueAtIndex(index).map_err(|error| {
-                                        format!("无法读取 WebView2 扩展：{error}")
-                                    })?
-                                };
-                                let mut raw_name = PWSTR::null();
-                                unsafe {
-                                    extension.Name(&mut raw_name).map_err(|error| {
-                                        format!("无法读取 WebView2 扩展名称：{error}")
-                                    })?;
-                                }
-                                let extension_name = CoTaskMemPWSTR::from(raw_name).to_string();
-                                if extension_name != target_name {
-                                    continue;
-                                }
-
-                                let mut raw_id = PWSTR::null();
-                                unsafe {
-                                    extension.Id(&mut raw_id).map_err(|error| {
-                                        format!("无法读取 WebView2 扩展标识：{error}")
-                                    })?;
-                                }
-                                let extension_id = CoTaskMemPWSTR::from(raw_id).to_string();
-                                if !extension_id.is_empty() {
-                                    return Ok(extension_id);
-                                }
-                            }
-                            Err(format!(
-                                "未找到已加载的扩展“{target_name}”，请重新启用后再试"
-                            ))
-                        })();
-                        if let Ok(mut sender) = callback_sender.lock() {
-                            if let Some(sender) = sender.take() {
-                                let _ = sender.send(resolved);
-                            }
-                        }
-                        Ok(())
-                    },
-                ));
-                unsafe {
-                    profile.GetBrowserExtensions(&handler)?;
-                }
-                Ok(())
-            })();
-
-            if let Err(error) = result {
-                if let Ok(mut sender) = sender.lock() {
-                    if let Some(sender) = sender.take() {
-                        let _ = sender.send(Err(format!("无法查询扩展配置页面：{error}")));
-                    }
-                }
-            }
-        })
-        .map_err(|error| format!("无法访问浏览器网页视图：{error}"))?;
-
-    let browser_id = receiver
-        .await
-        .map_err(|_| "扩展配置页面查询意外中断".to_string())??;
     let mut records = load_records(&app)?;
-    if let Some(record) = records.iter_mut().find(|record| record.id == id) {
-        record.browser_id = Some(browser_id.clone());
-        save_records(&app, &records)?;
-    }
-    Ok(browser_id)
+    let record = records.iter_mut().find(|record| record.id == id).ok_or("扩展不存在")?;
+    let before = record.clone();
+    record.enabled = enabled;
+    let result = record.clone();
+    apply_extension_change(&app, &records, &before, &result).await?;
+    Ok(result)
 }
 
-#[cfg(not(windows))]
+/// 返回指定标签所在 Profile 的真实扩展 ID，不使用来自 Chrome/Edge 的原始安装 ID。
 #[tauri::command]
-pub async fn resolve_browser_extension_id(
-    _app: AppHandle,
-    _id: String,
-    _name: String,
-) -> Result<String, String> {
-    Err("扩展配置页面仅支持 Windows 桌面版".to_string())
+pub async fn resolve_browser_extension_id(app: AppHandle, id: String, tab_id: String) -> Result<String, String> {
+    let state = app.state::<crate::extension_runtime::ExtensionOperationLock>();
+    let _guard = state.0.lock().await;
+    let label = crate::browser_label(&tab_id);
+    let scopes = app.state::<ExtensionScopeStore>().0.lock().map_err(|_| "无法读取标签分组")?.clone();
+    let (_, group, small) = scopes.get(&label).ok_or("请先打开当前分组的网页")?;
+    let record = load_records(&app)?.into_iter().find(|record| record.id == id).ok_or("扩展不存在")?;
+    if !record.allows(group, small.as_deref()) { return Err("此分组未启用该扩展".into()); }
+    let directory = crate::browser_group_data_directory(&app, group, small.as_deref())?;
+    crate::extension_runtime::read_runtime_ids(&directory)?.remove(&id).ok_or("扩展尚未在当前分组加载".into())
 }
 
 #[tauri::command]
 pub async fn remove_browser_extension(app: AppHandle, id: String) -> Result<(), String> {
+    let state = app.state::<crate::extension_runtime::ExtensionOperationLock>();
+    let _guard = state.0.lock().await;
+
+    let app = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let base = extension_base_directory(&app)?;
         let enabled_base = base.join(ENABLED_DIRECTORY);
@@ -636,9 +659,46 @@ pub async fn remove_browser_extension(app: AppHandle, id: String) -> Result<(), 
         let mut records = load_records(&app)?;
         records.retain(|record| record.id != id);
         save_records(&app, &records)?;
-        invalidate_browser_webviews(&app);
+        invalidate_browser_webviews(&app, None)?;
         Ok(())
     })
     .await
     .map_err(|error| format!("扩展删除任务失败：{error}"))?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 旧记录缺少 scopes 时兼容所有分组，明确空白名单时禁止任何范围。
+    fn record(scopes: Option<Vec<ExtensionScope>>) -> BrowserExtensionRecord {
+        let mut record: BrowserExtensionRecord = serde_json::from_str(r#"{"id":"test","name":"测试扩展","version":"1","description":"","source":"test","enabled":true}"#).unwrap();
+        record.scopes = scopes;
+        record
+    }
+
+    #[test]
+    fn legacy_and_empty_scopes_are_distinct() {
+        assert!(record(None).allows("未分组", None));
+        assert!(!record(Some(vec![])).allows("dev", Some("admin")));
+    }
+
+    #[test]
+    fn parent_covers_existing_and_future_children_only_in_its_group() {
+        let value = record(Some(vec![ExtensionScope { group_id: "dev".into(), small_group_id: None }]));
+        assert!(value.allows("dev", None));
+        assert!(value.allows("dev", Some("future-child")));
+        assert!(!value.allows("pre", Some("future-child")));
+    }
+
+    #[test]
+    fn child_scope_does_not_grant_parent_or_sibling_access() {
+        let mut value = record(Some(vec![ExtensionScope { group_id: "dev".into(), small_group_id: Some("admin".into()) }]));
+        assert!(value.allows("dev", Some("admin")));
+        assert!(!value.allows("dev", None));
+        assert!(!value.allows("dev", Some("brand")));
+        assert!(!value.allows("pre", Some("admin")));
+        value.enabled = false;
+        assert!(!value.allows("dev", Some("admin")));
+    }
 }

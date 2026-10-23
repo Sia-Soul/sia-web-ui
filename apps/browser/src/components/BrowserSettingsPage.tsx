@@ -6,6 +6,7 @@ import {
   Input,
   Modal,
   Switch,
+  Table,
   Upload,
   message,
 } from "@sia.soul/sia-react-ui";
@@ -15,10 +16,16 @@ import {
   type PasswordCredentialSummary,
   type PasswordImportResult,
 } from "./PasswordManagerModal";
+import { ROOT_GROUP_ID, type BrowserGroup } from "../browserTypes";
+import { extensionScopeLabel, type ExtensionScope } from "../extensionScopes";
+import ExtensionScopeEditor from "./ExtensionScopeEditor";
+import BrowserPasswordCell from "./BrowserPasswordCell";
 
 export type BrowserSettingsSection = "general" | "privacy" | "passwords" | "extensions" | "downloads";
 
 interface BrowserSettingsPageProps {
+  /** 当前父子分组，用于设置扩展生效范围。 */
+  groups: readonly BrowserGroup[];
   activeDownloadCount: number;
   askBeforeDownload: boolean;
   downloadDirectory: string;
@@ -44,7 +51,13 @@ export interface BrowserExtensionRecord {
   description: string;
   source: string;
   enabled: boolean;
+  /** null 或缺省表示所有分组；空数组表示没有允许的分组。 */
+  scopes?: ExtensionScope[] | null;
   optionsPage?: string;
+  /** 是否在主窗口工具栏显示扩展快捷入口，旧记录默认为 false。 */
+  pinned?: boolean;
+  /** 原生端从受管扩展目录读取的位图数据地址；缺失时使用框架图标。 */
+  iconUrl?: string;
 }
 
 interface BrowserExtensionCandidate {
@@ -75,11 +88,11 @@ async function invokeSettingsCommand<T>(command: string, args?: Record<string, u
 function sectionCopy(section: BrowserSettingsSection) {
   switch (section) {
     case "general":
-      return { title: "常规", description: "管理 Sia 浏览器的基本行为和外观。" };
+      return { title: "常规", description: "管理 西娅浏览器的基本行为和外观。" };
     case "privacy":
       return { title: "隐私与安全", description: "管理会话隔离、缓存与站点数据。" };
     case "passwords":
-      return { title: "密码", description: "查看和管理已保存的站点账号。密码内容不会在此页直接显示。" };
+      return { title: "密码", description: "查看和管理已保存的站点账号，点击眼睛查看密码，或直接复制密码。" };
     case "extensions":
       return { title: "扩展程序", description: "导入 Chrome、Edge 已安装的扩展，或加载本地已解压扩展。" };
     case "downloads":
@@ -88,6 +101,7 @@ function sectionCopy(section: BrowserSettingsSection) {
 }
 
 export default function BrowserSettingsPage({
+  groups,
   activeDownloadCount,
   askBeforeDownload,
   downloadDirectory,
@@ -103,6 +117,8 @@ export default function BrowserSettingsPage({
   const [credentials, setCredentials] = useState<PasswordCredentialSummary[]>([]);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordSearch, setPasswordSearch] = useState("");
+  const scopeGroups: readonly BrowserGroup[] = [{ id: ROOT_GROUP_ID, name: "未分组", color: "", smallGroups: [] }, ...groups];
+  const [scopeExtension, setScopeExtension] = useState<BrowserExtensionRecord>();
   const [extensions, setExtensions] = useState<BrowserExtensionRecord[]>([]);
   const [extensionLoading, setExtensionLoading] = useState(false);
   const [extensionActionId, setExtensionActionId] = useState<string>();
@@ -225,7 +241,7 @@ export default function BrowserSettingsPage({
   function confirmRemoveExtension(extension: BrowserExtensionRecord) {
     Modal.confirm({
       title: "删除扩展",
-      children: `确定从 Sia 浏览器中删除“${extension.name}”及其本地扩展文件吗？`,
+      children: `确定从 西娅浏览器中删除“${extension.name}”及其本地扩展文件吗？`,
       okText: "删除",
       okButtonProps: { danger: true },
       onOk: async () => {
@@ -311,7 +327,7 @@ export default function BrowserSettingsPage({
         <section className="browser-settings-card browser-settings-card--row">
           <div>
             <h3>默认浏览器</h3>
-            <p>点击后将在 Windows 默认应用设置中选择 Sia 浏览器。</p>
+            <p>点击后将在 Windows 默认应用设置中选择 西娅浏览器。</p>
           </div>
           <Button variant="primary" onClick={onOpenDefaultBrowserSettings}>
             设为默认浏览器
@@ -325,9 +341,10 @@ export default function BrowserSettingsPage({
     return (
       <div className="browser-settings__cards">
         <section className="browser-settings-card">
-          <p>Sia 的每个标签分组使用独立的 Cookie、缓存和本地存储。</p>
+          {/* 隔离以稳定的小分组标识为单位，大分组直属标签也有自己的默认空间。 */}
+          <p>西娅浏览器的每个小分组使用独立的 Cookie、缓存和本地存储。</p>
           <p className="browser-settings-card__hint">
-            小分组继承所属分组的浏览数据，同一分组内可以共享登录状态，分组之间互不共享。
+            同一小分组内共享登录状态，不同小分组互不共享。大分组直属标签使用单独的数据空间，与其下的小分组隔离。
           </p>
         </section>
       </div>
@@ -341,7 +358,7 @@ export default function BrowserSettingsPage({
           type="info"
           showIcon
           message="密码使用 Windows 系统安全存储加密"
-          description="只在你主动选择账号回填时解密。CSV 中的密码是明文，导入完成后请立即删除原文件。"
+          description="密码默认隐藏，点击显示、复制或回填时读取。CSV 中的密码是明文，导入完成后请立即删除原文件。"
         />
         <div className="browser-settings-passwords__toolbar">
           <Input
@@ -370,35 +387,42 @@ export default function BrowserSettingsPage({
             <strong>已保存的账号</strong>
             <span>已保存 {credentials.length} 个账号</span>
           </header>
-          {passwordLoading ? (
-            <div className="browser-settings-list__empty">
-              <Icon name="loader" size={22} spin />
-              <span>正在读取密码…</span>
-            </div>
-          ) : filteredCredentials.length === 0 ? (
-            <div className="browser-settings-list__empty">没有匹配的已保存账号</div>
-          ) : (
-            filteredCredentials.map((credential) => (
-              <div className="browser-settings-credential" key={credential.id}>
-                <div className="browser-settings-credential__site">
-                  <strong>{credential.name || credential.origin}</strong>
-                  <span>{credential.origin}</span>
-                </div>
-                <div className="browser-settings-credential__account">
-                  <span>{credential.username || "未命名账号"}</span>
-                  <small>•••••••• · {formatUpdatedAt(credential.updatedAt)}</small>
-                </div>
-                <Button
-                  danger
-                  variant="default"
-                  size="small"
-                  onClick={() => confirmDeleteCredential(credential)}
-                >
-                  删除
-                </Button>
-              </div>
-            ))
-          )}
+          {/* 使用 Sia 表格统一列布局；固定行高与虚拟滚动适配大量已保存账号。 */}
+          <Table
+            className="browser-settings-passwords__table"
+            rowKey="id"
+            dataSource={filteredCredentials.map((credential) => ({ ...credential }))}
+            loading={passwordLoading}
+            emptyText="没有匹配的已保存账号"
+            maxBodyHeight={480}
+            rowHeight={56}
+            columnBordered={false}
+            columns={[
+              {
+                key: "origin", name: "网站", width: 240,
+                render: (_, credential) => (
+                  <div className="browser-settings-credential__site">
+                    <strong>{credential.name || credential.origin}</strong>
+                    <span>{credential.origin}</span>
+                  </div>
+                ),
+              },
+              { key: "username", name: "账号", width: 190, render: (value) => String(value || "未命名账号") },
+              {
+                key: "password", name: "密码", width: 230,
+                render: (_, credential) => (
+                  <BrowserPasswordCell key={`${credential.id}:${credential.updatedAt}`} credentialId={credential.id} />
+                ),
+              },
+              { key: "updatedAt", name: "更新时间", width: 115, render: (_, credential) => formatUpdatedAt(credential.updatedAt) },
+              {
+                key: "actions", name: "操作", width: 85, fixed: "right",
+                render: (_, credential) => (
+                  <Button danger size="small" onClick={() => confirmDeleteCredential(credential)}>删除</Button>
+                ),
+              },
+            ]}
+          />
         </section>
       </div>
     );
@@ -411,7 +435,7 @@ export default function BrowserSettingsPage({
           type="info"
           showIcon
           message="WebView2 仅兼容部分 Chrome 扩展 API"
-          description="Sia 会让扩展及其配置作用于所有网页，同时继续隔离各标签分组和小分组的 Cookie；依赖账号同步或商店专用接口的扩展可能无法使用。"
+          description="扩展统一安装，可按父分组或子分组启用。各隔离分组中的扩展本地设置独立保存；依赖账号同步或商店专用接口的扩展可能无法使用。"
         />
         <div className="browser-settings-extensions__actions">
           <Button
@@ -454,8 +478,10 @@ export default function BrowserSettingsPage({
                 </div>
                 <span>{extension.description || "该扩展未提供说明"}</span>
                 <small>{extension.source}</small>
+                <small>生效范围：{extensionScopeLabel(extension.scopes, scopeGroups)}</small>
               </div>
               <div className="browser-settings-extension__actions">
+                <Button size="small" disabled={Boolean(extensionActionId)} onClick={() => setScopeExtension(extension)}>生效分组</Button>
                 <Button
                   size="small"
                   disabled={extensionActionId === extension.id}
@@ -481,6 +507,13 @@ export default function BrowserSettingsPage({
             </div>
           ))}
         </section>
+        {scopeExtension ? <ExtensionScopeEditor extension={scopeExtension} groups={scopeGroups}
+          onClose={() => setScopeExtension(undefined)}
+          onSave={async (scopes) => {
+            const updated = await invokeSettingsCommand<BrowserExtensionRecord>("set_browser_extension_scopes", { id: scopeExtension.id, scopes });
+            setExtensions((current) => current.map((item) => item.id === updated.id ? updated : item));
+            message.success("已更新扩展生效分组");
+          }} /> : null}
         <Modal
           open={scanOpen}
           title="从 Chrome / Edge 导入扩展"

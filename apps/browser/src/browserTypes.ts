@@ -1,5 +1,3 @@
-export type TabLayoutMode = "horizontal" | "vertical";
-
 export interface BrowserSmallGroup {
   id: string;
   name: string;
@@ -16,6 +14,10 @@ export interface BrowserTab {
   id: string;
   title: string;
   url: string;
+  /** 内核读取的 PNG 数据地址；空字符串表示当前网页没有可用图标，未设置时兼容旧版图标回退。 */
+  faviconUrl?: string;
+  /** 图标对应的完整文档地址，导航到其他页面时不显示旧页面图标。 */
+  faviconPageUrl?: string;
   loading: boolean;
   hasWebview: boolean;
   sleeping: boolean;

@@ -30,8 +30,6 @@ async function invokeNative<T>(command: string, args?: Record<string, unknown>) 
 export default function BrowserTabPanelWindow() {
   const [payload, setPayload] = useState<FloatingTabPanelPayload | null>(null);
   const [panelVisible, setPanelVisible] = useState(false);
-  const [panelFullyExpanded, setPanelFullyExpanded] = useState(false);
-  const [panelHovered, setPanelHovered] = useState(false);
   const panelVisibleRef = useRef(false);
   const panelOpeningRef = useRef(false);
 
@@ -94,15 +92,11 @@ export default function BrowserTabPanelWindow() {
           if (settleFrame !== undefined) window.cancelAnimationFrame(settleFrame);
           panelOpeningRef.current = false;
           panelVisibleRef.current = false;
-          setPanelHovered(false);
-          setPanelFullyExpanded(false);
           setPanelVisible(false);
           return;
         }
-        setPanelHovered(true);
         if (panelVisibleRef.current || panelOpeningRef.current) return;
         panelOpeningRef.current = true;
-        setPanelFullyExpanded(false);
         setPanelVisible(false);
         openFrame = window.requestAnimationFrame(() => {
           settleFrame = window.requestAnimationFrame(() => {
@@ -129,27 +123,16 @@ export default function BrowserTabPanelWindow() {
 
   useEffect(() => {
     const documentRoot = document.documentElement;
-    const handlePointerEnter = () => {
-      setPanelHovered(true);
-    };
+    // 离开浮动侧栏仍按原生位置收起；滚动条可见性由 Tree 内的框架组件管理。
     const handlePointerLeave = () => {
-      setPanelHovered(false);
       if (!payload?.panelPinned) {
         void invokeNative("close_floating_tab_panel_if_pointer_outside").catch(() => undefined);
       }
     };
-    documentRoot.addEventListener("mouseenter", handlePointerEnter);
     documentRoot.addEventListener("mouseleave", handlePointerLeave);
     return () => {
-      documentRoot.removeEventListener("mouseenter", handlePointerEnter);
       documentRoot.removeEventListener("mouseleave", handlePointerLeave);
     };
-  }, [payload?.panelPinned]);
-
-  useEffect(() => {
-    if (payload?.panelPinned) {
-      setPanelFullyExpanded(true);
-    }
   }, [payload?.panelPinned]);
 
   const orderedTabs = useMemo(() => {
@@ -205,19 +188,10 @@ export default function BrowserTabPanelWindow() {
 
   return (
     <div
-      className={`browser-floating-tab-panel-host${payload.panelPinned ? " is-pinned" : ""}${panelFullyExpanded && panelHovered ? " is-scrollbar-visible" : ""}`}
+      className={`browser-floating-tab-panel-host${payload.panelPinned ? " is-pinned" : ""}`}
     >
       <div
         className={`browser-floating-tab-panel${payload.panelPinned ? " is-pinned" : ""}${panelVisible ? " is-visible" : ""}`}
-        onTransitionEnd={(event) => {
-          if (
-            event.target === event.currentTarget
-            && event.propertyName === "width"
-            && panelVisible
-          ) {
-            setPanelFullyExpanded(true);
-          }
-        }}
         onContextMenu={(event) => {
           event.preventDefault();
           const target = event.target;
@@ -233,13 +207,15 @@ export default function BrowserTabPanelWindow() {
             panelExpanded={payload.panelExpanded}
             panelPinned={payload.panelPinned}
             panelWidth={payload.panelWidth}
-            showScrollbar={panelFullyExpanded && panelHovered}
             groups={payload.groups}
             tabs={payload.tabs}
             activeId={payload.activeId}
             collapsedGroupIds={payload.collapsedGroupIds ?? []}
             collapsedSmallGroupIds={payload.collapsedSmallGroupIds ?? []}
             onSelect={(tabId) => sendAction("select", tabId)}
+            // 使用结构化内容传递目标分组，避免名称或标识中的分隔符影响解析。
+            // 同时传递插入锚点，让独立侧栏与主窗口使用相同的排序及跨组移动规则。
+            onMoveTab={(tabId, groupId, smallGroupId, beforeTabId) => sendAction("move-tab", JSON.stringify({ tabId, groupId, smallGroupId, beforeTabId }))}
             onClose={(tabId) => sendAction("close", tabId)}
             onToggleAudio={(tabId) => sendAction("toggle-audio", tabId)}
             onNewTab={(groupId, smallGroupId) => {

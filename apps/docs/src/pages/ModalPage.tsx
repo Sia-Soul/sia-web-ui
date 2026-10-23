@@ -96,7 +96,7 @@ export function ModalPage() {
 
   return <>
     {/* 正文默认字号统一由框架提供，示例无需再添加局部字号。 */}
-    <PageHeader eyebrow="组件 / 反馈 / Modal" title="Modal 对话框" description="在当前流程上方承载任务，支持声明式使用与静态 API 调用。正文默认字号为 13px，子元素可通过自身字号样式覆盖。" />
+    <PageHeader eyebrow="组件 / 反馈 / Modal" title="Modal 对话框" description="在当前流程上方承载任务，支持声明式使用与静态 API 调用；提示与确认类型默认采用实心状态图标。正文默认字号为 13px，子元素可通过自身字号样式覆盖。" />
     <DocsTabs activeKey={tab} onChange={setTab} />
     {tab === "examples" ? <div className="demo-stack">
       <DemoCard title="基础对话框" description="打开后默认聚焦正文首个可用输入组件，可直接输入；支持遮罩、Esc、焦点管理和异步确认。" code={basicCode}>
