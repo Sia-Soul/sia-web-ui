@@ -34,7 +34,7 @@ const MENU_LABEL: &str = "browser-menu";
 const TAB_TOOLTIP_LABEL: &str = "sia-tab-tooltip-window";
 static TAB_TOOLTIP_GENERATION: AtomicU64 = AtomicU64::new(0);
 const TAB_PANEL_SHADOW_SPACE: f64 = 8.0;
-// 菜单布局留白（逻辑像素）与 CSS 外边距一致；原生窗口形状排除此留白，不拦截底层点击。
+// 菜单布局留白（逻辑像素）与 CSS 外边距一致，保留阴影绘制区域。
 const MENU_SHADOW_SPACE: f64 = 20.0;
 const TAB_PANEL_TRANSITION_DURATION: Duration = Duration::from_millis(190);
 static TAB_PANEL_VISIBLE: AtomicBool = AtomicBool::new(false);
@@ -87,12 +87,23 @@ fn create_menu_region(regions: &[MenuSurfaceRegion], scale: f64) -> Result<HRGN,
     Ok(combined)
 }
 
+/// 绘制区域包含阴影；远离菜单的级联预留画布仍保持穿透。
+#[cfg(windows)]
+fn create_menu_paint_region(regions: &[MenuSurfaceRegion], scale: f64) -> Result<HRGN, String> {
+    let painted: Vec<_> = regions.iter().map(|r| MenuSurfaceRegion {
+        x: r.x - MENU_SHADOW_SPACE, y: r.y - MENU_SHADOW_SPACE,
+        width: r.width + MENU_SHADOW_SPACE * 2.0, height: r.height + MENU_SHADOW_SPACE * 2.0,
+        radius: r.radius + MENU_SHADOW_SPACE,
+    }).collect();
+    create_menu_region(&painted, scale)
+}
+
 /// 必须在窗口线程设置形状；成功后区域句柄归 Windows 所有，失败时自行释放。
 fn apply_menu_regions(window: &WebviewWindow, regions: &[MenuSurfaceRegion]) -> Result<(), String> {
     #[cfg(windows)]
     {
         let hwnd = window.hwnd().map_err(|error| error.to_string())?;
-        let region = create_menu_region(regions, window.scale_factor().map_err(|error| error.to_string())?)?;
+        let region = create_menu_paint_region(regions, window.scale_factor().map_err(|error| error.to_string())?)?;
         if unsafe { SetWindowRgn(hwnd, Some(region), true) } == 0 {
             unsafe { let _ = DeleteObject(region.into()); }
             return Err("无法应用菜单命中区域".into());
@@ -314,16 +325,18 @@ pub fn show_browser_tab_tooltip(app: AppHandle, mut payload: Value, anchor: Floa
         let watcher = app.clone();
         // 原生网页会截走主页面的移出事件，独立检查指针确保提示不会残留。
         let (x, y, width, height) = resolve_window_geometry(&app, "main", anchor)?;
+        // 悬停不要求先激活浏览器；只在悬停期间前台窗口发生变化时关闭提示。
+        // 保存句柄值而非进程号，同一进程的不同窗口切换也能正确结束悬停。
+        let initial_foreground = unsafe { GetForegroundWindow().0 as isize };
         std::thread::spawn(move || loop {
             std::thread::sleep(Duration::from_millis(16));
             if TAB_TOOLTIP_GENERATION.load(Ordering::SeqCst) != generation { return; }
             let mut cursor = POINT::default();
-            let mut process = 0;
             let dismiss = unsafe {
-                GetWindowThreadProcessId(GetForegroundWindow(), Some(&mut process));
+                let foreground = GetForegroundWindow().0 as isize;
                 GetCursorPos(&mut cursor).is_err() || cursor.x < x || cursor.y < y
                     || cursor.x >= x + width as i32 || cursor.y >= y + height as i32
-                    || lost_browser_focus(process, std::process::id())
+                    || (foreground != 0 && foreground != initial_foreground)
                     || [VK_LBUTTON, VK_RBUTTON, VK_MBUTTON].into_iter()
                         .any(|key| (GetAsyncKeyState(key.0 as i32) as u16 & 0x8000) != 0)
             };
@@ -1052,6 +1065,21 @@ mod tests {
             let region = create_menu_region(&[], scale).unwrap();
             assert!(!contains(region, 100.0, 100.0), "等待新布局时不可沿用上次的命中范围");
             unsafe { let _ = DeleteObject(region.into()); }
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn menu_paint_region_preserves_shadow_without_filling_unused_canvas() {
+        for scale in [1.0, 1.25, 1.5, 2.0] {
+            let surface = MenuSurfaceRegion { x: 20.0, y: 20.0, width: 360.0, height: 200.0, radius: 12.0 };
+            let region = create_menu_paint_region(&[surface], scale).unwrap();
+            unsafe {
+                assert!(PtInRegion(region, (12.0 * scale) as i32, (100.0 * scale) as i32).as_bool(), "左侧阴影不能被窗口形状裁掉");
+                assert!(PtInRegion(region, (100.0 * scale) as i32, (228.0 * scale) as i32).as_bool(), "底部阴影不能被裁掉");
+                assert!(!PtInRegion(region, (500.0 * scale) as i32, (300.0 * scale) as i32).as_bool());
+                let _ = DeleteObject(region.into());
+            }
         }
     }
 

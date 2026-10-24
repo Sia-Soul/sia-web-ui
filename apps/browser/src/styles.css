@@ -43,18 +43,20 @@ body.browser-tab-panel-document__body,
   background: transparent !important;
 }
 
-/* 20px 留白与原生布局一致；桌面窗口按可见表面裁剪以穿透空白，Web 预览保留外侧轻阴影。 */
+/* 面板随内容撑高，640px 为统一上限；窗口较小时保留上下各 20px 阴影空间。 */
 .browser-window-menu,
 .browser-panel {
   width: calc(100% - 40px);
-  height: calc(100% - 40px);
+  height: auto;
+  max-height: min(640px, calc(100vh - 40px));
   margin: 20px;
   box-shadow: 0 2px 4px rgb(15 23 42 / 6%), 0 6px 12px -2px rgb(15 23 42 / 10%);
 }
 
 .browser-window-menu {
   padding: 6px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   background: var(--sia-color-surface);
   border: 1px solid var(--sia-color-border);
   border-radius: 12px;
@@ -66,7 +68,8 @@ body.browser-tab-panel-document__body,
 .browser-menu-document .sia-menu__popup .sia-menu__item { min-height: 32px; font-size: 13px; }
 .browser-window-menu--cascade { overflow-y: auto; }
 .browser-menu-document .sia-menu__popup { width: 260px; max-width: calc(100vw - 16px); }
-.browser-menu-document .sia-menu__popup-list { max-height: calc(100vh - 40px); overflow-y: auto; }
+/* 子菜单自身另有上下各 4px 内边距和 1px 边框，列表扣除这 10px 后整体仍不超过上限。 */
+.browser-menu-document .sia-menu__popup-list { max-height: min(630px, calc(100vh - 50px)); overflow-y: auto; }
 
 /* 工具面板和内部按钮即时响应，避免框架默认过渡延缓开关或菜单切换。 */
 .browser-menu-document *,
@@ -116,7 +119,7 @@ body.browser-tab-panel-document__body,
 .browser-extension-context-menu.sia-menu {
   position: absolute;
   width: 248px;
-  max-height: calc(100% - 48px);
+  max-height: min(640px, calc(100% - 48px));
   overflow-y: auto;
   background: var(--sia-color-surface);
   border: 1px solid var(--sia-color-border);
@@ -461,8 +464,10 @@ body.browser-tab-panel-document__body,
 .browser-download-context-menu.sia-menu {
   position: absolute;
   width: 280px;
+  max-height: min(640px, calc(100vh - 40px));
   padding: 6px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   border: 1px solid var(--sia-color-border);
   border-radius: 16px;
   box-shadow: var(--sia-shadow-popup);
@@ -1059,6 +1064,35 @@ input {
   width: 100%;
 }
 
+/* 标题占用输入框内部空间，最多占三分之一，网址仍保留主要编辑区域。 */
+.address-input .sia-input-control > .sia-input-control__affix:first-child {
+  min-width: 0;
+  max-width: min(33%, 260px);
+  align-self: stretch;
+}
+
+.browser-address-title {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding-right: 10px;
+  border-right: 1px solid var(--sia-color-border);
+  cursor: default;
+  user-select: none;
+}
+
+.browser-address-title > .sia-icon { flex-shrink: 0; }
+
+.browser-address-title__text {
+  overflow: hidden;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .address-input .sia-input-control {
   height: 38px;
   padding: 0 44px 0 13px;
@@ -1398,6 +1432,12 @@ input {
   border-top: 1px solid var(--browser-toolbar-border);
 }
 
+.vertical-tree-compact-item {
+  position: relative;
+  width: 34px;
+  height: 30px;
+}
+
 .vertical-tree-compact-tab.sia-button {
   position: relative;
   display: flex;
@@ -1425,19 +1465,6 @@ input {
   justify-content: center;
 }
 
-.vertical-tree-compact-tab__state {
-  position: absolute;
-  z-index: 1;
-  display: inline-flex;
-  width: 9px;
-  height: 9px;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  border: 1px solid var(--sia-color-surface);
-  border-radius: 999px;
-}
-
 .vertical-tree-compact-tab__visual.is-sleeping::after {
   /* 虚线框位于站点图标外围，不改变图标尺寸、标签行高或声音角标的位置。 */
   position: absolute;
@@ -1448,37 +1475,55 @@ input {
   border-radius: 6px;
 }
 
-.vertical-tree-compact-tab__state--muted {
-  right: -3px;
-  bottom: -3px;
-  color: #d4380d;
-  background: #fff1ed;
+.vertical-tree-compact-audio.sia-button {
+  /* 声音按钮直接覆盖右下角，不改变站点图标的位置、尺寸或标签行高。 */
+  position: absolute;
+  z-index: 1;
+  right: -5px;
+  bottom: -1px;
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0;
+  color: var(--sia-color-primary);
+  background: var(--sia-color-surface);
+  border: 1px solid color-mix(in srgb, var(--sia-color-primary) 55%, var(--sia-color-surface));
+  border-radius: 6px;
+  cursor: pointer;
 }
 
-.vertical-tree-compact-tab__state--audible {
-  right: -3px;
-  bottom: -3px;
-  color: #087f5b;
-  background: #e6fcf5;
+.vertical-tree-compact-audio.is-muted.sia-button {
+  color: var(--sia-color-text-secondary);
+  border-color: var(--sia-color-border);
+}
+
+.vertical-tree-compact-audio.sia-button:hover:not(:disabled) {
+  color: var(--sia-color-primary);
+  background: color-mix(in srgb, var(--sia-color-primary) 16%, var(--sia-color-surface));
 }
 
 .vertical-tree-compact-tab.sia-button:hover:not(:disabled) {
   background: color-mix(in srgb, var(--group-color, var(--sia-color-primary)) 10%, transparent);
 }
 
-.vertical-tree-compact-tab.is-active.sia-button {
+/* 选中态统一使用主题主色，避免被分组色、休眠虚线和悬停背景淹没。 */
+.vertical-tree-compact-tab.is-active.sia-button,
+.vertical-tree-compact-tab.is-active.sia-button:hover:not(:disabled) {
   color: var(--sia-color-primary);
-  background: color-mix(in srgb, var(--group-color, var(--sia-color-primary)) 14%, var(--sia-color-surface));
+  background: color-mix(in srgb, var(--sia-color-primary) 24%, var(--sia-color-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sia-color-primary) 65%, var(--sia-color-surface));
 }
 
 .vertical-tree-compact-tab.is-active.sia-button::after {
+  /* 标记放在按钮内部，避免被按钮或滚动区域的裁剪边界截掉。 */
   position: absolute;
-  right: -4px;
-  top: 6px;
-  bottom: 6px;
-  width: 2px;
+  left: 1px;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
   content: "";
-  background: var(--group-color, var(--sia-color-primary));
+  pointer-events: none;
+  background: var(--sia-color-primary);
   border-radius: 999px;
 }
 
@@ -2827,3 +2872,26 @@ input {
 .browser-extension-scopes p { margin: 0; color: var(--sia-color-text-secondary); }
 .browser-extension-scopes__groups { display: grid; gap: 12px; max-height: 360px; overflow-y: auto; }
 .browser-extension-scopes__child { padding: 7px 0 0 24px; }
+
+.browser-download-action__pulse {
+  inset: auto;
+  top: 5px;
+  left: 7px;
+  width: 24px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  color: var(--sia-color-primary);
+  background: var(--sia-color-surface);
+  border: 0;
+  animation: browser-download-file-arrive 700ms cubic-bezier(.2,.65,.3,1) both;
+}
+@keyframes browser-download-file-arrive {
+  0% { transform: translateX(-90px) scale(1.15); opacity: 0; }
+  15% { opacity: 1; }
+  65% { transform: translateX(-12px) scale(.9); opacity: 1; }
+  100% { transform: translateX(0) scale(.2); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .browser-download-action__pulse { animation: browser-download-button-flash 250ms ease-out both; }
+}

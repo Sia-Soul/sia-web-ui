@@ -51,6 +51,8 @@ const FILE_COLORS = [
 ];
 
 const SCAN_VIEW_INTERVAL_MS = 64;
+const FREE_SPACE_KEY = "disk-free-space";
+const FREE_SPACE_COLOR = "#80c98b";
 const BLOCKED_WEB_SHORTCUT_KEYS = new Set([
   "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
   "+", "-", "=", "b", "d", "e", "f", "g", "h", "j", "k", "l", "m",
@@ -361,10 +363,21 @@ export default function App() {
   const skippedRef = useRef<Map<number, SkippedEntry>>(new Map());
   const renderTimerRef = useRef<number | null>(null);
   const expandedKeySet = useMemo(() => new Set(expandedKeys), [expandedKeys]);
-  const { root, data } = useMemo(
+  const { root, data: fileData } = useMemo(
     () => buildTreemap(recordsRef.current, childIdsByParentRef.current, expandedKeySet),
     [expandedKeySet, recordVersion],
   );
+  // 必须匹配卷根路径，不能把磁盘内的普通目录扫描当作整盘扫描。
+  const scannedVolume = volumes.find((volume) =>
+    normalizedScanPath(volume.path) === normalizedScanPath(progress.rootPath));
+  const data = useMemo<TreemapNode[]>(() => scannedVolume
+    ? [...fileData, {
+      key: FREE_SPACE_KEY,
+      label: "空闲空间",
+      value: Math.max(0, scannedVolume.freeBytes),
+      color: FREE_SPACE_COLOR,
+    }]
+    : fileData, [fileData, scannedVolume]);
   const skippedEntries = useMemo(
     () => [...skippedRef.current.values()],
     [recordVersion],
@@ -433,6 +446,18 @@ export default function App() {
       if (renderTimerRef.current !== null) window.clearTimeout(renderTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!scannedVolume || phase === "scanning") return;
+    let cancelled = false;
+    // 开始扫描及结束后重新读取系统容量，不能用文件累计大小推算剩余空间。
+    void listVolumes().then((nextVolumes) => {
+      if (!cancelled) setVolumes(nextVolumes);
+    }).catch((error) => {
+      if (!cancelled) message.warning(`更新磁盘剩余空间失败：${error instanceof Error ? error.message : String(error)}`);
+    });
+    return () => { cancelled = true; };
+  }, [scannedVolume?.path, phase]);
 
   function flushScanView() {
     renderTimerRef.current = null;
@@ -770,7 +795,7 @@ export default function App() {
           popupStyle={{ minWidth: 214 }}
           onContextMenu={prepareTreemapContextMenu}
         >
-          {/* 零间距让矩形边缘紧密相接；小块继续显示截断后的名称与大小。 */}
+          {/* 紧凑块保留两行文字高度；不足 22px 时隐藏标签，避免显示被裁掉的半行字。 */}
           <Treemap
             className="space-treemap"
             data={data}
@@ -779,9 +804,9 @@ export default function App() {
             focusedKey={focusedKey}
             gap={0}
             minTileWidth={44}
-            minTileHeight={30}
+            minTileHeight={24}
             minLabelWidth={8}
-            minLabelHeight={8}
+            minLabelHeight={22}
             aggregateOverflow={false}
             showValueInCompactTiles
             emptyContent={isScanning ? <Spin tip="正在发现文件和文件夹" /> : "没有可显示的内容"}
@@ -794,6 +819,7 @@ export default function App() {
         <div className="treemap-legend">
           <span><i className="legend-swatch legend-swatch--folder" />文件夹</span>
           <span><i className="legend-swatch legend-swatch--file" />文件</span>
+          {scannedVolume && !focusedKey ? <span><i className="legend-swatch" style={{ background: FREE_SPACE_COLOR }} />空闲空间</span> : null}
           <span className="treemap-legend__hint"><Icon name="info" size={13} /> 点击文件夹可在原位置展开 / 收起</span>
         </div>
         {selectedNode ? (

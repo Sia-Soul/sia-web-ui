@@ -629,6 +629,19 @@ input {
   box-shadow: inset 0 1px 3px rgb(37 56 78 / 9%);
 }
 
+/* 紧凑块减少留白；文字行不参与纵向压缩，避免名称上下沿被裁掉。 */
+.space-treemap .sia-treemap__content,
+.space-treemap .sia-treemap__tile.is-compact .sia-treemap__content {
+  gap: 0;
+  padding: 1px 2px;
+}
+
+.space-treemap .sia-treemap__content > .sia-treemap__label,
+.space-treemap .sia-treemap__content > .sia-treemap__value {
+  flex: 0 0 auto;
+  line-height: 1.2;
+}
+
 /* 磁盘块直接使用节点颜色，避免明暗主题叠加渐变后降低文件类型辨识度。 */
 .space-treemap .sia-treemap__tile,
 .space-treemap .sia-treemap__tile.is-expanded,
@@ -641,6 +654,11 @@ input {
   outline: 0.5px solid #fff;
   outline-offset: -0.5px;
   box-shadow: none;
+}
+
+/* 空闲空间仅展示容量，不暗示文件操作。 */
+.space-treemap [data-treemap-key="disk-free-space"] {
+  cursor: default;
 }
 
 /* 交互状态维持相同分隔线宽度，避免悬停或聚焦时线条变粗。 */

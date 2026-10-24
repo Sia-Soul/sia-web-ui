@@ -117,8 +117,10 @@ export const extendedIconPaths = {
   microphone: <><rect x="9" y="3" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8" /></>,
   "volume-up": <><path d="M4 10h4l5-4v12l-5-4H4v-4Z" /><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11" /></>,
   "volume-off": <><path d="M4 10h4l5-4v12l-5-4H4v-4ZM17 9l5 6m0-6-5 6" /></>,
-  "speaker-wave": <><path d="M4 10h3.5l4.7-3.6v11.2L7.5 14H4v-4Z" fill="currentColor" stroke="none" /><path d="M15.2 9.2a4 4 0 0 1 0 5.6" /></>,
-  "speaker-muted": <><path d="M4 10h3.5l4.7-3.6v11.2L7.5 14H4v-4Z" fill="currentColor" stroke="none" /><path d="m15.5 9.5 5 5m0-5-5 5" /></>,
+  /** 扬声器与两道声波的轮廓图标，用于表示网页发声或音频开启状态。 */
+  "speaker-wave": <><path d="M3 9h4l5-4v14l-5-4H3V9Z" /><path d="M16 9q3 3 0 6M19 6q6 6 0 12" /></>,
+  /** 扬声器与叉号的轮廓图标，用于表示静音状态；主体轮廓与发声图标一致。 */
+  "speaker-muted": <><path d="M3 9h4l5-4v14l-5-4H3V9Z" /><path d="m16 9 6 6m0-6-6 6" /></>,
   wifi: <><path d="M3 9a14 14 0 0 1 18 0M6 13a9 9 0 0 1 12 0M9.5 17a4 4 0 0 1 5 0M12 21v.1" /></>,
   power: <><path d="M12 3v9" /><path d="M7 5.5a8 8 0 1 0 10 0" /></>,
   key: <><circle cx="8" cy="15" r="4" /><path d="m11 12 8-8m-3 3 3 3m-6 0 3 3" /></>,

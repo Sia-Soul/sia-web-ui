@@ -167,6 +167,24 @@ export default function BrowserMenuWindow() {
   }, []);
 
   useEffect(() => {
+    if (!window.__TAURI__) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void window.__TAURI__.event.listen<BrowserPanelEntry & { fileName?: string; sourceUrl?: string }>(
+      "sia://browser-download", ({ payload: task }) => {
+        setPayload(current => {
+          if (current?.kind !== "downloads") return current;
+          const entries = current.entries ?? [];
+          const previous = entries.find(entry => entry.id === task.id);
+          const next = { ...previous, ...task, title: task.fileName || previous?.title || "未命名下载", url: task.sourceUrl || previous?.url };
+          return { ...current, entries: previous ? entries.map(entry => entry.id === task.id ? next : entry) : [next, ...entries] };
+        });
+      },
+    ).then(dispose => { if (disposed) dispose(); else unlisten = dispose; });
+    return () => { disposed = true; unlisten?.(); };
+  }, []);
+
+  useEffect(() => {
     if (!payload) return;
     applySiaTheme(payload.darkMode ? "dark" : "light");
   }, [payload]);
@@ -222,16 +240,16 @@ export default function BrowserMenuWindow() {
   }, [downloadContextMenu, openKeys, extensionMenu]);
 
   useEffect(() => {
-    if (!payload?.menuLayout) return;
+    if (!payload) return;
     // 扩展的透明画布只承载子菜单；点击菜单之外的留白时正常关闭。
     const dismissOnBlank = (event: PointerEvent) => {
-      if (event.target instanceof Element && !event.target.closest('.browser-window-menu, .sia-menu__popup')) {
+      if (event.target instanceof Element && !event.target.closest('.browser-panel, .browser-window-menu, .sia-menu__popup, .browser-download-context-menu, .browser-extension-context-menu')) {
         void invokeNative('close_browser_menu').catch(() => undefined);
       }
     };
     document.addEventListener('pointerdown', dismissOnBlank);
     return () => document.removeEventListener('pointerdown', dismissOnBlank);
-  }, [payload?.menuLayout]);
+  }, [payload?.kind, payload?.menuLayout]);
 
   useEffect(() => {
     if (payload?.hitRegionRevision === undefined) return;
@@ -799,7 +817,8 @@ export default function BrowserMenuWindow() {
     }));
     const layout = payload.menuLayout;
     return <div className="browser-window-menu browser-window-menu--cascade"
-      style={layout ? { position: 'absolute', left: layout.left, top: layout.top, width: layout.width, height: layout.height, margin: 0 } : undefined}>
+      style={layout ? { position: 'absolute', left: layout.left, top: layout.top, width: layout.width,
+        maxHeight: `min(640px, ${layout.height}px, calc(100vh - ${layout.top + 20}px))`, margin: 0 } : undefined}>
       {payload.heading ? <div className="browser-window-menu__heading">{payload.heading}</div> : null}
       <Menu items={convertItems(items)} mode="vertical" theme={payload.darkMode ? 'dark' : 'light'}
         interactionCursor="default" selectable={false} triggerSubMenuAction="hover"

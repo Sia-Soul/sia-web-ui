@@ -1,5 +1,5 @@
 ﻿# 仅对隔离诊断进程执行悬停并读取原生窗口状态，不操作用户安装版。
-param([int]$TestProcessId, [ValidateSet('inspect','hover','restore')][string]$Action='inspect', [double]$X=0, [double]$Y=0, [int]$WaitMs=0)
+param([int]$TestProcessId, [ValidateSet('inspect','hover','hover-inactive','stretch','drag','position','normal','size','move','restore')][string]$Action='inspect', [double]$X=0, [double]$Y=0, [int]$WaitMs=0)
 $ErrorActionPreference='Stop'
 # Windows PowerShell 的默认控制台编码不同于文件编码，显式输出 UTF-8 给 Node 解析。
 [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
@@ -45,17 +45,18 @@ $main=@($handles | Where-Object {[SiaTooltipProbe]::Title($_) -eq '西娅浏览�
 if(-not $main){throw '没有找到测试主窗口'}
 $originalCursor=New-Object SiaTooltipProbe+Point
 [void][SiaTooltipProbe]::GetCursorPos([ref]$originalCursor)
-if($Action -eq 'hover'){
-    [void][SiaTooltipProbe]::ShowWindow($main,5)
+if($Action -eq 'hover' -or $Action -eq 'hover-inactive'){
+    $showCommand=if($Action -eq 'hover-inactive'){4}else{5}
+    [void][SiaTooltipProbe]::ShowWindow($main,$showCommand)
     # 子进程带 SW_HIDE 启动时，Windows 首次 ShowWindow 会服从启动标记而忽略参数。
-    if(-not [SiaTooltipProbe]::IsWindowVisible($main)){[void][SiaTooltipProbe]::ShowWindow($main,5)}
+    if(-not [SiaTooltipProbe]::IsWindowVisible($main)){[void][SiaTooltipProbe]::ShowWindow($main,$showCommand)}
     # 只提升新建的诊断窗口，避免测试被其他应用遮挡；点击本窗口标题栏获得真实焦点。
     [void][SiaTooltipProbe]::SetWindowPos($main,[IntPtr](-1),0,0,0,0,0x13)
-    [void][SiaTooltipProbe]::SetForegroundWindow($main)
+    if($Action -eq 'hover'){[void][SiaTooltipProbe]::SetForegroundWindow($main)}
     $origin=New-Object SiaTooltipProbe+Point
     [void][SiaTooltipProbe]::ClientToScreen($main,[ref]$origin)
     $scale=[SiaTooltipProbe]::GetDpiForWindow($main)/96.0
-    if([SiaTooltipProbe]::GetForegroundWindow() -ne $main){
+    if($Action -eq 'hover' -and [SiaTooltipProbe]::GetForegroundWindow() -ne $main){
         [void][SiaTooltipProbe]::SetCursorPos([int]($origin.X+300*$scale),[int]($origin.Y+18*$scale))
         [SiaTooltipProbe]::mouse_event(2,0,0,0,[UIntPtr]::Zero)
         [SiaTooltipProbe]::mouse_event(4,0,0,0,[UIntPtr]::Zero)
@@ -63,6 +64,44 @@ if($Action -eq 'hover'){
         Start-Sleep -Milliseconds 150
     }
     # 记录预期坐标，让回归测试识别用户或其他任务在等待期间移动鼠标的干扰。
+    $targetX=[int]($origin.X+$X*$scale)
+    $targetY=[int]($origin.Y+$Y*$scale)
+    [void][SiaTooltipProbe]::SetCursorPos($targetX,$targetY)
+} elseif($Action -eq 'normal') {
+    [void][SiaTooltipProbe]::SetWindowPos($main,[IntPtr](-2),0,0,0,0,0x13)
+} elseif($Action -eq 'position') {
+    [void][SiaTooltipProbe]::SetWindowPos($main,[IntPtr]::Zero,[int]$X,[int]$Y,0,0,0x15)
+} elseif($Action -eq 'size') {
+    [void][SiaTooltipProbe]::SetWindowPos($main,[IntPtr]::Zero,0,0,[int]$X,[int]$Y,0x16)
+} elseif($Action -eq 'drag') {
+    $rect=New-Object SiaTooltipProbe+Rect
+    [void][SiaTooltipProbe]::GetWindowRect($main,[ref]$rect)
+    $middle=[int](($rect.Left+$rect.Right)/2)
+    [void][SiaTooltipProbe]::SetCursorPos($middle,$rect.Top+1)
+    Start-Sleep -Milliseconds 200
+    [SiaTooltipProbe]::mouse_event(2,0,0,0,[UIntPtr]::Zero)
+    Start-Sleep -Milliseconds 200
+    for($step=1;$step -le 10;$step++) {
+        [void][SiaTooltipProbe]::SetCursorPos($middle,[int](($rect.Top+1)*(10-$step)/10))
+        Start-Sleep -Milliseconds 50
+    }
+    Start-Sleep -Milliseconds 300
+    [SiaTooltipProbe]::mouse_event(4,0,0,0,[UIntPtr]::Zero)
+} elseif($Action -eq 'stretch') {
+    # 双击测试窗口顶部缩放边缘，触发 Windows 原生纵向铺满工作区。
+    $rect=New-Object SiaTooltipProbe+Rect
+    [void][SiaTooltipProbe]::GetWindowRect($main,[ref]$rect)
+    [void][SiaTooltipProbe]::SetCursorPos([int](($rect.Left+$rect.Right)/2),$rect.Top+1)
+    foreach($click in 1..2){
+        [SiaTooltipProbe]::mouse_event(2,0,0,0,[UIntPtr]::Zero)
+        [SiaTooltipProbe]::mouse_event(4,0,0,0,[UIntPtr]::Zero)
+        Start-Sleep -Milliseconds 60
+    }
+} elseif($Action -eq 'move') {
+    # 仅移动鼠标，不刷新窗口显示状态，避免掩盖原生缩放后的输入问题。
+    $origin=New-Object SiaTooltipProbe+Point
+    [void][SiaTooltipProbe]::ClientToScreen($main,[ref]$origin)
+    $scale=[SiaTooltipProbe]::GetDpiForWindow($main)/96.0
     $targetX=[int]($origin.X+$X*$scale)
     $targetY=[int]($origin.Y+$Y*$scale)
     [void][SiaTooltipProbe]::SetCursorPos($targetX,$targetY)

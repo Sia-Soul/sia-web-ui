@@ -296,31 +296,42 @@ export default function VerticalTabTree({
     ].filter(Boolean).join("，");
     const accessibleTitle = statusText ? `${tab.title} · ${statusText}` : tab.title;
     return (
-      <Button
+      <div
         key={tab.id}
-        className={`vertical-tree-compact-tab${active ? " is-active" : ""}`}
-        variant="text"
-        size="small"
-        icon={(
-          // 收缩列表用图标外围的虚线框表示休眠，声音角标仍独立显示。
-          <span className={`vertical-tree-compact-tab__visual${tab.sleeping ? " is-sleeping" : ""}`}>
-            <BrowserFavicon url={tab.url} faviconUrl={tab.faviconPageUrl === tab.url ? tab.faviconUrl : undefined} loading={tab.loading} size={16} />
-            {tab.muted || tab.audible ? (
-              <span
-                className={`vertical-tree-compact-tab__state vertical-tree-compact-tab__state--${tab.muted ? "muted" : "audible"}`}
-                aria-hidden="true"
-              >
-                <Icon name={tab.muted ? "speaker-muted" : "speaker-wave"} size={6} />
-              </span>
-            ) : null}
-          </span>
-        )}
+        className="vertical-tree-compact-item"
         data-browser-tab-id={tab.id}
-        aria-label={accessibleTitle}
-        // 图标相同的页面通过完整标题、网址和状态区分，不依赖原生 title。
-        {...compactTooltip.handlers({ title: tab.title || "新标签页", url: tab.url, detail: statusText })}
-        onClick={() => onSelect(tab.id)}
-      />
+      >
+        <Button
+          className={`vertical-tree-compact-tab${active ? " is-active" : ""}`}
+          variant="text"
+          size="small"
+          icon={(
+            <span className={`vertical-tree-compact-tab__visual${tab.sleeping ? " is-sleeping" : ""}`}>
+              <BrowserFavicon url={tab.url} faviconUrl={tab.faviconPageUrl === tab.url ? tab.faviconUrl : undefined} loading={tab.loading} size={16} />
+            </span>
+          )}
+          aria-label={accessibleTitle}
+          aria-current={active ? "page" : undefined}
+          // 图标相同的页面通过完整标题、网址和状态区分，不依赖原生 title。
+          {...compactTooltip.handlers({ title: tab.title || "新标签页", url: tab.url, detail: statusText })}
+          onClick={() => onSelect(tab.id)}
+        />
+        {tab.muted || tab.audible ? (
+          // 与选页按钮平级，声音操作拥有独立的鼠标与键盘点击区域。
+          <Button
+            className={`vertical-tree-compact-audio${tab.muted ? " is-muted" : ""}`}
+            variant="text"
+            size="small"
+            icon={<Icon name={tab.muted ? "speaker-muted" : "speaker-wave"} size={13} />}
+            aria-label={tab.muted ? `取消静音 ${tab.title}` : `静音 ${tab.title}`}
+            aria-pressed={tab.muted}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleAudio(tab.id);
+            }}
+          />
+        ) : null}
+      </div>
     );
   }
 

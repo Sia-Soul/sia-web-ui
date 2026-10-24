@@ -13,6 +13,8 @@ async function until(check, timeout, label) {
   throw new Error(`${label} 超时`);
 }
 async function run() {
+  const inactive = process.env.BROWSER_TOOLTIP_INACTIVE === '1';
+  const hoverAction = inactive ? 'hover-inactive' : 'hover';
   const target = browserTargetDirectory();
   const directory = path.join(target, 'tooltip-tests', String(Date.now()));
   fs.mkdirSync(directory, { recursive: true });
@@ -39,7 +41,7 @@ async function run() {
   // 系统指针是共享输入；仅当外部移动打断悬停时重试，气泡自身失败仍直接报错。
   const hover = (x, y, wait) => {
     for (let attempt = 0; attempt < 3; attempt++) {
-      const state = probe('hover', x, y, wait);
+      const state = probe(hoverAction, x, y, wait);
       if (state.CursorX === state.TargetX && state.CursorY === state.TargetY) return state;
     }
     throw new Error('悬停测试被外部鼠标移动打断，无法验证');
@@ -50,8 +52,8 @@ async function run() {
     const main = await until(() => browser.contexts().flatMap(context => context.pages()).find(page => /tauri\.localhost\/(?:index.html)?$/.test(page.url())), 10000, '主页面').catch(error => { console.log('Renderer URLs after wait:', browser.contexts().flatMap(context => context.pages()).map(page => page.url())); throw error; });
     // 原生初始化完成后才能激活，避免初始窗口样式恢复覆盖测试的前台状态。
     await main.locator('.browser-toolbar__navigation').waitFor({ state: 'attached' });
-    originalCursor = probe('hover', 600, 20);
-    assert.ok(originalCursor.Windows.some(window => window.Title === '西娅浏览器' && window.Foreground), `必须先激活测试窗口再验证悬停: ${JSON.stringify(originalCursor)}`);
+    originalCursor = probe(hoverAction, 600, 20);
+    assert.equal(originalCursor.Windows.some(window => window.Title === '西娅浏览器' && window.Foreground), !inactive, '测试窗口焦点必须符合指定场景');
     const tab = main.locator('[data-browser-tab-id="tooltip-tab"].vertical-tree-compact-tab');
     await tab.waitFor();
     await until(() => requests > 0, 15000, '真实网页加载');
@@ -65,8 +67,8 @@ async function run() {
     assert.ok(popup?.Visible, '原生气泡窗口必须显示');
     assert.ok(popup.Topmost, '气泡必须位于网页 WebView 上方');
     assert.ok(!popup.Foreground, '气泡不能抢走网页焦点');
-    assert.ok(windowState.Windows.some(window => window.Title === '西娅浏览器' && window.Foreground), '悬停期间主窗口必须保持前台');
-    probe('hover', 600, 20);
+    assert.equal(windowState.Windows.some(window => window.Title === '西娅浏览器' && window.Foreground), !inactive, '悬停不能改变主窗口的激活状态');
+    probe(hoverAction, 600, 20);
     await delay(250);
     assert.equal(probe().Windows.find(window => window.Title === '标签页提示').Visible, false, '移出必须关闭');
     // 再次悬停另一个项目，验证原生可见状态与内容更新没有在首次关闭后失效。
@@ -75,7 +77,7 @@ async function run() {
     assert.ok(repeated.Windows.find(window => window.Title === '标签页提示')?.Visible, '再次悬停必须显示');
     const groupState = await main.evaluate(() => window.__TAURI__.core.invoke('get_browser_tab_tooltip_state'));
     assert.equal(groupState?.title, '悬停测试分组');
-    probe('hover', 600, 20, 250);
+    probe(hoverAction, 600, 20, 250);
     assert.equal(probe().Windows.find(window => window.Title === '标签页提示').Visible, false, '再次移出必须关闭');
     console.log('PASS native tooltip over real WebView, no focus stealing, closes on pointer leave');
   } finally {

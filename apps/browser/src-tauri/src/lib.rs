@@ -1,5 +1,6 @@
 mod browser_overlay;
 mod browser_profiles;
+mod browser_visibility;
 mod browser_theme;
 mod extensions;
 mod extension_runtime;
@@ -10,6 +11,8 @@ mod browser_startup;
 mod window_resize;
 #[cfg(windows)]
 mod browser_favicon;
+#[cfg(windows)]
+mod browser_shortcuts;
 #[cfg(windows)]
 mod popup_window;
 
@@ -43,7 +46,7 @@ use webview2_com::{
         COREWEBVIEW2_DOWNLOAD_STATE, COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED,
         COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS,
     },
-    StateChangedEventHandler,
+    StateChangedEventHandler, WindowCloseRequestedEventHandler,
 };
 #[cfg(windows)]
 use windows::core::{Interface, BOOL, PCWSTR, PWSTR};
@@ -80,6 +83,8 @@ struct DownloadRuntimeState {
     preferences: Mutex<DownloadPreferences>,
     pending: Mutex<HashMap<String, PendingDownloadMetadata>>,
     open_after_completion: Mutex<HashSet<String>>,
+    active: Mutex<HashMap<String, String>>,
+    closing_tabs: Mutex<HashSet<String>>,
 }
 
 #[cfg(windows)]
@@ -345,6 +350,17 @@ fn emit_download_event(
     operation: &ICoreWebView2DownloadOperation,
     success: Option<bool>,
 ) -> windows::core::Result<()> {
+    // 已关闭页签的下载仍由隐藏 WebView 托管，最后一个任务结束后才释放它。
+    let runtime = app.state::<DownloadRuntimeState>();
+    if let Ok(mut active) = runtime.active.lock() {
+        if state == "finished" { active.remove(download_id); }
+        else { active.insert(download_id.to_string(), tab_id.to_string()); }
+    }
+    if state == "finished" && runtime.closing_tabs.lock().map(|tabs| tabs.contains(tab_id)).unwrap_or(false) {
+        let cleanup_app = app.clone();
+        let cleanup_tab = tab_id.to_string();
+        let _ = app.run_on_main_thread(move || { let _ = close_browser_tab(cleanup_app, cleanup_tab); });
+    }
     let (received_bytes, total_bytes) = read_download_progress(operation)?;
     let mut raw_source_url = PWSTR::null();
     let source_url = unsafe { operation.Uri(&mut raw_source_url) }
@@ -457,17 +473,29 @@ fn attach_download_operation(
 }
 
 #[cfg(windows)]
-fn attach_download_monitor(
+async fn attach_download_monitor(
     app: &AppHandle,
     webview: &tauri::Webview,
     tab_id: String,
 ) -> Result<(), String> {
     let monitor_app = app.clone();
+    let (sender, receiver) = tokio::sync::oneshot::channel();
     webview
         .with_webview(move |platform_webview| {
             let setup = (|| -> windows::core::Result<()> {
                 let core_webview: ICoreWebView2 =
                     unsafe { platform_webview.controller().CoreWebView2()? };
+                let close_app = monitor_app.clone();
+                let close_tab = tab_id.clone();
+                let mut close_token = 0;
+                unsafe { core_webview.add_WindowCloseRequested(
+                    &WindowCloseRequestedEventHandler::create(Box::new(move |_, _| {
+                        emit_browser_event(&close_app, BrowserEvent {
+                            tab_id: close_tab.clone(), group_id: String::new(), kind: "close-requested",
+                            url: None, title: None, loading: None, audible: None, muted: None, message: None,
+                        });
+                        Ok(())
+                    })), &mut close_token)?; }
                 let core_webview_4: ICoreWebView2_4 = core_webview.cast()?;
                 let event_app = monitor_app.clone();
                 let event_tab_id = tab_id.clone();
@@ -546,15 +574,14 @@ fn attach_download_monitor(
                 Ok(())
             })();
 
-            if let Err(error) = setup {
-                eprintln!("无法监听网页下载状态：{error}");
-            }
+            let _ = sender.send(setup.map_err(|error| error.to_string()));
         })
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())?;
+    receiver.await.map_err(|_| "下载监听初始化中断".to_string())?
 }
 
 #[cfg(not(windows))]
-fn attach_download_monitor(
+async fn attach_download_monitor(
     _app: &AppHandle,
     _webview: &tauri::Webview,
     _tab_id: String,
@@ -667,10 +694,14 @@ fn attach_audio_monitor(
 }
 
 fn hide_browser_webviews(app: &AppHandle, except_label: Option<&str>) -> Result<(), String> {
+    let visibility = app.state::<browser_visibility::BrowserVisibility>();
     for (label, webview) in app.webviews() {
-        if label.starts_with(BROWSER_WEBVIEW_PREFIX) && Some(label.as_str()) != except_label {
-            eprintln!("[browser-view] hide label={label}");
+        if label.starts_with(BROWSER_WEBVIEW_PREFIX)
+            && Some(label.as_str()) != except_label
+        {
+            let Some(revision) = visibility.hide_revision(&label)? else { continue; };
             webview.hide().map_err(|error| error.to_string())?;
+            visibility.mark_hidden(&label, revision)?;
         }
     }
     Ok(())
@@ -709,6 +740,7 @@ async fn open_browser_tab(
         bounds.x, bounds.y, bounds.width, bounds.height
     );
     hide_browser_webviews(&app, Some(&label))?;
+    app.state::<browser_visibility::BrowserVisibility>().mark_visible(&label)?;
 
     if let Some(webview) = app.get_webview(&label).filter(|_| profile_matches) {
         eprintln!("[browser-view] reuse label={label}");
@@ -719,6 +751,7 @@ async fn open_browser_tab(
         webview
             .navigate(parsed_url)
             .map_err(|error| error.to_string())?;
+        app.state::<browser_visibility::BrowserVisibility>().mark_visible(&label)?;
         webview.show().map_err(|error| error.to_string())?;
         webview.set_focus().map_err(|error| error.to_string())?;
         floating_windows::raise_tab_panel_if_visible(&app);
@@ -807,6 +840,15 @@ async fn open_browser_tab(
             NewWindowResponse::Deny
         });
 
+    // WebView2 在窄高窗口播放铺满视口的视频时可能停止呈现页面合成层，
+    // 导致控制栏 DOM 已显示而屏幕仍为黑色；只对外部网页启用软件合成兼容路径。
+    // 保留 Wry 默认参数，外壳与侧栏仍使用原有渲染配置。
+    // https://github.com/MicrosoftEdge/WebView2Feedback/issues/5574
+    #[cfg(windows)]
+    let builder = builder.additional_browser_args(
+        "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --disable-gpu-compositing",
+    );
+
     let webview = window
         .add_child(
             builder,
@@ -835,6 +877,13 @@ async fn open_browser_tab(
     if let Err(error) = browser_favicon::attach(&app, &webview, tab_id.clone()).await {
         eprintln!("无法监听站点图标：{error}");
     }
+    #[cfg(windows)]
+    if let Err(error) = browser_shortcuts::attach(&app, &webview, tab_id.clone()).await {
+        let _ = webview.close();
+        return Err(error);
+    }
+    // 下载链接可能立即返回附件，必须在首次导航前完成订阅。
+    attach_download_monitor(&app, &webview, tab_id.clone()).await?;
     webview.navigate(parsed_url).map_err(|error| error.to_string())?;
     webview.set_focus().map_err(|error| error.to_string())?;
     floating_windows::raise_tab_panel_if_visible(&app);
@@ -867,17 +916,6 @@ async fn open_browser_tab(
         }
     });
 
-    let download_app = app.clone();
-    let download_webview = webview.clone();
-    let download_tab_id = tab_id.clone();
-    tauri::async_runtime::spawn(async move {
-        if let Err(error) =
-            attach_download_monitor(&download_app, &download_webview, download_tab_id)
-        {
-            eprintln!("无法初始化网页下载监听：{error}");
-        }
-    });
-
     let password_app = app.clone();
     tauri::async_runtime::spawn(async move {
         if let Err(error) = attach_password_bridge(&password_app, &webview, tab_id) {
@@ -897,7 +935,10 @@ async fn switch_browser_tab(
 ) -> Result<bool, String> {
     let label = browser_label(&tab_id);
     // 激活已有标签也校验隔离范围；不匹配时让调用方走重建流程，不能显示旧空间的页面。
-    let expected_directory = browser_group_data_directory(&app, &group_id, small_group_id.as_deref())?;
+    // 已有视图只需比对隔离路径；目录在创建视图时已建立，切页不再触发磁盘访问。
+    let expected_directory = app.path().app_local_data_dir()
+        .map_err(|error| error.to_string())?
+        .join(browser_profiles::relative_profile_path(&group_id, small_group_id.as_deref()));
     if app.state::<BrowserProfileStore>().0.lock()
         .map_err(|_| "无法读取标签数据目录")?.get(&label) != Some(&expected_directory) {
         return Ok(false);
@@ -912,6 +953,7 @@ async fn switch_browser_tab(
         webview
             .set_bounds(logical_rect(bounds))
             .map_err(|error| error.to_string())?;
+        app.state::<browser_visibility::BrowserVisibility>().mark_visible(&label)?;
         webview.show().map_err(|error| error.to_string())?;
         webview.set_focus().map_err(|error| error.to_string())?;
         floating_windows::raise_tab_panel_if_visible(&app);
@@ -924,9 +966,19 @@ async fn switch_browser_tab(
 
 #[tauri::command]
 fn close_browser_tab(app: AppHandle, tab_id: String) -> Result<(), String> {
+    app.state::<browser_visibility::BrowserVisibility>().mark_visible(&browser_label(&tab_id))?;
     if let Some(webview) = app.get_webview(&browser_label(&tab_id)) {
         // 先隐藏再销毁，确保“主页”和关闭标签操作不会因 WebView2 延迟销毁而残留旧网页。
         webview.hide().map_err(|error| error.to_string())?;
+        #[cfg(windows)]
+        {
+            let runtime = app.state::<DownloadRuntimeState>();
+            if runtime.active.lock().map_err(|_| "无法读取下载状态")?.values().any(|id| id == &tab_id) {
+                runtime.closing_tabs.lock().map_err(|_| "无法记录关闭页签")?.insert(tab_id);
+                return Ok(());
+            }
+            runtime.closing_tabs.lock().map_err(|_| "无法清理关闭页签")?.remove(&tab_id);
+        }
         webview.close().map_err(|error| error.to_string())?;
     }
     app.state::<extensions::ExtensionScopeStore>().0.lock()
@@ -1494,6 +1546,9 @@ async fn resolve_pending_download(
                 Ok(())
             })();
             let complete_result = unsafe { download.deferral.Complete() };
+            if choice == "cancel" {
+                let _ = emit_download_event(&callback_app, &download.tab_id, &callback_id, "finished", &download.operation, Some(false));
+            }
             action_result
                 .and(complete_result)
                 .map_err(|error| format!("无法继续下载：{error}"))
@@ -1634,6 +1689,7 @@ pub fn run() {
         .manage(floating_windows::TabTooltipStore::default())
         .manage(DownloadRuntimeState::default())
         .manage(BrowserProfileStore::default())
+        .manage(browser_visibility::BrowserVisibility::default())
         .manage(browser_theme::BrowserThemeStore::default())
         .manage(extension_runtime::ExtensionOperationLock::default())
         .manage(extensions::ExtensionScopeStore::default())

@@ -43,7 +43,7 @@ interface BrowserBounds {
 
 interface BrowserNativeEvent {
   tabId: string;
-  kind: "load" | "title" | "new-window" | "audio" | "error" | "favicon";
+  kind: "load" | "title" | "new-window" | "close-requested" | "audio" | "error" | "favicon";
   /** 网页内核读取的 PNG 数据地址，空字符串表示清除当前站点图标。 */
   faviconUrl?: string;
   groupId?: string;
@@ -345,6 +345,11 @@ export default function App() {
   const floatingPanelOpenRef = useRef(false);
   const alwaysOpenDownloadExtensionsRef = useRef<string[]>([]);
   const autoOpenedDownloadIdsRef = useRef(new Set<string>());
+  // 记录弹出页的来源，自动关闭时回到发起页面，而不是相邻的旧空白页。
+  const popupTabsRef = useRef(new Map<string, string>());
+  const loadedPopupTabsRef = useRef(new Set<string>());
+  const closePopupRef = useRef<(id: string) => void>(() => undefined);
+  const announcedDownloadsRef = useRef(new Set<string>());
   const showDownloadsPanelRef = useRef<() => void>(() => undefined);
   const activeTabRef = useRef<BrowserTab>(FIRST_TAB);
   const tabsRef = useRef<BrowserTab[]>([FIRST_TAB]);
@@ -491,11 +496,12 @@ export default function App() {
     await openWebview();
   }, [updateTab]);
 
-  const openTab = useCallback((url?: string, groupId?: string, smallGroupId?: string) => {
+  const openTab = useCallback((url?: string, groupId?: string, smallGroupId?: string, openerId?: string) => {
     const currentTab = activeTabRef.current;
     const resolvedGroupId = groupId ?? currentTab.groupId ?? DEFAULT_GROUP_ID;
     const resolvedSmallGroupId = smallGroupId ?? (groupId ? undefined : currentTab.smallGroupId);
     const tab = createBlankTab(resolvedGroupId, resolvedSmallGroupId);
+    if (openerId) popupTabsRef.current.set(tab.id, openerId);
     const targetUrl = url ? resolveAddress(url) : "";
     const nextTab: BrowserTab = targetUrl
       ? { ...tab, title: hostLabel(targetUrl) || "正在加载", url: targetUrl, loading: true, hasWebview: true }
@@ -959,7 +965,12 @@ export default function App() {
           payload.url,
           sourceTab?.groupId ?? payload.groupId,
           sourceTab?.smallGroupId,
+          payload.tabId,
         );
+        return;
+      }
+      if (payload.kind === "close-requested") {
+        if (popupTabsRef.current.has(payload.tabId)) closePopupRef.current(payload.tabId);
         return;
       }
       if (payload.kind === "error") {
@@ -971,6 +982,7 @@ export default function App() {
         ? eventUrl
         : undefined;
       if (payload.kind === "load" && payload.loading === false && usableEventUrl) {
+        if (popupTabsRef.current.has(payload.tabId)) loadedPopupTabsRef.current.add(payload.tabId);
         const tab = tabsRef.current.find((item) => item.id === payload.tabId);
         const stack = navigationStacksRef.current[payload.tabId] ?? {
           entries: [],
@@ -1081,8 +1093,15 @@ export default function App() {
     void window.__TAURI__.event.listen<BrowserDownloadNativeEvent>(
       "sia://browser-download",
       ({ payload }) => {
-        if (payload.state === "waiting" || payload.state === "started") {
+        const announce = (payload.state === "waiting" || payload.state === "started")
+          && !announcedDownloadsRef.current.has(payload.id);
+        if (announce) {
+          announcedDownloadsRef.current.add(payload.id);
           setDownloadPulseToken((current) => current + 1);
+          // 只清理尚未完成文档导航的弹出页；普通网页及已加载的落地页保持打开。
+          if (popupTabsRef.current.has(payload.tabId) && !loadedPopupTabsRef.current.has(payload.tabId)) {
+            closePopupRef.current(payload.tabId);
+          }
         }
         setDownloadTasks((current) => {
           return {
@@ -1093,7 +1112,7 @@ export default function App() {
             },
           };
         });
-        if (payload.state === "waiting") {
+        if (announce) {
           window.requestAnimationFrame(() => showDownloadsPanelRef.current());
         }
         if (
@@ -1284,12 +1303,20 @@ export default function App() {
     }
   }
 
+  closePopupRef.current = (tabId) => {
+    closeTabsByIds([tabId], popupTabsRef.current.get(tabId));
+  };
+
   function closeTab(tabId: string) {
     closeTabsByIds([tabId]);
   }
 
-  function closeTabsByIds(tabIds: readonly string[]) {
+  function closeTabsByIds(tabIds: readonly string[], preferredActiveId?: string) {
     const closingIds = new Set(tabIds);
+    for (const id of closingIds) {
+      popupTabsRef.current.delete(id);
+      loadedPopupTabsRef.current.delete(id);
+    }
     const removedTabs = tabs.filter((tab) => closingIds.has(tab.id));
     if (removedTabs.length === 0) return;
     const firstClosedIndex = Math.min(...removedTabs.map((tab) => tabs.findIndex((item) => item.id === tab.id)));
@@ -1311,7 +1338,8 @@ export default function App() {
       return;
     }
 
-    const nextIndex = Math.min(firstClosedIndex, remaining.length - 1);
+    const openerIndex = remaining.findIndex(tab => tab.id === preferredActiveId);
+    const nextIndex = openerIndex >= 0 ? openerIndex : Math.min(firstClosedIndex, remaining.length - 1);
     const nextTab = remaining[nextIndex];
     const shouldRestore = nextTab.sleeping && Boolean(nextTab.url) && !isInternalBrowserUrl(nextTab.url);
     const activatedTab: BrowserTab = {
@@ -2555,9 +2583,9 @@ export default function App() {
         addressInputRef.current?.select();
         return;
       }
-      if (commandKey && event.key.toLowerCase() === "w") {
+      if (commandKey && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "w") {
         event.preventDefault();
-        closeTab(activeId);
+        if (!event.repeat) closeTab(activeId);
         return;
       }
       if ((commandKey && event.key.toLowerCase() === "r") || event.key === "F5") {
@@ -2664,7 +2692,7 @@ export default function App() {
               key={downloadPulseToken}
               className="browser-download-action__pulse"
               aria-hidden="true"
-            />
+            ><Icon name="file" size={22} /></span>
           ) : null}
           <Button
             ref={downloadButtonRef}
@@ -2760,7 +2788,22 @@ export default function App() {
             ref={addressInputRef}
             className="address-input"
             value={addressDraft}
-            prefix={<Icon name={activeTab?.url?.startsWith("https://") ? "shield" : "search"} size={16} />}
+            prefix={
+              <span
+                className="browser-address-title"
+                title={activeTab?.title || "新标签页"}
+                onMouseDown={(event) => {
+                  // 前缀默认会把焦点交给输入框；标题需要保留按下事件来启动原生窗口拖动。
+                  event.stopPropagation();
+                  if (event.button !== 0) return;
+                  event.preventDefault();
+                  runWindowAction("start-dragging");
+                }}
+              >
+                <Icon name={activeTab?.url?.startsWith("https://") ? "shield" : "search"} size={16} />
+                <span className="browser-address-title__text">{activeTab?.title || "新标签页"}</span>
+              </span>
+            }
             allowClear={false}
             aria-label="地址和搜索栏"
             placeholder="搜索或输入网址"
