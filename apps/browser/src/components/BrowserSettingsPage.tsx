@@ -327,7 +327,8 @@ export default function BrowserSettingsPage({
         <section className="browser-settings-card browser-settings-card--row">
           <div>
             <h3>默认浏览器</h3>
-            <p>点击后将在 Windows 默认应用设置中选择 西娅浏览器。</p>
+            {/* 默认关联由系统确认，按钮优先定位本应用详情，旧系统由调用方提供选择提示。 */}
+            <p>打开西娅浏览器的系统关联设置，在其中确认设为默认浏览器。</p>
           </div>
           <Button variant="primary" onClick={onOpenDefaultBrowserSettings}>
             设为默认浏览器

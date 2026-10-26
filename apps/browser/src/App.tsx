@@ -198,7 +198,8 @@ const FIRST_TAB = createBlankTab();
 function resolveAddress(rawValue: string) {
   const value = rawValue.trim();
   if (!value) return "";
-  if (/^(https?|chrome-extension):\/\//i.test(value) || /^about:/i.test(value)) return value;
+  // 本地 HTML 入口已由原生层校验，保留 file URL，不能当成搜索词发送到搜索引擎。
+  if (/^(https?|chrome-extension|file):\/\//i.test(value) || /^about:/i.test(value)) return value;
   if (/^(localhost|127\.0\.0\.1)(:\d+)?(\/.*)?$/i.test(value)) return `http://${value}`;
   if (!/\s/.test(value) && (/^[\w.-]+\.[a-z]{2,}(?::\d+)?(?:\/.*)?$/i.test(value) || /^\d{1,3}(?:\.\d{1,3}){3}/.test(value))) {
     return `https://${value}`;
@@ -209,7 +210,9 @@ function resolveAddress(rawValue: string) {
 function hostLabel(url: string) {
   if (!url) return "";
   try {
-    return new URL(url).hostname.replace(/^www\./, "");
+    const parsed = new URL(url);
+    return parsed.protocol === "file:" ? decodeURIComponent(parsed.pathname.split('/').pop() || '本地网页')
+      : parsed.hostname.replace(/^www\./, "");
   } catch {
     return url;
   }
@@ -509,6 +512,8 @@ export default function App() {
       ? { ...tab, title: hostLabel(targetUrl) || "正在加载", url: targetUrl, loading: true, hasWebview: true }
       : tab;
 
+    // 外部请求可能连续到达，立即更新活动引用，避免下一次操作仍读取旧标签。
+    activeTabRef.current = nextTab;
     const inactiveSince = Date.now();
     setTabs((current) => {
       const updated = current.map((item) => item.id === currentTab.id ? { ...item, inactiveSince } : item);
@@ -518,7 +523,6 @@ export default function App() {
       updated.splice(anchorIndex >= 0 ? anchorIndex + 1 : updated.length, 0, nextTab);
       return updated;
     });
-    activeTabRef.current = nextTab;
     setActiveId(nextTab.id);
     setAddressDraft(targetUrl);
 
@@ -532,6 +536,66 @@ export default function App() {
       message.error(error instanceof Error ? error.message : String(error));
     });
   }, [activateNativeTab, showPreviewNotice, updateTab]);
+
+  useEffect(() => {
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    // 外部拖入总是新建根级标签，不覆盖当前页面，也不混入业务小分组的登录态。
+    const openDropped = (url: string) => { if (!disposed) openTab(url, ROOT_GROUP_ID); };
+    const previewDrop = (event: Event) => openDropped((event as CustomEvent<string>).detail);
+    window.addEventListener('sia-open-dropped-url', previewDrop);
+    if (window.__TAURI__) {
+      void window.__TAURI__.event.listen<string>('sia://open-dropped-url', ({ payload }) => openDropped(payload))
+        .then(dispose => { if (disposed) dispose(); else unlisten = dispose; });
+    }
+    return () => {
+      disposed = true;
+      unlisten?.();
+      window.removeEventListener('sia-open-dropped-url', previewDrop);
+    };
+  }, [openTab]);
+
+  // 记录已建标签的请求编号；监听重建或确认失败后的重试不会重复创建同一标签。
+  const receivedExternalOpens = useRef(new Set<number>());
+  useEffect(() => {
+    if (!isDesktopRuntime || !stateHydrated || !window.__TAURI__) return undefined;
+    let disposed = false;
+    let draining = false;
+    let notified = false;
+    let unlisten: (() => void) | undefined;
+    const drain = async () => {
+      notified = true;
+      if (draining) return;
+      draining = true;
+      try {
+        do {
+          notified = false;
+          const pending = await invokeNative<Array<{ id: number; url: string }>>("pending_browser_opens") ?? [];
+          if (disposed) return;
+          for (const request of pending) {
+            if (!receivedExternalOpens.current.has(request.id)) {
+              openTab(request.url, ROOT_GROUP_ID);
+              receivedExternalOpens.current.add(request.id);
+            }
+          }
+          if (pending.length) {
+            await invokeNative("acknowledge_browser_opens", { ids: pending.map(request => request.id) });
+          }
+        } while (notified && !disposed);
+      } catch (error) {
+        if (!disposed) message.warning(error instanceof Error ? error.message : String(error));
+      } finally {
+        draining = false;
+      }
+    };
+    // 先订阅再读取积压请求，覆盖会话恢复期间和注册监听前后到达的外部打开。
+    void window.__TAURI__.event.listen("sia://external-open-pending", () => { void drain(); })
+      .then(dispose => {
+        if (disposed) dispose();
+        else { unlisten = dispose; void drain(); }
+      });
+    return () => { disposed = true; unlisten?.(); };
+  }, [openTab, stateHydrated]);
 
   const openExtensionOptionsTab = useCallback(async (
     extension: BrowserExtensionRecord,
@@ -793,8 +857,18 @@ export default function App() {
     let firstFrame = 0;
     let secondFrame = 0;
 
-    void invokeNative<BrowserPersistedState | null>("load_browser_state")
-      .then((state) => {
+    // 系统关联传入的网址作为根级新标签恢复，不覆盖已保存标签或借用某个小分组的登录态。
+    void Promise.all([
+      invokeNative<BrowserPersistedState | null>("load_browser_state"),
+      invokeNative<string | null>("get_browser_launch_url"),
+    ])
+      .then(([savedState, launchUrl]) => {
+        const launchTab = launchUrl ? { ...createBlankTab(ROOT_GROUP_ID), url: launchUrl, title: hostLabel(launchUrl) } : null;
+        const state = launchTab ? {
+          ...savedState,
+          tabs: [...(savedState?.tabs ?? []), launchTab],
+          activeId: launchTab.id,
+        } : savedState;
         if (cancelled || !state || !Array.isArray(state.tabs) || state.tabs.length === 0) return;
         const savedActiveId = state.tabs.some((tab) => tab.id === state.activeId)
           ? state.activeId
@@ -860,6 +934,11 @@ export default function App() {
           firstFrame = window.requestAnimationFrame(() => {
             secondFrame = window.requestAnimationFrame(() => {
               if (cancelled) return;
+              // 启动时已有外部请求选中新标签，就不再让延后的会话恢复抢回网页焦点。
+              if (activeTabRef.current.id !== restoredActiveTab.id) {
+                updateTab(restoredActiveTab.id, { loading: false, hasWebview: false, sleeping: true });
+                return;
+              }
               syncBrowserBounds();
               void invokeNative("open_browser_tab", {
                 tabId: restoredActiveTab.id,
@@ -3028,7 +3107,10 @@ export default function App() {
               });
             }}
             onOpenDefaultBrowserSettings={() => {
-              void invokeNative("open_default_browser_settings").catch((error) => {
+              // 返回值只表示系统能否定位应用详情，不将打开设置误报为已经设为默认。
+              void invokeNative<boolean>("open_default_browser_settings").then((direct) => {
+                if (!direct) message.info("当前 Windows 版本不支持直接定位，请在默认应用的 Web 浏览器选项中选择西娅浏览器。");
+              }).catch((error) => {
                 message.error(error instanceof Error ? error.message : String(error));
               });
             }}

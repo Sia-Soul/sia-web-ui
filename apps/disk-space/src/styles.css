@@ -683,24 +683,43 @@ input {
   box-shadow: none;
 }
 
-/* 扫描态以纯色亮度层缓慢呼吸，仅动画透明度，不影响面积比例或白色分隔线。 */
+/* 上轮颜色在脉冲覆盖完成（1.2 秒的 90%）后接到底层；移除扫描态即恢复原始底色。 */
+.space-treemap .sia-treemap__tile.is-active::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  color: transparent;
+  background: currentColor;
+  pointer-events: none;
+  animation: space-scan-pulse-color 7.2s step-end 1.08s infinite;
+}
+
+/* 实心圆均匀填色且不透明，避免与旧底色混浊；直径覆盖矩形角落，仅在当前块内裁剪。 */
 .space-treemap .sia-treemap__tile.is-active::after {
   content: "";
   display: block;
-  inset: 0;
+  inset: 50% auto auto 50%;
+  width: calc(max(var(--sia-treemap-width), var(--sia-treemap-height)) * 1.5);
+  height: calc(max(var(--sia-treemap-width), var(--sia-treemap-height)) * 1.5);
   z-index: 0;
   padding: 0;
   border: 0;
-  border-radius: 0;
-  background: #fff;
+  border-radius: 50%;
+  color: #ffe8ef;
+  background: currentColor;
   -webkit-mask: none;
   mask: none;
   pointer-events: none;
-  opacity: .12;
-  animation: space-scan-surface-breathe 2.4s ease-in-out infinite;
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(.02);
+  transform-origin: center;
+  animation:
+    space-scan-center-pulse 1.2s cubic-bezier(.16, .6, .35, 1) infinite,
+    space-scan-pulse-color 7.2s step-end infinite;
 }
 
-/* 文字与标题栏位于亮度层上方，保持对比度；不提高父方块层级以免遮住子块。 */
+/* 文字与标题栏位于实心脉冲上方，保持对比度；不提高父方块层级以免遮住子块。 */
 .space-treemap .sia-treemap__tile.is-active > .sia-treemap__content {
   z-index: 1;
 }
@@ -710,20 +729,39 @@ input {
   background: transparent;
 }
 
-/* 暗色主题降低提亮幅度，避免大面积方块在深色背景中过于刺眼。 */
-[data-sia-theme="dark"] .space-treemap .sia-treemap__tile.is-active::after {
-  --space-scan-peak-opacity: .2;
+/* 扫描态使用浅彩底色，两种主题均保持深色文字；细浅色阴影兼顾首轮尚未覆盖的暗底。 */
+.space-treemap .sia-treemap__tile.is-active .sia-treemap__label,
+.space-treemap .sia-treemap__tile.is-active .sia-treemap__value {
+  color: #24364b;
+  text-shadow: 0 1px 2px rgb(255 255 255 / 65%);
 }
-@keyframes space-scan-surface-breathe {
-  0%, 100% { opacity: .12; }
-  50% { opacity: var(--space-scan-peak-opacity, .38); }
+/* 90% 时圆已盖满方块且底层接色，随后隐藏圆，不再退回原始色或闪白。 */
+@keyframes space-scan-center-pulse {
+  0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+  90% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  90.01%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
 }
 
-/* 减少动态效果时保留静态提亮，仍能区分当前扫描方块。 */
+/* 六种更浅的 RGB 色阶与 1.2 秒脉冲同步；底层复用同一色序并延迟接色。 */
+@keyframes space-scan-pulse-color {
+  0% { color: #ffe8ef; }
+  16.666667% { color: #e4f9ed; }
+  33.333333% { color: #e4f1ff; }
+  50% { color: #f1e9ff; }
+  66.666667% { color: #e2f8fa; }
+  83.333333% { color: #fff0e1; }
+  100% { color: #ffe8ef; }
+}
+
+/* 减少动态效果时使用静态浅蓝整块提示，离开扫描态后同样恢复原色。 */
 @media (prefers-reduced-motion: reduce) {
+  .space-treemap .sia-treemap__tile.is-active::before {
+    animation: none;
+    color: #e4f1ff;
+  }
   .space-treemap .sia-treemap__tile.is-active::after {
     animation: none;
-    opacity: var(--space-scan-peak-opacity, .38);
+    display: none;
   }
 }
 

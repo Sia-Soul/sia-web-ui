@@ -241,6 +241,8 @@ fn tab_panel_webview(app: &AppHandle) -> Result<Webview, String> {
             LogicalSize::new(1.0, 1.0),
         )
         .map_err(|error| format!("无法创建标签面板子 WebView：{error}"))?;
+    // 独立标签侧栏与主壳层使用相同的外部网页拖入入口。
+    crate::browser_drop::attach(app, &webview)?;
     webview.hide().map_err(|error| error.to_string())?;
     Ok(webview)
 }

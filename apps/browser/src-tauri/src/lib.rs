@@ -8,6 +8,9 @@ mod floating_windows;
 mod passwords;
 mod startup_diagnostics;
 mod browser_startup;
+mod default_browser;
+mod browser_drop;
+mod browser_instance;
 mod window_resize;
 #[cfg(windows)]
 mod browser_favicon;
@@ -207,6 +210,8 @@ fn parse_browser_url(value: &str) -> Result<tauri::Url, String> {
     let url = tauri::Url::parse(value).map_err(|error| format!("网址无效：{error}"))?;
     match url.scheme() {
         "http" | "https" | "chrome-extension" | "about" => Ok(url),
+        // 本地网页经打开方式或用户拖入进入，仍使用独立网页 WebView，不在外壳内加载。
+        "file" if url.to_file_path().ok().and_then(|path| default_browser::html_file_url(&path)).is_some() => Ok(url),
         scheme => Err(format!("当前版本暂不支持 {scheme} 协议")),
     }
 }
@@ -776,16 +781,19 @@ async fn open_browser_tab(
 
     // 先创建空白视图，禁止旧版已持久化扩展在权限校准前接触目标网页。
     let builder = WebviewBuilder::new(label, WebviewUrl::External("about:blank".parse().unwrap()))
+        // 文件路径由 WebView2 File 对象桥接，保留 DOM 拖放，避免内核文件处理器吞掉事件。
+        .disable_drag_drop_handler()
         .data_directory(data_directory.clone())
         .browser_extensions_enabled(true)
         .devtools(true)
         .initialization_script(PASSWORD_AUTOFILL_SCRIPT)
+        .initialization_script(browser_drop::SCRIPT)
         .zoom_hotkeys_enabled(true)
         .on_navigation(|next_url| {
             matches!(
                 next_url.scheme(),
                 "http" | "https" | "chrome-extension" | "about" | "data" | "blob"
-            )
+            ) || (next_url.scheme() == "file" && parse_browser_url(next_url.as_str()).is_ok())
         })
         .on_page_load(move |_webview, payload| {
             if suppress_initial_blank && payload.url().as_str() == "about:blank" { return; }
@@ -917,6 +925,7 @@ async fn open_browser_tab(
     });
 
     let password_app = app.clone();
+    browser_drop::attach(&app, &webview)?;
     tauri::async_runtime::spawn(async move {
         if let Err(error) = attach_password_bridge(&password_app, &webview, tab_id) {
             eprintln!("无法初始化密码表单桥接：{error}");
@@ -1622,15 +1631,6 @@ fn delete_download_file(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn open_default_browser_settings() -> Result<(), String> {
-    std::process::Command::new("explorer.exe")
-        .arg("ms-settings:defaultapps")
-        .spawn()
-        .map(|_| ())
-        .map_err(|error| format!("无法打开 Windows 默认应用设置：{error}"))
-}
-
-#[tauri::command]
 fn browser_window_action(app: AppHandle, action: String) -> Result<(), String> {
     eprintln!("[window-action] {action}");
     let window = app
@@ -1680,8 +1680,13 @@ pub fn run() {
     // 只有显式诊断参数才切换到临时资料目录，正常启动保持原有数据路径。
     let mut context = tauri::generate_context!();
     startup_diagnostics::configure(&mut context).expect("配置启动诊断目录失败");
+    // 开发版与已安装版本分别复用各自窗口，避免本地调试接管正式浏览器。
+    if cfg!(debug_assertions) { context.config_mut().identifier.push_str(".dev"); }
     // 主窗口在 tauri.conf.json 中关闭系统阴影，窗口边界由 Sia WindowFrame 的细边框呈现。
     tauri::Builder::default()
+        // 必须先检测已有实例，再初始化 WebView 和用户资料目录。
+        .plugin(tauri_plugin_single_instance::init(browser_instance::forward))
+        .manage(browser_instance::BrowserInstance::default())
         .manage(browser_startup::BrowserStartup::default())
         .manage(browser_overlay::BrowserOverlayStore::default())
         .manage(floating_windows::TabPanelStore::default())
@@ -1698,6 +1703,9 @@ pub fn run() {
             // 先建立原生缩放边缘，再创建可能覆盖窗口四边的标签和辅助 WebView。
             let main = app.get_window("main").ok_or("找不到浏览器主窗口")?;
             window_resize::initialize(&main)?;
+            if let Some(webview) = app.get_webview("main") {
+                browser_drop::attach(app.handle(), &webview)?;
+            }
             if let Ok(directory) = app.path().download_dir() {
                 if let Ok(mut preferences) = app.state::<DownloadRuntimeState>().preferences.lock()
                 {
@@ -1734,7 +1742,10 @@ pub fn run() {
             open_download_file,
             show_download_in_folder,
             delete_download_file,
-            open_default_browser_settings,
+            default_browser::open_default_browser_settings,
+            default_browser::get_browser_launch_url,
+            browser_instance::pending_browser_opens,
+            browser_instance::acknowledge_browser_opens,
             browser_window_action,
             current_window_label,
             is_browser_window_active,
