@@ -25,6 +25,8 @@ tokio = { version = "1", features = ["sync", "time"] }
 # 网页内核提供的 PNG 图标转为数据地址，避免外壳跨 Profile 再请求图标。
 base64 = "0.22"
 rfd = "0.15"
+# 当前用户默认应用登记，沿用工作区记事本使用的注册表封装。
+winreg = "0.55"
 # 与 Tauri 的原生 WebView2 接口使用同代 Windows 类型，避免跨版本 COM 类型不兼容。
 webview2-com = "0.39"
 windows = { version = "0.62", features = [
@@ -38,3 +40,7 @@ windows = { version = "0.62", features = [
   "Win32_UI_Shell",
   "Win32_UI_WindowsAndMessaging",
 ] }
+
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+# 系统再次打开链接或 HTML 文件时，将参数转交给现有浏览器窗口。
+tauri-plugin-single-instance = "2"

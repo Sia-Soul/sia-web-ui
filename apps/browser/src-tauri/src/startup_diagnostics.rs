@@ -22,6 +22,11 @@ pub fn configure(context: &mut tauri::Context<tauri::Wry>) -> Result<(), String>
     }
     context.config_mut().app.app_directories_override =
         Some(tauri::utils::config::AppDirectoriesOverride::Root(directory.clone()));
+    // 同一诊断目录共享实例，不同诊断目录与正式浏览器完全隔离。
+    use std::hash::{Hash, Hasher};
+    let mut identity = std::collections::hash_map::DefaultHasher::new();
+    directory.canonicalize().map_err(|error| error.to_string())?.hash(&mut identity);
+    context.config_mut().identifier.push_str(&format!(".diagnostic-{:x}", identity.finish()));
     // 主壳层也使用独立的 WebView2 资料目录；子页面由应用目录设置隔离。
     for window in &mut context.config_mut().app.windows {
         window.data_directory = Some(directory.join("shell-webview"));

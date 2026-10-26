@@ -48,6 +48,8 @@ DisableWelcomePage=no
 CloseApplications=no
 RestartApplications=no
 VersionInfoVersion={#AppVersion}
+; 关联能力登记变化后通知 Shell 刷新候选，不修改用户已选择的默认程序。
+ChangesAssociations=yes
 
 [Languages]
 Name: "chinesesimp"; MessagesFile: "ChineseSimplified.isl"
@@ -72,6 +74,36 @@ Name: "{userdesktop}\{#ProductName}"; Filename: "{app}\sia-browser.exe"; IconFil
 
 [Run]
 Filename: "{app}\sia-browser.exe"; Description: "启动{#ProductName}"; Flags: nowait postinstall skipifsilent
+
+[Registry]
+; 与 default_browser.rs 使用同一用户登记名；验证安装不写入正式浏览器能力。
+#ifndef ValidationBuild
+Root: HKCU; Subkey: "Software\Clients\StartMenuInternet\SiaBrowser"; ValueType: string; ValueName: ""; ValueData: "西娅浏览器"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Clients\StartMenuInternet\SiaBrowser\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\sia-browser.exe"",0"
+Root: HKCU; Subkey: "Software\Clients\StartMenuInternet\SiaBrowser\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\sia-browser.exe"""
+Root: HKCU; Subkey: "Software\Clients\StartMenuInternet\SiaBrowser\Capabilities"; ValueType: string; ValueName: "ApplicationName"; ValueData: "西娅浏览器"
+Root: HKCU; Subkey: "Software\Clients\StartMenuInternet\SiaBrowser\Capabilities"; ValueType: string; ValueName: "ApplicationDescription"; ValueData: "西娅浏览器 · 轻量级工作空间浏览器"
+Root: HKCU; Subkey: "Software\Clients\StartMenuInternet\SiaBrowser\Capabilities"; ValueType: string; ValueName: "ApplicationIcon"; ValueData: """{app}\sia-browser.exe"",0"
+Root: HKCU; Subkey: "Software\Clients\StartMenuInternet\SiaBrowser\Capabilities\URLAssociations"; ValueType: string; ValueName: "http"; ValueData: "SiaBrowserURL"
+Root: HKCU; Subkey: "Software\Clients\StartMenuInternet\SiaBrowser\Capabilities\URLAssociations"; ValueType: string; ValueName: "https"; ValueData: "SiaBrowserURL"
+Root: HKCU; Subkey: "Software\Classes\SiaBrowserURL"; ValueType: string; ValueName: ""; ValueData: "西娅浏览器网址"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\SiaBrowserURL"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\SiaBrowserURL\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\sia-browser.exe"",0"
+Root: HKCU; Subkey: "Software\Classes\SiaBrowserURL\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\sia-browser.exe"" --open-url ""%1"""
+Root: HKCU; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueName: "SiaBrowser"; ValueData: "Software\Clients\StartMenuInternet\SiaBrowser\Capabilities"; Flags: uninsdeletevalue
+; HTML 打开方式仅增加候选，卸载只移除本应用的值，保留其他程序的关联。
+Root: HKCU; Subkey: "Software\Classes\Applications\sia-browser.exe"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "西娅浏览器"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\Applications\sia-browser.exe\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\sia-browser.exe"" --open-file ""%1"""
+Root: HKCU; Subkey: "Software\Classes\Applications\sia-browser.exe\SupportedTypes"; ValueType: string; ValueName: ".html"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\Applications\sia-browser.exe\SupportedTypes"; ValueType: string; ValueName: ".htm"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\SiaBrowserHTML"; ValueType: string; ValueName: ""; ValueData: "西娅浏览器 HTML 文档"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\SiaBrowserHTML\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\sia-browser.exe"",0"
+Root: HKCU; Subkey: "Software\Classes\SiaBrowserHTML\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\sia-browser.exe"" --open-file ""%1"""
+Root: HKCU; Subkey: "Software\Classes\.html\OpenWithProgids"; ValueType: string; ValueName: "SiaBrowserHTML"; ValueData: ""; Flags: uninsdeletevalue uninsdeletekeyifempty
+Root: HKCU; Subkey: "Software\Classes\.htm\OpenWithProgids"; ValueType: string; ValueName: "SiaBrowserHTML"; ValueData: ""; Flags: uninsdeletevalue uninsdeletekeyifempty
+Root: HKCU; Subkey: "Software\Clients\StartMenuInternet\SiaBrowser\Capabilities\FileAssociations"; ValueType: string; ValueName: ".html"; ValueData: "SiaBrowserHTML"
+Root: HKCU; Subkey: "Software\Clients\StartMenuInternet\SiaBrowser\Capabilities\FileAssociations"; ValueType: string; ValueName: ".htm"; ValueData: "SiaBrowserHTML"
+#endif
 
 [Code]
 // 文件安装完成后更新已有任务栏链接；验证包不访问用户的真实固定项目。

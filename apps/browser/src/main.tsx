@@ -8,6 +8,8 @@ import BrowserOverlayWindow from "./components/BrowserOverlayWindow";
 import BrowserTabPanelWindow from "./components/BrowserTabPanelWindow";
 import "./styles.css";
 import "./shellContextMenu";
+// 在外壳阻止外部拖放默认导航，并转交主界面创建新标签。
+import "../src-tauri/src/browser_drop.js";
 
 async function resolveCurrentWindowLabel() {
   const globalLabel = window.__TAURI__?.window?.getCurrentWindow().label;
