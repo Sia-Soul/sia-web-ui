@@ -392,6 +392,17 @@ export default function App() {
     if (activeTab) activeTabRef.current = activeTab;
   }, [activeTab]);
 
+  // 新建、外部打开和切换标签统一展开其祖先；用户随后手动折叠时不强制重新展开。
+  useEffect(() => {
+    if (!activeTab) return;
+    setCollapsedGroupIds(current => current.includes(activeTab.groupId)
+      ? current.filter(id => id !== activeTab.groupId) : current);
+    if (activeTab.smallGroupId) {
+      setCollapsedSmallGroupIds(current => current.includes(activeTab.smallGroupId!)
+        ? current.filter(id => id !== activeTab.smallGroupId) : current);
+    }
+  }, [activeTab?.id, activeTab?.groupId, activeTab?.smallGroupId]);
+
   useEffect(() => {
     tabsRef.current = tabs;
   }, [tabs]);

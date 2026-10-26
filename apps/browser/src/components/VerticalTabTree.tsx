@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import { Button, FloatingScrollbarProvider, Icon } from "@sia.soul/sia-react-ui";
 import { ROOT_GROUP_ID, type BrowserGroup, type BrowserTab } from "../browserTypes";
@@ -81,6 +81,7 @@ export default function VerticalTabTree({
   const draggedTabRef = useRef<string | null>(null);
   const resizeStateRef = useRef<{ pointerId: number; startX: number; startWidth: number } | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const revealedTabRef = useRef<string | null>(null);
   const collapsedGroups = useMemo(() => new Set(collapsedGroupIds), [collapsedGroupIds]);
   const collapsedSmallGroups = useMemo(
     () => new Set(collapsedSmallGroupIds),
@@ -97,6 +98,33 @@ export default function VerticalTabTree({
   }, [tabs]);
   const rootTabs = tabsByGroup.get(ROOT_GROUP_ID) ?? [];
   const activeTab = tabs.find((tab) => tab.id === activeId);
+
+  // 内嵌和原生侧栏共用定位逻辑；折叠分组展开或容器获得尺寸后再定位到活动标签。
+  useLayoutEffect(() => {
+    if (!activeTab) return;
+    const key = JSON.stringify([activeTab.id, activeTab.groupId, activeTab.smallGroupId, panelExpanded]);
+    if (revealedTabRef.current === key) return;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const reveal = () => {
+      if (revealedTabRef.current === key) return;
+      const row = container.querySelector<HTMLElement>(`[data-browser-tab-id="${CSS.escape(activeId)}"]`);
+      if (!row || !container.clientHeight || !row.getClientRects().length) return;
+      const viewport = container.getBoundingClientRect();
+      const bounds = row.getBoundingClientRect();
+      // 只滚动列表的纵轴，并保留少量上下留白，不改变整个窗口或横向滚动位置。
+      const top = viewport.top + container.clientTop + 8;
+      const bottom = viewport.top + container.clientTop + container.clientHeight - 8;
+      if (bounds.top < top) container.scrollTop += bounds.top - top;
+      else if (bounds.bottom > bottom) container.scrollTop += bounds.bottom - bottom;
+      revealedTabRef.current = key;
+    };
+    reveal();
+    const observer = new ResizeObserver(reveal);
+    observer.observe(container);
+    return () => observer.disconnect();
+    // 不依赖标题、加载状态或整个 tabs 数组，避免后台刷新时反复抢回用户滚动位置。
+  }, [activeId, activeTab?.id, activeTab?.groupId, activeTab?.smallGroupId, panelExpanded, collapsedGroups, collapsedSmallGroups]);
 
   /** 仅接受当前树发起的标签拖动，外部网址、文件或文本不会触发分组迁移。 */
   function dropHandlers(groupId: string, smallGroupId?: string) {
