@@ -1,0 +1,32 @@
+/* 工作表能力只在显式安装插件时启用，不改变普通表格和表单气泡。 */
+.sia-table__worksheet-cell:not(.sia-table__cell--fixed) {
+  position: relative;
+}
+/* 展示态填充柄以单元格边界定位；编辑态保留框架的全格绝对定位。 */
+.sia-table__cell.sia-table__worksheet-cell > .sia-table__cell-content:not(:has(> .sia-table__editor)) {
+  position: static;
+}
+.sia-table .sia-table__row .sia-table__cell.sia-table__worksheet-cell--readonly {
+  background: var(--sia-color-background);
+}
+.sia-table__worksheet-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 12px;
+  height: 12px;
+  box-sizing: border-box;
+  padding: 0;
+  border: 1px solid var(--sia-color-surface);
+  background: var(--sia-color-primary);
+  cursor: crosshair;
+  z-index: 2;
+}
+.sia-table__worksheet-fill-preview {
+  box-shadow: inset 0 0 0 1px var(--sia-color-primary);
+}
+.sia-table__worksheet-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}

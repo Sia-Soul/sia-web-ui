@@ -2,7 +2,9 @@
 
 用户选择 S1-E 连笔 Sia，并确认采用粉紫、蓝、青的炫彩渐变填充与白色描边：保留大写 S 的上下回环、连接的 i/a、圆点与下方收笔线。选稿对照保存在 `sia-signature-selection.png`。图稿由内置 image_gen 生成，未使用 CLI 或外部 API。
 
-- `sia-signature-s1e-iridescent.png`：所有正式图标共用的炫彩渐变、白描边透明原稿。
+- `sia-signature-s1e-blue-bird.png`：正式图稿，A 版蓝青飞鸟搭配珍珠白 Sia、深蓝细描边，背景及内部留白透明。
+- `sia-signature-s1e-coral-globe.png`：此前地球图稿，仅归档；炫彩 Sia 签名叠加珊瑚橙地球；大陆与细边框相连，无经纬线、无地球白描边，海洋和背景透明。
+- `sia-signature-s1e-iridescent.png`：此前不带地球的炫彩签名原稿，仅归档。
 - `sia-signature-s1e-purple-outline.png`：上一版浅紫色、白描边原稿，仅归档。
 - `sia-signature-s1e-transparent.png`：早期深蓝原稿，仅归档。
 - `sia-signature-s1e-app.png`：早期浅底候选图，仅归档，不参与资源导出或打包。
@@ -10,7 +12,7 @@
 - 所有正式输出均保留透明背景；方形资源仅增加透明留白，不添加底板。
 - 网页与原生图标共用图稿原色，均不使用主题滤镜；亮色渐变和白色描边提高深色背景下的可见性。
 - 使用无头渲染检查网页主要笔画对比，并直接读取原生图标检查 16/24/32/48px 的透明背景和亮色覆盖率。
-- Windows 安装包以 `app-s1e-iridescent.ico` 作为快捷方式图标，并迁移已有品牌任务栏链接的旧安装/开发路径；不新增、取消固定或重新排序。
+- Windows 安装包以 `app-s1e-blue-bird.ico` 作为快捷方式图标，并迁移已有品牌任务栏链接的旧安装/开发路径；不新增、取消固定或重新排序。
 
 16px 图标用于识别整体签名，不能保证读清所有细笔画；完整名称在标题栏、新标签页和桌面快捷方式文本中展示。
 
@@ -44,4 +46,28 @@ Precise extraction and production cleanup of the USER-SELECTED S1-E logo in the 
 
 ```text
 Production packaging of the exact supplied approved Sia wordmark. Preserve this logo's calligraphic S/i/a letter shapes, blue ink, cyan i dot and underline precisely. Return a SINGLE SQUARE app-icon source image with a FULLY OPAQUE, PERFECTLY UNIFORM near-white #F8FAFF background covering the ENTIRE canvas edge-to-edge. No transparency anywhere, no rounded outer tile, no frame, no border, no shadow. Center the supplied exact blue-and-cyan wordmark optically on the square, keeping its original aspect ratio, occupying 90 percent of canvas width, with balanced top and bottom whitespace. Flat smooth solid blue lettering and cyan dot, immaculate clean edges, no texture, NO noise, no gradient, no 3D, no lighting, no antialias speckles. One Sia logo only, no additional text or graphics, no mockup. This is a simple high-quality square bitmap of the approved signature on a clean pale background.
+```
+
+## 石墨灰地球候选（归档）
+
+用户确认 H 石墨灰版。内置 image_gen 输出 `exec-7730531f-a85e-44a6-b95e-27102f7edb4c.png` 已原样保存为 `sia-signature-s1e-graphite-globe.png`。保持炫彩签名及字标本身的白描边，只将背景地球大陆和相连的细外圈设为石墨灰，目标色 `#68717E`。生成采用 `transparent_background=true`；正式导出只缩放和转换格式。
+
+```text
+Precise color-only edit of this supplied transparent Sia globe logo. Change ONLY the background globe's white continent fills and thin circular rim to a uniform flat #68717E (H · 石墨灰) color. All land and circle border must share that color. Retain connected continent-to-rim silhouettes, thin border, globe diameter and placement. No extra white outline on globe. Keep FOREGROUND Sia lettering unchanged: pink-purple-blue-cyan multicolor gradient, existing thin white outline on letters, dot, calligraphic shapes and underline flourish. Preserve genuine transparent background and transparent ocean spaces. No latitude longitude lines, no 3D, shading, glow or shadows. Single clean logo only, no captions. Color variant H · 石墨灰.
+```
+
+## 珊瑚橙地球定稿（归档）
+
+正式使用 D 珊瑚橙版本，替代石墨灰候选。原件 `exec-dcd10dcc-f23d-4851-88c3-4e5bae05b245.png` 原样复制为 `sia-signature-s1e-coral-globe.png`；石墨灰原稿仅归档。大陆与细外圈使用同一珊瑚橙色（目标色 `#F5A080`），保持相连、无经纬线和额外白描边；炫彩签名及自身白描边、海洋和背景透明保持不变。使用内置 image_gen 和 `transparent_background=true` 生成，导出仅缩放与转换格式。
+
+```text
+Precise color-only edit of the supplied transparent Sia logo. Change ONLY the background globe's white land continent silhouettes and thin circular rim to a uniform flat #F5A080 (珊瑚橙) color. All globe land and rim use this same color, retain seamless connected land-to-rim shapes. Keep the circle size, shape, position and thin rim thickness identical. No additional white outline on the globe. Preserve FOREGROUND Sia signature exactly, including pink-purple-blue-cyan multicolor gradient, original white outline on the lettering, dot and underline flourish. Ocean holes and background stay truly transparent. No latitude or longitude lines, no 3D, no shadows, no glow. Clean flat graphic. Single logo only, no labels. This is color variant 珊瑚橙.
+```
+
+## 蓝青飞鸟 A 版（2026-10-26）
+
+当前接入 A 版：蓝青飞鸟与珍珠白 Sia，字标使用深蓝细描边。内置 image_gen 输出 `exec-c750dd40-3a26-4a46-aa2c-07950385b84e.png` 原样保存为 `sia-signature-s1e-blue-bird.png`。生成采用 `transparent_background=true`，正式导出仅缩放与转换格式，全部图标保留透明背景。方形资源每边预留约 6% 透明安全边距，避免贴边羽翼在任务栏重采样时触及画布边角。
+
+```text
+Color-only redesign of this exact Sia flying-bird logo. Keep all geometry and composition: sweeping near-circular flying phoenix bird, head looking right, broad wings and long tail feathers, foreground calligraphic Sia with dot and underline. Change BOTH bird colors and signature colors to one coordinated palette. Bird broad flowing feathers in ocean blue #1266D5 through turquoise #23CECA, pale cyan accent shapes. Sia lettering solid pearl white #F7FBFF with a fine deep navy #12446A outline, excellent readability against blue and cyan. The old rainbow signature must be fully replaced with the requested lettering color, including dot and underline; no leftover neon rainbow. Foreground signature must stay clearly legible on bird. Preserve original stroke widths and shapes, including fine signature outline. Flat clean 2D graphic with smooth restrained color transitions on bird and crisp broad color-block overlap accents, no 3D, no bevel, no shadows, no glow. Transparent background and internal negative spaces. Single large logo only, no labels or comparison board. Variant A · 蓝青 / 珍珠白.
 ```

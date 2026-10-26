@@ -71,8 +71,8 @@ body.browser-tab-panel-document__body,
 /* 子菜单自身另有上下各 4px 内边距和 1px 边框，列表扣除这 10px 后整体仍不超过上限。 */
 .browser-menu-document .sia-menu__popup-list { max-height: min(630px, calc(100vh - 50px)); overflow-y: auto; }
 
-/* 工具面板和内部按钮即时响应，避免框架默认过渡延缓开关或菜单切换。 */
-.browser-menu-document *,
+/* 面板开关保持即时响应，仅下载项的短暂提示层允许播放淡出动画。 */
+.browser-menu-document *:not(.browser-download-entry__highlight),
 .browser-menu-document *::before,
 .browser-menu-document *::after {
   animation: none !important;
@@ -359,16 +359,34 @@ body.browser-tab-panel-document__body,
 }
 
 .browser-download-entry {
+  /* 两行紧凑布局：文件名及进度/打开操作；需要确认的下载按内容自然增高。 */
+  position: relative;
   display: grid;
-  min-height: 92px;
-  padding: 10px 6px;
+  min-height: 56px;
+  padding: 7px 6px;
   grid-template-columns: 26px minmax(0, 1fr) auto;
   gap: 8px;
-  border-bottom: 1px solid color-mix(in srgb, var(--sia-color-border) 76%, transparent);
+  border-bottom: 0;
   border-radius: 8px;
   outline: none;
   transition: background-color 140ms ease;
 }
+
+/* 提示层不参与布局或命中，1.5 秒后完全透明，进度更新不改变动画起点。 */
+.browser-download-entry__highlight {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--sia-color-primary) 18%, transparent);
+  animation: browser-download-entry-highlight 1500ms ease-out both;
+}
+@keyframes browser-download-entry-highlight {
+  0% { opacity: 0; }
+  12%, 35% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.browser-download-entry > :not(.browser-download-entry__highlight) { position: relative; }
 
 .browser-download-entry:hover,
 .browser-download-entry:focus-visible,
@@ -379,22 +397,23 @@ body.browser-tab-panel-document__body,
 .browser-download-entry__icon {
   display: grid;
   width: 24px;
-  height: 28px;
-  color: #159b62;
+  height: 26px;
+  color: var(--sia-color-text-secondary);
   place-items: center;
 }
+.browser-download-entry__icon img { display: block; object-fit: contain; }
 
 .browser-download-entry__body {
   display: grid;
   min-width: 0;
   align-content: start;
-  gap: 3px;
+  gap: 1px;
 }
 
 .browser-download-entry__body > strong {
   overflow: hidden;
-  font-size: 14px;
-  font-weight: 650;
+  font-size: 13px;
+  font-weight: 500;
   line-height: 20px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -422,11 +441,12 @@ body.browser-tab-panel-document__body,
 
 .browser-download-entry__open.sia-button {
   width: max-content;
-  min-height: 24px;
+  min-height: 20px;
+  height: 20px;
   padding: 0;
   color: var(--sia-color-primary);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .browser-download-entry__actions {
@@ -580,6 +600,11 @@ body.browser-tab-panel-document__body,
   align-items: center;
   gap: 7px;
 }
+
+/* 导入弹窗沿用主题控件；标签、选择器和状态信息按单列排列。 */
+.browser-bookmark-import { display: grid; gap: 10px; }
+.browser-bookmark-import > label { margin-top: 6px; font-weight: 600; }
+.browser-bookmark-import > small { color: var(--sia-color-text-secondary); line-height: 1.6; }
 
 .browser-bookmark-list {
   padding-left: 27px;
@@ -1817,7 +1842,7 @@ input {
 }
 
 .browser-brand-glyph {
-  /* 炫彩渐变与白色描边直接使用原色，深浅主题均不加滤镜，保持与原生图标一致。 */
+  /* 蓝青飞鸟与珍珠白签名直接使用图稿原色，深浅主题均不加滤镜，保持与原生图标一致。 */
   display: block;
   flex: 0 0 auto;
   object-fit: contain;

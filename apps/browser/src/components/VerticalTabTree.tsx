@@ -523,7 +523,8 @@ export default function VerticalTabTree({
           })}
             {rootTabs.length > 0 || draggedTabId ? (
               <div className="vertical-tab-tree__root-tabs" aria-label="根级标签页" {...dropHandlers(ROOT_GROUP_ID)}>
-                {draggedTabId ? <span className="vertical-tree-drop-hint">拖到此处移出分组</span> : null}
+                {/* 仅空根列表显示投放提示，避免起拖时插入文案挤动已有根标签及插入位置。 */}
+                {draggedTabId && rootTabs.length === 0 ? <span className="vertical-tree-drop-hint">拖到此处移出分组</span> : null}
                 {rootTabs.map(renderTab)}
                 {renderDropEnd(ROOT_GROUP_ID)}
               </div>

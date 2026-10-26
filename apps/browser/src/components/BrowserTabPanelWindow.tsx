@@ -3,6 +3,7 @@ import { applySiaTheme, message } from "@sia.soul/sia-react-ui";
 import type { BrowserGroup, BrowserTab } from "../browserTypes";
 import { ROOT_GROUP_ID } from "../browserTypes";
 import VerticalTabTree from "./VerticalTabTree";
+import { browserShortcut } from "../browserShortcuts";
 
 export interface FloatingTabPanelPayload {
   groups: BrowserGroup[];
@@ -156,6 +157,18 @@ export default function BrowserTabPanelWindow() {
       message.error(error instanceof Error ? error.message : String(error));
     });
   }
+
+  // 侧栏是独立 WebView，关闭和下载快捷键需转交主壳层，并屏蔽长按重复。
+  useEffect(() => {
+    const handleCloseShortcut = (event: KeyboardEvent) => {
+      const command = browserShortcut(event);
+      if (!command) return;
+      event.preventDefault();
+      if (!event.repeat) sendAction("shortcut", command);
+    };
+    window.addEventListener("keydown", handleCloseShortcut);
+    return () => window.removeEventListener("keydown", handleCloseShortcut);
+  }, [payload?.activeId]);
 
   function openTabMenu(tabId: string, x: number, y: number) {
     if (!payload) return;

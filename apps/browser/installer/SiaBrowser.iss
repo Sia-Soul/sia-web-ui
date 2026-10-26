@@ -38,7 +38,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
 OutputBaseFilename={#OutputName}
 SetupIconFile={#PayloadDir}\app.ico
-UninstallDisplayIcon={app}\app-s1e-iridescent.ico
+UninstallDisplayIcon={app}\app-s1e-blue-bird.ico
 UninstallDisplayName={#ProductName}
 Compression=lzma2/fast
 SolidCompression=yes
@@ -61,16 +61,16 @@ Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: 
 ; 显式列出程序与品牌图标，前端已内嵌到 EXE，不收集浏览数据或发布目录杂项。
 Source: "{#PayloadDir}\sia-browser.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#PayloadDir}\app.ico"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#PayloadDir}\app-s1e-iridescent.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#PayloadDir}\app-s1e-blue-bird.ico"; DestDir: "{app}"; Flags: ignoreversion
 ; 迁移脚本只解压到安装临时目录，不留在应用目录中。
 Source: "migrate-legacy.ps1"; Flags: dontcopy
 Source: "close-running-browser.ps1"; Flags: dontcopy
 Source: "update-pinned-shortcuts.ps1"; Flags: dontcopy
 
 [Icons]
-Name: "{group}\{#ProductName}"; Filename: "{app}\sia-browser.exe"; IconFilename: "{app}\app-s1e-iridescent.ico"; WorkingDir: "{app}"
+Name: "{group}\{#ProductName}"; Filename: "{app}\sia-browser.exe"; IconFilename: "{app}\app-s1e-blue-bird.ico"; WorkingDir: "{app}"
 Name: "{group}\卸载{#ProductName}"; Filename: "{uninstallexe}"
-Name: "{userdesktop}\{#ProductName}"; Filename: "{app}\sia-browser.exe"; IconFilename: "{app}\app-s1e-iridescent.ico"; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{userdesktop}\{#ProductName}"; Filename: "{app}\sia-browser.exe"; IconFilename: "{app}\app-s1e-blue-bird.ico"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\sia-browser.exe"; Description: "启动{#ProductName}"; Flags: nowait postinstall skipifsilent
@@ -106,6 +106,13 @@ Root: HKCU; Subkey: "Software\Clients\StartMenuInternet\SiaBrowser\Capabilities\
 #endif
 
 [Code]
+var
+  RunningPage: TWizardPage;
+  RunningStatus, RunningDetails: TNewStaticText;
+  RetryRunningButton: TNewButton;
+  BrowserWasRunning, ClosingBrowser: Boolean;
+  OriginalNextLeft, OriginalNextWidth, OriginalBackLeft: Integer;
+
 // 文件安装完成后更新已有任务栏链接；验证包不访问用户的真实固定项目。
 procedure CurStepChanged(CurStep: TSetupStep);
 var
@@ -151,33 +158,134 @@ begin
   end;
 end;
 
-// 初始化和覆盖文件前均检查；静默运行绝不自动结束浏览器，也不弹出交互对话框。
-function EnsureBrowserClosed: Boolean;
-var
-  Choice: Integer;
-  ErrorText: String;
+// 检测只读取运行互斥体，结果呈现在向导页内，不在窗口创建前弹出阻塞对话框。
+procedure RefreshRunningStatus;
 begin
-  Result := False;
-  while CheckForMutexes('{#BrowserMutex}') do
+  BrowserWasRunning := CheckForMutexes('{#BrowserMutex}');
+  if BrowserWasRunning then
   begin
-    if WizardSilent then Exit;
-    Choice := TaskDialogMsgBox('检测到西娅浏览器正在运行',
-      '可以手动关闭后重新检测，或直接强制关闭并继续安装。' + #13#10 +
-      '强制关闭可能丢失网页中尚未保存的输入；已保存的浏览数据不会被删除。',
-      mbError, MB_YESNOCANCEL, ['重新检测', '强制关闭并继续安装'], 0);
-    if Choice = IDNO then
-    begin
-      ErrorText := ForceCloseBrowser;
-      if ErrorText <> '' then MsgBox(ErrorText, mbError, MB_OK);
-    end
-    else if Choice <> IDYES then Exit;
+    RunningStatus.Caption := '检测到西娅浏览器正在运行';
+    RunningDetails.Caption :=
+      '可以手动关闭后重新检测，或直接强制关闭并继续安装。' + #13#10#13#10 +
+      '强制关闭可能丢失网页中尚未保存的输入；已保存的浏览数据不会被删除。';
+    WizardForm.NextButton.Caption := '强制关闭并继续';
+  end
+  else
+  begin
+    RunningStatus.Caption := '运行检测通过';
+    RunningDetails.Caption := '西娅浏览器当前未运行，可以继续安装。' + #13#10#13#10 +
+      '安装期间请保持浏览器关闭，已保存的浏览数据会保留。';
+    WizardForm.NextButton.Caption := SetupMessage(msgButtonNext);
   end;
-  Result := True;
 end;
 
+// 重新检测仅更新状态，不关闭浏览器，也不自动跳过当前步骤。
+procedure RetryRunningClick(Sender: TObject);
+begin
+  if not ClosingBrowser then RefreshRunningStatus;
+end;
+
+// 欢迎页先显示，下一步再进入运行检测；动作按钮放在向导底部，与取消入口同一行。
+procedure InitializeWizard;
+begin
+  RunningPage := CreateCustomPage(wpWelcome, '检测浏览器运行状态',
+    '安装前确认西娅浏览器已关闭。');
+  RunningStatus := TNewStaticText.Create(WizardForm);
+  RunningStatus.Parent := RunningPage.Surface;
+  RunningStatus.SetBounds(0, ScaleY(16), RunningPage.SurfaceWidth, ScaleY(32));
+  RunningStatus.AutoSize := False;
+  RunningStatus.Font.Size := 12;
+  RunningStatus.Font.Style := [fsBold];
+  RunningDetails := TNewStaticText.Create(WizardForm);
+  RunningDetails.Parent := RunningPage.Surface;
+  RunningDetails.SetBounds(0, ScaleY(64), RunningPage.SurfaceWidth, ScaleY(150));
+  RunningDetails.AutoSize := False;
+  RunningDetails.WordWrap := True;
+  RetryRunningButton := TNewButton.Create(WizardForm);
+  RetryRunningButton.Parent := WizardForm.NextButton.Parent;
+  RetryRunningButton.Caption := '重新检测';
+  RetryRunningButton.SetBounds(ScaleX(16), WizardForm.NextButton.Top,
+    ScaleX(90), WizardForm.NextButton.Height);
+  RetryRunningButton.OnClick := @RetryRunningClick;
+  RetryRunningButton.Visible := False;
+  OriginalNextLeft := WizardForm.NextButton.Left;
+  OriginalNextWidth := WizardForm.NextButton.Width;
+  OriginalBackLeft := WizardForm.BackButton.Left;
+end;
+
+// 检测页显示之后才读取状态；离开时恢复系统向导按钮的位置与宽度。
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  RetryRunningButton.Visible := CurPageID = RunningPage.ID;
+  if CurPageID = RunningPage.ID then
+  begin
+    // 向导完成 DPI/字体布局后再对齐底部按钮，沿用系统导航按钮的实际坐标。
+    RetryRunningButton.Top := WizardForm.NextButton.Top;
+    RetryRunningButton.Height := WizardForm.NextButton.Height;
+    WizardForm.NextButton.Width := ScaleX(140);
+    WizardForm.NextButton.Left := WizardForm.CancelButton.Left - ScaleX(8) - WizardForm.NextButton.Width;
+    WizardForm.BackButton.Left := WizardForm.NextButton.Left - ScaleX(8) - WizardForm.BackButton.Width;
+    RefreshRunningStatus;
+  end
+  else
+  begin
+    WizardForm.NextButton.Left := OriginalNextLeft;
+    WizardForm.NextButton.Width := OriginalNextWidth;
+    WizardForm.BackButton.Left := OriginalBackLeft;
+  end;
+end;
+
+// 只有已展示“强制关闭”文案后再次点击该按钮才结束进程，避免状态突变导致误关闭。
+function NextButtonClick(CurPageID: Integer): Boolean;
+var
+  ErrorText: String;
+begin
+  Result := True;
+  if CurPageID <> RunningPage.ID then Exit;
+  Result := False;
+  if ClosingBrowser then Exit;
+  if not CheckForMutexes('{#BrowserMutex}') then
+  begin
+    Result := True;
+    Exit;
+  end;
+  if WizardSilent then Exit;
+  if not BrowserWasRunning then
+  begin
+    RefreshRunningStatus;
+    Exit;
+  end;
+  ClosingBrowser := True;
+  WizardForm.NextButton.Enabled := False;
+  WizardForm.BackButton.Enabled := False;
+  WizardForm.CancelButton.Enabled := False;
+  RetryRunningButton.Enabled := False;
+  RunningStatus.Caption := '正在关闭西娅浏览器…';
+  WizardForm.Repaint;
+  try
+    ErrorText := ForceCloseBrowser;
+    RefreshRunningStatus;
+    if ErrorText <> '' then
+    begin
+      RunningStatus.Caption := '浏览器未能关闭';
+      RunningDetails.Caption := ErrorText + #13#10 + #13#10 +
+        '请手动关闭后点击“重新检测”，或再次尝试强制关闭。';
+    end
+    else Result := not BrowserWasRunning;
+  finally
+    ClosingBrowser := False;
+    WizardForm.NextButton.Enabled := True;
+    WizardForm.BackButton.Enabled := True;
+    WizardForm.CancelButton.Enabled := True;
+    RetryRunningButton.Enabled := True;
+  end;
+end;
+
+// 交互安装直接创建向导；静默安装没有用户确认入口，仍在运行时立即退出。
 function InitializeSetup: Boolean;
 begin
-  Result := EnsureBrowserClosed;
+  Result := True;
+  if WizardSilent then Result := not CheckForMutexes('{#BrowserMutex}');
 end;
 
 // 卸载继续要求正常退出；仅安装向导提供用户主动选择的强制关闭入口。
@@ -242,9 +350,9 @@ var
   ExitCode: Integer;
 begin
   Result := '';
-  if not EnsureBrowserClosed then
+  if CheckForMutexes('{#BrowserMutex}') then
   begin
-    Result := '浏览器仍在运行，安装尚未开始。关闭浏览器后可以重试，或取消安装。';
+    Result := '浏览器已重新运行，安装尚未开始。请关闭浏览器后重试，或返回“检测浏览器运行状态”步骤处理。';
     Exit;
   end;
   if not HasWebView2 then

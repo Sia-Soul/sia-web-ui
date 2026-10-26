@@ -80,3 +80,7 @@ export type {
   TableSummaryRow,
 } from "./types";
 export type { TableCanvasCell } from "./types";
+
+// 工作表能力统一从 Table 公共入口导出，业务无需引用内部实现。
+export { createWorksheetPlugin } from "./worksheet";
+export type { TableWorksheetApi, TableWorksheetChange, TableWorksheetHistory, TableWorksheetOperation, TableWorksheetPluginOptions, TableWorksheetReason, TableWorksheetValueContext } from "./worksheetTypes";

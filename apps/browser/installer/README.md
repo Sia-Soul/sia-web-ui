@@ -6,7 +6,7 @@
 - 自动添加开始菜单入口和卸载入口；桌面快捷方式可选，默认不勾选。
 - 完成页可启动西娅浏览器；静默安装不会自动启动。
 - 固定安装身份 `com.sia.browser` 支持后续覆盖升级，沿用之前选择的安装目录。
-- 程序运行时通过 `Local\SiaBrowser.Installation` 互斥体保护安装、升级和卸载。交互安装提供“重新检测”“强制关闭并继续安装”“取消”；仅点击强制关闭才结束当前 Windows 会话中产品身份匹配的浏览器，可能丢失尚未保存的网页输入。关闭失败不会覆盖程序，静默安装不会强制结束进程，卸载仍要求先正常关闭。
+- 程序运行时通过 `Local\SiaBrowser.Installation` 互斥体保护安装、升级和卸载。交互安装先显示欢迎向导，再进入独立的“检测浏览器运行状态”步骤，底部提供“重新检测”“强制关闭并继续”“取消”；启动时不弹出前置拦截对话框。仅点击强制关闭才结束当前 Windows 会话中产品身份匹配的浏览器，可能丢失尚未保存的网页输入。手动关闭后重新检测可继续下一步，关闭失败在当前页显示原因；实际安装前复查运行状态，中途重启浏览器会阻止写入。静默安装不会强制结束进程，卸载仍要求先正常关闭。
 - 已有 WebView2 Runtime 时直接安装；缺失时联网下载微软 Evergreen Bootstrapper 并安装，失败则停止并提示。
 - 只打包 `sia-browser.exe` 和独立图标 `app.ico`。前端资源内嵌于 EXE，不附带完整 Chromium。
 - 卸载只删除安装器管理的文件，不删除 `%LOCALAPPDATA%\com.sia.browser`、`%APPDATA%\com.sia.browser` 下的密码、标签树、历史、小分组 Cookie 等数据，也不删除安装目录中额外放入的文件。
@@ -58,4 +58,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -File apps/browser/installer/test-
 
 中文语言文件复用参考项目的 [Inno Setup 简体中文翻译](https://github.com/kira-96/Inno-Setup-Chinese-Simplified-Translation)，保留文件头原作者署名。WebView2 使用微软官方下载地址。安装包未配置代码签名证书。
 
-`test-force-close.ps1` 创建独立互斥体和测试进程，实际点击验证安装器中的取消、重新检测、强制关闭按钮，检查关闭后进入向导，并验证静默保护及同名异产品进程不被关闭。测试只操作自己创建的进程，不触及正式浏览器；验证包使用 `Local\SiaBrowser.Installation.Validation` 互斥体。
+`test-force-close.ps1` 创建独立互斥体和测试进程，验证运行中先出现欢迎向导、下一步进入检测页、动作按钮位于底部同一行；实际点击取消、重新检测和强制关闭，并检查手动关闭后能继续安装。另验证静默保护及同名异产品进程不被关闭。测试只操作自己创建的进程，不触及正式浏览器；验证包使用 `Local\SiaBrowser.Installation.Validation` 互斥体。

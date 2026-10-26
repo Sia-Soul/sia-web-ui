@@ -1,5 +1,6 @@
 mod browser_overlay;
 mod browser_profiles;
+mod bookmark_import;
 mod browser_visibility;
 mod browser_theme;
 mod extensions;
@@ -10,6 +11,7 @@ mod startup_diagnostics;
 mod browser_startup;
 mod default_browser;
 mod browser_drop;
+mod download_file_icon;
 mod browser_instance;
 mod window_resize;
 #[cfg(windows)]
@@ -1632,6 +1634,11 @@ fn delete_download_file(path: String) -> Result<(), String> {
 
 #[tauri::command]
 fn browser_window_action(app: AppHandle, action: String) -> Result<(), String> {
+    // 地址栏位于主 WebView；只聚焦宿主窗口无法移走网页组件内的键盘焦点。
+    if action == "focus-address" {
+        return app.get_webview("main").ok_or("找不到浏览器主视图")?
+            .set_focus().map_err(|error| error.to_string());
+    }
     eprintln!("[window-action] {action}");
     let window = app
         .get_window("main")
@@ -1740,6 +1747,9 @@ pub fn run() {
             choose_download_directory,
             resolve_pending_download,
             open_download_file,
+            download_file_icon::get_download_file_icon,
+            bookmark_import::list_bookmark_sources,
+            bookmark_import::read_browser_bookmarks,
             show_download_in_folder,
             delete_download_file,
             default_browser::open_default_browser_settings,

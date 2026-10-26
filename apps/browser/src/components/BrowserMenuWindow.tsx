@@ -1,4 +1,5 @@
 import { extensionMatchesScope, type ExtensionScope } from "../extensionScopes";
+import { browserShortcut } from "../browserShortcuts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Icon, Input, Menu, applySiaTheme } from "@sia.soul/sia-react-ui";
 import type { MenuItem } from "@sia.soul/sia-react-ui";
@@ -18,6 +19,12 @@ export interface BrowserMenuItem {
 }
 
 export interface BrowserPanelEntry {
+  /** 收藏夹目录标记；目录点击时在面板内展开。 */
+  folder?: boolean;
+  /** 上级收藏夹目录，省略表示根目录。 */
+  parentId?: string;
+  /** 同级显示顺序。 */
+  order?: number;
   id: string;
   title: string;
   url?: string;
@@ -34,9 +41,13 @@ export interface BrowserPanelEntry {
   alwaysOpen?: boolean;
   unsafe?: boolean;
   fileDeleted?: boolean;
+  /** 本次下载首次触发的时间戳，毫秒；仅用于 1.5 秒提示，不随进度更新或历史记录重开而重置。 */
+  highlightStartedAt?: number;
 }
 
 export interface BrowserMenuPayload {
+  /** 从收藏夹栏打开目录时，自动展开该目录及其父目录。 */
+  bookmarkFolderId?: string;
   /** 原生面板显示批次；命中范围回传时用于拒绝旧面板的异步结果。 */
   hitRegionRevision?: number;
   /** 原生窗口为级联菜单预留空间后，主菜单在窗口内的位置与尺寸，单位为 CSS 像素。 */
@@ -98,6 +109,38 @@ function historyGroupLabel(timestamp = Date.now()) {
   return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
 }
 
+// 同一文件图标在进度更新时复用；限制缓存数量，避免长期下载会话积累图片数据。
+const downloadIconCache = new Map<string, Promise<string | null>>();
+
+/** 用原生文件关联图标展示下载类型；未完成文件查询类型图标，读取失败保留框架通用文件图标。 */
+function DownloadFileIcon({ entry }: { entry: BrowserPanelEntry }) {
+  const fileName = entry.fileName || entry.title;
+  const filePath = entry.state === "finished" && entry.success !== false && !entry.fileDeleted ? entry.filePath : undefined;
+  const key = JSON.stringify([fileName, filePath]);
+  const [loaded, setLoaded] = useState<{ key: string; url: string } | null>(null);
+  useEffect(() => {
+    let disposed = false;
+    let request = downloadIconCache.get(key);
+    if (!request) {
+      request = invokeNative<string | null>("get_download_file_icon", { fileName, filePath: filePath ?? null }).catch(() => null);
+      if (downloadIconCache.size >= 256) downloadIconCache.delete(downloadIconCache.keys().next().value!);
+      downloadIconCache.set(key, request);
+    }
+    void request.then(url => { if (!disposed && url) setLoaded({ key, url }); });
+    return () => { disposed = true; };
+  }, [key, fileName, filePath]);
+  return loaded?.key === key
+    ? <img src={loaded.url} width={24} height={24} alt="" draggable={false} onError={() => setLoaded(null)} />
+    : <Icon name="file" size={22} />;
+}
+
+/** 同一下载只播放一次；面板打开稍晚时从已流逝的位置继续，进度刷新不重新计时。 */
+function DownloadHighlight({ startedAt }: { startedAt?: number }) {
+  const elapsed = useMemo(() => startedAt ? Math.max(0, Date.now() - startedAt) : 1500, [startedAt]);
+  if (elapsed >= 1500) return null;
+  return <span className="browser-download-entry__highlight" aria-hidden="true" style={{ animationDelay: `-${elapsed}ms` }} />;
+}
+
 export default function BrowserMenuWindow() {
   const [payload, setPayload] = useState<BrowserMenuPayload | null>(null);
   const [openKeys, setOpenKeys] = useState<string[]>([]);
@@ -105,6 +148,17 @@ export default function BrowserMenuWindow() {
   const [searchVisible, setSearchVisible] = useState(false);
   const [historyTab, setHistoryTab] = useState<"all" | "recent">("all");
   const [expandedFavorites, setExpandedFavorites] = useState(true);
+  const [expandedBookmarkFolders, setExpandedBookmarkFolders] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (payload?.kind !== "bookmarks" || !payload.bookmarkFolderId) return;
+    const expanded = new Set<string>();
+    let id: string | undefined = payload.bookmarkFolderId;
+    while (id && !expanded.has(id)) {
+      expanded.add(id);
+      id = payload.entries?.find(entry => entry.id === id)?.parentId;
+    }
+    setExpandedBookmarkFolders(expanded);
+  }, [payload]);
   const [downloadContextMenu, setDownloadContextMenu] = useState<DownloadContextMenuState | null>(null);
   const [extensions, setExtensions] = useState<BrowserExtensionRecord[]>([]);
   const [extensionMenu, setExtensionMenu] = useState<{ id: string; y: number } | null>(null);
@@ -176,7 +230,10 @@ export default function BrowserMenuWindow() {
           if (current?.kind !== "downloads") return current;
           const entries = current.entries ?? [];
           const previous = entries.find(entry => entry.id === task.id);
-          const next = { ...previous, ...task, title: task.fileName || previous?.title || "未命名下载", url: task.sourceUrl || previous?.url };
+          const next = { ...previous, ...task, title: task.fileName || previous?.title || "未命名下载", url: task.sourceUrl || previous?.url,
+            // 原生事件早于自动打开面板时由主窗口传递时间；面板已开时只为首次出现的下载记录时间。
+            highlightStartedAt: previous?.highlightStartedAt ?? task.highlightStartedAt
+              ?? (!previous && (task.state === "waiting" || task.state === "started") ? Date.now() : undefined) };
           return { ...current, entries: previous ? entries.map(entry => entry.id === task.id ? next : entry) : [next, ...entries] };
         });
       },
@@ -219,6 +276,13 @@ export default function BrowserMenuWindow() {
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
+      // 菜单持有焦点时同样转发外壳动作，当前面板的打开快捷键保持原样。
+      const command = browserShortcut(event);
+      if (command) {
+        event.preventDefault();
+        if (!event.repeat && payload?.kind !== command) void dispatchAction(`shortcut|${command}`);
+        return;
+      }
       if (event.key !== "Escape") return;
       if (extensionMenu) {
         setExtensionMenu(null);
@@ -237,7 +301,7 @@ export default function BrowserMenuWindow() {
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [downloadContextMenu, openKeys, extensionMenu]);
+  }, [downloadContextMenu, openKeys, extensionMenu, payload?.kind]);
 
   useEffect(() => {
     if (!payload) return;
@@ -393,7 +457,7 @@ export default function BrowserMenuWindow() {
   }
 
   function renderToolbarButton(
-    icon: "folder" | "search" | "more-horizontal" | "trash" | "star" | "plus" | "edit",
+    icon: "folder" | "search" | "more-horizontal" | "trash" | "star" | "plus" | "edit" | "download",
     label: string,
     action?: string,
     onClick?: () => void,
@@ -456,11 +520,13 @@ export default function BrowserMenuWindow() {
               <article
                 className={`browser-download-entry${entry.state === "waiting" ? " is-waiting" : ""}`}
                 key={entry.id}
+                data-download-id={entry.id}
                 tabIndex={0}
                 onContextMenu={(event) => openDownloadContextMenu(event, entry)}
               >
+                <DownloadHighlight startedAt={entry.highlightStartedAt} />
                 <span className="browser-download-entry__icon">
-                  <Icon name="file" size={19} />
+                  <DownloadFileIcon entry={entry} />
                 </span>
                 <div className="browser-download-entry__body">
                   <strong title={entry.fileName ?? entry.title}>
@@ -468,7 +534,10 @@ export default function BrowserMenuWindow() {
                       ? `要对 ${entry.fileName ?? entry.title}`
                       : entry.fileName ?? entry.title}
                   </strong>
-                  <span className={entry.success === false || entry.unsafe || entry.fileDeleted ? "is-error" : ""}>{status}</span>
+                  {/* 完成项用“打开文件”作为第二行，其余状态保留进度或失败原因。 */}
+                  {!(entry.state === "finished" && entry.success !== false && entry.filePath && !entry.fileDeleted && !entry.unsafe) ? (
+                    <span className={entry.success === false || entry.unsafe || entry.fileDeleted ? "is-error" : ""}>{status}</span>
+                  ) : null}
                   {entry.state === "waiting" ? (
                     <div className="browser-download-entry__choice-actions">
                       <Button
@@ -641,6 +710,18 @@ export default function BrowserMenuWindow() {
   }
 
   function renderBookmarks() {
+    // 搜索直接展示匹配项；普通浏览按目录逐层展开，防止大量导入项一次占满面板。
+    const visibleEntries: Array<{ entry: BrowserPanelEntry; depth: number }> = [];
+    function appendFolder(parentId?: string, depth = 0, seen = new Set<string>()) {
+      if (depth > 64) return;
+      for (const entry of entries.filter(item => item.parentId === parentId).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))) {
+        if (seen.has(entry.id)) continue;
+        visibleEntries.push({ entry, depth });
+        if (entry.folder && expandedBookmarkFolders.has(entry.id)) appendFolder(entry.id, depth + 1, new Set([...seen, entry.id]));
+      }
+    }
+    if (query.trim()) visibleEntries.push(...entries.map(entry => ({ entry, depth: 0 })));
+    else appendFolder();
     return (
       <div className="browser-panel browser-panel--bookmarks">
         <header className="browser-panel__header">
@@ -649,7 +730,7 @@ export default function BrowserMenuWindow() {
             {renderToolbarButton("star", "添加当前页面", "panel|bookmarks|add-current")}
             {renderToolbarButton("folder", "新建收藏夹文件夹", "panel|bookmarks|new-folder")}
             {renderToolbarButton("search", "搜索收藏夹", undefined, () => setSearchVisible((value) => !value))}
-            {renderToolbarButton("more-horizontal", "更多收藏夹操作", "panel|bookmarks|more")}
+            {renderToolbarButton("download", "导入收藏夹", "panel|bookmarks|import")}
           </div>
         </header>
         {searchVisible ? (
@@ -672,20 +753,27 @@ export default function BrowserMenuWindow() {
           >
             <Icon name={expandedFavorites ? "chevron-down" : "chevron-right"} size={14} />
             <Icon name="star" size={18} />
-            <strong>收藏夹栏</strong>
+            <strong>收藏夹</strong>
           </Button>
           {expandedFavorites ? (
             <div className="browser-bookmark-list">
-              {entries.length ? entries.map((entry) => (
+              {visibleEntries.length ? visibleEntries.map(({ entry, depth }) => (
                 <Button
                   className="browser-bookmark-entry"
                   variant="text"
                   size="small"
                   key={entry.id}
-                  onClick={() => void dispatchAction(`panel|bookmarks|open|${entry.id}`)}
+                  style={{ paddingLeft: 8 + depth * 16 }}
+                  aria-expanded={entry.folder ? expandedBookmarkFolders.has(entry.id) : undefined}
+                  onClick={() => {
+                    if (entry.folder) setExpandedBookmarkFolders(current => {
+                      const next = new Set(current); if (next.has(entry.id)) next.delete(entry.id); else next.add(entry.id); return next;
+                    });
+                    else void dispatchAction(`panel|bookmarks|open|${entry.id}`);
+                  }}
                 >
                   <span className="browser-bookmark-entry__icon">
-                    <Icon name="star" size={15} />
+                    <Icon name={entry.folder ? expandedBookmarkFolders.has(entry.id) ? "chevron-down" : "folder" : "star"} size={15} />
                   </span>
                   <span title={entry.title}>{entry.title}</span>
                 </Button>

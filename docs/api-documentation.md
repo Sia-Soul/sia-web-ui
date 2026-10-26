@@ -2,6 +2,8 @@
 
 Tooltip（包含 Form.Item 的校验提示）随模态层级显示：打开 Modal/Drawer 后，页面或父弹层上的提示暂时隐藏，当前层的提示仍正常显示；关闭动画完成后恢复尚未清除的校验提示。受控 open 与表单错误值不会因暂时遮挡而改变，业务不需要清空校验或设置 z-index。
 
+Form.Item 的错误气泡始终悬浮，不占表单空间，不改变字段间距。默认显示在控件下方；鼠标进入覆盖区域时暂时透明，移出后恢复，不因鼠标经过而上移到其他字段。其他被气泡遮挡的控件获得键盘焦点时也暂时透明，直到焦点离开且鼠标移出。透明时保留几何区域，避免显隐反复抖动；气泡始终允许鼠标事件穿透，错误文本、实心状态图标和无障碍关联保持不变。视口空间不足时沿用浮层防溢出规则。此行为仅用于表单错误提示，不改变普通 Tooltip、Popover。`noStyle` 仍只负责绑定与校验，不生成提示容器。
+
 QueryForm 的字段可指定 `settingsHideDisabled: true`，用于编码等必须保留的查询入口。该字段忽略云端隐藏值，在查询设置中始终勾选且不可取消，仍可排序；不影响 Form 的必填校验。例如 `{ key: "sku_id", name: "sku_id", settingsHideDisabled: true, children: <Input placeholder="商品编码" /> }`。未指定时沿用原来的可隐藏行为。
 
 `Form.useForm()` 实例允许在 Form 挂载前调用 `setFieldsValue` / `setFieldValue`，适用于延迟挂载页签中的接口回填。首次挂载时，已写入路径优先于 `initialValues`，未写入字段保留初始值；回填和挂载不触发业务保存。`resetFields` 仍恢复首次挂载的初始值，挂载前重置也按操作顺序生效。
@@ -220,3 +222,8 @@ Tree 指定高度或通过 flex 填充容器时，节点按自然行高从顶部
 Form.fill 默认 false；开启后 Form 为纵向 flex 容器，父级需提供确定高度，内部列表可分配剩余空间。不会改变字段的横向/纵向布局和校验规则。
 
 ImagePreviewGroup 按内部 Image 的页面顺序提供分组预览，可嵌套布局。preview=false 和受控预览图片不加入组；左右方向键及上一张/下一张按钮首尾不循环，删除当前图片会关闭预览。ImagePreview 的 current、count、onCurrentChange 用于受控导航，切换时调用方同步 src 与 alt。
+
+
+## Table 工作表插件
+
+createWorksheetPlugin 提供双击编辑、TSV 批量复制粘贴、填充柄与整次撤销恢复；通过 canWrite 和 setValue 适配业务属性，不在框架请求接口。使用契约、交互及验证范围见 [Table 工作表插件](worksheet.md)，组件示例见 Table 页。

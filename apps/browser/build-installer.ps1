@@ -61,7 +61,7 @@ New-Item -ItemType Directory -Path $stage,$output -Force | Out-Null
 Copy-Item -LiteralPath $exe -Destination $stage
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'src-tauri\icons\icon.ico') -Destination (Join-Path $stage 'app.ico')
 # 品牌专用文件名使升级后的快捷方式不复用旧图标缓存，保留 app.ico 兼容已有引用。
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'src-tauri\icons\icon.ico') -Destination (Join-Path $stage 'app-s1e-iridescent.ico')
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'src-tauri\icons\icon.ico') -Destination (Join-Path $stage 'app-s1e-blue-bird.ico')
 $compileArgs = @("/DAppVersion=$version", "/DPayloadDir=$stage", "/O$output")
 $baseName = "Sia-Browser-Setup-$version-x64"
 if ($ValidationBuild) {

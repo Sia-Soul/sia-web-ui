@@ -1,5 +1,5 @@
 import { withTitleTooltip } from "./titleTooltip";
-import { Children, cloneElement, createContext, forwardRef, isValidElement, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { Children, cloneElement, createContext, forwardRef, isValidElement, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { ChangeEventHandler, FormHTMLAttributes, InputHTMLAttributes, ReactElement, ReactNode } from "react";
 import { ControlSizeContext, PlaceholderModeContext, useControlSize, usePlaceholderMode } from "./shared";
 import type { ControlSize, InputPlaceholderMode } from "./shared";
@@ -512,7 +512,7 @@ function FormRoot({
   </ControlSizeContext.Provider></PlaceholderModeContext.Provider></FormContext.Provider>;
 }
 
-/** 表单项的字段绑定、标签、校验及内容配置；默认保留 8px 下外边距，noStyle 不生成布局容器或间距。 */
+/** 表单项的字段绑定、标签、校验及内容配置；错误气泡不占布局空间，指针进入覆盖区域或被遮挡控件获得焦点时暂时隐藏。默认保留 8px 下外边距，noStyle 不生成布局容器或间距。 */
 export interface FormItemProps {
   /** 绑定到表单值的字段名或嵌套路径，例如 ["user", "name"]。 */
   name?: NamePath;
@@ -531,7 +531,7 @@ export interface FormItemProps {
   required?: boolean;
   /** 主体之外的补充内容或操作区。 */
   extra?: ReactNode;
-  /** 字段下方的辅助说明或校验提示。 */
+  /** 字段下方的辅助说明或校验提示；错误气泡默认位于下方，指针进入覆盖区域或其他被遮挡控件获得焦点时暂时透明，移出且焦点离开后恢复。保留错误文本和无障碍关联，视口空间不足时沿用浮层防溢出规则。 */
   help?: ReactNode;
   /** 手动指定字段校验状态。 */
   validateStatus?: "success" | "warning" | "error" | "validating";
@@ -596,6 +596,8 @@ function FormItem({
   const form = useContext(FormContext);
   const id = useId();
   const itemRef = useRef<HTMLDivElement>(null);
+  const errorContentRef = useRef<HTMLSpanElement>(null);
+  const [errorObscured, setErrorObscured] = useState(false);
   if (!form) throw new Error("Form.Item 必须在 Form 内使用");
   useSyncExternalStore(form.subscribe, form.getSnapshot, form.getSnapshot);
   const path = name === undefined ? undefined : pathArray(name);
@@ -606,6 +608,55 @@ function FormItem({
   const helpContent = help ?? errors[0];
   const labelId = label && !noStyle ? `${id}-label` : undefined;
   const errorId = `${id}-error`;
+  const hasError = status === "error" && Boolean(helpContent);
+
+  useEffect(() => {
+    setErrorObscured(false);
+    if (!hasError || noStyle) return undefined;
+    const doc = itemRef.current?.ownerDocument;
+    const view = doc?.defaultView;
+    if (!doc || !view) return undefined;
+    let frame = 0;
+    let point: { x: number; y: number } | undefined;
+    // 浮层保持 pointer-events:none；监听穿透后的指针位置，不能靠浮层 hover 吞掉下方输入事件。
+    const measure = () => {
+      frame = 0;
+      const overlay = errorContentRef.current?.closest<HTMLElement>(".sia-form-item__error-popover");
+      const bounds = overlay?.getBoundingClientRect();
+      if (!bounds) return;
+      // 透明后仍保留几何区域，不能卸载气泡，否则命中区域消失会导致反复显隐；边缘留出箭头范围。
+      const pointerInside = !!point && point.x >= bounds.left - 4 && point.x <= bounds.right + 4 && point.y >= bounds.top - 4 && point.y <= bounds.bottom + 4;
+      const active = doc.activeElement;
+      const otherControl = active?.matches("input, textarea, button, select, [role='combobox'], [contenteditable='true']") && !itemRef.current?.contains(active);
+      const focusedBounds = otherControl ? active?.getBoundingClientRect() : undefined;
+      // 键盘直接进入被遮挡字段时也让开，正在编辑本字段则保留自己的错误说明。
+      const coversFocus = !!focusedBounds && focusedBounds.width > 0 && focusedBounds.height > 0 && bounds.left < focusedBounds.right && bounds.right > focusedBounds.left && bounds.top < focusedBounds.bottom && bounds.bottom > focusedBounds.top;
+      setErrorObscured(pointerInside || coversFocus);
+    };
+    const schedule = () => { if (!frame) frame = view.requestAnimationFrame(measure); };
+    const move = (event: PointerEvent) => { point = { x: event.clientX, y: event.clientY }; schedule(); };
+    const leave = () => { point = undefined; schedule(); };
+    doc.addEventListener("pointermove", move, { passive: true });
+    doc.addEventListener("pointerdown", move, { passive: true });
+    doc.addEventListener("pointerleave", leave);
+    doc.addEventListener("scroll", schedule, true);
+    doc.addEventListener("focusin", schedule);
+    doc.addEventListener("focusout", schedule);
+    view.addEventListener("resize", schedule);
+    view.addEventListener("blur", leave);
+    schedule();
+    return () => {
+      view.cancelAnimationFrame(frame);
+      doc.removeEventListener("pointermove", move);
+      doc.removeEventListener("pointerdown", move);
+      doc.removeEventListener("pointerleave", leave);
+      doc.removeEventListener("scroll", schedule, true);
+      doc.removeEventListener("focusin", schedule);
+      doc.removeEventListener("focusout", schedule);
+      view.removeEventListener("resize", schedule);
+      view.removeEventListener("blur", leave);
+    };
+  }, [hasError, noStyle, helpContent]);
 
   useEffect(() => {
     if (!path) return undefined;
@@ -654,12 +705,11 @@ function FormItem({
 
   if (noStyle) return <>{content}</>;
   const inputWrap = <div className="sia-form-item__input-wrap">{content}</div>;
-  const hasError = status === "error" && Boolean(helpContent);
   return <div ref={itemRef} className={`sia-form-item${align === "center" ? " sia-form-item--align-center" : ""}${status ? ` sia-form-item--${status}` : ""} ${className}`.trim()} data-sia-form-field={key || undefined}>
     {label ? <div id={labelId} className="sia-form-item__label"><span className="sia-form-item__label-content">{ruleRequired ? <span className="sia-form-item__required-mark" aria-hidden="true">*</span> : null}{label}</span></div> : null}
     <div className="sia-form-item__control">
       <Tooltip
-        title={hasError ? <span id={errorId} className="sia-form-item__error-content">
+        title={hasError ? <span ref={errorContentRef} id={errorId} className="sia-form-item__error-content">
             <Icon className="sia-form-item__error-icon" name="circle-close" variant="filled" size={16} aria-hidden="true" />
             <span>{helpContent}</span>
           </span> : null}
@@ -668,7 +718,7 @@ function FormItem({
         open={hasError}
         role="alert"
         color="var(--sia-color-error)"
-        overlayClassName="sia-form-item__error-popover"
+        overlayClassName={`sia-form-item__error-popover${errorObscured ? " sia-form-item__error-popover--obscured" : ""}`}
       >
         {inputWrap}
       </Tooltip>

@@ -6,13 +6,13 @@ Windows 版本使用 Tauri 2.12 / Tao 0.37 的输入处理实现，避免键盘�
 
 ## 名称与图标
 
-程序显示名为“西娅浏览器”（Sia Browser），Windows 主进程为 `sia-browser.exe`，安装包为 `Sia-Browser-Setup-0.1.0-x64.exe`。品牌采用 S1-E 连笔 Sia 签名：粉紫、蓝、青的炫彩渐变填充、白色细描边，保留圆点与下方收笔线。所有图标均为透明背景；标题栏和新标签页使用横向字标，桌面、安装器与标签的小尺寸图标使用透明方形画布，按原比例居中显示签名。网页与原生图标均使用图稿本身的亮色，不依赖主题滤镜。
+程序显示名为“西娅浏览器”（Sia Browser），Windows 主进程为 `sia-browser.exe`，安装包为 `Sia-Browser-Setup-0.1.0-x64.exe`。品牌采用 A 版蓝青飞鸟与 S1-E 连笔 Sia 签名：蓝色、青色及浅冰蓝羽翼围成盘旋造型；前景签名使用珍珠白填充与深蓝细描边，保留圆点与下方收笔线。所有图标均为透明背景；标题栏和新标签页使用横向字标，桌面、安装器与标签的小尺寸图标使用透明方形画布，按原比例居中显示签名。网页与原生图标均使用图稿本身的亮色，不依赖主题滤镜。
 
 图标源文件为 `branding/sia-browser-source.png`，通过 `cargo tauri icon` 生成桌面图标；`public/brand` 保存网页图标和透明字标。运行 `node branding/build-signature-assets.cjs <sharp 模块路径>` 可从正式图稿重新导出网页尺寸与 1024px 桌面源图，再运行 `cargo tauri icon branding/sia-browser-source.png --output src-tauri/icons` 更新平台图标。应用标识 `com.sia.browser`、内部 `sia://` 地址和数据文件名保持稳定，不会另建用户数据空间。
 
 正式图稿与生成提示词见 [S1-E 品牌记录](branding/signature-s1e.md)。此前的图标源图保留在 `branding/sia-browser-source-before-s1e.png`；旧版抠图脚本不用于新字标。
 
-Windows 安装完成后会更新已有品牌任务栏快捷方式，将已知旧安装目录及开发构建目录迁移到当前安装目录，并使用 `app-s1e-iridescent.ico` 避免沿用旧图标缓存。迁移保留固定项目和启动参数，不操作其他软件的链接；隔离验证包跳过真实任务栏迁移。打包会核对 EXE 内嵌的全部图标帧与正式 ICO 是否一致。
+Windows 安装完成后会更新已有品牌任务栏快捷方式，将已知旧安装目录及开发构建目录迁移到当前安装目录，并使用 `app-s1e-blue-bird.ico` 避免沿用旧图标缓存。迁移保留固定项目和启动参数，不操作其他软件的链接；隔离验证包跳过真实任务栏迁移。打包会核对 EXE 内嵌的全部图标帧与正式 ICO 是否一致。
 
 ## 左侧树状标签与单行导航
 

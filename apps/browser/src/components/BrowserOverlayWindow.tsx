@@ -7,6 +7,8 @@ import {
   message,
 } from "@sia.soul/sia-react-ui";
 import PasswordManagerModal, { type PasswordSubmission } from "./PasswordManagerModal";
+import BookmarkImportModal from "./BookmarkImportModal";
+import type { BookmarkFolder } from "../bookmarks";
 
 export type BrowserOverlayFormKind =
   | "new-group"
@@ -48,6 +50,7 @@ interface ConfirmOverlayPayload {
 }
 
 export type BrowserOverlayPayload =
+  | { kind: "bookmark-import"; darkMode: boolean; folders: BookmarkFolder[]; folderOnly?: boolean }
   | FormOverlayPayload
   | PasswordManagerOverlayPayload
   | PasswordSaveOverlayPayload
@@ -158,6 +161,10 @@ export default function BrowserOverlayWindow() {
   }
 
   if (!payload) return null;
+  // 导入窗口复用原生覆盖层，避免网页组件遮挡来源与目标位置选择器。
+  if (payload.kind === "bookmark-import") return <BookmarkImportModal key={JSON.stringify(payload)} folders={payload.folders}
+    folderOnly={payload.folderOnly} onClose={() => void closeOverlay()}
+    onSubmit={result => sendAction("bookmarks-import", JSON.stringify(result))} />;
   if (payload.kind === "passwords") {
     return (
       <PasswordManagerModal

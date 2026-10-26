@@ -6,7 +6,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $target = Join-Path ([IO.Path]::GetFullPath($InstallDirectory)) 'sia-browser.exe'
-$icon = Join-Path $InstallDirectory 'app-s1e-iridescent.ico'
+$icon = Join-Path $InstallDirectory 'app-s1e-blue-bird.ico'
 if (-not (Test-Path -LiteralPath $target) -or -not (Test-Path -LiteralPath $icon)) { throw '新版程序或品牌图标缺失，不能迁移任务栏链接。' }
 if (-not (Test-Path -LiteralPath $PinnedDirectory)) { return }
 $shell = New-Object -ComObject WScript.Shell

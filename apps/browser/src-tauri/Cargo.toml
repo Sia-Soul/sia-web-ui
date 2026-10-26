@@ -16,6 +16,8 @@ tauri-build = { version = "2.7.4", features = [] }
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# 只读查询 Firefox 收藏夹，使用自带 SQLite 避免依赖用户安装的数据库组件。
+rusqlite = { version = "0.32", features = ["bundled"] }
 # 2.12 使用修复 Windows 键盘/焦点消息重入死锁的 Tao 0.37；锁文件固定实际构建版本。
 tauri = { version = "2.12.5", features = ["unstable", "devtools"] }
 # 启动屏障异步等待；扩展 COM 回调同时使用超时保护。
@@ -24,6 +26,8 @@ tokio = { version = "1", features = ["sync", "time"] }
 [target.'cfg(windows)'.dependencies]
 # 网页内核提供的 PNG 图标转为数据地址，避免外壳跨 Profile 再请求图标。
 base64 = "0.22"
+# 系统文件图标编码为透明 PNG，供下载面板直接显示。
+png = "0.18"
 rfd = "0.15"
 # 当前用户默认应用登记，沿用工作区记事本使用的注册表封装。
 winreg = "0.55"
@@ -32,6 +36,7 @@ webview2-com = "0.39"
 windows = { version = "0.62", features = [
   "Win32_Foundation",
   "Win32_Graphics_Gdi",
+  "Win32_Storage_FileSystem",
   "Win32_Security_Cryptography",
   # 安装器通过命名互斥体检测运行中的浏览器，避免覆盖或卸载正在使用的程序。
   "Win32_System_Threading",

@@ -7,7 +7,16 @@ const packageRoot = path.resolve(__dirname, '../packages/react');
 const filename = path.join(packageRoot, '__api-doc-consumer__.tsx').replaceAll('\\', '/');
 // 上传新增的命令式句柄、OSS 配置及自定义渲染同样从发布产物检查悬停。
 // 通用布局能力从发布入口验证，避免页面被迫重新实现内部行为。
-const source = `import { IdleGameApp, createIdleEngine, sampleHexPlayback } from '@sia.soul/sia-react-ui/game';
+const source = `import { createWorksheetPlugin, type TableWorksheetApi, type TableWorksheetPluginOptions } from '@sia.soul/sia-react-ui';
+declare const worksheetApi: TableWorksheetApi<Record<string, unknown>>;
+declare const worksheetOptions: TableWorksheetPluginOptions<Record<string, unknown>>;
+createWorksheetPlugin;
+worksheetApi.fillTo; worksheetApi.undo; worksheetApi.replaceData; worksheetOptions.onChange; worksheetOptions.canWrite;
+// 普通编辑器保持默认铅笔提示，工作表可关闭装饰而保留编辑行为。
+import type { TableEditablePluginOptions } from '@sia.soul/sia-react-ui';
+declare const editableOptions: TableEditablePluginOptions<Record<string, unknown>>;
+editableOptions.showEditIcon;
+import { IdleGameApp, createIdleEngine, sampleHexPlayback } from '@sia.soul/sia-react-ui/game';
 import type { FormInstance, FormFieldData, FormProps, ImagePreviewGroupProps, ImagePreviewProps, StepsProps } from '@sia.soul/sia-react-ui';
 declare const importSteps: StepsProps; importSteps.labelPlacement;
 declare const importUpload: UploadProps; importUpload.acceptMode;
@@ -315,6 +324,9 @@ cases.push(['importUpload.acceptMode', '完整失败明细']);
 cases.push(['externalValidationForm.setFields', '不触发'], ['externalValidationField.errors', '空数组']);
 // 校验失败与保存失败的区别必须保留在发布声明的编辑器提示中。
 cases.push(['fillForm.onFinish', '可返回 Promise'], ['fillForm.onFinishFailed', '仅字段校验失败']);
+// 工作表 API 必须从发布包解析并保留同步受控写回、整次历史和兼容检查约束。
+cases.push(['createWorksheetPlugin;', '整次撤销恢复'], ['worksheetApi.fillTo', '递增'], ['worksheetApi.undo', '整次操作'], ['worksheetApi.replaceData', '同一历史'], ['worksheetOptions.onChange', '同步'], ['worksheetOptions.canWrite', '跳过单元格']);
+cases.push(['editableOptions.showEditIcon', '默认 true']);
 for(const[needle,expected]of cases){const offset=needle.includes('.')?needle.lastIndexOf('.')+1:0;const pos=source.indexOf(needle)+offset+1;const info=service.getQuickInfoAtPosition(filename,pos);const text=ts.displayPartsToString(info?.documentation);assert(text.includes(expected),`${needle}: expected ${expected}, got ${JSON.stringify(text)}`);console.log(`PASS hover ${needle}: ${text.slice(0,70)}`);}
 for(const entry of ['index.d.ts','index.d.cts']){
   const text=fs.readFileSync(path.join(packageRoot,'dist',entry),'utf8');assert(text.includes('底部已保存快捷查询标签'));assert(text.includes('@defaultValue'));assert(!text.includes('\uFFFD'),'UTF-8 replacement character found');

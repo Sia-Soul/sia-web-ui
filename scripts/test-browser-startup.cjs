@@ -39,11 +39,15 @@ async function run() {
     for (const phase of ['cold', 'restored']) {
       const debugPort = await port();
       const child = spawn(executable, ['--diagnostic-data-dir', directory], {
-        windowsHide: true, stdio: 'ignore',
+        windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'],
         env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${debugPort}` },
       });
+      // 仅记录隔离夹具的运行日志，失败时保留等待链，不采集真实用户网页或凭据。
+      const diagnostics = [];
+      child.stderr.on('data', data => diagnostics.push(data.toString('utf8')));
       let browser;
       let phaseActive = true;
+      let restoreFixture;
       try {
         const endpoint = `http://127.0.0.1:${debugPort}`;
         await limit((async () => {
@@ -73,6 +77,18 @@ async function run() {
             await delay(100);
           }
         })(), 10000, `${phase}: 标签面板状态与原生线程`);
+        // 恢复期间快速切换不同隔离空间，覆盖创建 WebView 时侧栏继续发送 IPC 的重入路径。
+        if (phase === 'restored' && process.env.SIA_STARTUP_SWITCH_STRESS === '1') {
+          for (let index = 0; index < 24; index++) {
+            await limit(main.evaluate(id => window.__TAURI__.core.invoke('floating_tab_panel_action', {
+              action: { action: 'select', value: id },
+            }), `restore-${index % 6}`), 4000, '恢复期间切换页签');
+            await delay(100);
+          }
+          await limit(main.evaluate(() => window.__TAURI__.core.invoke('floating_tab_panel_action', {
+            action: { action: 'select', value: 'startup-fixture' },
+          })), 4000, '恢复到初始页签');
+        }
         if (phase === 'restored') {
           // 小分组使用独立 WebView2 环境，不能假定其页面属于壳层的 CDP 端口。
           // 本地服务器命中加原生标题回传共同验证网页已实际加载。
@@ -92,12 +108,27 @@ async function run() {
         execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(__dirname, 'probe-browser-test-window.ps1'), '-TestProcessId', String(child.pid)], { windowsHide: true, timeout: 10000 });
         if (phase === 'cold') {
           const persisted = {
-            tabs: [{ id: 'startup-fixture', title: '等待恢复', url: fixtureUrl, groupId: 'group-local', smallGroupId: 'local-admin', loading: false, hasWebview: false, sleeping: true }],
+            tabs: [{ id: 'startup-fixture', title: '等待恢复', url: fixtureUrl, groupId: 'group-local', smallGroupId: 'local-admin', loading: false, hasWebview: false, sleeping: true },
+              ...(process.env.SIA_STARTUP_SWITCH_STRESS === '1' ? Array.from({ length: 6 }, (_, index) => ({
+                id: `restore-${index}`, title: `恢复页 ${index}`, url: fixtureUrl, groupId: 'group-local',
+                smallGroupId: ['local-admin', 'local-brand', 'local-partner'][index % 3], sleeping: true,
+              })) : [])],
             groups: state.groups, activeId: 'startup-fixture', panelPinned: true,
           };
           await limit(main.evaluate(value => window.__TAURI__.core.invoke('save_browser_state', { state: value }), persisted), 5000, '保存恢复场景');
+          restoreFixture = persisted;
         }
         console.log(`PASS ${phase}: 原生线程、工具栏、标签面板及 20 次持续响应${phase === 'restored' ? '、真实网页恢复' : ''}`);
+      } catch (error) {
+        fs.writeFileSync(path.join(directory, `${phase}-native.log`), diagnostics.join(''), 'utf8');
+        try {
+          const probe = execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(__dirname, 'inspect-browser-hang.ps1'), '-BrowserProcessId', String(child.pid)], { windowsHide: true, timeout: 12000 });
+          fs.writeFileSync(path.join(directory, `${phase}-wait-chain.log`), probe);
+        } catch (probeError) {
+          if (probeError.stdout) fs.writeFileSync(path.join(directory, `${phase}-wait-chain.log`), probeError.stdout);
+        }
+        console.error(`诊断日志：${directory}`);
+        throw error;
       } finally {
         phaseActive = false;
         // 仅清理本次测试创建的进程树；绝不按进程名结束用户实例。
@@ -106,6 +137,8 @@ async function run() {
         });
         if (browser) await browser.close().catch(() => {});
         await delay(700);
+        // 停止测试实例后再固定下一轮资料，防止本轮自动保存覆盖人工写入的恢复夹具。
+        if (restoreFixture) fs.writeFileSync(path.join(directory, 'browser-state.json'), JSON.stringify(restoreFixture), 'utf8');
       }
     }
   } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }

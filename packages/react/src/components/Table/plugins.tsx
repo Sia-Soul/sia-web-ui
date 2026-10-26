@@ -2336,6 +2336,8 @@ export interface TableEditablePluginOptions<T> {
   ) => boolean | Promise<boolean>;
   /** 触发显示的交互方式。 */
   trigger?: "click" | "doubleClick";
+  /** 非编辑状态是否显示铅笔提示，默认 true；关闭后仍保留原点击或双击编辑交互。 */
+  showEditIcon?: boolean;
 }
 /** TableEditable的操作接口。 */
 export interface TableEditableApi {
@@ -2355,6 +2357,7 @@ function EditableTableCell<T extends Record<string, unknown>>({
   onSave,
   onCancel,
   trigger,
+  showEditIcon,
 }: {
   active: boolean;
   editable: boolean | TableEditableCellConfig<T>;
@@ -2365,6 +2368,7 @@ function EditableTableCell<T extends Record<string, unknown>>({
   onSave: (value: unknown) => Promise<boolean>;
   onCancel: () => void;
   trigger: "click" | "doubleClick";
+  showEditIcon: boolean;
 }) {
   const config =
     typeof editable === "object" ? editable : { type: "input" as const };
@@ -2437,7 +2441,7 @@ function EditableTableCell<T extends Record<string, unknown>>({
         onDoubleClick={trigger === "doubleClick" ? onStart : undefined}
       >
         <span>{content}</span>
-        <Icon name="edit" size={13} />
+        {showEditIcon && <Icon name="edit" size={13} />}
       </div>
     );
   let editor: ReactNode;
@@ -2535,6 +2539,7 @@ export function createEditablePlugin<T extends Record<string, unknown>>(
                 record={record}
                 content={content}
                 trigger={trigger}
+                showEditIcon={options.showEditIcon ?? true}
                 onStart={() =>
                   context.setState({
                     editing: { rowKey: info.row.key, columnKey: column.key },

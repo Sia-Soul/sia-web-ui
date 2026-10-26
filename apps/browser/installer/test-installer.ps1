@@ -63,7 +63,9 @@ $menuLink = Join-Path $shortcutDir '西娅浏览器安装验证.lnk'
 foreach ($link in @($menuLink, $desktopLink)) {
     if (-not (Test-Path -LiteralPath $link) -or $shell.CreateShortcut($link).TargetPath -ne $installedExe) { throw "快捷方式不正确：$link" }
 }
-if (@(Get-ChildItem -LiteralPath $installDir -File | Where-Object { $_.Name -notmatch '^(sia-browser\.exe|app\.ico|unins\d+\.(exe|dat))$' }).Count -ne 0) { throw '安装目录包含清单外文件。' }
+# 依据已校验的打包清单识别程序和品牌图标，仅额外允许安装器生成的卸载文件。
+$payloadNames = @($manifest.Files | ForEach-Object { $_.Name })
+if (@(Get-ChildItem -LiteralPath $installDir -File | Where-Object { $_.Name -notin $payloadNames -and $_.Name -notmatch '^unins\d+\.(exe|dat)$' }).Count -ne 0) { throw '安装目录包含清单外文件。' }
 
 # 覆盖安装必须沿用首次路径，保留不归安装器管理的用户文件。
 $sentinel = Join-Path $installDir '保留验证.txt'

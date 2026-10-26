@@ -897,8 +897,9 @@
 .sia-table__resize-handle:hover::after { background: var(--sia-color-primary); }
 .sia-table__editable-display { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 22px; cursor: text; }
 .sia-table__editable-display > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.sia-table__editable-display .sia-icon { flex: 0 0 auto; color: var(--sia-color-primary-text); opacity: 0; }
-.sia-table__editable-display:hover .sia-icon { opacity: 1; }
+/* 仅控制直属编辑提示图标，内容中的错误、状态图标保持各自颜色与可见性。 */
+.sia-table__editable-display > .sia-icon { flex: 0 0 auto; color: var(--sia-color-primary-text); opacity: 0; }
+.sia-table__editable-display:hover > .sia-icon { opacity: 1; }
 .sia-table__cell-content:has(> .sia-table__editor) { position: absolute; z-index: 8; inset: 0; overflow: visible; }
 .sia-table__editor { display: flex; width: 100%; height: 100%; margin: 0; }
 .sia-table__editor > .sia-field,

@@ -181,6 +181,8 @@ const TableBodyRow = memo(function TableBodyRow<T>({
 }: BodyRowProps<T>) {
   return (
     <tr
+      // 稳定行标识用于工作表填充在虚拟滚动后定位当前可见行。
+      data-row-key={String(row.key)}
       data-canvas-row-index={canvas ? rowIndex : undefined}
       className={`sia-table__row${striped && rowIndex % 2 === 1 ? " sia-table__row--striped" : ""} ${className}`.trim()}
       style={{ height: rowHeight }}

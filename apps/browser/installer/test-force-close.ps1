@@ -42,12 +42,19 @@ public static class InstallerButtons {
  [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr window,out uint pid);
  [DllImport("user32.dll",CharSet=CharSet.Unicode)] static extern int GetWindowText(IntPtr window,StringBuilder text,int count);
  [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr window);
+ [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left,Top,Right,Bottom; }
+ [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr window,out Rect rect);
+ // 验证操作按钮在向导底部同一行，避免回退成向导之前的独立任务对话框。
+ public static bool SameRow(IntPtr first,IntPtr second) {
+  Rect a,b; return GetWindowRect(first,out a)&&GetWindowRect(second,out b)&&Math.Abs(a.Top-b.Top)<=2&&a.Right<=b.Left;
+ }
  [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr window,uint message,IntPtr w,IntPtr l);
  public static IntPtr Find(uint[] pids,string caption) {
-  IntPtr result=IntPtr.Zero;
+  IntPtr result=IntPtr.Zero; bool exact=false;
   EnumWindows((window,data)=>{uint pid;GetWindowThreadProcessId(window,out pid);
    if(Array.IndexOf(pids,pid)>=0) EnumChildWindows(window,(child,unused)=>{var text=new StringBuilder(512);GetWindowText(child,text,512);
-    if(IsWindowVisible(child)&&text.ToString().Contains(caption)) result=child; return true;},IntPtr.Zero);
+    if(IsWindowVisible(child)&&text.ToString()==caption) {result=child;exact=true;}
+    else if(!exact&&IsWindowVisible(child)&&text.ToString().Contains(caption)) result=child; return true;},IntPtr.Zero);
    return true;},IntPtr.Zero);
   return result;
  }
@@ -81,6 +88,12 @@ function Start-Fixture([string]$Kind) {
     if (-not (Test-Path -LiteralPath $ready)) { throw '测试进程启动失败' }
     return $process
 }
+# 原生向导的取消会要求确认；只操作当前测试安装器的确认按钮。
+function Cancel-Setup {
+    Click-Button '取消'
+    Click-Button '是'
+    if (-not $setup.WaitForExit(10000)) { throw '取消后安装向导未退出' }
+}
 try {
     $fixture = Start-Fixture 'unrelated'
     $report = Join-Path $testRoot 'close-result.txt'
@@ -91,15 +104,33 @@ try {
     $silent = Start-Process -FilePath $installer -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-' -WindowStyle Hidden -PassThru -Wait
     if ($silent.ExitCode -eq 0 -or $fixture.HasExited) { throw '静默安装必须阻止安装且不关闭浏览器' }
     $setup = Start-Process -FilePath $installer -ArgumentList ('/SP- /LOG="' + (Join-Path $testRoot 'cancel.log') + '"') -WindowStyle Hidden -PassThru
-    Click-Button '取消'
-    if (-not $setup.WaitForExit(10000) -or $fixture.HasExited) { throw '取消安装不能关闭浏览器' }
+    # 浏览器仍在运行时也必须先出现欢迎向导，不能先显示拦截弹窗。
+    $null = Find-Button '下一步'
+    Cancel-Setup
+    if ($fixture.HasExited) { throw '取消安装不能关闭浏览器' }
     $setup = Start-Process -FilePath $installer -ArgumentList ('/SP- /LOG="' + (Join-Path $testRoot 'close.log') + '"') -WindowStyle Hidden -PassThru
+    Click-Button '下一步'
+    $retry = Find-Button '重新检测'
+    $force = Find-Button '强制关闭并继续'
+    if (-not [InstallerButtons]::SameRow($retry, $force)) { throw '运行处理按钮未排列在向导底部同一行' }
     Click-Button '重新检测'
     if ($fixture.HasExited) { throw '重新检测不能关闭浏览器' }
-    Click-Button '强制关闭并继续安装'
+    Click-Button '强制关闭并继续'
     if (-not $fixture.WaitForExit(15000)) { throw '强制关闭按钮未结束测试浏览器' }
-    $null = Find-Button '下一步'
-    Write-Host 'PASS：同名异产品不误关、静默保护、取消、重新检测、强制关闭、进入安装向导。'
+    $null = Find-Button '选择目标位置'
+    Cancel-Setup
+    # 用户手动关闭后重新检测，须恢复正常“下一步”并继续到安装目录页。
+    $fixture.Dispose()
+    $fixture = Start-Fixture 'browser'
+    $setup = Start-Process -FilePath $installer -ArgumentList '/SP-' -WindowStyle Hidden -PassThru
+    Click-Button '下一步'
+    $null = Find-Button '强制关闭并继续'
+    $fixture.Kill(); $fixture.WaitForExit()
+    Click-Button '重新检测'
+    $null = Find-Button '运行检测通过'
+    Click-Button '下一步'
+    $null = Find-Button '选择目标位置'
+    Write-Host 'PASS：先显示欢迎向导、独立检测步骤、底部动作按钮、同名异产品不误关、静默保护、取消、重新检测、强制关闭及手动关闭后继续。'
 } finally {
     # 只结束本次启动并追踪的验证进程；不按全局进程名清理。
     if ($setup -and -not $setup.HasExited) { & taskkill /PID $setup.Id /T /F | Out-Null }
