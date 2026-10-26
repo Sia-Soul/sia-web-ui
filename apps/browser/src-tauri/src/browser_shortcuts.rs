@@ -2,7 +2,9 @@
 use tauri::{AppHandle, Emitter, Webview};
 use webview2_com::{
     AcceleratorKeyPressedEventHandler,
-    Microsoft::Web::WebView2::Win32::{COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN, COREWEBVIEW2_KEY_EVENT_KIND_SYSTEM_KEY_DOWN},
+    Microsoft::Web::WebView2::Win32::{
+        COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN, COREWEBVIEW2_KEY_EVENT_KIND_SYSTEM_KEY_DOWN,
+    },
 };
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     GetKeyState, VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
@@ -22,15 +24,23 @@ pub async fn attach(app: &AppHandle, view: &Webview, tab_id: String) -> Result<(
                 let mut key = 0;
                 args.KeyEventKind(&mut kind)?;
                 args.VirtualKey(&mut key)?;
-                if (kind != COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN && kind != COREWEBVIEW2_KEY_EVENT_KIND_SYSTEM_KEY_DOWN)
+                if (kind != COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN
+                    && kind != COREWEBVIEW2_KEY_EVENT_KIND_SYSTEM_KEY_DOWN)
                     || [VK_LWIN, VK_RWIN]
                         .iter()
                         .any(|key| GetKeyState(i32::from(key.0)) < 0)
                 {
                     return Ok(());
                 }
-                let Some(action) = shortcut_action(key, GetKeyState(i32::from(VK_CONTROL.0)) < 0,
-                    GetKeyState(i32::from(VK_SHIFT.0)) < 0, GetKeyState(i32::from(VK_MENU.0)) < 0, &tab_id) else { return Ok(()); };
+                let Some(action) = shortcut_action(
+                    key,
+                    GetKeyState(i32::from(VK_CONTROL.0)) < 0,
+                    GetKeyState(i32::from(VK_SHIFT.0)) < 0,
+                    GetKeyState(i32::from(VK_MENU.0)) < 0,
+                    &tab_id,
+                ) else {
+                    return Ok(());
+                };
                 // 必须在原生加速键阶段标记已处理，防止 WebView2 弹出内置下载面板。
                 args.SetHandled(true)?;
                 let mut lparam = 0;
@@ -64,14 +74,37 @@ pub async fn attach(app: &AppHandle, view: &Webview, tab_id: String) -> Result<(
 /// 使用与前端相同的快捷键表，避免焦点切换后出现功能或修饰键差异。
 fn shortcut_action(key: u32, ctrl: bool, shift: bool, alt: bool, tab_id: &str) -> Option<String> {
     #[derive(serde::Deserialize)]
-    struct Binding { key: String, #[serde(default)] ctrl: bool, #[serde(default)] shift: bool, #[serde(default)] alt: bool, action: String }
+    struct Binding {
+        key: String,
+        #[serde(default)]
+        ctrl: bool,
+        #[serde(default)]
+        shift: bool,
+        #[serde(default)]
+        alt: bool,
+        action: String,
+    }
     static BINDINGS: std::sync::OnceLock<Vec<Binding>> = std::sync::OnceLock::new();
-    let bindings = BINDINGS.get_or_init(|| serde_json::from_str(include_str!("../../src/browserShortcuts.json")).expect("快捷键表必须有效"));
+    let bindings = BINDINGS.get_or_init(|| {
+        serde_json::from_str(include_str!("../../src/browserShortcuts.json"))
+            .expect("快捷键表必须有效")
+    });
     let key_name = match key {
-        0x09 => "tab".into(), 0x21 => "pageup".into(), 0x22 => "pagedown".into(), 0x73 => "f4".into(),
-        0x30..=0x39 | 0x41..=0x5A => char::from_u32(key)?.to_ascii_lowercase().to_string(), _ => return None,
+        0x09 => "tab".into(),
+        0x21 => "pageup".into(),
+        0x22 => "pagedown".into(),
+        0x73 => "f4".into(),
+        0x30..=0x39 | 0x41..=0x5A => char::from_u32(key)?.to_ascii_lowercase().to_string(),
+        _ => return None,
     };
-    bindings.iter().find(|binding| binding.key == key_name && binding.ctrl == ctrl && binding.shift == shift && binding.alt == alt)
+    bindings
+        .iter()
+        .find(|binding| {
+            binding.key == key_name
+                && binding.ctrl == ctrl
+                && binding.shift == shift
+                && binding.alt == alt
+        })
         .map(|binding| format!("shortcut|{}|{tab_id}", binding.action))
 }
 
@@ -82,12 +115,32 @@ mod tests {
     #[test]
     fn download_shortcut_routes_to_shell_without_changing_close() {
         // 下载指向外壳面板，关闭仍携带来源标签，其余加速键交还网页。
-        assert_eq!(shortcut_action(0x4A, true, false, false, "sample").as_deref(), Some("shortcut|downloads|sample"));
-        assert_eq!(shortcut_action(0x57, true, false, false, "sample").as_deref(), Some("shortcut|close-tab|sample"));
-        assert_eq!(shortcut_action(0x44, false, false, true, "sample").as_deref(), Some("shortcut|address|sample"));
-        assert_eq!(shortcut_action(0x54, true, true, false, "sample").as_deref(), Some("shortcut|reopen-tab|sample"));
+        assert_eq!(
+            shortcut_action(0x4A, true, false, false, "sample").as_deref(),
+            Some("shortcut|downloads|sample")
+        );
+        assert_eq!(
+            shortcut_action(0x57, true, false, false, "sample").as_deref(),
+            Some("shortcut|close-tab|sample")
+        );
+        assert_eq!(
+            shortcut_action(0x44, false, false, true, "sample").as_deref(),
+            Some("shortcut|address|sample")
+        );
+        assert_eq!(
+            shortcut_action(0x54, true, true, false, "sample").as_deref(),
+            Some("shortcut|reopen-tab|sample")
+        );
         // 查找、打印、缩放、控制台及编辑组合保持未处理，让 WebView2 执行。
-        for (key, shift) in [(0x46, false), (0x50, false), (0xBB, false), (0x4A, true), (0x43, false), (0x56, false), (0x5A, false)] {
+        for (key, shift) in [
+            (0x46, false),
+            (0x50, false),
+            (0xBB, false),
+            (0x4A, true),
+            (0x43, false),
+            (0x56, false),
+            (0x5A, false),
+        ] {
             assert_eq!(shortcut_action(key, true, shift, false, "sample"), None);
         }
     }

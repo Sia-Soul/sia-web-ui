@@ -603,6 +603,8 @@ body.browser-tab-panel-document__body,
 
 /* 导入弹窗沿用主题控件；标签、选择器和状态信息按单列排列。 */
 .browser-bookmark-import { display: grid; gap: 10px; }
+.browser-bookmark-import > .sia-select { width: 100%; }
+.browser-bookmark-import > .sia-button { justify-self: start; }
 .browser-bookmark-import > label { margin-top: 6px; font-weight: 600; }
 .browser-bookmark-import > small { color: var(--sia-color-text-secondary); line-height: 1.6; }
 

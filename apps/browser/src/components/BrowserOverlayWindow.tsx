@@ -164,7 +164,11 @@ export default function BrowserOverlayWindow() {
   // 导入窗口复用原生覆盖层，避免网页组件遮挡来源与目标位置选择器。
   if (payload.kind === "bookmark-import") return <BookmarkImportModal key={JSON.stringify(payload)} folders={payload.folders}
     folderOnly={payload.folderOnly} onClose={() => void closeOverlay()}
-    onSubmit={result => sendAction("bookmarks-import", JSON.stringify(result))} />;
+    onSubmit={async result => {
+      // 传递失败时保留弹窗和用户选项，成功交接给主窗口之后再卸载内容。
+      await invokeNative("browser_overlay_action", { action: { action: "bookmarks-import", value: JSON.stringify(result) } });
+      setPayload(null);
+    }} />;
   if (payload.kind === "passwords") {
     return (
       <PasswordManagerModal

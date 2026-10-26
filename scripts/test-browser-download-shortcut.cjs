@@ -32,7 +32,7 @@ const { chromium } = require('playwright');
     // 用同一张表覆盖 30 个映射，同时确认网页基础能力不被外壳吞掉。
     const mapping = await page.evaluate(async () => {
       const { browserShortcut } = await import('/src/browserShortcuts.ts');
-      const { default: bindings } = await import('/src/browserShortcuts.json');
+      const bindings = await fetch('/src/browserShortcuts.json').then(response => response.json());
       return { matches: bindings.every(binding => browserShortcut(new KeyboardEvent('keydown', {
         key: binding.key, ctrlKey: Boolean(binding.ctrl), shiftKey: Boolean(binding.shift), altKey: Boolean(binding.alt),
       })) === binding.action), retained: ['f', 'p', '+', '-', '0', 'c', 'v', 'x', 'z'].every(key =>
