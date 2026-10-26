@@ -47,15 +47,19 @@ const { chromium } = require(path.join(process.argv[2], 'playwright'));
     assert.equal((await actions()).length, 1, 'URL editing must not drag window');
     await page.evaluate(() => window.handlers['sia://browser-event']({ payload: { kind: 'title', tabId: 'test', title: '标题更新后的当前网页名称与很长的说明文字' } }));
     await page.waitForFunction(() => document.querySelector('.browser-address-title').textContent.startsWith('标题更新'));
-    for (const width of [960, 1200]) {
+    await page.evaluate(() => window.handlers['sia://browser-event']({ payload: { kind: 'title', tabId: 'test', title: '很长的网站标题'.repeat(40) } }));
+    for (const width of [800, 960, 1200]) {
       await page.setViewportSize({ width, height: 800 });
       const geometry = await title.evaluate(e => {
         const control = e.closest('.sia-input-control');
         const text = e.querySelector('.browser-address-title__text');
         return { title: e.getBoundingClientRect().width, control: control.getBoundingClientRect().width,
+          controlRight: control.getBoundingClientRect().right,
+          formRight: e.closest('.address-form').getBoundingClientRect().right,
           input: control.querySelector('input').getBoundingClientRect().width,
           ellipsis: getComputedStyle(text).textOverflow, overflows: text.scrollWidth > text.clientWidth };
       });
+      assert.ok(geometry.controlRight <= geometry.formRight + 1, 'address control must stay inside its allocated form width');
       assert.ok(geometry.title <= geometry.control * .34);
       assert.ok(geometry.input > geometry.control * .4);
       assert.equal(geometry.ellipsis, 'ellipsis');

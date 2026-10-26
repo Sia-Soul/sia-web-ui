@@ -206,6 +206,9 @@ fn owned_window(
         eprintln!("无法创建浮动窗口 {label}（{page}）：{error}");
         error.to_string()
     })?;
+    #[cfg(windows)]
+    crate::popup_window::install_frameless(window.hwnd().map_err(|error| error.to_string())?)
+        .map_err(|error| error.to_string())?;
     if hide_on_blur {
         let blur_window = window.clone();
         window.on_window_event(move |event| {

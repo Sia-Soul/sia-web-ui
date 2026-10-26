@@ -630,6 +630,10 @@ input {
 }
 
 /* 紧凑块减少留白；文字行不参与纵向压缩，避免名称上下沿被裁掉。 */
+.space-treemap button.sia-treemap__tile {
+  container: disk-space-tile / size;
+}
+
 .space-treemap .sia-treemap__content,
 .space-treemap .sia-treemap__tile.is-compact .sia-treemap__content {
   gap: 0;
@@ -640,6 +644,13 @@ input {
 .space-treemap .sia-treemap__content > .sia-treemap__value {
   flex: 0 0 auto;
   line-height: 1.2;
+}
+
+/* 8px 名称与 7px 容量的两行高度加内边距共 20px；更矮时优先保留名称。 */
+@container disk-space-tile (height < 20px) {
+  .space-treemap .sia-treemap__content > .sia-treemap__value {
+    display: none;
+  }
 }
 
 /* 磁盘块直接使用节点颜色，避免明暗主题叠加渐变后降低文件类型辨识度。 */

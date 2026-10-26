@@ -576,8 +576,8 @@ export default function VerticalTabTree({
           ) : null}
         </div>
       ) : null}
-      {/* 展开与收缩共享框架滚动条；切换时重新绑定当前滚动容器，统一支持双向溢出。 */}
-      <FloatingScrollbarProvider key={panelExpanded ? "expanded" : "compact"} targetRef={scrollContainerRef} />
+      {/* 收缩列表只保留滚轮滚动，不挂载浮动滚动条；展开时沿用框架滚动条。 */}
+      {panelExpanded ? <FloatingScrollbarProvider targetRef={scrollContainerRef} /> : null}
       {compactTooltip.bubble}
       {!floatingWindow ? (
         <div

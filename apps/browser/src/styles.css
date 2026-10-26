@@ -1046,8 +1046,8 @@ input {
 .address-form {
   position: relative;
   display: flex;
-  min-width: 220px;
-  flex: 1 1 auto;
+  min-width: 0;
+  flex: 1 1 0;
   align-items: center;
 }
 
@@ -1062,6 +1062,9 @@ input {
 
 .address-input {
   width: 100%;
+  min-width: 0;
+  /* Input 外层是 grid；禁止长标题的最小内容宽度撑大轨道并覆盖工具栏。 */
+  grid-template-columns: minmax(0, 1fr);
 }
 
 /* 标题占用输入框内部空间，最多占三分之一，网址仍保留主要编辑区域。 */
@@ -1094,6 +1097,7 @@ input {
 }
 
 .address-input .sia-input-control {
+  min-width: 0;
   height: 38px;
   padding: 0 44px 0 13px;
   background: transparent;
@@ -1339,15 +1343,26 @@ input {
 
 .vertical-tab-tree__compact-scroll {
   display: grid;
+  box-sizing: border-box;
+  grid-template-columns: minmax(0, 1fr);
   width: 100%;
+  min-width: 0;
   min-height: 0;
   flex: 1;
   align-content: start;
   justify-items: center;
   gap: 5px;
   padding: 6px 5px 46px;
-  /* 由框架按实际溢出接管滚动条，紧凑状态同样允许双向滚动。 */
-  overflow: auto;
+  /* 紧凑列表禁止横向滚动，纵向保留滚轮操作但不展示滚动条。 */
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.vertical-tab-tree__compact-scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .vertical-tree-compact-group {

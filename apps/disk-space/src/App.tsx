@@ -795,7 +795,7 @@ export default function App() {
           popupStyle={{ minWidth: 214 }}
           onContextMenu={prepareTreemapContextMenu}
         >
-          {/* 紧凑块保留两行文字高度；不足 22px 时隐藏标签，避免显示被裁掉的半行字。 */}
+          {/* 紧凑块从 12px 起显示名称；样式在不足 20px 时隐藏容量行，保留完整文字高度。 */}
           <Treemap
             className="space-treemap"
             data={data}
@@ -806,7 +806,7 @@ export default function App() {
             minTileWidth={44}
             minTileHeight={24}
             minLabelWidth={8}
-            minLabelHeight={22}
+            minLabelHeight={12}
             aggregateOverflow={false}
             showValueInCompactTiles
             emptyContent={isScanning ? <Spin tip="正在发现文件和文件夹" /> : "没有可显示的内容"}

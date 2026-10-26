@@ -163,6 +163,8 @@ const TAB_SLEEP_DELAY_MS = 60 * 60 * 1000;
 const COMPACT_VERTICAL_PANEL_WIDTH = 56;
 const DEFAULT_VERTICAL_PANEL_WIDTH = 292;
 const FLOATING_TAB_PANEL_SHADOW_SPACE = 8;
+// 面板表面距工具栏按钮底部 12px，保留间隔并使弹出位置贴近入口。
+const TOOLBAR_PANEL_GAP = 12;
 
 function createTabId() {
   return `tab-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -508,10 +510,15 @@ export default function App() {
       : tab;
 
     const inactiveSince = Date.now();
-    setTabs((current) => [
-      ...current.map((item) => item.id === currentTab.id ? { ...item, inactiveSince } : item),
-      nextTab,
-    ]);
+    setTabs((current) => {
+      const updated = current.map((item) => item.id === currentTab.id ? { ...item, inactiveSince } : item);
+      const anchorIndex = updated.findIndex((item) => item.id === (openerId ?? currentTab.id)
+        && item.groupId === resolvedGroupId && item.smallGroupId === resolvedSmallGroupId);
+      // 普通新建跟随当前标签；明确指定其他分组时仍加入目标分组末尾。
+      updated.splice(anchorIndex >= 0 ? anchorIndex + 1 : updated.length, 0, nextTab);
+      return updated;
+    });
+    activeTabRef.current = nextTab;
     setActiveId(nextTab.id);
     setAddressDraft(targetUrl);
 
@@ -1319,7 +1326,11 @@ export default function App() {
     }
     const removedTabs = tabs.filter((tab) => closingIds.has(tab.id));
     if (removedTabs.length === 0) return;
-    const firstClosedIndex = Math.min(...removedTabs.map((tab) => tabs.findIndex((item) => item.id === tab.id)));
+    const orderedTabs = getLayoutOrderedTabs();
+    const activeIndex = orderedTabs.findIndex((tab) => tab.id === activeId);
+    // 相邻位置按面板显示顺序计算，跨分组时也优先选择上方仍保留的标签。
+    const adjacentTab = orderedTabs.slice(0, activeIndex).reverse().find((tab) => !closingIds.has(tab.id))
+      ?? orderedTabs.slice(activeIndex + 1).find((tab) => !closingIds.has(tab.id));
     let remaining = tabs.filter((tab) => !closingIds.has(tab.id));
     if (remaining.length === 0) {
       const source = removedTabs[0];
@@ -1339,7 +1350,8 @@ export default function App() {
     }
 
     const openerIndex = remaining.findIndex(tab => tab.id === preferredActiveId);
-    const nextIndex = openerIndex >= 0 ? openerIndex : Math.min(firstClosedIndex, remaining.length - 1);
+    const adjacentIndex = remaining.findIndex(tab => tab.id === adjacentTab?.id);
+    const nextIndex = openerIndex >= 0 ? openerIndex : Math.max(0, adjacentIndex);
     const nextTab = remaining[nextIndex];
     const shouldRestore = nextTab.sleeping && Boolean(nextTab.url) && !isInternalBrowserUrl(nextTab.url);
     const activatedTab: BrowserTab = {
@@ -1441,9 +1453,10 @@ export default function App() {
     // 面板靠近窗口边缘时仍预留完整阴影空间，与原生 MENU_SHADOW_SPACE 和面板外边距保持一致。
     const shadowSpace = 20;
     const width = Math.min(size.width, Math.max(260, window.innerWidth - shadowSpace * 2));
-    const height = Math.min(size.height, Math.max(160, window.innerHeight - shadowSpace * 2));
     const x = Math.max(shadowSpace, Math.min(anchor.x, window.innerWidth - width - shadowSpace));
-    const y = Math.max(shadowSpace, Math.min(anchor.y, window.innerHeight - height - shadowSpace));
+    const y = Math.max(shadowSpace, Math.min(anchor.y + TOOLBAR_PANEL_GAP, window.innerHeight - shadowSpace - 1));
+    // 下方空间不足时缩短滚动区域，不把面板向上挤回工具栏。
+    const height = Math.max(1, Math.min(size.height, window.innerHeight - y - shadowSpace));
     void invokeNative("show_browser_panel", {
       // 按钮范围随每次点击更新，缩放或窗口移动后仍能正确识别重复点击。
       payload: { ...payload, triggerBounds: trigger?.getBoundingClientRect().toJSON() ?? payload.triggerBounds },
@@ -2018,7 +2031,7 @@ export default function App() {
     if (action === "select" && value) selectTab(value);
     else if (action === "close" && value) closeTab(value);
     else if (action === "toggle-audio" && value) toggleTabAudio(value);
-    else if (action === "new-root-tab") openTab(undefined, ROOT_GROUP_ID);
+    else if (action === "new-root-tab") openTab();
     else if (action === "new-group") openNewGroupModal();
     else if (action === "move-tab") {
       // 独立面板传入 JSON；仅接受已存在标签与分组，非法消息不改变状态。
@@ -2724,7 +2737,7 @@ export default function App() {
               darkMode,
               sourceWindow: "main",
               x: rect.right - 240,
-              y: rect.bottom,
+              y: rect.bottom + TOOLBAR_PANEL_GAP,
               triggerBounds: rect.toJSON(),
             }).catch((error) => {
               message.error(error instanceof Error ? error.message : String(error));
@@ -2966,7 +2979,7 @@ export default function App() {
               onClose={closeTab}
               onToggleAudio={toggleTabAudio}
               onNewTab={(groupId, smallGroupId) => openTab(undefined, groupId, smallGroupId)}
-              onNewRootTab={() => openTab(undefined, ROOT_GROUP_ID)}
+              onNewRootTab={() => openTab()}
               onNewGroup={openNewGroupModal}
               onToggleGroup={(groupId) => {
                 setCollapsedGroupIds((current) => (

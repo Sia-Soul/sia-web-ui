@@ -39,18 +39,18 @@ const { chromium } = require(require('node:path').join(process.argv[2], 'playwri
     }
     assert.deepEqual(await page.evaluate(() => window.shortcutTest.closed), []);
     await input.press('Control+w');
-    await page.waitForFunction(() => window.shortcutTest.state?.activeId === 'third');
+    await page.waitForFunction(() => window.shortcutTest.state?.activeId === 'first');
     assert.deepEqual(await page.evaluate(() => window.shortcutTest.closed), ['second']);
     // 原生网页快捷键复用菜单事件；验证它确实进入相同的关闭流程。
-    await page.evaluate(() => window.shortcutTest.listeners['sia://native-menu-action']({ payload: 'tab|third|close' }));
-    await page.waitForFunction(() => window.shortcutTest.state?.activeId === 'first');
     await page.evaluate(() => window.shortcutTest.listeners['sia://native-menu-action']({ payload: 'tab|first|close' }));
+    await page.waitForFunction(() => window.shortcutTest.state?.activeId === 'third');
+    await page.evaluate(() => window.shortcutTest.listeners['sia://native-menu-action']({ payload: 'tab|third|close' }));
     await page.waitForFunction(() => {
       const state = window.shortcutTest.state;
       return state?.tabs.length === 1 && !['first', 'second', 'third'].includes(state.activeId);
     });
-    assert.deepEqual(await page.evaluate(() => window.shortcutTest.closed), ['second', 'third', 'first']);
+    assert.deepEqual(await page.evaluate(() => window.shortcutTest.closed), ['second', 'first', 'third']);
     assert.equal(await page.evaluate(() => window.shortcutTest.state.tabs[0].url), '');
-    console.log('PASS Ctrl+W 关闭当前标签、长按和修饰键保护、原生关闭事件及最后标签保留空白页');
+    console.log('PASS Ctrl+W 关闭后优先上一个标签、首个标签关闭后选下一个、长按和修饰键保护、原生关闭事件及最后标签保留空白页');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

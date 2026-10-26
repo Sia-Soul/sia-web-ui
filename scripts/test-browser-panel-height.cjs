@@ -19,9 +19,13 @@ const { chromium } = require(path.join(process.argv[2], 'playwright'));
     const page = await browser.newPage({ viewport: { width: 800, height: 800 } });
     await page.addInitScript(() => {
       window.handlers = {};
+      window.closeCount = 0;
       window.__TAURI__ = {
         event: { listen: async (name, handler) => { window.handlers[name] = handler; return () => {}; } },
-        core: { invoke: async name => name === 'list_browser_extensions' ? window.testExtensions : undefined },
+        core: { invoke: async name => {
+          if (name === 'close_browser_menu') window.closeCount += 1;
+          return name === 'list_browser_extensions' ? window.testExtensions : undefined;
+        } },
       };
     });
     await page.goto(`http://127.0.0.1:${server.address().port}/menu.html`);
@@ -45,6 +49,10 @@ const { chromium } = require(path.join(process.argv[2], 'playwright'));
       const small = await show(kind, 1);
       const shortHeight = (await small.boundingBox()).height;
       assert.ok(shortHeight < 400, `${kind} should fit one item: ${shortHeight}`);
+      const before = await page.evaluate(() => window.closeCount);
+      // 表面外的 20px 留白用于阴影；点击必须关闭，不能命中系统标题栏。
+      await page.mouse.click(100, 10);
+      assert.equal(await page.evaluate(() => window.closeCount), before + 1, `${kind} shadow click dismisses`);
       const large = await show(kind, 40);
       const tallHeight = (await large.boundingBox()).height;
       assert.equal(tallHeight, 640, `${kind} maximum`);
