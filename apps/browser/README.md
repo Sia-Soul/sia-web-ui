@@ -90,6 +90,14 @@ Windows 菜单、工具栏面板和悬停提示使用普通附属窗口，不设
 
 ## 验证与构建
 
+### 收藏夹导入与快捷键
+
+收藏夹面板右上角的“导入收藏夹”入口检测当前 Windows 用户标准配置目录中的 Edge、Chrome、Firefox、Brave、Vivaldi、Opera、Chromium、QQ 和 360 浏览器数据。多个用户配置分别显示；非标准位置或尚未创建收藏数据的配置不保证自动发现。导入前选择根目录或任意已有文件夹，也可填写一个新子文件夹名称。导入仅追加，保留来源目录、同级顺序和中文名称，不覆盖已有收藏，不修改来源文件；重复导入会追加另一份。文件夹和收藏链接一并持久化，兼容旧版平面收藏列表。
+
+前端和 WebView2 原生快捷键共用 `src/browserShortcuts.json`：Ctrl+J 下载、Ctrl+H 历史、Ctrl+Shift+O 收藏夹、Ctrl+D 收藏当前页、Ctrl+Shift+D 收藏全部网页、Ctrl+Shift+B 收藏栏；Ctrl+T 新建、Ctrl+Shift+T 恢复、Ctrl+W/Ctrl+F4 关闭、Ctrl+Shift+K 复制、Ctrl+M 静音；Ctrl+Tab/Ctrl+Shift+Tab 和 Ctrl+PageDown/Ctrl+PageUp 切换标签，Ctrl+1～8 定位、Ctrl+9 最后一个；Ctrl+L、Alt+D、F4、Ctrl+E、Ctrl+K 聚焦地址栏。独立 Tree 和工具面板转发到同一外壳入口，长按不重复触发。WebView2 中的查找、打印、缩放和文本编辑继续由内核处理，不全局关闭浏览器加速键。
+
+`scripts/test-browser-bookmark-import.cjs` 和 `scripts/test-browser-download-shortcut.cjs` 使用虚构来源与原生桥验证导入和快捷键，需要本机 1440 端口开发服务与 `NODE_PATH` 中的 Playwright；原生 `cargo test --lib` 覆盖 Chromium/Firefox 解析、配置检测和快捷键映射。
+
 桌面启动使用异步就绪屏障：原生壳层及辅助视图预加载完成后，才挂载主界面并恢复页签。`test:startup` 使用真实发布 EXE 和独立临时资料目录检查首次启动、恢复网页和原生线程响应；运行环境需要 Playwright。输入消息压力测试使用 `test:input-reentrancy`，两类检查不能相互替代，详见 [Windows 未响应诊断](docs/windows-input-hang.md)。
 
 收缩页签的气泡使用独立只读原生窗口覆盖网页，显示时不激活窗口，移出时立即关闭。`node scripts/test-browser-native-tooltip.cjs [EXE路径]` 使用独立资料、本地网页和系统鼠标验证首次及重复悬停、窗口层级和焦点；需要通过 `NODE_PATH` 提供 Playwright。测试会短暂激活诊断窗口并移动鼠标，结束后还原指针，只关闭自己创建的测试进程。
