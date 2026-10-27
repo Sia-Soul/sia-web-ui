@@ -44,6 +44,8 @@ windows = { version = "0.62", features = [
   "Win32_UI_Input_KeyboardAndMouse",
   "Win32_UI_Shell",
   "Win32_UI_WindowsAndMessaging",
+  # 在工具窗口创建/显示事件到达时立即遮蔽，避免先出现独立窗口再停靠。
+  "Win32_UI_Accessibility",
   # 停靠前核对 DPI 模式，避免跨进程 SetParent 导致缩放状态重置。
   "Win32_UI_HiDpi",
 ] }

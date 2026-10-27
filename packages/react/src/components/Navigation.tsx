@@ -6,6 +6,7 @@ import { Icon } from "./Icon";
 import { PopupPortal } from "./PopupPortal";
 import type { PopupPortalPlacement } from "./PopupPortal";
 import { useControllableState } from "./shared";
+import { hasFloatingScrollbarInteraction, resolveFloatingScrollbarTarget } from "./floatingScrollbarOwnership";
 
 /** 菜单排列模式；vertical 为纵向列表，horizontal 为横向菜单，inline 为内嵌子菜单，grid 为双列圆角卡片（图标在上、名称在下，子菜单以弹层展开）。 */
 export type MenuMode = "vertical" | "horizontal" | "inline" | "grid";
@@ -81,7 +82,7 @@ export interface MenuProps extends Omit<HTMLAttributes<HTMLUListElement>, "onCli
    * @defaultValue []
    */
   defaultSelectedKeys?: readonly string[];
-  /** 当前展开的子菜单标识集合。 */
+  /** 当前展开的子菜单标识集合；传入后须在 onOpenChange 中更新。弹出模式的交互只保留当前分支与祖先，展开的内嵌模式允许多分支。 */
   openKeys?: readonly string[];
   /**
    * 初始展开的子菜单标识集合。
@@ -123,7 +124,7 @@ export interface MenuProps extends Omit<HTMLAttributes<HTMLUListElement>, "onCli
   onDeselect?: (info: MenuClickInfo & {
   /** 当前选中项目的标识集合；传入后由外部控制。 */
   selectedKeys: string[] }) => void;
-  /** 打开状态改变时触发，参数为新的打开状态。 */
+  /** 子菜单交互改变展开状态时触发，参数为完整的展开键集合；弹出模式切换兄弟目录时同时移除旧分支及后代。受控时应将该集合写回 openKeys。 */
   onOpenChange?: (keys: string[]) => void;
 }
 
@@ -138,6 +139,8 @@ type MenuLevelContext = Required<Pick<MenuProps, "interactionCursor" | "mode" | 
 
 function MenuPopup({
   anchorRef,
+  popupRef,
+  keyPath,
   open,
   placement,
   menuId,
@@ -147,6 +150,10 @@ function MenuPopup({
   onMouseLeave,
 }: {
   anchorRef: RefObject<HTMLElement | null>;
+  /** 子菜单表面引用，供延迟关闭判断浮动滚动条是否仍在交互。 */
+  popupRef: RefObject<HTMLDivElement>;
+  /** 当前目录及祖先键，用于跨 Portal 判断深层滚动条是否属于此分支。 */
+  keyPath: readonly string[];
   open: boolean;
   placement: PopupPortalPlacement;
   menuId: string;
@@ -178,13 +185,16 @@ function MenuPopup({
   }, [open]);
 
   return <PopupPortal
+    ref={popupRef}
     anchorRef={anchorRef}
     open={mounted}
     placement={placement}
-    offset={4}
+    // 侧向锚点位于行按钮内，预留 16px 跨过父面板内边距和边框，确保面板间有可见空隙。
+    offset={placement.startsWith('right') || placement.startsWith('left') ? 16 : 4}
     className={`sia-menu__popup sia-menu--${theme}${open ? " is-open" : " is-closing"}`}
     style={{ fontSize }}
     data-sia-menu-owner={menuId}
+    data-sia-menu-path={JSON.stringify(keyPath)}
     onMouseEnter={onMouseEnter}
     onMouseLeave={onMouseLeave}
   >
@@ -206,7 +216,11 @@ function MenuEntry({
   reserveIcon: boolean;
 }) {
   const anchorRef = useRef<HTMLButtonElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
   const closeTimerRef = useRef<number | undefined>(undefined);
+  // 延迟关闭必须使用最新菜单状态，避免旧回调把已经关闭的兄弟菜单重新写回。
+  const toggleRef = useRef(props.toggle);
+  useLayoutEffect(() => { toggleRef.current = props.toggle; });
   const hasChildren = Boolean(item.children?.length);
   const isOpen = props.open.includes(item.key);
   const isSelected = props.selected.includes(item.key);
@@ -227,7 +241,16 @@ function MenuEntry({
 
   function scheduleClose() {
     cancelClose();
-    closeTimerRef.current = window.setTimeout(() => props.toggle(item.key, false), 100);
+    closeTimerRef.current = window.setTimeout(() => {
+      // 子级 Portal 不在祖先 DOM 内；同一菜单的深层滑块交互也须保留祖先层。
+      const interacting = hasFloatingScrollbarInteraction(popupRef.current)
+        || [...document.querySelectorAll<HTMLElement>('.sia-menu__popup[data-sia-menu-owner]')]
+          .some(popup => popup.dataset.siaMenuOwner === props.menuId
+            && (JSON.parse(popup.dataset.siaMenuPath ?? '[]') as string[]).includes(item.key)
+            && hasFloatingScrollbarInteraction(popup));
+      if (interacting) { scheduleClose(); return; }
+      toggleRef.current(item.key, false);
+    }, 100);
   }
 
   const hover = props.triggerSubMenuAction === "hover" && hasChildren && !inlineSubmenu;
@@ -263,6 +286,8 @@ function MenuEntry({
       ? <ul className="sia-menu__submenu" role="menu" aria-hidden={!isOpen}>{submenu}</ul>
       : <MenuPopup
         anchorRef={anchorRef}
+        popupRef={popupRef}
+        keyPath={path}
         open={isOpen}
         placement={popupPlacement}
         menuId={props.menuId}
@@ -303,7 +328,7 @@ function MenuLevel({
   </>;
 }
 
-/** 菜单组件。 */
+/** 菜单组件；弹出子菜单切换时只保留当前分支及其祖先，内嵌模式允许多分支展开；操作浮动滚动条时保持对应菜单展开。侧向子菜单距父菜单项水平偏移 16px，上下弹出偏移 4px，空间不足时自动翻转方向。 */
 export function Menu({
   items,
   mode = "vertical",
@@ -332,6 +357,22 @@ export function Menu({
   const rootRef = useRef<HTMLUListElement>(null);
   const [selected, setSelected] = useControllableState<readonly string[]>({ value: selectedKeys, defaultValue: defaultSelectedKeys });
   const [open, setOpen] = useControllableState<readonly string[]>({ value: openKeys, defaultValue: defaultOpenKeys, onChange: (next) => onOpenChange?.([...next]) });
+  // 同一批次可能触发多个关闭计时器；每次计算都接续上一次结果，而非同一渲染快照。
+  const pendingOpenRef = useRef(open);
+  useLayoutEffect(() => { pendingOpenRef.current = open; });
+  // 级联菜单按分支互斥，索引祖先链使打开兄弟目录与清理旧后代在同次更新完成。
+  const popupPaths = useMemo(() => {
+    const paths = new Map<string, readonly string[]>();
+    const visit = (entries: readonly MenuItem[], parents: readonly string[]) => {
+      for (const entry of entries) {
+        const path = [...parents, entry.key];
+        paths.set(entry.key, path);
+        if (entry.children) visit(entry.children, path);
+      }
+    };
+    visit(items, []);
+    return paths;
+  }, [items]);
   const revealedKey = useRef<string>();
   const firstSelected = selected[0];
 
@@ -362,7 +403,7 @@ export function Menu({
   useEffect(() => {
     if (mode === "inline" || !open.length) return undefined;
     const closeOutside = (event: PointerEvent) => {
-      const target = event.target as Node;
+      const target = resolveFloatingScrollbarTarget(event.target) as Node;
       if (rootRef.current?.contains(target)) return;
       const owner = target instanceof Element ? target.closest("[data-sia-menu-owner]")?.getAttribute("data-sia-menu-owner") : null;
       if (owner !== menuId) setOpen([]);
@@ -372,8 +413,17 @@ export function Menu({
   }, [menuId, mode, open.length, setOpen]);
 
   function toggle(key: string, force?: boolean) {
-    const shouldOpen = force ?? !open.includes(key);
-    setOpen(shouldOpen ? (open.includes(key) ? open : [...open, key]) : open.filter((item) => item !== key));
+    const current = pendingOpenRef.current;
+    const shouldOpen = force ?? !current.includes(key);
+    // Portal 的进入事件会经过祖先；已经打开的祖先不应收起正在访问的后代。
+    if (shouldOpen === current.includes(key)) return;
+    const cascading = mode !== 'inline' || inlineCollapsed;
+    const branch = popupPaths.get(key) ?? [key];
+    const next = shouldOpen
+      ? [...current.filter(item => !cascading || branch.includes(item)), key]
+      : current.filter(item => item !== key && (!cascading || !popupPaths.get(item)?.includes(key)));
+    pendingOpenRef.current = next;
+    setOpen(next);
   }
   function select(item: MenuItem, keyPath: string[], domEvent: React.MouseEvent) {
     const info = { key: item.key, keyPath, domEvent, item };

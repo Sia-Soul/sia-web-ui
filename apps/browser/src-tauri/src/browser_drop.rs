@@ -12,6 +12,8 @@ pub fn attach(app: &tauri::AppHandle, webview: &tauri::Webview) -> Result<(), St
         ICoreWebView2File, ICoreWebView2WebMessageReceivedEventArgs2,
     }};
     let app = app.clone();
+    // 外部网页不能指定浏览器的业务隔离空间，位置元数据只信任两个自有 Tree 宿主。
+    let allow_tree_target = matches!(webview.label(), "main" | "sia-tab-panel-window");
     webview.with_webview(move |platform| {
         let result = (|| -> windows::core::Result<()> {
             let core = unsafe { platform.controller().CoreWebView2()? };
@@ -34,7 +36,13 @@ pub fn attach(app: &tauri::AppHandle, webview: &tauri::Webview) -> Result<(), St
                     }
                     _ => None,
                 };
-                if let Some(url) = url { let _ = app.emit_to("main", "sia://open-dropped-url", url); }
+                if let Some(url) = url {
+                    if allow_tree_target && message["kind"] == "sia-open-dropped-file" && message["target"].is_object() {
+                        let _ = app.emit_to("main", "sia://open-dropped-url", serde_json::json!({ "url": url, "target": message["target"] }));
+                    } else {
+                        let _ = app.emit_to("main", "sia://open-dropped-url", url);
+                    }
+                }
                 Ok(())
             }));
             let mut token = 0;

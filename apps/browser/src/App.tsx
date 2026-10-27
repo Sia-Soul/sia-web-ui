@@ -1,10 +1,13 @@
 import { extensionMatchesScope } from "./extensionScopes";
 import { browserShortcut } from "./browserShortcuts";
+import { newestDownloadsFirst, nextDownloadStartedAt } from "./downloadOrder";
+import { normalizeTabSleep, tabSleepMilliseconds, type TabSleepPreference } from "./browserPreferences";
 import { materializeBookmarks, type Bookmark, type BookmarkFolder, type ImportedBookmark } from "./bookmarks";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent, MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import {
   Button,
+  Dropdown,
   Icon,
   Input,
   WindowFrame,
@@ -12,11 +15,13 @@ import {
   applySiaTheme,
   message,
   type IconName,
+  type MenuItem,
   type WindowAction,
 } from "@sia.soul/sia-react-ui";
 import BrowserFavicon, { BrowserBrandGlyph } from "./components/BrowserFavicon";
+import type { BrowserDropTarget } from "./browserTypes";
 import VerticalTabTree from "./components/VerticalTabTree";
-import BrowserDevtoolsWorkspace, { requestBrowserDevtools } from "./components/BrowserDevtoolsWorkspace";
+import BrowserDevtoolsWorkspace, { requestBrowserDevtools, controlBrowserDevtools } from "./components/BrowserDevtoolsWorkspace";
 import type { BrowserOverlayPayload } from "./components/BrowserOverlayWindow";
 import type { FloatingTabPanelPayload } from "./components/BrowserTabPanelWindow";
 import type {
@@ -59,6 +64,8 @@ interface BrowserNativeEvent {
 }
 
 interface BrowserDownloadNativeEvent {
+  /** 首次收到此下载事件的时间，毫秒；持久化后保持不变，不随完成或进度更新。 */
+  startedAt?: number;
   id: string;
   tabId: string;
   state: "waiting" | "started" | "progress" | "finished";
@@ -73,6 +80,9 @@ interface BrowserDownloadNativeEvent {
 }
 
 interface BrowserPersistedState {
+  /** 休眠偏好与最近关闭记录跨启动保留，兼容没有这些字段的旧会话。 */
+  tabSleep?: TabSleepPreference;
+  closedEntries?: BrowserClosedEntry[];
   version: 1 | 2 | 3;
   tabs: BrowserTab[];
   groups: BrowserGroup[];
@@ -96,6 +106,16 @@ interface BrowserHistoryEntry {
   title: string;
   url: string;
   visitedAt: number;
+}
+
+/** 一次关闭操作；分组保留完整结构，用于展开查看和按原分组恢复。 */
+interface BrowserClosedEntry {
+  id: string;
+  closedAt: number;
+  tabs: BrowserTab[];
+  group?: BrowserGroup;
+  smallGroupId?: string;
+  title: string;
 }
 
 interface BrowserNavigationStack {
@@ -158,8 +178,6 @@ const GROUP_COLOR_PALETTE = [
   "#0086b3",
 ] as const;
 
-/** 已加载的后台标签连续未激活 1 小时后自动休眠，单位为毫秒。 */
-const TAB_SLEEP_DELAY_MS = 60 * 60 * 1000;
 const COMPACT_VERTICAL_PANEL_WIDTH = 56;
 const DEFAULT_VERTICAL_PANEL_WIDTH = 292;
 const FLOATING_TAB_PANEL_SHADOW_SPACE = 8;
@@ -273,7 +291,22 @@ export default function App() {
   const [bookmarkFolders, setBookmarkFolders] = useState<BookmarkFolder[]>([]);
   // 首次启动保留单行导航布局；恢复会话时仍尊重已保存的书签栏偏好。
   const [showBookmarksBar, setShowBookmarksBar] = useState(false);
-  const [closedTabs, setClosedTabs] = useState<BrowserTab[]>([]);
+  const [openBookmarkFolder, setOpenBookmarkFolder] = useState<string>();
+  const bookmarkFolderTriggers = useRef(new Map<string, HTMLButtonElement>());
+
+  useEffect(() => {
+    if (!window.__TAURI__) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    // 原生菜单在网页上点击外部或按 Escape 也能关闭，同步 Dropdown 的受控展开状态。
+    void window.__TAURI__.event.listen<{ visible: boolean; panelKey?: string }>("sia://browser-menu-visibility", ({ payload }) => {
+      setOpenBookmarkFolder(payload.visible && payload.panelKey?.startsWith("bookmark-folder|")
+        ? payload.panelKey.slice("bookmark-folder|".length) : undefined);
+    }).then(dispose => { if (disposed) dispose(); else unlisten = dispose; });
+    return () => { disposed = true; unlisten?.(); };
+  }, []);
+  const [closedTabs, setClosedTabs] = useState<BrowserClosedEntry[]>([]);
+  const [tabSleep, setTabSleep] = useState<TabSleepPreference>({ value: 1, unit: "hours" });
   const [windowMaximized, setWindowMaximized] = useState(false);
   const [windowActive, setWindowActive] = useState(() => document.hasFocus());
   const [windowResizeEdges, setWindowResizeEdges] = useState("");
@@ -429,7 +462,8 @@ export default function App() {
     ));
     if (candidates.length === 0) return undefined;
 
-    const nextSleepAt = Math.min(...candidates.map((tab) => (tab.inactiveSince ?? Date.now()) + TAB_SLEEP_DELAY_MS));
+    const sleepDelay = tabSleepMilliseconds(tabSleep);
+    const nextSleepAt = Math.min(...candidates.map((tab) => (tab.inactiveSince ?? Date.now()) + sleepDelay));
     const delay = Math.max(0, nextSleepAt - Date.now());
     const timer = window.setTimeout(() => {
       const now = Date.now();
@@ -437,7 +471,7 @@ export default function App() {
         .filter((tab) => (
           tab.id !== activeId
           && tab.inactiveSince !== undefined
-          && now - tab.inactiveSince >= TAB_SLEEP_DELAY_MS
+          && now - tab.inactiveSince >= sleepDelay
         ))
         .map((tab) => tab.id));
       if (sleepingIds.size === 0) return;
@@ -453,7 +487,7 @@ export default function App() {
     }, delay);
 
     return () => window.clearTimeout(timer);
-  }, [activeId, tabs, devtoolsTabIds]);
+  }, [activeId, tabs, devtoolsTabIds, tabSleep]);
 
   const updateTab = useCallback((tabId: string, patch: Partial<BrowserTab>) => {
     setTabs((current) => current.map((tab) => tab.id === tabId ? { ...tab, ...patch } : tab));
@@ -541,7 +575,7 @@ export default function App() {
     await openWebview();
   }, [syncBrowserBounds, updateTab]);
 
-  const openTab = useCallback((url?: string, groupId?: string, smallGroupId?: string, openerId?: string) => {
+  const openTab = useCallback((url?: string, groupId?: string, smallGroupId?: string, openerId?: string, beforeTabId?: string | null) => {
     const currentTab = activeTabRef.current;
     const resolvedGroupId = groupId ?? currentTab.groupId ?? DEFAULT_GROUP_ID;
     const resolvedSmallGroupId = smallGroupId ?? (groupId ? undefined : currentTab.smallGroupId);
@@ -560,7 +594,19 @@ export default function App() {
       const anchorIndex = updated.findIndex((item) => item.id === (openerId ?? currentTab.id)
         && item.groupId === resolvedGroupId && item.smallGroupId === resolvedSmallGroupId);
       // 普通新建跟随当前标签；明确指定其他分组时仍加入目标分组末尾。
-      updated.splice(anchorIndex >= 0 ? anchorIndex + 1 : updated.length, 0, nextTab);
+      let insertion = anchorIndex >= 0 ? anchorIndex + 1 : updated.length;
+      if (beforeTabId !== undefined) {
+        // 文件拖入按投放横线插入；等待原生路径解析期间锚点消失则退到目标区域末尾。
+        insertion = beforeTabId === null ? -1 : updated.findIndex(item => item.id === beforeTabId
+          && item.groupId === resolvedGroupId && item.smallGroupId === resolvedSmallGroupId);
+        if (insertion < 0) {
+          insertion = updated.length;
+          for (let index = updated.length - 1; index >= 0; index--) {
+            if (updated[index].groupId === resolvedGroupId && updated[index].smallGroupId === resolvedSmallGroupId) { insertion = index + 1; break; }
+          }
+        }
+      }
+      updated.splice(insertion, 0, nextTab);
       return updated;
     });
     setActiveId(nextTab.id);
@@ -580,12 +626,27 @@ export default function App() {
   useEffect(() => {
     let disposed = false;
     let unlisten: (() => void) | undefined;
-    // 外部拖入总是新建根级标签，不覆盖当前页面，也不混入业务小分组的登录态。
-    const openDropped = (url: string) => { if (!disposed) openTab(url, ROOT_GROUP_ID); };
+    // 网页区拖入保持根级新建；自有 Tree 的文件拖入按有效分组和投放锚点创建，不覆盖当前页面。
+    const openDropped = (payload: string | { url: string; target?: BrowserDropTarget }) => {
+      if (disposed) return;
+      const url = typeof payload === "string" ? payload : payload.url;
+      const target = typeof payload === "string" ? undefined : payload.target;
+      if (target) {
+        const group = groups.find(item => item.id === target.groupId);
+        const valid = (group || target.groupId === ROOT_GROUP_ID)
+          && (target.smallGroupId === undefined || group?.smallGroups.some(item => item.id === target.smallGroupId))
+          && (target.beforeTabId === null || typeof target.beforeTabId === "string");
+        if (valid) {
+          openTab(url, target.groupId, target.smallGroupId, undefined, target.beforeTabId);
+          return;
+        }
+      }
+      openTab(url, ROOT_GROUP_ID);
+    };
     const previewDrop = (event: Event) => openDropped((event as CustomEvent<string>).detail);
     window.addEventListener('sia-open-dropped-url', previewDrop);
     if (window.__TAURI__) {
-      void window.__TAURI__.event.listen<string>('sia://open-dropped-url', ({ payload }) => openDropped(payload))
+      void window.__TAURI__.event.listen<string | { url: string; target?: BrowserDropTarget }>('sia://open-dropped-url', ({ payload }) => openDropped(payload))
         .then(dispose => { if (disposed) dispose(); else unlisten = dispose; });
     }
     return () => {
@@ -593,7 +654,7 @@ export default function App() {
       unlisten?.();
       window.removeEventListener('sia-open-dropped-url', previewDrop);
     };
-  }, [openTab]);
+  }, [openTab, groups]);
 
   // 记录已建标签的请求编号；监听重建或确认失败后的重试不会重复创建同一标签。
   const receivedExternalOpens = useRef(new Set<number>());
@@ -923,15 +984,19 @@ export default function App() {
         if (Array.isArray(state.bookmarks)) setBookmarks(state.bookmarks);
         if (Array.isArray(state.bookmarkFolders)) setBookmarkFolders(state.bookmarkFolders);
         if (Array.isArray(state.history)) setHistoryEntries(state.history.slice(0, 1000));
+        setTabSleep(normalizeTabSleep(state.tabSleep));
+        if (Array.isArray(state.closedEntries)) setClosedTabs(state.closedEntries.filter(entry => entry?.id && Array.isArray(entry.tabs) && entry.tabs.length > 0).slice(-20));
         if (Array.isArray(state.downloads)) {
           setDownloadTasks(Object.fromEntries(
             state.downloads
               .filter((item) => item?.id)
-              .map((item) => [
+              .map((item, index) => [
                 item.id,
-                item.state === "finished"
+                { ...(item.state === "finished"
                   ? item
-                  : { ...item, state: "finished" as const, success: false },
+                  : { ...item, state: "finished" as const, success: false }),
+                  // 旧版本未记录时间，只能保留已保存的先后顺序；新下载使用实际触发时间。
+                  startedAt: item.startedAt ?? index + 1 },
               ]),
           ));
         }
@@ -1013,7 +1078,10 @@ export default function App() {
         bookmarks,
         bookmarkFolders,
         history: historyEntries,
-        downloads: allDownloadTasks.filter((task) => task.state === "finished").slice(-200),
+        tabSleep,
+        closedEntries: closedTabs,
+        // 按旧到新保存最近 200 项，兼容旧版恢复顺序并防止对象键顺序影响保留范围。
+        downloads: newestDownloadsFirst(allDownloadTasks.filter((task) => task.state === "finished")).slice(0, 200).reverse(),
         alwaysOpenDownloadExtensions,
         downloadDirectory,
         askBeforeDownload,
@@ -1041,6 +1109,8 @@ export default function App() {
     downloadDirectory,
     groups,
     historyEntries,
+    tabSleep,
+    closedTabs,
     showBookmarksBar,
     stateHydrated,
     tabs,
@@ -1229,6 +1299,7 @@ export default function App() {
             [payload.id]: {
               ...current[payload.id],
               ...payload,
+              startedAt: current[payload.id]?.startedAt ?? payload.startedAt ?? nextDownloadStartedAt(Object.values(current)),
             },
           };
         });
@@ -1449,7 +1520,8 @@ export default function App() {
       const source = removedTabs[0];
       remaining = [createBlankTab(source.groupId, source.smallGroupId)];
     }
-    setClosedTabs((current) => [...current, ...removedTabs].slice(-20));
+    // 同一次批量关闭保留为一条会话，避免丢失恢复时的顺序。
+    setClosedTabs((current) => [...current, { id: createTabId(), closedAt: Date.now(), tabs: removedTabs, title: removedTabs[0].title }].slice(-20));
 
     if (isDesktopRuntime) {
       for (const tab of removedTabs) {
@@ -1579,6 +1651,8 @@ export default function App() {
       width,
       height,
     }).catch((error) => {
+      // 原生文件夹菜单未能显示时恢复 Dropdown，避免触发器一直保持展开态。
+      if (payload.kind === "bookmark-folder") setOpenBookmarkFolder(undefined);
       message.error(error instanceof Error ? error.message : String(error));
     });
   }
@@ -1634,11 +1708,10 @@ export default function App() {
   }
 
   function downloadPanelEntries(): BrowserPanelEntry[] {
-    return allDownloadTasks
-      .slice()
-      .reverse()
+    return newestDownloadsFirst(allDownloadTasks)
       .map((task) => ({
         id: task.id,
+        startedAt: task.startedAt,
         title: task.fileName || task.sourceUrl || "未命名下载",
         fileName: task.fileName,
         filePath: task.filePath,
@@ -1701,6 +1774,13 @@ export default function App() {
         toggleKey: trigger ? "history" : undefined,
         items: [],
         entries,
+        // 最近关闭来自真实关闭操作，不能以访问时间过滤代替。
+        closedEntries: [...closedTabs].reverse().map(entry => ({
+          id: entry.id, title: entry.title, timestamp: entry.closedAt,
+          url: entry.tabs.length === 1 && !entry.group ? entry.tabs[0].url : undefined,
+          faviconUrl: entry.tabs.length === 1 && !entry.group ? entry.tabs[0].faviconUrl : undefined,
+          children: entry.group || entry.tabs.length > 1 ? entry.tabs.map(tab => ({ id: tab.id, title: tab.title, url: tab.url, faviconUrl: tab.faviconUrl })) : [],
+        })),
       },
       { x, y },
       { width: 360, height: 640 },
@@ -1708,7 +1788,7 @@ export default function App() {
     );
   }
 
-  function showBookmarksPanel(x = window.innerWidth - 380, y = 48, trigger?: HTMLElement, bookmarkFolderId?: string) {
+  function showBookmarksPanel(x = window.innerWidth - 380, y = 48, trigger?: HTMLElement) {
     // 原有收藏保持可访问，导入项使用持久化标识，文件夹在面板内展开而不导航网页。
     const entries: BrowserPanelEntry[] = [...bookmarkFolders.map(folder => ({ ...folder, folder: true })), ...bookmarks.map((bookmark, index) => ({
       id: bookmark.id ?? `bookmark-${index}`,
@@ -1722,7 +1802,6 @@ export default function App() {
       {
         darkMode,
         kind: "bookmarks",
-        bookmarkFolderId,
         panelKey: "bookmarks",
         toggleKey: trigger ? "bookmarks" : undefined,
         items: [],
@@ -1734,6 +1813,40 @@ export default function App() {
       { width: 360, height: 640 },
       trigger,
     );
+  }
+
+  /** 生成所选目录的菜单树，保留导入顺序并阻止损坏的父子关系循环。 */
+  function bookmarkFolderItems(folderId: string): BrowserMenuItem[] {
+    const entries: BrowserPanelEntry[] = [...bookmarkFolders.map(folder => ({ ...folder, folder: true })),
+      ...bookmarks.map((bookmark, index) => ({ ...bookmark, id: bookmark.id ?? `bookmark-${index}` }))];
+    function children(parentId: string, seen = new Set<string>()): BrowserMenuItem[] {
+      if (seen.has(parentId) || seen.size >= 64) return [];
+      const visited = new Set([...seen, parentId]);
+      const items = entries.filter(entry => entry.parentId === parentId)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+        .map(entry => entry.folder
+          ? { key: `bookmark-folder|${entry.id}`, label: entry.title, folder: true, children: children(entry.id, visited) }
+          : { key: `panel|bookmarks|open|${entry.id}`, label: entry.title, faviconUrl: entry.url });
+      return items.length ? items : [{ key: `empty|${parentId}`, label: "此文件夹为空", disabled: true }];
+    }
+    return children(folderId);
+  }
+
+  /** Dropdown 菜单与原生浮层共享同一份目录数据；普通网页预览也可使用框架菜单。 */
+  function bookmarkDropdownItems(items: BrowserMenuItem[]): MenuItem[] {
+    return items.map((item, index) => ({ key: item.key ?? `bookmark-${index}`, label: item.label, disabled: item.disabled,
+      icon: item.folder ? <Icon name="folder" size={16} /> : item.faviconUrl ? <BrowserFavicon url={item.faviconUrl} size={16} /> : undefined,
+      children: item.children ? bookmarkDropdownItems(item.children) : undefined }));
+  }
+
+  /** 收藏夹栏只打开所选目录的级联菜单；原生浮层覆盖网页，避免普通 DOM 菜单被 WebView 遮挡。 */
+  function showBookmarkFolder(folderId: string, trigger: HTMLElement) {
+    const items = bookmarkFolderItems(folderId);
+    const rect = trigger.getBoundingClientRect();
+    showBrowserPanel({ darkMode, kind: "bookmark-folder", items,
+      panelKey: `bookmark-folder|${folderId}`, toggleKey: `bookmark-folder|${folderId}` },
+      // 每行 32px、相邻行间隔 3px，加上下各 6px 内边距和 1px 边框，避免底部被裁切。
+      { x: rect.left, y: rect.bottom }, { width: 320, height: items.length * 35 + 11 }, trigger);
   }
 
   function toggleTabAudio(tabId: string) {
@@ -1878,41 +1991,63 @@ export default function App() {
 
   function reopenLastClosedTab() {
     const closed = closedTabs.at(-1);
+    if (closed) restoreClosedEntry(closed.id);
+  }
+
+  /** 恢复一个关闭会话或其中一个标签；只激活首项，其余网页保持休眠以避免同时启动多个内核。 */
+  function restoreClosedEntry(id: string, childId?: string) {
+    const closed = closedTabs.find(entry => entry.id === id);
     if (!closed) return;
-    const groupId = groups.some((group) => group.id === closed.groupId)
-      ? closed.groupId
-      : DEFAULT_GROUP_ID;
-    const internal = isInternalBrowserUrl(closed.url);
-    const restored: BrowserTab = {
-      ...closed,
-      id: createTabId(),
-      groupId,
-      loading: Boolean(closed.url) && !internal,
-      hasWebview: Boolean(closed.url) && !internal,
-      sleeping: false,
-      inactiveSince: undefined,
-      audible: false,
-    };
-    setClosedTabs((current) => current.slice(0, -1));
+    const sources = childId ? closed.tabs.filter(tab => tab.id === childId) : closed.tabs;
+    if (!sources.length) return;
+    let restoredGroups = groups;
+    if (closed.group) {
+      const saved = closed.group;
+      const smallGroups = closed.smallGroupId ? saved.smallGroups.filter(group => group.id === closed.smallGroupId) : saved.smallGroups;
+      const existing = groups.find(group => group.id === saved.id);
+      restoredGroups = existing ? groups.map(group => group.id === saved.id ? { ...group, smallGroups: [...group.smallGroups, ...smallGroups.filter(small => !group.smallGroups.some(item => item.id === small.id))] } : group)
+        : [...groups, { ...saved, smallGroups }];
+      setGroups(restoredGroups);
+    }
+    const restoredTabs = sources.map((source, index): BrowserTab => {
+      const group = restoredGroups.find(group => group.id === source.groupId);
+      const remote = Boolean(source.url) && !isInternalBrowserUrl(source.url);
+      return { ...source, id: createTabId(), groupId: group?.id ?? (source.groupId === ROOT_GROUP_ID ? ROOT_GROUP_ID : DEFAULT_GROUP_ID),
+        smallGroupId: group?.smallGroups.some(item => item.id === source.smallGroupId) ? source.smallGroupId : undefined,
+        loading: index === 0 && remote, hasWebview: index === 0 && remote, sleeping: index !== 0 && remote,
+        inactiveSince: index === 0 ? undefined : Date.now(), audible: false };
+    });
+    const restored = restoredTabs[0];
+    setClosedTabs(current => current.flatMap(entry => {
+      if (entry.id !== id) return [entry];
+      const remaining = childId ? entry.tabs.filter(tab => tab.id !== childId) : [];
+      return remaining.length ? [{ ...entry, tabs: remaining }] : [];
+    }));
     setTabs((current) => {
       const activeIndex = current.findIndex((tab) => tab.id === activeId);
       const next = current.map((tab) => tab.id === activeId
         ? { ...tab, inactiveSince: Date.now() }
         : tab);
-      next.splice(Math.max(0, activeIndex) + 1, 0, restored);
+      next.splice(Math.max(0, activeIndex) + 1, 0, ...restoredTabs);
       return next;
     });
     activeTabRef.current = restored;
     setActiveId(restored.id);
     setAddressDraft(restored.url);
     if (!isDesktopRuntime) return;
-    void activateNativeTab(restored, Boolean(restored.url) && !internal).catch((error) => {
+    void activateNativeTab(restored, restored.hasWebview).catch((error) => {
       updateTab(restored.id, { loading: false, hasWebview: false, sleeping: true });
       message.error(error instanceof Error ? error.message : String(error));
     });
   }
 
   function handleNativeMenuAction(action: string) {
+    // 停靠控制从分隔条的原生菜单转发，避免常驻标题工具栏占用网页空间。
+    if (action.startsWith("devtools|")) {
+      const [, tabId, command] = action.split("|");
+      controlBrowserDevtools(tabId, command);
+      return;
+    }
     if (action.startsWith("shortcut|")) {
       const [, command, sourceTabId] = action.split("|");
       handleShellShortcut(command, sourceTabId);
@@ -1976,7 +2111,7 @@ export default function App() {
           message.warning(error instanceof Error ? error.message : String(error));
         });
       } else if (key === "folder") {
-        const target = task ?? allDownloadTasks.slice().reverse().find((item) => item.filePath && !item.fileDeleted);
+        const target = task ?? newestDownloadsFirst(allDownloadTasks).find((item) => item.filePath && !item.fileDeleted);
         if (!target?.filePath || target.fileDeleted) {
           message.info("暂无可定位的下载文件。");
           return;
@@ -2054,8 +2189,9 @@ export default function App() {
     }
 
     if (action.startsWith("panel|history|")) {
-      const [, , key, id] = action.split("|");
-      if (key === "open" && id) {
+      const [, , key, id, childId] = action.split("|");
+      if (key === "restore" && id) restoreClosedEntry(id, childId);
+      else if (key === "open" && id) {
         const entry = historyEntries.find((item) => item.id === id);
         if (entry) navigate(entry.url);
       } else if (key === "clear") {
@@ -2072,7 +2208,8 @@ export default function App() {
       if (key === "open" && id) {
         const index = Number(id.replace("bookmark-", ""));
         const bookmark = bookmarks.find(item => item.id === id) ?? bookmarks[index];
-        if (bookmark) navigate(bookmark.url);
+        // 收藏夹面板和目录菜单均新建标签，保留当前页面及其所属分组。
+        if (bookmark) openTab(bookmark.url);
       } else if (key === "add-current") {
         if (!activeTab?.url) {
           message.info("请先打开一个网页。");
@@ -2473,6 +2610,9 @@ export default function App() {
       tab.groupId === groupId && (smallGroupId === undefined || tab.smallGroupId === smallGroupId)
     ));
     if (removedTabs.length === 0) return;
+    const group = groups.find(item => item.id === groupId);
+    setClosedTabs(current => [...current, { id: createTabId(), closedAt: Date.now(), tabs: removedTabs, group, smallGroupId,
+      title: group?.smallGroups.find(item => item.id === smallGroupId)?.name ?? group?.name ?? removedTabs[0].title }].slice(-20));
     const removedIds = new Set(removedTabs.map((tab) => tab.id));
     const remainingTabs = tabs.filter((tab) => !removedIds.has(tab.id));
     let nextTabs = remainingTabs.length > 0 ? remainingTabs : [createBlankTab(ROOT_GROUP_ID)];
@@ -3054,18 +3194,34 @@ export default function App() {
       <nav className="bookmarks-bar" aria-label="收藏夹栏">
         <div className="bookmarks-bar__items">
           {bookmarkFolders.filter(folder => !folder.parentId).map(folder => (
-            <Button key={folder.id} className="bookmark-link" variant="text" size="small" icon={<Icon name="folder" size={15} />}
-              onClick={() => showBookmarksPanel(undefined, undefined, undefined, folder.id)}>{folder.title}</Button>
+            <Dropdown key={folder.id} trigger={["click"]} showTriggerIcon={false} placement="bottomLeft"
+              open={openBookmarkFolder === folder.id}
+              menu={{ items: bookmarkDropdownItems(bookmarkFolderItems(folder.id)), selectable: false,
+                onClick: ({ key }) => handleNativeMenuAction(key) }}
+              // 桌面版由原生窗口呈现菜单，Dropdown 负责点击/键盘触发与展开状态；不重复绘制 DOM 浮层。
+              popupRender={isDesktopRuntime ? () => null : undefined}
+              popupStyle={isDesktopRuntime ? { display: "none" } : undefined}
+              onOpenChange={next => {
+                setOpenBookmarkFolder(next ? folder.id : undefined);
+                if (!isDesktopRuntime) return;
+                const trigger = bookmarkFolderTriggers.current.get(folder.id);
+                if (next && trigger) showBookmarkFolder(folder.id, trigger);
+                else if (!next) void invokeNative("close_browser_menu").catch(() => undefined);
+              }}>
+              <Button ref={element => { if (element) bookmarkFolderTriggers.current.set(folder.id, element); else bookmarkFolderTriggers.current.delete(folder.id); }}
+                className="bookmark-link" variant="link" size="small" icon={<Icon name="folder" size={15} />}>{folder.title}</Button>
+            </Dropdown>
           ))}
           {bookmarks.filter(bookmark => !bookmark.parentId).map((bookmark) => (
             <Button
               key={bookmark.id ?? bookmark.url}
               className="bookmark-link"
-              variant="text"
+              variant="link"
               size="small"
               title={`${bookmark.title}\n${bookmark.url}`}
               icon={<BrowserFavicon url={bookmark.url} size={15} />}
-              onClick={() => navigate(bookmark.url)}
+              // 收藏栏直接链接沿用新建标签入口，不覆盖当前页面。
+              onClick={() => openTab(bookmark.url)}
             >
               <span className="bookmark-link__title">{bookmark.title}</span>
             </Button>
@@ -3177,10 +3333,13 @@ export default function App() {
           <div className="browser-page-top-border" aria-hidden="true">
             {activeTab?.loading ? <span className="browser-loading-line" /> : null}
           </div>
-          <BrowserDevtoolsWorkspace tabId={activeId} onLayout={syncBrowserBounds} onSessionsChange={setDevtoolsTabIds}>
+          <BrowserDevtoolsWorkspace tabId={activeId} onLayout={syncBrowserBounds} onSessionsChange={setDevtoolsTabIds}
+            onMenu={(event, items) => showBrowserPanel({ darkMode, items }, { x: event.clientX, y: event.clientY }, { width: 220, height: 160 })}>
           <main ref={pageHostRef} className="browser-page-host">
         {activeTab?.url === SETTINGS_URL ? (
           <BrowserSettingsPage
+            tabSleep={tabSleep}
+            onTabSleepChange={value => setTabSleep(normalizeTabSleep(value))}
             groups={groups}
             activeDownloadCount={activeDownloadTasks.length}
             askBeforeDownload={askBeforeDownload}

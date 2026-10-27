@@ -32,7 +32,10 @@ try {
                 $type = [Runtime.InteropServices.Marshal]::ReadInt32($buffer, $offset)
                 $status = [Runtime.InteropServices.Marshal]::ReadInt32($buffer, $offset + 4)
                 if ($type -eq 8) {
-                    "Thread(pid=$([Runtime.InteropServices.Marshal]::ReadInt32($buffer, $offset + 8)),tid=$([Runtime.InteropServices.Marshal]::ReadInt32($buffer, $offset + 12)),status=$status)"
+                    # 仅记录可执行进程名，便于区分 WebView2、输入法或系统消息等待，不读取命令行。
+                    $ownerId = [Runtime.InteropServices.Marshal]::ReadInt32($buffer, $offset + 8)
+                    $ownerName = (Get-Process -Id $ownerId -ErrorAction SilentlyContinue).ProcessName
+                    "Thread(pid=$ownerId,name=$ownerName,tid=$([Runtime.InteropServices.Marshal]::ReadInt32($buffer, $offset + 12)),status=$status)"
                 } else { "Wait(type=$type,status=$status)" }
             }
             Write-Output "Thread=$($thread.Id) Cycle=$cycle $($chain -join ' -> ')"

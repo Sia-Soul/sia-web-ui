@@ -6,6 +6,10 @@ use std::{
 };
 use tauri::{AppHandle, Manager};
 
+#[cfg(windows)]
+#[path = "browser_devtools_capture.rs"]
+mod capture;
+
 /// 前端布局使用 CSS 像素，原生窗口定位时再按主窗口 DPI 转换。
 #[derive(Clone, Copy, Deserialize)]
 pub struct DockBounds {
@@ -21,6 +25,8 @@ pub struct DockBounds {
 pub struct DockStatus {
     tab_id: String,
     docked: bool,
+    /// 内容裁剪与实际窗口坐标确认完成后才撤下前端加载提示。
+    ready: bool,
 }
 
 /// 操作队列不阻塞 UI 线程；普通状态锁绝不跨越 COM 或 Win32 调用持有。
@@ -59,8 +65,11 @@ struct NativeWindow {
     docked: bool,
     // 缓存上一次物理区域，轮询关闭状态时不反复重画跨进程窗口。
     last_layout: Option<[i32; 4]>,
-    // 内容暂未就绪时允许短暂重试，持续无法裁剪则退回独立窗口。
+    // 内容暂未就绪时允许短暂重试，持续失败则结束初次准备。
     layout_failures: u8,
+    ready: bool,
+    #[cfg(windows)]
+    mask: Option<capture::Mask>,
 }
 
 #[cfg(windows)]
@@ -114,6 +123,8 @@ mod native {
                 docked: false,
                 last_layout: None,
                 layout_failures: 0,
+                ready: false,
+                mask: None,
             };
             if !belongs(&window) {
                 return BOOL(1);
@@ -243,11 +254,11 @@ mod native {
             )
             .as_bool()
             {
-                return Err("开发者工具与主窗口的 DPI 模式不一致，已保留独立窗口".into());
+                return Err("开发者工具与主窗口的 DPI 模式不一致，无法停靠".into());
             }
             // 无响应的内核不执行跨进程重设父窗口，防止布局任务长期等待。
             if IsHungAppWindow(child).as_bool() {
-                return Err("开发者工具尚未响应，已保留独立窗口".into());
+                return Err("开发者工具尚未响应，无法停靠".into());
             }
             window.original_region = save_region(child)?;
             let _ = ShowWindowAsync(child, SW_HIDE);
@@ -257,13 +268,14 @@ mod native {
                     | WS_THICKFRAME.0
                     | WS_SYSMENU.0
                     | WS_MINIMIZEBOX.0
-                    | WS_MAXIMIZEBOX.0))
+                    | WS_MAXIMIZEBOX.0
+                    | WS_VISIBLE.0))
                 | WS_CHILD.0;
             SetWindowLongW(child, GWL_STYLE, style as i32);
             SetWindowLongW(
                 child,
                 GWL_EXSTYLE,
-                (window.ex_style as u32
+                (GetWindowLongW(child, GWL_EXSTYLE) as u32
                     & !(WS_EX_APPWINDOW.0 | WS_EX_WINDOWEDGE.0 | WS_EX_CLIENTEDGE.0))
                     as i32,
             );
@@ -273,12 +285,15 @@ mod native {
                     window.docked = true;
                     return Ok(());
                 }
-                SetWindowLongW(child, GWL_STYLE, window.style);
-                SetWindowLongW(child, GWL_EXSTYLE, window.ex_style);
-                let _ = ShowWindowAsync(child, SW_SHOWNORMAL);
-                return Err(format!("无法停靠开发者工具，已保留独立窗口：{error}"));
+                if window.mask.is_none() {
+                    SetWindowLongW(child, GWL_STYLE, window.style);
+                    SetWindowLongW(child, GWL_EXSTYLE, window.ex_style);
+                    let _ = ShowWindowAsync(child, SW_SHOWNORMAL);
+                }
+                return Err(format!("无法停靠开发者工具：{error}"));
             }
             window.docked = true;
+            window.ready = false;
         }
         Ok(())
     }
@@ -293,6 +308,9 @@ mod native {
             SetParent(child, None).map_err(|error| error.to_string())?;
             SetWindowLongW(child, GWL_STYLE, window.style);
             SetWindowLongW(child, GWL_EXSTYLE, window.ex_style);
+            if let Some(mask) = window.mask.take() {
+                mask.restore(child, window.ex_style);
+            }
             // 独立窗口恢复完整标题栏及原裁剪区，不保留停靠时的内容裁剪。
             let region = window
                 .original_region
@@ -312,18 +330,24 @@ mod native {
             .map_err(|error| error.to_string())?;
             let _ = ShowWindowAsync(child, SW_SHOWNORMAL);
             window.docked = false;
+            window.ready = false;
             window.last_layout = None;
             window.layout_failures = 0;
         }
         Ok(())
     }
 
-    /// 异步渲染就绪前不露出窗框；连续五次无法确定内容时恢复可操作的独立窗口。
+    /// 初次准备失败关闭已认领的窗口，避免突然弹出独立窗口；已显示会话仍允许恢复独立模式。
     fn retry_layout_or_detach(window: &mut NativeWindow) {
         window.last_layout = None;
         window.layout_failures = window.layout_failures.saturating_add(1);
-        if window.layout_failures >= 5 {
-            let _ = detach(window);
+        if window.layout_failures >= 25 {
+            if !window.ready {
+                close(window);
+                window.docked = false;
+            } else {
+                let _ = detach(window);
+            }
         } else {
             unsafe {
                 let _ = ShowWindowAsync(hwnd(window.handle), SW_HIDE);
@@ -362,7 +386,38 @@ mod native {
                 let region_matches = GetWindowRgnBox(child, &mut current_region) == SIMPLEREGION
                     && current_region == expected_region;
                 let visible = GetWindowLongW(child, GWL_STYLE) as u32 & WS_VISIBLE.0 != 0;
-                if window.last_layout == Some(outer) && visible && region_matches {
+                let mut actual = RECT::default();
+                let mut origin = windows::Win32::Foundation::POINT::default();
+                let positioned = GetWindowRect(child, &mut actual).is_ok()
+                    && GetParent(child)
+                        .ok()
+                        .is_some_and(|parent| ClientToScreen(parent, &mut origin).as_bool())
+                    && layout_matches(
+                        [
+                            actual.left - origin.x,
+                            actual.top - origin.y,
+                            actual.right - actual.left,
+                            actual.bottom - actual.top,
+                        ],
+                        outer,
+                    );
+                if window
+                    .last_layout
+                    .is_some_and(|previous| layout_matches(previous, outer))
+                    && visible
+                    && region_matches
+                    && positioned
+                {
+                    // 异步 SetWindowPos 真正落地之后才恢复不透明，第一帧即位于内容区域。
+                    if let Some(mask) = window.mask.take() {
+                        mask.restore(
+                            child,
+                            (window.ex_style as u32
+                                & !(WS_EX_APPWINDOW.0 | WS_EX_WINDOWEDGE.0 | WS_EX_CLIENTEDGE.0))
+                                as i32,
+                        );
+                    }
+                    window.ready = true;
                     return;
                 }
                 // 先约束绘制与命中区域，裁掉的标题栏不会覆盖或拦截西娅自己的工具栏。
@@ -420,6 +475,13 @@ fn physical_bounds(bounds: DockBounds, scale: f64) -> [i32; 4] {
         (bounds.width * scale).round().max(1.) as i32,
         (bounds.height * scale).round().max(1.) as i32,
     ]
+}
+
+/// Chromium 在非整数 DPI 下会令外框宽高来回舍入一像素；位置必须精确，外框尺寸允许一像素误差。
+fn layout_matches(actual: [i32; 4], expected: [i32; 4]) -> bool {
+    actual[..2] == expected[..2]
+        && actual[2].abs_diff(expected[2]) <= 1
+        && actual[3].abs_diff(expected[3]) <= 1
 }
 
 /// DevTools 会省略 HTTP(S) 协议；其余主机、端口和文档路径仍须完整匹配。
@@ -509,15 +571,26 @@ pub async fn open_browser_devtools(app: AppHandle, tab_id: String) -> Result<boo
                 core.Source(&mut source)?;
                 let source = webview2_com::CoTaskMemPWSTR::from(source).to_string();
                 let before = native::candidates(pid);
-                core.OpenDevToolsWindow()?;
                 let safe = !before.iter().any(|window| !known.contains(&window.handle));
-                Ok::<_, windows::core::Error>((pid, before, safe, source))
+                Ok::<_, windows::core::Error>((pid, before, safe, source, core))
             })()
-            .map_err(|e| e.to_string());
+            .map_err(|e| e.to_string())
+            .and_then(|(pid, before, safe, source, core)| {
+                // 监听先于 COM 打开，独立窗口创建时便进入透明准备阶段。
+                let capture = if safe {
+                    Some(capture::Capture::start(pid, source.clone())?)
+                } else {
+                    None
+                };
+                unsafe {
+                    core.OpenDevToolsWindow().map_err(|e| e.to_string())?;
+                }
+                Ok((pid, before, safe, source, capture))
+            });
             let _ = send.send(result);
         })
         .map_err(|e| e.to_string())?;
-        let (pid, before, safe, source) =
+        let (pid, before, safe, source, capture) =
             tokio::time::timeout(std::time::Duration::from_secs(5), receive)
                 .await
                 .map_err(|_| "打开开发者工具超时")?
@@ -527,14 +600,7 @@ pub async fn open_browser_devtools(app: AppHandle, tab_id: String) -> Result<boo
         }
         let mut found = None;
         for _ in 0..50 {
-            if !store
-                .pending
-                .lock()
-                .map_err(|_| "无法读取工具请求")?
-                .contains(&tab_id)
-            {
-                return Ok(false);
-            }
+            // 取消时仍短暂等待本次窗口出现并确认归属，随后隐藏关闭，避免迟到的独立窗口泄漏。
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
             let candidates = tauri::async_runtime::spawn_blocking(move || native::candidates(pid))
                 .await
@@ -546,9 +612,18 @@ pub async fn open_browser_devtools(app: AppHandle, tab_id: String) -> Result<boo
             if new.len() > 1 {
                 return Ok(false);
             }
-            if let Some(window) = new.pop() {
+            if let Some(mut window) = new.pop() {
                 // 共享进程中仍须匹配被调试文档地址；标题未就绪或导航已变化时继续保持独立。
                 if title_matches_document(&window.title, &source) {
+                    // 创建事件可能仍在处理，确认遮蔽成功后再将窗口交给停靠布局。
+                    let Some(mask) = capture
+                        .as_ref()
+                        .and_then(|capture| capture.claim(window.handle))
+                    else {
+                        continue;
+                    };
+                    window.ex_style = mask.ex_style;
+                    window.mask = Some(mask);
                     found = Some(window);
                     break;
                 }
@@ -566,11 +641,15 @@ pub async fn open_browser_devtools(app: AppHandle, tab_id: String) -> Result<boo
             .contains(&tab_id)
             || app.get_webview(&crate::browser_label(&tab_id)).is_none()
         {
-            // 取消后不再认领或关闭候选窗口，它可能来自后来活动的另一个标签。
+            // 已验证本次唯一文档并转移遮蔽的窗口可以安全关闭，不能留下不可见会话。
+            native::close(&found);
             return Ok(false);
         }
         found = tauri::async_runtime::spawn_blocking(move || {
-            native::dock(&mut found, parent)?;
+            if let Err(error) = native::dock(&mut found, parent) {
+                native::close(&found);
+                return Err(error);
+            }
             Ok::<_, String>(found)
         })
         .await
@@ -636,6 +715,7 @@ pub async fn layout_browser_devtools(
             .map(|(id, window)| DockStatus {
                 tab_id: id.clone(),
                 docked: window.docked,
+                ready: window.ready,
             })
             .collect();
         *store.entries.lock().map_err(|_| "无法更新工具窗口")? = live;
@@ -698,6 +778,12 @@ pub async fn control_browser_devtools(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn layout_ready_accepts_dpi_rounding_but_not_movement() {
+        assert!(layout_matches([20, 602, 1669, 502], [20, 602, 1669, 503]));
+        assert!(!layout_matches([21, 602, 1669, 502], [20, 602, 1669, 503]));
+        assert!(!layout_matches([20, 602, 1669, 500], [20, 602, 1669, 503]));
+    }
     #[test]
     fn dock_coordinates_follow_window_scale() {
         let bounds = DockBounds {

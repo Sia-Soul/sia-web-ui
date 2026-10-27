@@ -20,6 +20,9 @@ pub async fn get_download_file_icon(file_name: String, file_path: Option<String>
 
 #[cfg(windows)]
 fn read_icon(file_name: &str, file_path: Option<&str>) -> Option<String> {
+    // 部分文件关联的 Shell 图标处理器并发初始化会短暂失败；仅在后台串行读取，不锁 UI。
+    static SHELL_ICONS: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _shell = SHELL_ICONS.lock().ok()?;
     use base64::Engine;
     use windows::{core::HSTRING, Win32::{
         Graphics::Gdi::*, Storage::FileSystem::FILE_ATTRIBUTE_NORMAL,
@@ -27,12 +30,13 @@ fn read_icon(file_name: &str, file_path: Option<&str>) -> Option<String> {
         UI::{Shell::*, WindowsAndMessaging::*},
     }};
     // 未完成或已删除文件按扩展名查询；真实本地文件可提供 EXE 等自定义图标，不加载网络路径。
-    let local_file = file_path.filter(|path| {
+    let extension = std::path::Path::new(file_name).extension().and_then(|value| value.to_str()).unwrap_or("");
+    // 文档按文件关联查询，避免下载刚落盘或被移动时 Shell 返回通用白纸图标；EXE/ICO 保留文件自身图标。
+    let local_file = file_path.filter(|_| matches!(extension.to_ascii_lowercase().as_str(), "exe" | "ico" | "lnk" )).filter(|path| {
         let bytes = path.as_bytes();
         bytes.len() > 3 && bytes[1] == b':' && matches!(bytes[2], b'\\' | b'/')
             && std::path::Path::new(path).is_file()
     });
-    let extension = std::path::Path::new(file_name).extension().and_then(|value| value.to_str()).unwrap_or("");
     let fallback = format!("download.{extension}");
     let path = HSTRING::from(local_file.unwrap_or(&fallback));
     unsafe {
@@ -105,6 +109,16 @@ fn read_icon(file_name: &str, file_path: Option<&str>) -> Option<String> {
 mod tests {
     use super::*;
     use base64::Engine;
+
+    #[test]
+    fn document_icon_does_not_depend_on_download_file_availability() {
+        // 文档统一使用关联图标，存在与不存在的路径不能改变同一文件类型的展示。
+        let association = read_icon("download.xlsx", None).unwrap();
+        let missing = std::env::temp_dir().join(format!("sia-missing-download-{}.xlsx", std::process::id()));
+        assert_eq!(read_icon("download.xlsx", missing.to_str()).unwrap(), association);
+        // 即使传入现存文件，也不能误用该路径实际文件的图标。
+        assert_eq!(read_icon("download.xlsx", std::env::current_exe().unwrap().to_str()).unwrap(), association);
+    }
 
     #[test]
     fn associated_and_executable_icons_are_decodable_png() {

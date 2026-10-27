@@ -43,6 +43,10 @@ static TAB_PANEL_MENU_HOLD: AtomicBool = AtomicBool::new(false);
 static MENU_VISIBILITY_GENERATION: AtomicU64 = AtomicU64::new(0);
 // 显示批次和外部点击监视代次独立，避免旧 DOM 测量覆盖刚切换的面板。
 static MENU_REGION_REVISION: AtomicU64 = AtomicU64::new(0);
+// 请求与实际显示分开记录：排版期间再次点击同一入口也应关闭，旧回传不能重新打开。
+static MENU_REQUESTED_OPEN: AtomicBool = AtomicBool::new(false);
+static MENU_PRESENTED_REVISION: AtomicU64 = AtomicU64::new(0);
+static MENU_REGION_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 /// 菜单实际可见表面的客户区范围，单位为 CSS 像素；不包含透明外边距。
 #[derive(Clone, Debug, Deserialize)]
@@ -112,16 +116,40 @@ fn apply_menu_regions(window: &WebviewWindow, regions: &[MenuSurfaceRegion]) -> 
     Ok(())
 }
 
+/// 关闭后的测量、旧显示批次及乱序测量均不能重新显示或裁切当前面板。
+fn accept_menu_measurement(requested: bool, current_revision: u64, revision: u64, previous_sequence: u64, sequence: u64) -> bool {
+    requested && current_revision == revision && sequence > previous_sequence
+}
+
 /// 由菜单 WebView 回传表面；只接受当前批次，并在主线程再次校验以避免切换竞态。
 #[tauri::command]
-pub async fn update_browser_menu_regions(window: WebviewWindow, revision: u64, regions: Vec<MenuSurfaceRegion>) -> Result<(), String> {
+pub async fn update_browser_menu_regions(window: WebviewWindow, revision: u64, sequence: Option<u64>, regions: Vec<MenuSurfaceRegion>) -> Result<(), String> {
     if window.label() != MENU_LABEL || regions.len() > 32 { return Err("无效的菜单区域请求".into()); }
     let app = window.app_handle().clone();
     window.clone().run_on_main_thread(move || {
-        if MENU_REGION_REVISION.load(Ordering::SeqCst) != revision { return; }
+        let previous = MENU_REGION_SEQUENCE.load(Ordering::SeqCst);
+        let sequence = sequence.unwrap_or(previous + 1);
+        if !accept_menu_measurement(MENU_REQUESTED_OPEN.load(Ordering::SeqCst), MENU_REGION_REVISION.load(Ordering::SeqCst), revision, previous, sequence) || regions.is_empty() { return; }
         if let Err(error) = apply_menu_regions(&window, &regions) {
             let _ = app.emit("sia://browser-menu-error", error);
+            return;
         }
+        // 与只读气泡一样，首个有效测量完成后才显示；后续子层变化只更新形状。
+        if MENU_PRESENTED_REVISION.load(Ordering::SeqCst) != revision {
+            #[cfg(windows)]
+            {
+                let mut foreground_process = 0;
+                unsafe { GetWindowThreadProcessId(GetForegroundWindow(), Some(&mut foreground_process)); }
+                if lost_browser_focus(foreground_process, std::process::id()) { let _ = hide_menu(&app); return; }
+            }
+            if let Err(error) = set_owned_window_visible(&window, true) {
+                let _ = app.emit("sia://browser-menu-error", error);
+                return;
+            }
+            MENU_PRESENTED_REVISION.store(revision, Ordering::SeqCst);
+            start_menu_pointer_watcher(&app);
+        }
+        MENU_REGION_SEQUENCE.store(sequence, Ordering::SeqCst);
     }).map_err(|error| error.to_string())
 }
 
@@ -463,11 +491,14 @@ fn show_and_sync_window(
     source_window: &str,
     bounds: FloatingWindowBounds,
 ) -> Result<(), String> {
-    sync_window_bounds(app, window, source_window, bounds)?;
     if window.label() == MENU_LABEL {
-        // 新面板尚未完成 DOM 布局时先保持空形状，避免旧范围或整块透明画布短暂拦截点击。
+        // 先隐藏再调整位置和尺寸，避免切换入口时短暂移动或拉伸上一批内容。
+        set_owned_window_visible(window, false)?;
         apply_menu_regions(window, &[])?;
+        sync_window_bounds(app, window, source_window, bounds)?;
+        return Ok(());
     }
+    sync_window_bounds(app, window, source_window, bounds)?;
     set_owned_window_visible(window, true)
 }
 
@@ -531,16 +562,20 @@ fn cascade_canvas(root: (i32, i32, u32, u32), main: (i32, i32, u32, u32), scale:
     (x, root.1.clamp(main.1, bottom_limit), width, height)
 }
 
-/// 只为含 children 的普通菜单扩大透明画布，工具面板与没有子项的菜单仍使用原尺寸。
-fn prepare_cascade_menu(app: &AppHandle, payload: &mut Value, source: String, bounds: FloatingWindowBounds) -> Result<(String, FloatingWindowBounds), String> {
+/// 根据业务种类及菜单树预留子层深度；没有子层的面板也使用同一根布局协议。
+fn menu_surface_depth(payload: &Value) -> usize {
     fn depth(items: &Value) -> usize {
         items.as_array().map(|items| items.iter().map(|item| {
             item.get("children").filter(|children| children.as_array().is_some_and(|items| !items.is_empty()))
                 .map(|children| 1 + depth(children)).unwrap_or(0)
         }).max().unwrap_or(0)).unwrap_or(0)
     }
-    let levels = depth(&payload["items"]);
-    if levels == 0 { return Ok((source, bounds)); }
+    depth(&payload["items"]).max(if matches!(payload["kind"].as_str(), Some("downloads" | "extensions")) { 1 } else { 0 })
+}
+
+/// 所有交互面板共享根布局协议；级联菜单、下载右键和扩展操作按需要预留子层画布。
+fn prepare_cascade_menu(app: &AppHandle, payload: &mut Value, source: String, bounds: FloatingWindowBounds) -> Result<(String, FloatingWindowBounds), String> {
+    let levels = menu_surface_depth(payload);
     let main = app.get_window("main").ok_or("找不到浏览器主窗口")?;
     let origin = main.inner_position().map_err(|error| error.to_string())?;
     let size = main.inner_size().map_err(|error| error.to_string())?;
@@ -631,11 +666,19 @@ fn cursor_inside_tab_panel(_app: &AppHandle) -> bool {
 
 fn hide_menu(app: &AppHandle) -> Result<(), String> {
     MENU_VISIBILITY_GENERATION.fetch_add(1, Ordering::SeqCst);
+    MENU_REQUESTED_OPEN.store(false, Ordering::SeqCst);
+    let revision = MENU_REGION_REVISION.fetch_add(1, Ordering::SeqCst) + 1;
+    // 清空快照并通知宿主释放搜索、子层及异步操作，避免隐藏窗口继续保留旧业务状态。
+    *app.state::<BrowserMenuStore>().0.lock().map_err(|_| "无法清理浏览器浮层状态")? = None;
     if let Some(menu) = app.get_webview_window(MENU_LABEL) {
         eprintln!("[browser-menu] hide");
         // 外部窗口已获焦时，只隐藏菜单，不重新提升浏览器主窗口。
         set_owned_window_visible(&menu, false)?;
+        menu.emit("sia://browser-menu-closed", serde_json::json!({ "revision": revision })).map_err(|error| error.to_string())?;
     }
+    // 原生窗口外部点击不会进入主壳层 DOM，显式通知受控 Dropdown 收起状态。
+    app.emit_to("main", "sia://browser-menu-visibility", serde_json::json!({ "visible": false }))
+        .map_err(|error| error.to_string())?;
     if TAB_PANEL_MENU_HOLD.swap(false, Ordering::SeqCst) {
         // 标签右键菜单可能超出面板边界；固定模式不能因点击菜单后指针在外而收起。
         if keep_tab_panel_on_pointer_leave(
@@ -652,7 +695,7 @@ fn hide_menu(app: &AppHandle) -> Result<(), String> {
 }
 
 pub fn menu_is_visible(app: &AppHandle) -> bool {
-    app.get_webview_window(MENU_LABEL)
+    MENU_REQUESTED_OPEN.load(Ordering::SeqCst) || app.get_webview_window(MENU_LABEL)
         .and_then(|menu| menu.is_visible().ok())
         .unwrap_or(false)
 }
@@ -666,6 +709,11 @@ fn should_toggle_menu(visible: bool, current: &Value, next: &Value) -> bool {
 /// 前台窗口属于其他进程时立即关闭；空句柄代表系统正在切换焦点，留待下次检查。
 fn lost_browser_focus(foreground_process: u32, browser_process: u32) -> bool {
     foreground_process != 0 && foreground_process != browser_process
+}
+
+/// 仅外部新按下关闭面板；打开按钮尚未松开或面板内开始的拖动不会被误判。
+fn is_new_outside_press(released_after_open: bool, previous_down: bool, down: bool, inside: bool) -> bool {
+    released_after_open && !previous_down && down && !inside
 }
 
 /// 触发按钮自身的点击交给切换命令处理，防止鼠标监视器先关后开。
@@ -691,6 +739,7 @@ fn start_menu_pointer_watcher(app: &AppHandle) {
     let watcher_app = app.clone();
     std::thread::spawn(move || {
         let mut pointer_released_after_open = false;
+        let mut previous_pointer_down = false;
         loop {
             std::thread::sleep(Duration::from_millis(16));
             if MENU_VISIBILITY_GENERATION.load(Ordering::SeqCst) != generation {
@@ -737,8 +786,10 @@ fn start_menu_pointer_watcher(app: &AppHandle) {
             if !pointer_down {
                 pointer_released_after_open = true;
             }
-            let outside_press = pointer_released_after_open && pointer_down && !cursor_inside
-                && !cursor_on_menu_trigger(&watcher_app, cursor);
+            // 只处理新的按下沿；从面板内部开始的滑块拖动越界时仍保持面板。
+            let outside_press = is_new_outside_press(pointer_released_after_open, previous_pointer_down, pointer_down,
+                cursor_inside || cursor_on_menu_trigger(&watcher_app, cursor));
+            previous_pointer_down = pointer_down;
             if focus_lost || outside_press {
                 let close_app = watcher_app.clone();
                 let _ = watcher_app.run_on_main_thread(move || {
@@ -768,6 +819,9 @@ pub fn initialize(app: &AppHandle) -> Result<(), String> {
         .get_window("main")
         .ok_or_else(|| "找不到浏览器主窗口".to_string())?;
     main.on_window_event(move |event| {
+        // 根锚点随主窗口移动、缩放失效，六类面板统一收起；面板内输入获得焦点不走此分支。
+        if matches!(event, WindowEvent::Moved(_) | WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. })
+            && MENU_REQUESTED_OPEN.load(Ordering::SeqCst) { let _ = hide_menu(&sync_app); }
         // 窗口几何或焦点改变时，旧锚点不再有效，立即关闭只读提示。
         if matches!(event, WindowEvent::Focused(false) | WindowEvent::Moved(_) | WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. }) {
             let _ = close_browser_tab_tooltip(sync_app.clone());
@@ -978,7 +1032,11 @@ pub fn show_menu(
         }
     }
     let (source_window, bounds) = prepare_cascade_menu(app, &mut payload, source_window, bounds)?;
-    payload["hitRegionRevision"] = Value::from(MENU_REGION_REVISION.fetch_add(1, Ordering::SeqCst) + 1);
+    let revision = MENU_REGION_REVISION.fetch_add(1, Ordering::SeqCst) + 1;
+    payload["hitRegionRevision"] = Value::from(revision);
+    MENU_REGION_SEQUENCE.store(0, Ordering::SeqCst);
+    MENU_VISIBILITY_GENERATION.fetch_add(1, Ordering::SeqCst);
+    MENU_REQUESTED_OPEN.store(true, Ordering::SeqCst);
     {
         let mut state = store
             .0
@@ -991,14 +1049,18 @@ pub fn show_menu(
     }
     if let Some(menu) = app.get_webview_window(MENU_LABEL) {
         show_and_sync_window(app, &menu, &source_window, menu_outer_bounds(bounds))?;
-        menu.emit("sia://browser-menu-state", payload)
+        menu.emit("sia://browser-menu-state", &payload)
             .map_err(|error| error.to_string())?;
-        start_menu_pointer_watcher(app);
+        // 切换到其他入口时也通知壳层，清除旧文件夹触发器的展开状态。
+        app.emit_to("main", "sia://browser-menu-visibility", serde_json::json!({ "visible": true, "panelKey": payload.get("panelKey") }))
+            .map_err(|error| error.to_string())?;
         return Ok(());
     }
 
     let create_app = app.clone();
     app.run_on_main_thread(move || {
+        // 窗口首次创建排队期间可能已切换入口或关闭，旧显示请求不能重新打开面板。
+        if !MENU_REQUESTED_OPEN.load(Ordering::SeqCst) || MENU_REGION_REVISION.load(Ordering::SeqCst) != revision { return; }
         let result: Result<(), String> = (|| {
             let menu = menu_window(&create_app)?;
             show_and_sync_window(
@@ -1007,9 +1069,10 @@ pub fn show_menu(
                 &source_window,
                 menu_outer_bounds(bounds),
             )?;
-            menu.emit("sia://browser-menu-state", payload)
+            menu.emit("sia://browser-menu-state", &payload)
                 .map_err(|error| error.to_string())?;
-            start_menu_pointer_watcher(&create_app);
+            create_app.emit_to("main", "sia://browser-menu-visibility", serde_json::json!({ "visible": true, "panelKey": payload.get("panelKey") }))
+                .map_err(|error| error.to_string())?;
             Ok(())
         })();
         if let Err(error) = result {
@@ -1123,6 +1186,36 @@ mod tests {
         assert!(!lost_browser_focus(42, 42));
         assert!(!lost_browser_focus(0, 42));
         assert!(lost_browser_focus(84, 42));
+    }
+
+    #[test]
+    fn floating_surface_rejects_closed_stale_and_out_of_order_layouts() {
+        assert!(accept_menu_measurement(true, 4, 4, 0, 1));
+        assert!(!accept_menu_measurement(false, 4, 4, 0, 1), "关闭后不能被迟到测量重开");
+        assert!(!accept_menu_measurement(true, 5, 4, 0, 2), "旧面板不能裁切新面板");
+        assert!(!accept_menu_measurement(true, 4, 4, 3, 2), "旧根矩形不能覆盖新子菜单");
+        assert!(!accept_menu_measurement(true, 4, 4, 3, 3));
+        assert!(accept_menu_measurement(true, 4, 4, 3, 4));
+    }
+
+    #[test]
+    fn outside_click_closes_but_dragging_outside_keeps_panel() {
+        assert!(is_new_outside_press(true, false, true, false));
+        assert!(!is_new_outside_press(false, false, true, false), "打开按钮未松开");
+        assert!(!is_new_outside_press(true, true, true, false), "从滚动条开始的拖动");
+        assert!(!is_new_outside_press(true, false, true, true), "面板或触发按钮内点击");
+        assert!(!is_new_outside_press(true, true, false, false), "外部松开不视为点击");
+    }
+
+    #[test]
+    fn all_panels_reserve_only_required_submenu_canvas() {
+        for kind in ["bookmarks", "history", "menu", "more"] {
+            assert_eq!(menu_surface_depth(&json!({"kind": kind, "items": []})), 0);
+        }
+        for kind in ["downloads", "extensions"] {
+            assert_eq!(menu_surface_depth(&json!({"kind": kind, "items": []})), 1);
+        }
+        assert_eq!(menu_surface_depth(&json!({"items": [{"children": [{"children": [{"key": "leaf"}]}]}]})), 2);
     }
 
     /// 使用内存状态验证面板决策，不创建窗口、不读取浏览器会话。

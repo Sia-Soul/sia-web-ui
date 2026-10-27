@@ -2,7 +2,9 @@
 
 用户选择 S1-E 连笔 Sia，并确认采用粉紫、蓝、青的炫彩渐变填充与白色描边：保留大写 S 的上下回环、连接的 i/a、圆点与下方收笔线。选稿对照保存在 `sia-signature-selection.png`。图稿由内置 image_gen 生成，未使用 CLI 或外部 API。
 
-- `sia-signature-s1e-blue-bird.png`：正式图稿，A 版蓝青飞鸟搭配珍珠白 Sia、深蓝细描边，背景及内部留白透明。
+- `sia-swift-05.png`：当前正式图稿，05 版圆环飞燕，蓝青配色、紧凑圆形轮廓、透明背景。
+- `sia-swallow-02.png`：此前图稿，仅归档；02 版极简燕子，飞鸟与 Sia 融为一体，蓝青配色与透明背景。
+- `sia-signature-s1e-blue-bird.png`：此前 A 版图稿，仅归档；A 版蓝青飞鸟搭配珍珠白 Sia、深蓝细描边，背景及内部留白透明。
 - `sia-signature-s1e-coral-globe.png`：此前地球图稿，仅归档；炫彩 Sia 签名叠加珊瑚橙地球；大陆与细边框相连，无经纬线、无地球白描边，海洋和背景透明。
 - `sia-signature-s1e-iridescent.png`：此前不带地球的炫彩签名原稿，仅归档。
 - `sia-signature-s1e-purple-outline.png`：上一版浅紫色、白描边原稿，仅归档。
@@ -12,7 +14,7 @@
 - 所有正式输出均保留透明背景；方形资源仅增加透明留白，不添加底板。
 - 网页与原生图标共用图稿原色，均不使用主题滤镜；亮色渐变和白色描边提高深色背景下的可见性。
 - 使用无头渲染检查网页主要笔画对比，并直接读取原生图标检查 16/24/32/48px 的透明背景和亮色覆盖率。
-- Windows 安装包以 `app-s1e-blue-bird.ico` 作为快捷方式图标，并迁移已有品牌任务栏链接的旧安装/开发路径；不新增、取消固定或重新排序。
+- Windows 安装包以 `app-sia-swift-05.ico` 作为快捷方式图标，并迁移已有品牌任务栏链接的旧安装/开发路径；不新增、取消固定或重新排序。
 
 16px 图标用于识别整体签名，不能保证读清所有细笔画；完整名称在标题栏、新标签页和桌面快捷方式文本中展示。
 
@@ -64,10 +66,28 @@ Precise color-only edit of this supplied transparent Sia globe logo. Change ONLY
 Precise color-only edit of the supplied transparent Sia logo. Change ONLY the background globe's white land continent silhouettes and thin circular rim to a uniform flat #F5A080 (珊瑚橙) color. All globe land and rim use this same color, retain seamless connected land-to-rim shapes. Keep the circle size, shape, position and thin rim thickness identical. No additional white outline on the globe. Preserve FOREGROUND Sia signature exactly, including pink-purple-blue-cyan multicolor gradient, original white outline on the lettering, dot and underline flourish. Ocean holes and background stay truly transparent. No latitude or longitude lines, no 3D, no shadows, no glow. Clean flat graphic. Single logo only, no labels. This is color variant 珊瑚橙.
 ```
 
-## 蓝青飞鸟 A 版（2026-10-26）
+## 蓝青飞鸟 A 版（归档）
 
 当前接入 A 版：蓝青飞鸟与珍珠白 Sia，字标使用深蓝细描边。内置 image_gen 输出 `exec-c750dd40-3a26-4a46-aa2c-07950385b84e.png` 原样保存为 `sia-signature-s1e-blue-bird.png`。生成采用 `transparent_background=true`，正式导出仅缩放与转换格式，全部图标保留透明背景。方形资源每边预留约 6% 透明安全边距，避免贴边羽翼在任务栏重采样时触及画布边角。
 
 ```text
 Color-only redesign of this exact Sia flying-bird logo. Keep all geometry and composition: sweeping near-circular flying phoenix bird, head looking right, broad wings and long tail feathers, foreground calligraphic Sia with dot and underline. Change BOTH bird colors and signature colors to one coordinated palette. Bird broad flowing feathers in ocean blue #1266D5 through turquoise #23CECA, pale cyan accent shapes. Sia lettering solid pearl white #F7FBFF with a fine deep navy #12446A outline, excellent readability against blue and cyan. The old rainbow signature must be fully replaced with the requested lettering color, including dot and underline; no leftover neon rainbow. Foreground signature must stay clearly legible on bird. Preserve original stroke widths and shapes, including fine signature outline. Flat clean 2D graphic with smooth restrained color transitions on bird and crisp broad color-block overlap accents, no 3D, no bevel, no shadows, no glow. Transparent background and internal negative spaces. Single large logo only, no labels or comparison board. Variant A · 蓝青 / 珍珠白.
 ```
+
+## 02 版极简燕子（归档）
+
+用户选择 02 版：飞鸟本身构成 Sia，删除独立前景字标。原件 `exec-03d71c91-d6fc-42c8-8005-129b6d8e30f1.png` 原样保存为 `sia-swallow-02.png`。蓝青配色、透明背景，导出仅缩放和转换格式；方形资源沿用每边约 6% 透明安全边距。
+
+```text
+Design a DISTINCT alternative to the reference Sia flying-bird monogram. Reference establishes the concept of letterforms becoming a bird, not fixed geometry. Minimal flying swallow formed out of connected Sia letterforms. Just two long pointed wings, small streamlined head and forked tail. Capital S is one flowing body curve, i is a short feather stem plus detached teardrop dot, a is a single graceful wing loop. Very few shapes, generous negative space, compact balanced silhouette, elegant and restrained, no elaborate phoenix plumage. Essential: bird and S i a are ONE integrated mark, absolutely no separate wordmark overlay and no text underneath. Ocean blue, azure, turquoise and light cyan, maximum four coherent color regions with only restrained smooth transitions. Clean flat 2D vector-like silhouette and crisp curves, designed to remain recognizable at 24–32px. No 3D, no bevels, no lighting, no shadow, no glow, no painterly texture, no outline stroke around the entire emblem, no globe. Genuine transparent background and internal negative spaces. Center one large complete unclipped logo on a square canvas with comfortable small transparent safe margins. No labels, captions or comparison board. Direction 02 · 极简燕子.
+```
+
+## 05 版圆环飞燕（2026-10-26）
+
+用户确认接入 05 版。原件 `exec-0d5b0a4f-e31d-464b-92dd-82b6a56b8830.png` 原样保存为 `sia-swift-05.png`。图稿由内置 image_gen 生成，采用 `transparent_background=true`；导出只缩放与转换格式，方形资源沿用每边约 6% 的透明安全边距。
+
+```text
+Create ONE original professional browser app logo for Sia. New design direction: A compact nearly circular swift bird symbol, formed by exactly two broad interlocking crescent wing shapes and one small pointed head. An elegant S-shaped transparent central channel; a tiny detached feather serves as i dot and a rounded opening subtly suggests a. Understated Sia letter hints integrated in bird structure, not literal text. Rich cobalt and turquoise with a small pale cyan area. Smooth thick curves, strong round outer mass, few details. It must look like a designed small app icon, not an illustration. Clear visual hierarchy, strong compact silhouette recognizable at 24 pixels. Flat 2D, crisp vector-like shapes, restrained palette, clean edges. NO elaborate decorative feathers, NO large phoenix crest, NO long flourishes, NO underlines, NO separate wordmark, NO literal text underneath, NO enclosing square tile, NO globe, NO 3D, NO bevels, NO shadows, NO glow, NO texture. Do not copy any existing browser logo. Genuine transparent background and transparent negative spaces. Center one emblem in a square canvas with 8% safe margins. No labels, no captions, no presentation board. Variant 05 · 圆环飞燕.
+```
+
+05 版原样接入的可见性检查：深色背景笔画对比度中位数 3.58:1，低于现有 4.5:1 阈值；16px 亮色可辨笔画比例 37.8%，低于现有 45% 阈值。保留用户选稿配色用于试用，未降低测试阈值，未将上述检查记为通过。

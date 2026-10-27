@@ -1,7 +1,8 @@
 //! 在导航前按隔离配置同步扩展，避免全局目录自动加载绕过分组限制。
 use std::{collections::HashMap, path::Path};
 
-/// 串行化扩展配置修改和网页初始化，防止旧配置在保存后重新装入页面。
+/// 串行化扩展配置修改、网页初始化与销毁，防止旧策略回写及 WebView2 消息泵重入上下文锁。
+/// 只能在异步任务中等待；已持锁的内部操作不得再次获取该锁。
 #[derive(Default)]
 pub struct ExtensionOperationLock(pub tokio::sync::Mutex<()>);
 

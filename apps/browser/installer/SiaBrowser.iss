@@ -38,7 +38,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
 OutputBaseFilename={#OutputName}
 SetupIconFile={#PayloadDir}\app.ico
-UninstallDisplayIcon={app}\app-s1e-blue-bird.ico
+UninstallDisplayIcon={app}\app-sia-swift-05.ico
 UninstallDisplayName={#ProductName}
 Compression=lzma2/fast
 SolidCompression=yes
@@ -61,16 +61,16 @@ Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: 
 ; 显式列出程序与品牌图标，前端已内嵌到 EXE，不收集浏览数据或发布目录杂项。
 Source: "{#PayloadDir}\sia-browser.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#PayloadDir}\app.ico"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#PayloadDir}\app-s1e-blue-bird.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#PayloadDir}\app-sia-swift-05.ico"; DestDir: "{app}"; Flags: ignoreversion
 ; 迁移脚本只解压到安装临时目录，不留在应用目录中。
 Source: "migrate-legacy.ps1"; Flags: dontcopy
 Source: "close-running-browser.ps1"; Flags: dontcopy
 Source: "update-pinned-shortcuts.ps1"; Flags: dontcopy
 
 [Icons]
-Name: "{group}\{#ProductName}"; Filename: "{app}\sia-browser.exe"; IconFilename: "{app}\app-s1e-blue-bird.ico"; WorkingDir: "{app}"
+Name: "{group}\{#ProductName}"; Filename: "{app}\sia-browser.exe"; IconFilename: "{app}\app-sia-swift-05.ico"; WorkingDir: "{app}"
 Name: "{group}\卸载{#ProductName}"; Filename: "{uninstallexe}"
-Name: "{userdesktop}\{#ProductName}"; Filename: "{app}\sia-browser.exe"; IconFilename: "{app}\app-s1e-blue-bird.ico"; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{userdesktop}\{#ProductName}"; Filename: "{app}\sia-browser.exe"; IconFilename: "{app}\app-sia-swift-05.ico"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\sia-browser.exe"; Description: "启动{#ProductName}"; Flags: nowait postinstall skipifsilent

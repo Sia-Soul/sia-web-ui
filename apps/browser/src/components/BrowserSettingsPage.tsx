@@ -4,6 +4,8 @@ import {
   Button,
   Icon,
   Input,
+  InputNumber,
+  Segmented,
   Modal,
   Switch,
   Table,
@@ -20,10 +22,15 @@ import { ROOT_GROUP_ID, type BrowserGroup } from "../browserTypes";
 import { extensionScopeLabel, type ExtensionScope } from "../extensionScopes";
 import ExtensionScopeEditor from "./ExtensionScopeEditor";
 import BrowserPasswordCell from "./BrowserPasswordCell";
+import type { TabSleepPreference } from "../browserPreferences";
 
 export type BrowserSettingsSection = "general" | "privacy" | "passwords" | "extensions" | "downloads";
 
 interface BrowserSettingsPageProps {
+  /** 后台标签闲置多久后休眠，改变后立即保存并重算计时。 */
+  tabSleep: TabSleepPreference;
+  /** 提交有效的正数时长及显示单位。 */
+  onTabSleepChange: (value: TabSleepPreference) => void;
   /** 当前父子分组，用于设置扩展生效范围。 */
   groups: readonly BrowserGroup[];
   activeDownloadCount: number;
@@ -101,6 +108,8 @@ function sectionCopy(section: BrowserSettingsSection) {
 }
 
 export default function BrowserSettingsPage({
+  tabSleep,
+  onTabSleepChange,
   groups,
   activeDownloadCount,
   askBeforeDownload,
@@ -324,6 +333,16 @@ export default function BrowserSettingsPage({
   function renderGeneral() {
     return (
       <div className="browser-settings__cards">
+        <section className="browser-settings-card browser-settings-card--row">
+          <div><h3>标签页休眠</h3><p>后台标签连续未使用达到此时间后释放网页资源，再次打开时恢复。正在调试的标签不会自动休眠。</p></div>
+          {/* 单位使用框架分段切换，两个选项常驻可见；无效或清空数值不覆盖已保存偏好。 */}
+          <div className="browser-sleep-controls">
+            <InputNumber aria-label="休眠时间" value={tabSleep.value} min={tabSleep.unit === "hours" ? 1 / 60 : 1} max={tabSleep.unit === "hours" ? 168 : 10080} step={1}
+              onChange={value => { if (value !== null && Number.isFinite(value) && value > 0) onTabSleepChange({ ...tabSleep, value }); }} />
+            <Segmented aria-label="休眠时间单位" value={tabSleep.unit} options={[{ value: "minutes", label: "分钟" }, { value: "hours", label: "小时" }]}
+              onChange={unit => { if (unit === "minutes" || unit === "hours") onTabSleepChange({ value: tabSleep.value, unit }); }} />
+          </div>
+        </section>
         <section className="browser-settings-card browser-settings-card--row">
           <div>
             <h3>默认浏览器</h3>

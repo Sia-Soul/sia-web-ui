@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import { Button, FloatingScrollbarProvider, Icon } from "@sia.soul/sia-react-ui";
-import { ROOT_GROUP_ID, type BrowserGroup, type BrowserTab } from "../browserTypes";
+import { ROOT_GROUP_ID, type BrowserGroup, type BrowserTab, type BrowserDropTarget } from "../browserTypes";
 import BrowserFavicon from "./BrowserFavicon";
 import { useCompactTabTooltip } from "./BrowserTabTooltip";
 
@@ -75,6 +75,7 @@ export default function VerticalTabTree({
   const compactTooltip = useCompactTabTooltip(!panelExpanded);
   const [resizing, setResizing] = useState(false);
   const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
+  const [externalDragging, setExternalDragging] = useState(false);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   // 插入位置独立于分组高亮，同一目标分组中移动时也能即时更新横线。
   const [dropInsertion, setDropInsertion] = useState<{ key: string; beforeTabId: string | null } | null>(null);
@@ -126,29 +127,57 @@ export default function VerticalTabTree({
     // 不依赖标题、加载状态或整个 tabs 数组，避免后台刷新时反复抢回用户滚动位置。
   }, [activeId, activeTab?.id, activeTab?.groupId, activeTab?.smallGroupId, panelExpanded, collapsedGroups, collapsedSmallGroups]);
 
-  /** 仅接受当前树发起的标签拖动，外部网址、文件或文本不会触发分组迁移。 */
+  /** 共同使用直属标签中线定位；文件创建和页签重排必须与提示线使用相同算法。 */
+  function insertionBefore(container: HTMLElement, clientY: number, groupId: string, smallGroupId?: string) {
+    const ids = new Set(tabs.filter(tab => tab.id !== draggedTabRef.current
+      && tab.groupId === groupId && tab.smallGroupId === smallGroupId).map(tab => tab.id));
+    for (const row of container.querySelectorAll<HTMLElement>("[data-browser-tab-id]")) {
+      if (!ids.has(row.dataset.browserTabId!)) continue;
+      const rect = row.getBoundingClientRect();
+      if (clientY < rect.top + rect.height / 2) return row.dataset.browserTabId!;
+    }
+    return null;
+  }
+
+  useEffect(() => {
+    // 文件路径只能由原生 File 桥读取；捕获阶段仅向共享拖放脚本同步分组和排序锚点。
+    const resolve = (event: Event) => {
+      const detail = (event as CustomEvent<{ event: DragEvent; target?: BrowserDropTarget }>).detail;
+      const hit = detail.event.target instanceof Element ? detail.event.target.closest<HTMLElement>("[data-drop-group]") : null;
+      if (hit && scrollContainerRef.current?.contains(hit)) {
+        const groupId = hit.dataset.dropGroup!;
+        const smallGroupId = hit.dataset.dropSmallGroup;
+        detail.target = { groupId, smallGroupId, beforeTabId: insertionBefore(hit, detail.event.clientY, groupId, smallGroupId) };
+      }
+      finishTabDrag();
+    };
+    const clear = () => finishTabDrag();
+    window.addEventListener("sia-resolve-tree-drop", resolve);
+    window.addEventListener("drop", clear);
+    window.addEventListener("dragend", clear);
+    return () => {
+      window.removeEventListener("sia-resolve-tree-drop", resolve);
+      window.removeEventListener("drop", clear);
+      window.removeEventListener("dragend", clear);
+    };
+  }, [tabs]);
+
+  /** 内部页签重排与外部文件共用命中反馈；文件投放由原生桥创建标签，不移动已有页签。 */
   function dropHandlers(groupId: string, smallGroupId?: string) {
     const key = JSON.stringify([groupId, smallGroupId ?? null]);
     // 只比较目标列表直属标签的中线，跳过源标签与其他小分组；缩进空白同样参与命中。
-    const insertionBefore = (event: ReactDragEvent<HTMLElement>) => {
-      const ids = new Set(tabs.filter((tab) => tab.id !== draggedTabRef.current
-        && tab.groupId === groupId && tab.smallGroupId === smallGroupId).map((tab) => tab.id));
-      for (const row of event.currentTarget.querySelectorAll<HTMLElement>("[data-browser-tab-id]")) {
-        if (!ids.has(row.dataset.browserTabId!)) continue;
-        const rect = row.getBoundingClientRect();
-        if (event.clientY < rect.top + rect.height / 2) return row.dataset.browserTabId!;
-      }
-      return null;
-    };
+    const position = (event: ReactDragEvent<HTMLElement>) => insertionBefore(event.currentTarget, event.clientY, groupId, smallGroupId);
     // 进入子节点与周期性悬停均接受内部标签，避免切换命中元素时短暂显示禁止指针。
     const acceptDrag = (event: ReactDragEvent<HTMLElement>) => {
       event.stopPropagation();
       const tab = tabs.find((item) => item.id === draggedTabRef.current);
-      if (!tab) { setDropTarget(null); return false; }
+      const files = !tab && event.dataTransfer.types.includes("Files");
+      if (!tab && !files) { setDropTarget(null); setDropInsertion(null); return false; }
       event.preventDefault();
-      event.dataTransfer.dropEffect = "move";
+      event.dataTransfer.dropEffect = tab ? "move" : "copy";
+      setExternalDragging(files);
       setDropTarget(key);
-      const beforeTabId = insertionBefore(event);
+      const beforeTabId = position(event);
       setDropInsertion((current) => current?.key === key && current.beforeTabId === beforeTabId
         ? current : { key, beforeTabId });
       return true;
@@ -177,14 +206,20 @@ export default function VerticalTabTree({
         if (!next || !event.currentTarget.contains(next)) {
           setDropTarget((current) => current === key ? null : current);
           setDropInsertion((current) => current?.key === key ? null : current);
+          if (!draggedTabRef.current && (!next || !scrollContainerRef.current?.contains(next))) finishTabDrag();
         }
       },
       onDrop: (event: ReactDragEvent<HTMLElement>) => {
         event.stopPropagation();
         const tab = tabs.find((item) => item.id === draggedTabRef.current);
-        if (!tab) return;
+        if (!tab) {
+          // 非网页文件不创建页签，也不能让内核接管并替换 Tree 文档。
+          if (event.dataTransfer.types.includes("Files")) event.preventDefault();
+          finishTabDrag();
+          return;
+        }
         event.preventDefault();
-        const beforeTabId = insertionBefore(event);
+        const beforeTabId = position(event);
         finishTabDrag();
         onMoveTab(tab.id, groupId, smallGroupId, beforeTabId);
       },
@@ -195,6 +230,7 @@ export default function VerticalTabTree({
   function finishTabDrag() {
     draggedTabRef.current = null;
     setDraggedTabId(null);
+    setExternalDragging(false);
     setDropTarget(null);
     setDropInsertion(null);
   }
@@ -209,14 +245,14 @@ export default function VerticalTabTree({
 
   // 悬停折叠分组后展开，便于继续拖入内部小分组；离开目标立即取消定时器。
   useEffect(() => {
-    if (!dropTarget || !draggedTabId) return;
+    if (!dropTarget || (!draggedTabId && !externalDragging)) return;
     const [groupId, smallGroupId] = JSON.parse(dropTarget) as [string, string | null];
     const timer = window.setTimeout(() => {
       if (collapsedGroups.has(groupId)) onToggleGroup?.(groupId);
       if (smallGroupId && collapsedSmallGroups.has(smallGroupId)) onToggleSmallGroup?.(smallGroupId);
     }, 650);
     return () => window.clearTimeout(timer);
-  }, [dropTarget, draggedTabId, collapsedGroups, collapsedSmallGroups, onToggleGroup, onToggleSmallGroup]);
+  }, [dropTarget, draggedTabId, externalDragging, collapsedGroups, collapsedSmallGroups, onToggleGroup, onToggleSmallGroup]);
 
   function handleResizeStart(event: ReactPointerEvent<HTMLDivElement>) {
     if (!panelExpanded || event.button !== 0) return;
@@ -371,6 +407,14 @@ export default function VerticalTabTree({
         minWidth: floatingWindow ? "calc(100vw - 8px)" : panelExpanded ? panelWidth : COMPACT_PANEL_WIDTH,
       }}
       aria-label="垂直标签页"
+      onDragEnterCapture={event => {
+        // 即使没有根级标签，外部文件进入侧栏时也显示根级投放区域。
+        if (!draggedTabRef.current && event.dataTransfer.types.includes("Files")) setExternalDragging(true);
+      }}
+      onDragLeave={event => {
+        const next = event.relatedTarget instanceof Node ? event.relatedTarget : document.elementFromPoint(event.clientX, event.clientY);
+        if (!draggedTabRef.current && (!next || !event.currentTarget.contains(next))) finishTabDrag();
+      }}
     >
       <div className="vertical-tab-tree__header">
         {panelExpanded ? (
@@ -521,10 +565,10 @@ export default function VerticalTabTree({
             </section>
           );
           })}
-            {rootTabs.length > 0 || draggedTabId ? (
+            {rootTabs.length > 0 || draggedTabId || externalDragging ? (
               <div className="vertical-tab-tree__root-tabs" aria-label="根级标签页" {...dropHandlers(ROOT_GROUP_ID)}>
                 {/* 仅空根列表显示投放提示，避免起拖时插入文案挤动已有根标签及插入位置。 */}
-                {draggedTabId && rootTabs.length === 0 ? <span className="vertical-tree-drop-hint">拖到此处移出分组</span> : null}
+                {(draggedTabId || externalDragging) && rootTabs.length === 0 ? <span className="vertical-tree-drop-hint">{externalDragging ? "拖到此处新建根级标签" : "拖到此处移出分组"}</span> : null}
                 {rootTabs.map(renderTab)}
                 {renderDropEnd(ROOT_GROUP_ID)}
               </div>

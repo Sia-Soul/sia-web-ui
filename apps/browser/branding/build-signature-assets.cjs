@@ -7,8 +7,8 @@ const sharp = require(process.argv[2]);
 
 async function main() {
   const publicDir = path.resolve(__dirname, '../public/brand');
-  const wordmarkSource = path.join(__dirname, 'sia-signature-s1e-blue-bird.png');
-  // 所有用途共用蓝青飞鸟与珍珠白签名的透明原稿；方形画布仅补透明留白，不添加底板或拉伸字形。
+  const wordmarkSource = path.join(__dirname, 'sia-swift-05.png');
+  // 所有用途共用05 版圆环飞燕的透明原稿；方形画布仅补透明留白，不添加底板或拉伸字形。
   for (const size of [64, 256, 1024]) {
     const output = size === 1024 ? path.join(__dirname, 'sia-browser-source.png')
       : path.join(publicDir, size === 64 ? 'sia-browser-small.png' : 'sia-browser.png');

@@ -1,5 +1,7 @@
 mod browser_overlay;
 mod browser_profiles;
+#[cfg(windows)]
+mod browser_profile_lifetime;
 mod bookmark_import;
 mod browser_visibility;
 mod browser_theme;
@@ -368,7 +370,10 @@ fn emit_download_event(
     if state == "finished" && runtime.closing_tabs.lock().map(|tabs| tabs.contains(tab_id)).unwrap_or(false) {
         let cleanup_app = app.clone();
         let cleanup_tab = tab_id.to_string();
-        let _ = app.run_on_main_thread(move || { let _ = close_browser_tab(cleanup_app, cleanup_tab); });
+        // 下载回调可能在 WebView2 初始化的消息循环内触发，销毁必须异步等待生命周期锁。
+        tauri::async_runtime::spawn(async move {
+            let _ = close_browser_tab(cleanup_app, cleanup_tab).await;
+        });
     }
     let (received_bytes, total_bytes) = read_download_progress(operation)?;
     let mut raw_source_url = PWSTR::null();
@@ -744,7 +749,8 @@ async fn open_browser_tab(
     let profile_matches = app.state::<BrowserProfileStore>().0.lock()
         .map_err(|_| "无法读取标签数据目录")?.get(&label) == Some(&data_directory);
     if app.get_webview(&label).is_some() && !profile_matches {
-        close_browser_tab(app.clone(), tab_id.clone())?;
+        // 当前初始化已持有生命周期锁，避免调用公开关闭命令再次等待同一把锁。
+        close_browser_tab_locked(&app, tab_id.clone()).await?;
     }
     eprintln!(
         "[browser-view] open tab={tab_id} label={label} bounds=({}, {}, {}, {})",
@@ -979,8 +985,17 @@ async fn switch_browser_tab(
     }
 }
 
+/// 异步等待网页初始化结束后关闭标签，防止主线程消息泵重入 WebView 上下文的销毁锁。
 #[tauri::command]
-fn close_browser_tab(app: AppHandle, tab_id: String) -> Result<(), String> {
+async fn close_browser_tab(app: AppHandle, tab_id: String) -> Result<(), String> {
+    app.state::<browser_startup::BrowserStartup>().wait().await?;
+    let lifecycle = app.state::<extension_runtime::ExtensionOperationLock>();
+    let _guard = lifecycle.0.lock().await;
+    close_browser_tab_locked(&app, tab_id).await
+}
+
+/// 调用方须在异步任务中持有扩展/网页生命周期锁；有下载任务时只隐藏，待任务结束后释放。
+async fn close_browser_tab_locked(app: &AppHandle, tab_id: String) -> Result<(), String> {
     // 关闭工具异步排队，避免在网页销毁回调里等待跨进程窗口消息。
     let tools_app = app.clone();
     let tools_tab = tab_id.clone();
@@ -1000,7 +1015,24 @@ fn close_browser_tab(app: AppHandle, tab_id: String) -> Result<(), String> {
             }
             runtime.closing_tabs.lock().map_err(|_| "无法清理关闭页签")?.remove(&tab_id);
         }
+        #[cfg(windows)]
+        let retirement = {
+            let profile = {
+                let profiles = app.state::<BrowserProfileStore>();
+                let profiles = profiles.0.lock().map_err(|_| "无法读取标签数据目录")?;
+                // 同隔离空间仍有实际视图（包括隐藏下载页）时，只关闭本页，不进入内核回收。
+                profiles.get(&browser_label(&tab_id)).filter(|profile|
+                    profiles.values().filter(|current| *current == *profile).count() == 1).cloned()
+            };
+            if let Some(profile) = profile {
+                Some((profile, browser_profile_lifetime::close_last_view(&webview).await?))
+            } else { None }
+        };
         webview.close().map_err(|error| error.to_string())?;
+        #[cfg(windows)]
+        if let Some((profile, retiring)) = retirement {
+            browser_profile_lifetime::watch_exit(app.clone(), profile, retiring);
+        }
     }
     app.state::<extensions::ExtensionScopeStore>().0.lock()
         .map_err(|_| "无法移除扩展分组记录")?.remove(&browser_label(&tab_id));

@@ -64,12 +64,21 @@ body.browser-tab-panel-document__body,
 
 /* 主菜单保持原有紧凑行高；子菜单由框架 Portal 侧向展开，长列表限制在原生画布内滚动。 */
 .browser-window-menu--cascade > .sia-menu { padding: 0; border: 0; background: transparent; }
+/* 四周留白由面板统一提供，首尾行不再叠加菜单项的纵向外边距。 */
+.browser-window-menu--cascade > .sia-menu > .sia-menu__entry:first-child { margin-top: 0; }
+.browser-window-menu--cascade > .sia-menu > .sia-menu__entry:last-child { margin-bottom: 0; }
 .browser-window-menu--cascade .sia-menu__item,
 .browser-menu-document .sia-menu__popup .sia-menu__item { min-height: 32px; font-size: 13px; }
 .browser-window-menu--cascade { overflow-y: auto; }
-.browser-menu-document .sia-menu__popup { width: 260px; max-width: calc(100vw - 16px); }
-/* 子菜单自身另有上下各 4px 内边距和 1px 边框，列表扣除这 10px 后整体仍不超过上限。 */
-.browser-menu-document .sia-menu__popup-list { max-height: min(630px, calc(100vh - 50px)); overflow-y: auto; }
+/* 侧向级联使用向右箭头提示下一层，不沿用内嵌折叠菜单的上下箭头。 */
+.browser-menu-document .browser-window-menu--cascade .sia-menu__entry .sia-menu__expand-icon,
+.browser-menu-document .sia-menu__popup .sia-menu__entry .sia-menu__expand-icon { transform: rotate(-90deg); }
+/* 子菜单与根菜单统一为 6px 内边距，外层边框不侵占列表的可滚动高度。 */
+.browser-menu-document .sia-menu__popup { width: 260px; max-width: calc(100vw - 16px); padding: 6px; }
+/* 上下内边距与边框合计 14px，列表扣除后整个子菜单仍不超过 640px。 */
+.browser-menu-document .sia-menu__popup-list { max-height: min(626px, calc(100vh - 54px)); overflow-y: auto; }
+/* 菜单窗口禁用退场动画时也立即隐藏关闭层，避免卸载等待期间遮挡当前菜单。 */
+.browser-menu-document .sia-menu__popup.is-closing { display: none; }
 
 /* 面板开关保持即时响应，仅下载项的短暂提示层允许播放淡出动画。 */
 .browser-menu-document *:not(.browser-download-entry__highlight),
@@ -94,7 +103,20 @@ body.browser-tab-panel-document__body,
   gap: 8px;
   min-height: 64px;
   padding: 8px;
+  border-radius: 8px;
+  transition: background-color 150ms ease;
 }
+
+/* 扩展整行与键盘焦点使用主题悬停色，亮暗主题保持一致的反馈。 */
+.browser-extension-row:hover,
+.browser-extension-row:focus-within { background: var(--sia-color-control-hover); }
+/* 时间输入与单位分段切换并排对齐，窄设置面板允许控件换行。 */
+.browser-sleep-controls { display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+.browser-sleep-controls > .sia-input-number { width: 120px; }
+.browser-sleep-controls > .sia-segmented { flex-shrink: 0; align-self: center; }
+/* 面板树复用框架展开开关，行高保持紧凑，长标题留在可视区域内。 */
+.browser-bookmark-tree .sia-tree__row,
+.browser-history-tree .sia-tree__row { min-height: 34px; }
 
 .browser-extension-icon { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
 /* 窄窗口优先保留导航和窗口控制，隐藏的快捷入口仍可在扩展面板中管理。 */
@@ -117,9 +139,8 @@ body.browser-tab-panel-document__body,
 
 /* 子菜单限制在所属原生窗口中，底部项目打开时向上避让窗口边界。 */
 .browser-extension-context-menu.sia-menu {
-  position: absolute;
   width: 248px;
-  max-height: min(640px, calc(100% - 48px));
+  max-height: min(640px, calc(100vh - 40px));
   overflow-y: auto;
   background: var(--sia-color-surface);
   border: 1px solid var(--sia-color-border);
@@ -372,13 +393,13 @@ body.browser-tab-panel-document__body,
   transition: background-color 140ms ease;
 }
 
-/* 提示层不参与布局或命中，1.5 秒后完全透明，进度更新不改变动画起点。 */
+/* 橙色提示层不参与布局或命中，1.5 秒后完全透明，进度更新不改变动画起点。 */
 .browser-download-entry__highlight {
   position: absolute;
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  background: color-mix(in srgb, var(--sia-color-primary) 18%, transparent);
+  background: rgb(255 145 0 / 32%);
   animation: browser-download-entry-highlight 1500ms ease-out both;
 }
 @keyframes browser-download-entry-highlight {
@@ -475,21 +496,32 @@ body.browser-tab-panel-document__body,
   padding: 0;
 }
 
-.browser-download-context-layer {
+/* 子层仅占真实表面，不用整窗遮罩截获父面板按钮或搜索框。 */
+.browser-floating-submenu {
   position: fixed;
   z-index: 40;
-  inset: 0;
+  border-radius: 12px;
 }
+/* 下载和扩展的子菜单统一使用与根面板一致的边框、内边距、圆角与阴影。 */
+.browser-floating-submenu > .sia-menu {
+  padding: 6px;
+  margin: 0;
+  border: 1px solid var(--sia-color-border);
+  border-radius: 12px;
+  background: var(--sia-color-surface);
+  box-shadow: 0 2px 4px rgb(15 23 42 / 6%), 0 6px 12px -2px rgb(15 23 42 / 10%);
+}
+.browser-floating-submenu > .sia-menu > .sia-menu__entry:first-child { margin-top: 0; }
+.browser-floating-submenu > .sia-menu > .sia-menu__entry:last-child { margin-bottom: 0; }
 
 .browser-download-context-menu.sia-menu {
-  position: absolute;
   width: 280px;
   max-height: min(640px, calc(100vh - 40px));
   padding: 6px;
   overflow-x: hidden;
   overflow-y: auto;
   border: 1px solid var(--sia-color-border);
-  border-radius: 16px;
+  border-radius: 12px;
   box-shadow: var(--sia-shadow-popup);
 }
 
@@ -1057,7 +1089,7 @@ input {
   flex-direction: column;
 }
 
-/* 工具与网页共用实际布局，原生 HWND 仅占据工具宿主，标题和分隔条保留在外壳。 */
+/* 工具与网页共用实际布局，原生 HWND 填满工具区域，外壳只保留可拖动的分隔条。 */
 .browser-devtools-workspace {
   flex: 1;
   min-width: 0;
@@ -1076,18 +1108,9 @@ input {
 .browser-devtools-workspace:not(.is-docked) > .sia-splitter > .sia-splitter__panel:not(:first-child),
 .browser-devtools-workspace:not(.is-docked) > .sia-splitter > [role="separator"] { display: none; }
 .browser-devtools-dock { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.browser-devtools-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  background: var(--browser-toolbar);
-  border-bottom: 1px solid var(--sia-color-border);
-}
-.browser-devtools-toolbar strong { flex: 1; font-size: 12px; white-space: nowrap; }
-.browser-devtools-toolbar [aria-pressed="true"] { color: var(--sia-color-primary); }
 .browser-devtools-native-host { flex: 1; min-height: 0; min-width: 0; }
+/* 原生窗口后台准备时，用框架 Spin 填充占位，显示工具后不留下额外标题或空白。 */
+.browser-devtools-loading { display: grid; place-items: center; width: 100%; height: 100%; color: var(--sia-color-text-secondary); }
 
 .toolbar-icon-button.sia-button {
   width: 34px;
@@ -1277,6 +1300,9 @@ input {
   display: none;
 }
 
+/* 文件夹由 Dropdown 包装，保持与独立链接按钮相同的自然宽度，超出时由收藏栏滚动。 */
+.bookmarks-bar__items > .sia-dropdown { flex: 0 0 auto; }
+
 .bookmarks-bar__empty {
   padding: 0 6px;
   color: var(--sia-color-text-secondary);
@@ -1289,7 +1315,6 @@ input {
   min-width: auto;
   height: 26px;
   padding: 0 7px;
-  color: var(--sia-color-text);
   font-size: 12px;
   border-radius: 4px;
 }
@@ -1876,7 +1901,7 @@ input {
 }
 
 .browser-brand-glyph {
-  /* 蓝青飞鸟与珍珠白签名直接使用图稿原色，深浅主题均不加滤镜，保持与原生图标一致。 */
+  /* 05 版圆环飞燕直接使用图稿原色，深浅主题均不加滤镜，保持与原生图标一致。 */
   display: block;
   flex: 0 0 auto;
   object-fit: contain;

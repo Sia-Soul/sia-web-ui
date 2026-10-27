@@ -3,6 +3,16 @@ export interface BrowserSmallGroup {
   name: string;
 }
 
+/** 外部文件在标签树中的投放位置；原生桥只接受外壳和侧栏提供的定位。 */
+export interface BrowserDropTarget {
+  /** 目标大分组，根级区域使用 ROOT_GROUP_ID。 */
+  groupId: string;
+  /** 目标小分组，省略时加入大分组直属区域。 */
+  smallGroupId?: string;
+  /** 插入此标签之前；null 表示目标区域末尾。 */
+  beforeTabId: string | null;
+}
+
 export interface BrowserGroup {
   id: string;
   name: string;

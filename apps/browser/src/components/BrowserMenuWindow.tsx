@@ -1,11 +1,18 @@
 import { extensionMatchesScope, type ExtensionScope } from "../extensionScopes";
 import { browserShortcut } from "../browserShortcuts";
+import { newestDownloadsFirst, nextDownloadStartedAt } from "../downloadOrder";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Icon, Input, Menu, applySiaTheme } from "@sia.soul/sia-react-ui";
-import type { MenuItem } from "@sia.soul/sia-react-ui";
+import { Button, Icon, Input, Menu, Tree } from "@sia.soul/sia-react-ui";
+import type { MenuItem, TreeNode } from "@sia.soul/sia-react-ui";
 import type { BrowserExtensionRecord } from "./BrowserSettingsPage";
+import BrowserFavicon from "./BrowserFavicon";
+import BrowserFloatingHost, { BrowserFloatingSubmenu, type BrowserFloatingAnchor } from "./BrowserFloatingHost";
 
 export interface BrowserMenuItem {
+  /** 收藏链接地址，用于显示网站图标；不指定时不显示网站图标。 */
+  faviconUrl?: string;
+  /** 收藏目录使用文件夹图标，子项由悬停级联菜单展示。 */
+  folder?: boolean;
   type?: "divider";
   key?: string;
   label?: string;
@@ -19,6 +26,12 @@ export interface BrowserMenuItem {
 }
 
 export interface BrowserPanelEntry {
+  /** 已关闭分组包含的标签；普通访问记录不使用此字段。 */
+  children?: BrowserPanelEntry[];
+  /** 记录关闭时的原生站点图标。 */
+  faviconUrl?: string;
+  /** 下载首次触发时间，毫秒；下载列表倒序排列时使用，进度更新不能重置。 */
+  startedAt?: number;
   /** 收藏夹目录标记；目录点击时在面板内展开。 */
   folder?: boolean;
   /** 上级收藏夹目录，省略表示根目录。 */
@@ -46,14 +59,21 @@ export interface BrowserPanelEntry {
 }
 
 export interface BrowserMenuPayload {
-  /** 从收藏夹栏打开目录时，自动展开该目录及其父目录。 */
-  bookmarkFolderId?: string;
   /** 原生面板显示批次；命中范围回传时用于拒绝旧面板的异步结果。 */
   hitRegionRevision?: number;
-  /** 原生窗口为级联菜单预留空间后，主菜单在窗口内的位置与尺寸，单位为 CSS 像素。 */
-  menuLayout?: { left: number; top: number; width: number; height: number };
+  /** 所有浮层的根布局，独立于子层画布；省略时使用窗口内默认边距，单位为 CSS 像素。 */
+  menuLayout?: {
+    /** 根面板相对浮层窗口左边的位置。 */
+    left: number;
+    /** 根面板相对浮层窗口顶部的位置。 */
+    top: number;
+    /** 根面板宽度，不随子菜单画布增加而变化。 */
+    width: number;
+    /** 根面板允许的最大高度；实际内容较少时自然收缩。 */
+    height: number;
+  };
   darkMode: boolean;
-  kind?: "menu" | "back-history" | "downloads" | "history" | "bookmarks" | "extensions";
+  kind?: "menu" | "back-history" | "downloads" | "history" | "bookmarks" | "bookmark-folder" | "extensions";
   /** 面板入口标识；自动显示和用户切换共享此身份。 */
   panelKey?: string;
   /** 仅用户点击时设置，相同入口再次点击关闭面板。 */
@@ -63,6 +83,8 @@ export interface BrowserMenuPayload {
   heading?: string;
   items: BrowserMenuItem[];
   entries?: BrowserPanelEntry[];
+  /** 按关闭时间倒序的独立会话记录，与访问历史分开。 */
+  closedEntries?: BrowserPanelEntry[];
   currentTitle?: string;
   currentUrl?: string;
   /** 预加载的受管扩展列表，打开后在后台刷新。 */
@@ -78,8 +100,8 @@ interface BrowserMenuAction {
 
 interface DownloadContextMenuState {
   entry: BrowserPanelEntry;
-  x: number;
-  y: number;
+  /** 原始右键位置，实际子菜单尺寸由统一宿主测量。 */
+  anchor: BrowserFloatingAnchor;
 }
 
 async function invokeNative<T>(command: string, args?: Record<string, unknown>) {
@@ -120,14 +142,23 @@ function DownloadFileIcon({ entry }: { entry: BrowserPanelEntry }) {
   const [loaded, setLoaded] = useState<{ key: string; url: string } | null>(null);
   useEffect(() => {
     let disposed = false;
-    let request = downloadIconCache.get(key);
-    if (!request) {
-      request = invokeNative<string | null>("get_download_file_icon", { fileName, filePath: filePath ?? null }).catch(() => null);
-      if (downloadIconCache.size >= 256) downloadIconCache.delete(downloadIconCache.keys().next().value!);
-      downloadIconCache.set(key, request);
-    }
-    void request.then(url => { if (!disposed && url) setLoaded({ key, url }); });
-    return () => { disposed = true; };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // 查询失败不永久缓存；下载刚完成或 Shell 暂忙时允许两次退避重试。
+    const read = async (attempt = 0) => {
+      let request = downloadIconCache.get(key);
+      if (!request) {
+        request = invokeNative<string | null>("get_download_file_icon", { fileName, filePath: filePath ?? null }).catch(() => null);
+        if (downloadIconCache.size >= 256) downloadIconCache.delete(downloadIconCache.keys().next().value!);
+        downloadIconCache.set(key, request);
+      }
+      const url = await request;
+      if (!url && downloadIconCache.get(key) === request) downloadIconCache.delete(key);
+      if (disposed) return;
+      if (url) setLoaded({ key, url });
+      else if (attempt < 2) timer = setTimeout(() => void read(attempt + 1), 350 * (attempt + 1));
+    };
+    void read();
+    return () => { disposed = true; clearTimeout(timer); };
   }, [key, fileName, filePath]);
   return loaded?.key === key
     ? <img src={loaded.url} width={24} height={24} alt="" draggable={false} onError={() => setLoaded(null)} />
@@ -142,26 +173,25 @@ function DownloadHighlight({ startedAt }: { startedAt?: number }) {
 }
 
 export default function BrowserMenuWindow() {
+  // 所有业务面板使用同一宿主，原生承载与业务状态分开管理。
+  return <BrowserMenuContent />;
+}
+
+/** 渲染当前原生菜单载荷，滚动条接入层在载荷切换时保持挂载。 */
+function BrowserMenuContent() {
   const [payload, setPayload] = useState<BrowserMenuPayload | null>(null);
   const [openKeys, setOpenKeys] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [searchVisible, setSearchVisible] = useState(false);
   const [historyTab, setHistoryTab] = useState<"all" | "recent">("all");
-  const [expandedFavorites, setExpandedFavorites] = useState(true);
-  const [expandedBookmarkFolders, setExpandedBookmarkFolders] = useState<Set<string>>(new Set());
+  const [expandedBookmarkFolders, setExpandedBookmarkFolders] = useState<Set<string>>(new Set(["bookmark-root"]));
   useEffect(() => {
-    if (payload?.kind !== "bookmarks" || !payload.bookmarkFolderId) return;
-    const expanded = new Set<string>();
-    let id: string | undefined = payload.bookmarkFolderId;
-    while (id && !expanded.has(id)) {
-      expanded.add(id);
-      id = payload.entries?.find(entry => entry.id === id)?.parentId;
-    }
-    setExpandedBookmarkFolders(expanded);
+    // 完整收藏面板每次打开从根目录开始；收藏夹栏使用独立级联菜单，不共享展开记录。
+    if (payload?.kind === "bookmarks") setExpandedBookmarkFolders(new Set(["bookmark-root"]));
   }, [payload]);
   const [downloadContextMenu, setDownloadContextMenu] = useState<DownloadContextMenuState | null>(null);
   const [extensions, setExtensions] = useState<BrowserExtensionRecord[]>([]);
-  const [extensionMenu, setExtensionMenu] = useState<{ id: string; y: number } | null>(null);
+  const [extensionMenu, setExtensionMenu] = useState<{ id: string; anchor: BrowserFloatingAnchor } | null>(null);
   const [extensionBusy, setExtensionBusy] = useState(false);
   const [extensionError, setExtensionError] = useState("");
   const [extensionLoading, setExtensionLoading] = useState(false);
@@ -171,15 +201,15 @@ export default function BrowserMenuWindow() {
 
   useEffect(() => {
     let disposed = false;
-    let unlisten: (() => void) | undefined;
-    let pollTimer: number | undefined;
+    const cleanups: Array<() => void> = [];
+    let receivedEvent = false;
+    let latestRevision = -1;
     const acceptPayload = (nextPayload: BrowserMenuPayload) => {
       if (disposed) return;
+      const revision = nextPayload.hitRegionRevision;
+      if (revision !== undefined && revision <= latestRevision) return;
+      if (revision !== undefined) latestRevision = revision;
       payloadRevision.current += 1;
-      if (pollTimer !== undefined) {
-        window.clearInterval(pollTimer);
-        pollTimer = undefined;
-      }
       setOpenKeys([]);
       setQuery("");
       setSearchVisible(false);
@@ -191,32 +221,34 @@ export default function BrowserMenuWindow() {
       setExtensionBusy(false);
       setExtensionLoading(nextPayload.kind === "extensions");
       setExtensions(nextPayload.extensions ?? []);
-      setPayload(nextPayload);
+      // 主窗口重开面板和原生实时事件共用时间排序，不能依赖传入数组的位置。
+      setPayload(nextPayload.kind === "downloads" ? { ...nextPayload, entries: newestDownloadsFirst(nextPayload.entries ?? []) } : nextPayload);
     };
-    const readCurrentState = () => {
-      void invokeNative<BrowserMenuPayload | null>("get_browser_menu_state")
-        .then((state) => {
-          if (state) acceptPayload(state);
-        })
-        .catch(() => undefined);
-    };
-    readCurrentState();
-    pollTimer = window.setInterval(readCurrentState, 200);
-    if (window.__TAURI__) {
-      void window.__TAURI__.event.listen<BrowserMenuPayload>(
-        "sia://browser-menu-state",
-        ({ payload: nextPayload }) => {
-          acceptPayload(nextPayload);
-        },
-      ).then((dispose) => {
-        if (disposed) dispose();
-        else unlisten = dispose;
-      });
-    }
+    // 先注册事件再读首屏快照；迟到快照不能覆盖已切换或已关闭的面板。
+    const retain = (cleanup: () => void) => { if (disposed) cleanup(); else cleanups.push(cleanup); };
+    void (async () => {
+      if (!window.__TAURI__) return;
+      retain(await window.__TAURI__.event.listen<BrowserMenuPayload>('sia://browser-menu-state', ({ payload: next }) => {
+        receivedEvent = true;
+        acceptPayload(next);
+      }));
+      retain(await window.__TAURI__.event.listen<{ revision: number }>('sia://browser-menu-closed', ({ payload: closed }) => {
+        if (disposed || closed.revision < latestRevision) return;
+        receivedEvent = true;
+        latestRevision = closed.revision;
+        payloadRevision.current += 1;
+        setPayload(null);
+        setOpenKeys([]);
+        setDownloadContextMenu(null);
+        setExtensionMenu(null);
+      }));
+      if (disposed) return;
+      const state = await invokeNative<BrowserMenuPayload | null>('get_browser_menu_state');
+      if (state && !receivedEvent) acceptPayload(state);
+    })().catch(() => undefined);
     return () => {
       disposed = true;
-      if (pollTimer !== undefined) window.clearInterval(pollTimer);
-      unlisten?.();
+      cleanups.forEach(cleanup => cleanup());
     };
   }, []);
 
@@ -231,20 +263,16 @@ export default function BrowserMenuWindow() {
           const entries = current.entries ?? [];
           const previous = entries.find(entry => entry.id === task.id);
           const next = { ...previous, ...task, title: task.fileName || previous?.title || "未命名下载", url: task.sourceUrl || previous?.url,
+            startedAt: previous?.startedAt ?? task.startedAt ?? nextDownloadStartedAt(entries),
             // 原生事件早于自动打开面板时由主窗口传递时间；面板已开时只为首次出现的下载记录时间。
             highlightStartedAt: previous?.highlightStartedAt ?? task.highlightStartedAt
               ?? (!previous && (task.state === "waiting" || task.state === "started") ? Date.now() : undefined) };
-          return { ...current, entries: previous ? entries.map(entry => entry.id === task.id ? next : entry) : [next, ...entries] };
+          return { ...current, entries: newestDownloadsFirst(previous ? entries.map(entry => entry.id === task.id ? next : entry) : [next, ...entries]) };
         });
       },
     ).then(dispose => { if (disposed) dispose(); else unlisten = dispose; });
     return () => { disposed = true; unlisten?.(); };
   }, []);
-
-  useEffect(() => {
-    if (!payload) return;
-    applySiaTheme(payload.darkMode ? "dark" : "light");
-  }, [payload]);
 
   useEffect(() => {
     if (!window.__TAURI__) return;
@@ -303,58 +331,6 @@ export default function BrowserMenuWindow() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [downloadContextMenu, openKeys, extensionMenu, payload?.kind]);
 
-  useEffect(() => {
-    if (!payload) return;
-    // 扩展的透明画布只承载子菜单；点击菜单之外的留白时正常关闭。
-    const dismissOnBlank = (event: PointerEvent) => {
-      if (event.target instanceof Element && !event.target.closest('.browser-panel, .browser-window-menu, .sia-menu__popup, .browser-download-context-menu, .browser-extension-context-menu')) {
-        void invokeNative('close_browser_menu').catch(() => undefined);
-      }
-    };
-    document.addEventListener('pointerdown', dismissOnBlank);
-    return () => document.removeEventListener('pointerdown', dismissOnBlank);
-  }, [payload?.kind, payload?.menuLayout]);
-
-  useEffect(() => {
-    if (payload?.hitRegionRevision === undefined) return;
-    const revision = payload.hitRegionRevision;
-    let frame = 0;
-    let previous = "";
-    // 只报告可见表面，不把全屏遮罩、阴影留白或预留的子菜单画布交给原生命中。
-    const selector = '.browser-panel, .browser-window-menu, .sia-menu__popup.is-open, .browser-download-context-menu, .browser-extension-context-menu';
-    const resize = new ResizeObserver(() => schedule());
-    const report = () => {
-      frame = 0;
-      const regions = [...document.querySelectorAll<HTMLElement>(selector)].flatMap(element => {
-        resize.observe(element);
-        const rect = element.getBoundingClientRect();
-        const style = getComputedStyle(element);
-        if (!rect.width || !rect.height || style.visibility === 'hidden' || style.display === 'none') return [];
-        return [{ x: rect.x, y: rect.y, width: rect.width, height: rect.height,
-          radius: parseFloat(style.borderTopLeftRadius) || 0 }];
-      });
-      const serialized = JSON.stringify(regions);
-      if (serialized === previous) return;
-      previous = serialized;
-      void invokeNative('update_browser_menu_regions', { revision, regions }).catch(() => undefined);
-    };
-    const schedule = () => { if (!frame) frame = requestAnimationFrame(report); };
-    // Portal 插入、开关及定位变化都需更新；每帧合并，避免列表渲染产生大量原生调用。
-    const mutations = new MutationObserver(schedule);
-    mutations.observe(document.body, { subtree: true, childList: true, attributes: true,
-      attributeFilter: ['style', 'class', 'hidden'] });
-    window.addEventListener('resize', schedule);
-    document.addEventListener('scroll', schedule, true);
-    schedule();
-    return () => {
-      cancelAnimationFrame(frame);
-      resize.disconnect();
-      mutations.disconnect();
-      window.removeEventListener('resize', schedule);
-      document.removeEventListener('scroll', schedule, true);
-    };
-  }, [payload]);
-
   const items = useMemo(
     () => payload?.items ?? [],
     [payload],
@@ -384,12 +360,9 @@ export default function BrowserMenuWindow() {
   function openDownloadContextMenu(event: React.MouseEvent, entry: BrowserPanelEntry) {
     event.preventDefault();
     event.stopPropagation();
-    const menuWidth = 280;
-    const menuHeight = 350;
     setDownloadContextMenu({
       entry,
-      x: Math.max(8, Math.min(event.clientX, window.innerWidth - menuWidth - 8)),
-      y: Math.max(8, Math.min(event.clientY, window.innerHeight - menuHeight - 8)),
+      anchor: { x: event.clientX, y: event.clientY, width: 0, height: 0 },
     });
   }
 
@@ -604,17 +577,9 @@ export default function BrowserMenuWindow() {
           </Button>
         </footer>
         {downloadContextMenu ? (
-          <div
-            className="browser-download-context-layer"
-            onPointerDown={() => setDownloadContextMenu(null)}
-            onContextMenu={(event) => {
-              event.preventDefault();
-              setDownloadContextMenu(null);
-            }}
-          >
+          <BrowserFloatingSubmenu anchor={downloadContextMenu.anchor} placement="point" onClose={() => setDownloadContextMenu(null)}>
             <Menu
               className="browser-download-context-menu"
-              style={{ left: downloadContextMenu.x, top: downloadContextMenu.y }}
               items={downloadContextItems(downloadContextMenu.entry)}
               mode="vertical"
               theme={payload?.darkMode ? "dark" : "light"}
@@ -623,17 +588,27 @@ export default function BrowserMenuWindow() {
               onContextMenu={(event) => event.preventDefault()}
               onClick={({ key }) => void dispatchAction(key)}
             />
-          </div>
+          </BrowserFloatingSubmenu>
         ) : null}
       </div>
     );
   }
 
   function renderHistory() {
-    const now = Date.now();
-    const visibleEntries = historyTab === "recent"
-      ? entries.filter((entry) => now - (entry.timestamp ?? 0) <= 86_400_000)
-      : entries;
+    const visibleEntries = [...entries].sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+    const keyword = query.trim().toLocaleLowerCase();
+    const closed = (payload?.closedEntries ?? []).filter(entry => !keyword || [entry, ...(entry.children ?? [])].some(item => `${item.title} ${item.url ?? ""}`.toLocaleLowerCase().includes(keyword)));
+    // 分组标题展开查看，恢复按钮整组恢复；子节点单独恢复对应标签。
+    const recentTree: TreeNode[] = closed.map(entry => ({ key: entry.id,
+      title: entry.children?.length ? `${entry.title} · ${entry.children.length} 个标签页` : entry.title,
+      icon: entry.children?.length ? <Icon name="folder" size={16} /> : <BrowserFavicon url={entry.url ?? ""} faviconUrl={entry.faviconUrl} size={16} />,
+      selectable: !entry.children?.length,
+      extra: entry.children?.length ? <Button variant="link" size="small" onClick={() => void dispatchAction(`panel|history|restore|${entry.id}`)}>恢复分组</Button> : undefined,
+      action: `panel|history|restore|${entry.id}`,
+      children: entry.children?.map(child => ({ key: `${entry.id}/${child.id}`, title: child.title,
+        icon: <BrowserFavicon url={child.url ?? ""} faviconUrl={child.faviconUrl} size={16} />,
+        action: `panel|history|restore|${entry.id}|${child.id}` })),
+    }));
     const groups = visibleEntries.reduce<Array<{ label: string; entries: BrowserPanelEntry[] }>>(
       (result, entry) => {
         const label = historyGroupLabel(entry.timestamp);
@@ -682,7 +657,9 @@ export default function BrowserMenuWindow() {
           <span>来自其他设备的标签页</span>
         </nav>
         <div className="browser-panel__scroll">
-          {groups.length ? groups.map((group) => (
+          {historyTab === "recent" ? (recentTree.length ? <Tree className="browser-history-tree" treeData={recentTree} showIcon
+            onSelect={(_, info) => { if (typeof info.node.action === "string") void dispatchAction(info.node.action); }} />
+            : <div className="browser-panel__empty">没有最近关闭的标签页</div>) : groups.length ? groups.map((group) => (
             <section className="browser-history-group" key={group.label}>
               <h3>{group.label}</h3>
               {group.entries.map((entry) => (
@@ -710,18 +687,25 @@ export default function BrowserMenuWindow() {
   }
 
   function renderBookmarks() {
-    // 搜索直接展示匹配项；普通浏览按目录逐层展开，防止大量导入项一次占满面板。
-    const visibleEntries: Array<{ entry: BrowserPanelEntry; depth: number }> = [];
-    function appendFolder(parentId?: string, depth = 0, seen = new Set<string>()) {
-      if (depth > 64) return;
-      for (const entry of entries.filter(item => item.parentId === parentId).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))) {
-        if (seen.has(entry.id)) continue;
-        visibleEntries.push({ entry, depth });
-        if (entry.folder && expandedBookmarkFolders.has(entry.id)) appendFolder(entry.id, depth + 1, new Set([...seen, entry.id]));
-      }
+    // 使用框架 Tree 保留祖先路径，带子项的目录由组件统一显示展开开关。
+    const source = payload?.entries ?? [];
+    const keyword = query.trim().toLocaleLowerCase();
+    function nodes(parentId?: string, seen = new Set<string>()): TreeNode[] {
+      if (seen.size > 64) return [];
+      return source.filter(entry => entry.parentId === parentId && !seen.has(entry.id))
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).flatMap(entry => {
+          const children = entry.folder ? nodes(entry.id, new Set([...seen, entry.id])) : [];
+          if (keyword && !`${entry.title} ${entry.url ?? ""}`.toLocaleLowerCase().includes(keyword) && !children.length) return [];
+          return [{ key: entry.id, title: entry.title, folder: entry.folder, selectable: !entry.folder,
+            icon: entry.folder ? <Icon name="folder" size={16} /> : <BrowserFavicon url={entry.url ?? ""} size={16} />,
+            children, isLeaf: !children.length }];
+        });
     }
-    if (query.trim()) visibleEntries.push(...entries.map(entry => ({ entry, depth: 0 })));
-    else appendFolder();
+    const children = nodes();
+    const tree: TreeNode[] = [{ key: "bookmark-root", title: "收藏夹", selectable: false, icon: <Icon name="star" size={18} />, children }];
+    const searchExpanded: string[] = ["bookmark-root"];
+    const collect = (items: readonly TreeNode[]) => items.forEach(item => { if (item.children?.length) { searchExpanded.push(String(item.key)); collect(item.children); } });
+    if (keyword) collect(children);
     return (
       <div className="browser-panel browser-panel--bookmarks">
         <header className="browser-panel__header">
@@ -745,43 +729,11 @@ export default function BrowserMenuWindow() {
           </div>
         ) : null}
         <div className="browser-panel__scroll">
-          <Button
-            className="browser-bookmark-root"
-            variant="text"
-            size="small"
-            onClick={() => setExpandedFavorites((value) => !value)}
-          >
-            <Icon name={expandedFavorites ? "chevron-down" : "chevron-right"} size={14} />
-            <Icon name="star" size={18} />
-            <strong>收藏夹</strong>
-          </Button>
-          {expandedFavorites ? (
-            <div className="browser-bookmark-list">
-              {visibleEntries.length ? visibleEntries.map(({ entry, depth }) => (
-                <Button
-                  className="browser-bookmark-entry"
-                  variant="text"
-                  size="small"
-                  key={entry.id}
-                  style={{ paddingLeft: 8 + depth * 16 }}
-                  aria-expanded={entry.folder ? expandedBookmarkFolders.has(entry.id) : undefined}
-                  onClick={() => {
-                    if (entry.folder) setExpandedBookmarkFolders(current => {
-                      const next = new Set(current); if (next.has(entry.id)) next.delete(entry.id); else next.add(entry.id); return next;
-                    });
-                    else void dispatchAction(`panel|bookmarks|open|${entry.id}`);
-                  }}
-                >
-                  <span className="browser-bookmark-entry__icon">
-                    <Icon name={entry.folder ? expandedBookmarkFolders.has(entry.id) ? "chevron-down" : "folder" : "star"} size={15} />
-                  </span>
-                  <span title={entry.title}>{entry.title}</span>
-                </Button>
-              )) : (
-                <div className="browser-panel__empty">收藏夹栏中暂无项目</div>
-              )}
-            </div>
-          ) : null}
+          <Tree className="browser-bookmark-tree" treeData={tree} showIcon
+            expandedKeys={keyword ? searchExpanded : [...expandedBookmarkFolders]}
+            onExpand={keys => setExpandedBookmarkFolders(new Set(keys.map(String)))}
+            onSelect={(_, info) => { if (!info.node.folder && info.node.key !== "bookmark-root") void dispatchAction(`panel|bookmarks|open|${info.node.key}`); }} />
+          {!children.length ? <div className="browser-panel__empty">没有匹配的收藏</div> : null}
         </div>
       </div>
     );
@@ -853,7 +805,7 @@ export default function BrowserMenuWindow() {
                 onClick={(event) => {
                   const rect = event.currentTarget.getBoundingClientRect();
                   setRemoveConfirmation(false);
-                  setExtensionMenu(extensionMenu?.id === extension.id ? null : { id: extension.id, y: Math.max(24, Math.min(rect.bottom, window.innerHeight - 290)) });
+                  setExtensionMenu(extensionMenu?.id === extension.id ? null : { id: extension.id, anchor: { x: rect.x, y: rect.y, width: rect.width, height: rect.height } });
                 }} />
             </article>
           )) : <div className="browser-panel__empty">{extensionLoading ? "正在读取扩展…" : "当前分组没有可用扩展"}</div>}
@@ -863,116 +815,119 @@ export default function BrowserMenuWindow() {
           <Button variant="text" icon={<Icon name="external-link" size={18} />} onClick={() => void dispatchAction("panel|extensions|store")}>获取 Microsoft Edge 扩展</Button>
         </footer>
         {extensionMenu && selected ? (
-          <div className="browser-download-context-layer" onPointerDown={() => { setExtensionMenu(null); setRemoveConfirmation(false); }}>
-            <Menu className="browser-extension-context-menu" style={{ right: 24, top: extensionMenu.y }} items={contextItems}
+          <BrowserFloatingSubmenu anchor={extensionMenu.anchor} placement="beside" onClose={() => { setExtensionMenu(null); setRemoveConfirmation(false); }}>
+            <Menu className="browser-extension-context-menu" items={contextItems}
               mode="vertical" theme={payload?.darkMode ? "dark" : "light"} selectable={false}
               onPointerDown={(event) => event.stopPropagation()} onClick={({ key }) => {
                 if (key === "remove" && !removeConfirmation) { setRemoveConfirmation(true); return; }
                 if (key === "pin" || key === "enabled" || key === "remove") void changeExtension(selected, key);
                 else void dispatchAction(`panel|extensions|${key}|${selected.id}`);
               }} />
-          </div>
+          </BrowserFloatingSubmenu>
         ) : null}
       </section>
     );
   }
 
-  if (!payload) return null;
-  if (payload.kind === "extensions") return renderExtensions();
-  if (payload.kind === "downloads") return renderDownloads();
-  if (payload.kind === "history") return renderHistory();
-  if (payload.kind === "bookmarks") return renderBookmarks();
+  /** 业务内容保留原有动作，由统一宿主补齐窗口交互和定位。 */
+  function renderSurface() {
+    if (!payload) return null;
+    if (payload.kind === "extensions") return renderExtensions();
+    if (payload.kind === "downloads") return renderDownloads();
+    if (payload.kind === "history") return renderHistory();
+    if (payload.kind === "bookmarks") return renderBookmarks();
 
-  if (items.some((item) => item.children?.length)) {
-    // 框架 Menu 负责悬停延迟、跨面板保持和边缘翻转；主菜单不因展开子项而被替换。
-    const convertItems = (source: BrowserMenuItem[], prefix = "root"): MenuItem[] => source.map((item, index) => ({
-      key: item.key ?? `${prefix}-${index}`,
-      type: item.type,
-      disabled: item.disabled,
-      danger: item.danger,
-      label: <span className="browser-window-menu__copy">
-        <span className="browser-window-menu__label">{item.label}</span>
-        {item.subtitle ? <span className="browser-window-menu__subtitle">{item.subtitle}</span> : null}
-      </span>,
-      extra: item.variant === "theme" ? (
-        <span className={`browser-window-menu__theme${item.checked ? " is-dark" : ""}`}>
-          <span className={!item.checked ? "is-active" : ""}><Icon name="sun" size={13} /></span>
-          <span className={item.checked ? "is-active" : ""}><Icon name="moon" size={13} /></span>
-        </span>
-      ) : item.checked !== undefined ? (item.checked ? "✓" : undefined)
-        : item.shortcut ? <span className="browser-window-menu__shortcut">{item.shortcut}</span> : undefined,
-      children: item.children ? convertItems(item.children, item.key ?? `${prefix}-${index}`) : undefined,
-    }));
-    const layout = payload.menuLayout;
-    return <div className="browser-window-menu browser-window-menu--cascade"
-      style={layout ? { position: 'absolute', left: layout.left, top: layout.top, width: layout.width,
-        maxHeight: `min(640px, ${layout.height}px, calc(100vh - ${layout.top + 20}px))`, margin: 0 } : undefined}>
-      {payload.heading ? <div className="browser-window-menu__heading">{payload.heading}</div> : null}
-      <Menu items={convertItems(items)} mode="vertical" theme={payload.darkMode ? 'dark' : 'light'}
-        interactionCursor="default" selectable={false} triggerSubMenuAction="hover"
-        openKeys={openKeys} onOpenChange={setOpenKeys}
-        onClick={({ key }) => void dispatchAction(key)} />
-    </div>;
-  }
+    if (payload.kind === "bookmark-folder" || items.some((item) => item.children?.length)) {
+      // 框架 Menu 负责悬停延迟、跨面板保持和边缘翻转；主菜单不因展开子项而被替换。
+      const convertItems = (source: BrowserMenuItem[], prefix = "root"): MenuItem[] => source.map((item, index) => ({
+        key: item.key ?? `${prefix}-${index}`,
+        type: item.type,
+        disabled: item.disabled,
+        danger: item.danger,
+        icon: item.folder ? <Icon name="folder" size={16} /> : item.faviconUrl ? <BrowserFavicon url={item.faviconUrl} size={16} /> : undefined,
+        label: <span className="browser-window-menu__copy">
+          <span className="browser-window-menu__label">{item.label}</span>
+          {item.subtitle ? <span className="browser-window-menu__subtitle">{item.subtitle}</span> : null}
+        </span>,
+        extra: item.variant === "theme" ? (
+          <span className={`browser-window-menu__theme${item.checked ? " is-dark" : ""}`}>
+            <span className={!item.checked ? "is-active" : ""}><Icon name="sun" size={13} /></span>
+            <span className={item.checked ? "is-active" : ""}><Icon name="moon" size={13} /></span>
+          </span>
+        ) : item.checked !== undefined ? (item.checked ? "✓" : undefined)
+          : item.shortcut ? <span className="browser-window-menu__shortcut">{item.shortcut}</span> : undefined,
+        children: item.children ? convertItems(item.children, item.key ?? `${prefix}-${index}`) : undefined,
+      }));
+      return <div className="browser-window-menu browser-window-menu--cascade">
+        {payload.heading ? <div className="browser-window-menu__heading">{payload.heading}</div> : null}
+        <Menu items={convertItems(items)} mode="vertical" theme={payload.darkMode ? 'dark' : 'light'}
+          interactionCursor="default" selectable={false} triggerSubMenuAction="hover"
+          openKeys={openKeys} onOpenChange={setOpenKeys}
+          onClick={({ key }) => void dispatchAction(key)} />
+      </div>;
+    }
 
-  return (
-    <div
-      className={`browser-window-menu${payload.kind === "back-history" ? " is-navigation-history" : ""}`}
-      role="menu"
-      onContextMenu={(event) => event.preventDefault()}
-    >
-      {payload.heading ? (
-        <div className="browser-window-menu__heading">{payload.heading}</div>
-      ) : null}
-      {items.map((item, index) => {
-        if (item.type === "divider") {
+    return (
+      <div
+        className={`browser-window-menu${payload.kind === "back-history" ? " is-navigation-history" : ""}`}
+        role="menu"
+        onContextMenu={(event) => event.preventDefault()}
+      >
+        {payload.heading ? (
+          <div className="browser-window-menu__heading">{payload.heading}</div>
+        ) : null}
+        {items.map((item, index) => {
+          if (item.type === "divider") {
+            return (
+              <div
+                key={`divider-${index}`}
+                className="browser-window-menu__divider"
+                role="separator"
+              />
+            );
+          }
           return (
-            <div
-              key={`divider-${index}`}
-              className="browser-window-menu__divider"
-              role="separator"
-            />
-          );
-        }
-        return (
-          <Button
-            key={item.key ?? `item-${index}`}
-            className={`browser-window-menu__item${item.danger ? " is-danger" : ""}${item.subtitle ? " has-subtitle" : ""}`}
-            variant="text"
-            size="small"
-            disabled={item.disabled}
-            onClick={() => void selectItem(item)}
-          >
-            <span className="browser-window-menu__copy">
-              <span className="browser-window-menu__label">{item.label}</span>
-              {item.subtitle ? (
-                <span className="browser-window-menu__subtitle">{item.subtitle}</span>
+            <Button
+              key={item.key ?? `item-${index}`}
+              className={`browser-window-menu__item${item.danger ? " is-danger" : ""}${item.subtitle ? " has-subtitle" : ""}`}
+              variant="text"
+              size="small"
+              disabled={item.disabled}
+              onClick={() => void selectItem(item)}
+            >
+              <span className="browser-window-menu__copy">
+                <span className="browser-window-menu__label">{item.label}</span>
+                {item.subtitle ? (
+                  <span className="browser-window-menu__subtitle">{item.subtitle}</span>
+                ) : null}
+              </span>
+              {item.variant === "theme" ? (
+                <span
+                  className={`browser-window-menu__theme${item.checked ? " is-dark" : ""}`}
+                  aria-label={item.checked ? "当前为深色主题" : "当前为浅色主题"}
+                >
+                  <span className={!item.checked ? "is-active" : ""}>
+                    <Icon name="sun" size={13} />
+                  </span>
+                  <span className={item.checked ? "is-active" : ""}>
+                    <Icon name="moon" size={13} />
+                  </span>
+                </span>
+              ) : item.children?.length ? (
+                <Icon name="chevron-right" size={13} />
+              ) : item.checked !== undefined ? (
+                <span className={`browser-window-menu__check${item.checked ? " is-checked" : ""}`}>
+                  {item.checked ? "✓" : ""}
+                </span>
+              ) : item.shortcut ? (
+                <span className="browser-window-menu__shortcut">{item.shortcut}</span>
               ) : null}
-            </span>
-            {item.variant === "theme" ? (
-              <span
-                className={`browser-window-menu__theme${item.checked ? " is-dark" : ""}`}
-                aria-label={item.checked ? "当前为深色主题" : "当前为浅色主题"}
-              >
-                <span className={!item.checked ? "is-active" : ""}>
-                  <Icon name="sun" size={13} />
-                </span>
-                <span className={item.checked ? "is-active" : ""}>
-                  <Icon name="moon" size={13} />
-                </span>
-              </span>
-            ) : item.children?.length ? (
-              <Icon name="chevron-right" size={13} />
-            ) : item.checked !== undefined ? (
-              <span className={`browser-window-menu__check${item.checked ? " is-checked" : ""}`}>
-                {item.checked ? "✓" : ""}
-              </span>
-            ) : item.shortcut ? (
-              <span className="browser-window-menu__shortcut">{item.shortcut}</span>
-            ) : null}
-          </Button>
-        );
-      })}
-    </div>
-  );
+            </Button>
+          );
+        })}
+      </div>
+    );
+  }
+  if (!payload) return null;
+  return <BrowserFloatingHost payload={payload}>{renderSurface()!}</BrowserFloatingHost>;
 }

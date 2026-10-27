@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import type { RefObject } from "react";
 import { useScrollbarProximity } from "./useScrollbarProximity";
+import { registerFloatingScrollbar, setFloatingScrollbarDragging } from "./floatingScrollbarOwnership";
 
 /** 浮动滚动条接入组件的属性配置。 */
 export interface FloatingScrollbarProviderProps {
@@ -103,7 +104,7 @@ function createTrack(axis: ScrollAxis) {
   return { track, thumb };
 }
 
-/** 为页面或指定容器接入浮动滚动条；布局变化重新发现滚动容器，定尺寸脱离文档流元素的定位变化仅复核相关子树与祖先。 */
+/** 为页面或指定容器接入浮动滚动条；悬停、滚动或拖动时显示，离开且停止交互后隐藏，不占用布局宽度。轨道保留滚动容器的交互归属，供菜单判断内部操作；布局变化重新发现容器，定尺寸脱离文档流元素的定位变化仅复核相关子树与祖先。 */
 export function FloatingScrollbarProvider({ disabled = false, targetRef }: FloatingScrollbarProviderProps) {
   useScrollbarProximity();
   useEffect(() => {
@@ -214,6 +215,7 @@ export function FloatingScrollbarProvider({ disabled = false, targetRef }: Float
         event.preventDefault();
         event.stopPropagation();
         entry.dragging = true;
+        setFloatingScrollbarDragging(track, true);
         showEntry(entry);
         thumb.setPointerCapture(event.pointerId);
 
@@ -238,6 +240,7 @@ export function FloatingScrollbarProvider({ disabled = false, targetRef }: Float
         const onPointerUp = (upEvent: PointerEvent) => {
           if (upEvent.pointerId !== event.pointerId) return;
           entry.dragging = false;
+          setFloatingScrollbarDragging(track, false);
           thumb.releasePointerCapture(event.pointerId);
           window.removeEventListener("pointermove", onPointerMove);
           window.removeEventListener("pointerup", onPointerUp);
@@ -274,6 +277,9 @@ export function FloatingScrollbarProvider({ disabled = false, targetRef }: Float
       if (entries.has(target)) return;
       const horizontal = createTrack("horizontal");
       const vertical = createTrack("vertical");
+      // 轨道位于独立 Portal 层，但点击和拖动仍属于原滚动容器。
+      const releaseHorizontalOwner = registerFloatingScrollbar(horizontal.track, target);
+      const releaseVerticalOwner = registerFloatingScrollbar(vertical.track, target);
       layer.append(horizontal.track, vertical.track);
 
       const onPointerEnter = () => {
@@ -318,6 +324,8 @@ export function FloatingScrollbarProvider({ disabled = false, targetRef }: Float
         if (entry.hideTimer !== null) window.clearTimeout(entry.hideTimer);
         cleanupHorizontal();
         cleanupVertical();
+        releaseHorizontalOwner();
+        releaseVerticalOwner();
         target.removeEventListener("pointerenter", onPointerEnter);
         target.removeEventListener("pointerleave", onPointerLeave);
         target.removeEventListener("scroll", onScroll);

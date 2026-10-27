@@ -10,6 +10,36 @@ use windows::{
     },
 };
 
+/// 高频采样本测试内核的顶层工具，透明准备窗口不计为可见闪现。
+fn visible_standalone(pid: u32) -> bool {
+    unsafe extern "system" fn visit(handle: HWND, data: LPARAM) -> BOOL {
+        let state = &mut *(data.0 as *mut (u32, bool));
+        let mut owner = 0;
+        GetWindowThreadProcessId(handle, Some(&mut owner));
+        let mut title = [0u16; 2048];
+        let count = GetWindowTextW(handle, &mut title).max(0) as usize;
+        if owner == state.0
+            && String::from_utf16_lossy(&title[..count]).starts_with("DevTools")
+            && GetWindowLongW(handle, GWL_STYLE) as u32 & WS_VISIBLE.0 != 0
+        {
+            let mut alpha = 255u8;
+            let mut flags = LAYERED_WINDOW_ATTRIBUTES_FLAGS(0);
+            let masked = GetWindowLongW(handle, GWL_EXSTYLE) as u32 & WS_EX_LAYERED.0 != 0
+                && GetLayeredWindowAttributes(handle, None, Some(&mut alpha), Some(&mut flags))
+                    .is_ok()
+                && flags.0 & LWA_ALPHA.0 != 0
+                && alpha == 0;
+            state.1 |= !masked;
+        }
+        BOOL(1)
+    }
+    let mut state = (pid, false);
+    unsafe {
+        let _ = EnumWindows(Some(visit), LPARAM(&mut state as *mut _ as isize));
+    }
+    state.1
+}
+
 /// 测试标签与真实标签使用同样的命名查找约定。
 fn browser_label(id: &str) -> String {
     format!("page-{id}")
@@ -144,11 +174,40 @@ async fn probe(app: tauri::AppHandle) -> Result<(), String> {
     }
     let parent = host.hwnd().map_err(|e| e.to_string())?.0 as isize;
     tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+    // 在调用打开前启动采样，防止只检查最终停靠状态而漏掉中间独立窗口。
+    let (send, receive) = tokio::sync::oneshot::channel();
+    tauri::Manager::get_webview(&app, &browser_label("one"))
+        .unwrap()
+        .with_webview(move |view| unsafe {
+            let mut pid = 0;
+            view.controller()
+                .CoreWebView2()
+                .unwrap()
+                .BrowserProcessId(&mut pid)
+                .unwrap();
+            let _ = send.send(pid);
+        })
+        .map_err(|e| e.to_string())?;
+    let pid = receive.await.map_err(|e| e.to_string())?;
+    let sampling = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+    let running = sampling.clone();
+    let sampler = std::thread::spawn(move || {
+        let mut flashed = false;
+        while running.load(std::sync::atomic::Ordering::Relaxed) {
+            flashed |= visible_standalone(pid);
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+        flashed
+    });
     // 同 Profile 的两个标签共享内核进程，不能将第一份工具分配给第二个标签。
     for id in ["one", "two"] {
         if !browser_devtools::open_browser_devtools(app.clone(), id.into()).await? {
             return Err(format!("{id} 没有成功停靠"));
         }
+    }
+    sampling.store(false, std::sync::atomic::Ordering::Relaxed);
+    if sampler.join().map_err(|_| "采样线程失败")? {
+        return Err("准备停靠期间出现可见独立开发者工具窗口".into());
     }
     let handles = tools(parent);
     if handles.len() != 2 {
@@ -185,6 +244,31 @@ async fn probe(app: tauri::AppHandle) -> Result<(), String> {
             "当前标签应该只显示一份开发者工具，实际 {} 份",
             shown.len()
         ));
+    }
+    // 就绪既要报告给占位界面，也必须真正解除原生透明，不能以“仍不可见”伪造无闪现。
+    let status =
+        browser_devtools::layout_browser_devtools(app.clone(), "one".into(), Some(bounds()))
+            .await?;
+    let status = serde_json::to_value(status).map_err(|e| e.to_string())?;
+    if !status
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item["tabId"] == "one" && item["ready"] == true)
+    {
+        return Err("工具内容完成布局后未报告就绪".into());
+    }
+    unsafe {
+        let child = HWND(shown[0] as _);
+        let mut alpha = 255;
+        let mut flags = LAYERED_WINDOW_ATTRIBUTES_FLAGS(0);
+        if GetWindowLongW(child, GWL_EXSTYLE) as u32 & WS_EX_LAYERED.0 != 0
+            && GetLayeredWindowAttributes(child, None, Some(&mut alpha), Some(&mut flags)).is_ok()
+            && flags.0 & LWA_ALPHA.0 != 0
+            && alpha == 0
+        {
+            return Err("停靠就绪后仍然完全透明".into());
+        }
     }
     let scale = host.scale_factor().map_err(|e| e.to_string())?;
     let expected = [20., 430., 1100., 300.].map(|value| (value * scale).round() as i32);
@@ -257,7 +341,7 @@ async fn probe(app: tauri::AppHandle) -> Result<(), String> {
     }
     browser_devtools::control_browser_devtools(app.clone(), "one".into(), "close".into()).await?;
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-    // 切换页面取消尚未认领的工具；随后已有未知窗口时不得进入发现循环误认领别的标签。
+    // 切换页面取消准备；取消窗口须被关闭，随后打开同一标签能重新正常停靠。
     let opening_app = app.clone();
     let opening = tauri::async_runtime::spawn(async move {
         browser_devtools::open_browser_devtools(opening_app, "one".into()).await
@@ -268,20 +352,24 @@ async fn probe(app: tauri::AppHandle) -> Result<(), String> {
         return Err("切换页面后仍认领旧工具".into());
     }
     tokio::time::sleep(std::time::Duration::from_millis(700)).await;
+    if visible_standalone(pid) {
+        return Err("取消准备后遗留独立窗口".into());
+    }
     let started = std::time::Instant::now();
-    if browser_devtools::open_browser_devtools(app.clone(), "one".into()).await? {
-        return Err("不应认领已存在的未知独立窗口".into());
+    if !browser_devtools::open_browser_devtools(app.clone(), "one".into()).await? {
+        return Err("取消后遗留窗口阻止重新停靠".into());
     }
     if started.elapsed() > std::time::Duration::from_secs(2) {
-        return Err("独立窗口回退仍在等待发现超时".into());
+        return Err("取消后重新打开仍在等待发现超时".into());
     }
+    browser_devtools::control_browser_devtools(app.clone(), "one".into(), "close".into()).await?;
     for id in ["one", "two"] {
         // 显式销毁临时网页，让 Chromium 完成子窗口清理后再退出测试进程。
         if let Some(view) = tauri::Manager::get_webview(&app, &browser_label(id)) {
             view.close().map_err(|e| e.to_string())?;
         }
     }
-    println!("PASS 真实 WebView2 无标题栏停靠、内容完整性、裁剪恢复、底部/右侧 DPI 坐标、后台隐藏、独立标题栏恢复、关闭重开、切页取消及未知窗口回退");
+    println!("PASS 真实 WebView2 准备期间无可见独立窗口、就绪解除透明、无标题栏停靠、内容完整性、裁剪恢复、底部/右侧 DPI 坐标、后台隐藏、独立标题栏恢复、关闭重开及切页取消清理");
     Ok(())
 }
 

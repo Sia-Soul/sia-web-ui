@@ -31,12 +31,17 @@
     const files = [...event.dataTransfer.files].filter(file => /\.html?$/i.test(file.name));
     const url = readUrl(event.dataTransfer);
     if (!files.length && !url) return;
+    // 壳层 Tree 同步计算投放位置；网页消息不参与分组定位，继续在根级新建。
+    const placement = { event };
+    if (!window.__siaBrowserDropPage && files.length) {
+      window.dispatchEvent(new CustomEvent('sia-resolve-tree-drop', { detail: placement }));
+    }
     // 在内核执行默认导航前拦截，主界面始终保留；文件通过原生 File 对象传递实际路径。
     event.preventDefault();
     event.stopImmediatePropagation();
     if (files.length) {
       if (bridge?.postMessageWithAdditionalObjects) {
-        bridge.postMessageWithAdditionalObjects(JSON.stringify({ kind: 'sia-open-dropped-file' }), files.slice(0, 1));
+        bridge.postMessageWithAdditionalObjects(JSON.stringify({ kind: 'sia-open-dropped-file', ...(placement.target ? { target: placement.target } : {}) }), files.slice(0, 1));
       }
     } else if (bridge) {
       bridge.postMessage(JSON.stringify({ kind: 'sia-open-dropped-url', url }));

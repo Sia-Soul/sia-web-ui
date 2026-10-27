@@ -17,7 +17,8 @@ const { chromium } = require('playwright');
         if (command === 'list_browser_extensions') return [];
       } } };
     });
-    await page.goto('http://127.0.0.1:1440/menu.html');
+    // 使用独立无头测试服务，避免依赖用户正在运行的预览端口。
+    await page.goto(`${(process.env.BROWSER_TEST_URL || 'http://127.0.0.1:1440').replace(/\/$/, '')}/menu.html`);
     await page.locator('.browser-panel').waitFor();
     const latest = () => page.evaluate(() => window.hitTest.calls.filter(c => c.command === 'update_browser_menu_regions').at(-1)?.args);
     await page.waitForFunction(() => window.hitTest.calls.some(c => c.command === 'update_browser_menu_regions'), null, { timeout: 3000 });
