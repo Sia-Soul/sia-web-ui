@@ -16,6 +16,7 @@ import {
 } from "@sia.soul/sia-react-ui";
 import BrowserFavicon, { BrowserBrandGlyph } from "./components/BrowserFavicon";
 import VerticalTabTree from "./components/VerticalTabTree";
+import BrowserDevtoolsWorkspace, { requestBrowserDevtools } from "./components/BrowserDevtoolsWorkspace";
 import type { BrowserOverlayPayload } from "./components/BrowserOverlayWindow";
 import type { FloatingTabPanelPayload } from "./components/BrowserTabPanelWindow";
 import type {
@@ -231,6 +232,8 @@ async function invokeNative<T>(command: string, args?: Record<string, unknown>) 
 
 export default function App() {
   const [tabs, setTabs] = useState<BrowserTab[]>([FIRST_TAB]);
+  // 调试中的后台网页暂缓休眠，避免切换标签后自动销毁 DevTools 会话。
+  const [devtoolsTabIds, setDevtoolsTabIds] = useState<string[]>([]);
   const [activeId, setActiveId] = useState(FIRST_TAB.id);
   const [addressDraft, setAddressDraft] = useState("");
   const [newTabQuery, setNewTabQuery] = useState("");
@@ -420,6 +423,7 @@ export default function App() {
     const candidates = tabs.filter((tab) => (
       tab.id !== activeId
       && tab.hasWebview
+      && !devtoolsTabIds.includes(tab.id)
       && !tab.sleeping
       && tab.inactiveSince !== undefined
     ));
@@ -449,7 +453,7 @@ export default function App() {
     }, delay);
 
     return () => window.clearTimeout(timer);
-  }, [activeId, tabs]);
+  }, [activeId, tabs, devtoolsTabIds]);
 
   const updateTab = useCallback((tabId: string, patch: Partial<BrowserTab>) => {
     setTabs((current) => current.map((tab) => tab.id === tabId ? { ...tab, ...patch } : tab));
@@ -459,6 +463,23 @@ export default function App() {
     if (previewNoticeShownRef.current) return;
     previewNoticeShownRef.current = true;
     message.info("当前是 Web 界面预览；运行 pnpm browser:dev 后会使用原生 WebView2 加载网页。");
+  }, []);
+
+  // 布局只更新当前标签，后台网页不继承其他标签的开发者工具占位。
+  const syncBrowserBounds = useCallback(() => {
+    const host = pageHostRef.current;
+    if (!host) return;
+    const rect = host.getBoundingClientRect();
+    const bounds: BrowserBounds = {
+      x: Math.round(rect.left),
+      y: Math.round(rect.top),
+      width: Math.max(1, Math.round(rect.width)),
+      height: Math.max(1, Math.round(rect.height)),
+    };
+    boundsRef.current = bounds;
+    if (isDesktopRuntime) {
+      void invokeNative("set_browser_bounds", { tabId: activeTabRef.current.id, bounds }).catch(() => undefined);
+    }
   }, []);
 
   const activateNativeTab = useCallback(async (tab: BrowserTab, forceOpen = false) => {
@@ -491,6 +512,8 @@ export default function App() {
         url: tab.url,
         bounds: boundsRef.current,
       });
+      // 原生创建可能晚于停靠布局更新；完成后重新测量当前页，避免旧尺寸覆盖新布局。
+      if (activeTabRef.current.id === tab.id) syncBrowserBounds();
       if (tab.muted) {
         await invokeNative("set_browser_tab_muted", { tabId: tab.id, muted: true });
       }
@@ -507,12 +530,16 @@ export default function App() {
       smallGroupId: tab.smallGroupId ?? null,
       bounds: boundsRef.current,
     });
-    if (found) return;
+    if (found) {
+      // 标签切换请求发出时仍可能是上一页的停靠尺寸，不能将该快照作为最终边界。
+      if (activeTabRef.current.id === tab.id) syncBrowserBounds();
+      return;
+    }
 
     // 持久化状态中的 hasWebview 只代表上次运行时的状态。
     // 应用重启后原生子 WebView 不存在，切换时必须按当前 URL 自动重建。
     await openWebview();
-  }, [updateTab]);
+  }, [syncBrowserBounds, updateTab]);
 
   const openTab = useCallback((url?: string, groupId?: string, smallGroupId?: string, openerId?: string) => {
     const currentTab = activeTabRef.current;
@@ -723,22 +750,6 @@ export default function App() {
       message.error(error instanceof Error ? error.message : String(error));
     });
   }
-
-  const syncBrowserBounds = useCallback(() => {
-    const host = pageHostRef.current;
-    if (!host) return;
-    const rect = host.getBoundingClientRect();
-    const bounds: BrowserBounds = {
-      x: Math.round(rect.left),
-      y: Math.round(rect.top),
-      width: Math.max(1, Math.round(rect.width)),
-      height: Math.max(1, Math.round(rect.height)),
-    };
-    boundsRef.current = bounds;
-    if (isDesktopRuntime) {
-      void invokeNative("set_browser_bounds", { bounds }).catch(() => undefined);
-    }
-  }, []);
 
   function createFloatingTabPanelPayload(): FloatingTabPanelPayload {
     return {
@@ -961,6 +972,8 @@ export default function App() {
                 url: restoredActiveTab.url,
                 bounds: boundsRef.current,
               }).then(() => {
+                // 会话恢复也会异步创建原生网页，打开工具期间完成时应采用最新布局。
+                if (activeTabRef.current.id === restoredActiveTab.id) syncBrowserBounds();
                 if (restoredActiveTab.muted) {
                   return invokeNative("set_browser_tab_muted", {
                     tabId: restoredActiveTab.id,
@@ -2703,7 +2716,9 @@ export default function App() {
   /** 各窗口的外壳快捷键统一使用当前状态，来源标签用于关闭、复制和静音。 */
   function handleShellShortcut(command: string, sourceTabId = activeId) {
     const tabId = tabs.some(tab => tab.id === sourceTabId) ? sourceTabId : activeId;
-    if (command === "downloads") showDownloadsPanelRef.current();
+    // 所有焦点来源共用停靠入口，避免网页内 F12 打开独立的原生窗口。
+    if (command === "devtools") requestBrowserDevtools(tabId);
+    else if (command === "downloads") showDownloadsPanelRef.current();
     else if (command === "history") showHistoryPanel();
     else if (command === "bookmarks") showBookmarksPanel();
     else if (command === "bookmark") {
@@ -2751,13 +2766,6 @@ export default function App() {
         return;
       }
       const commandKey = event.ctrlKey || event.metaKey;
-      if (event.key === "F12" || (commandKey && event.shiftKey && event.key.toLowerCase() === "i")) {
-        event.preventDefault();
-        void invokeNative("open_browser_devtools", { tabId: activeId }).catch((error) => {
-          message.warning(error instanceof Error ? error.message : String(error));
-        });
-        return;
-      }
       if ((commandKey && event.key.toLowerCase() === "r") || event.key === "F5") {
         event.preventDefault();
         runPageAction("reload");
@@ -3169,6 +3177,7 @@ export default function App() {
           <div className="browser-page-top-border" aria-hidden="true">
             {activeTab?.loading ? <span className="browser-loading-line" /> : null}
           </div>
+          <BrowserDevtoolsWorkspace tabId={activeId} onLayout={syncBrowserBounds} onSessionsChange={setDevtoolsTabIds}>
           <main ref={pageHostRef} className="browser-page-host">
         {activeTab?.url === SETTINGS_URL ? (
           <BrowserSettingsPage
@@ -3277,6 +3286,7 @@ export default function App() {
           </div>
         )}
           </main>
+          </BrowserDevtoolsWorkspace>
         </div>
       </div>
     </WindowFrame>

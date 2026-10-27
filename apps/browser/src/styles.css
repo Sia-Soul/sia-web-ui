@@ -1057,6 +1057,38 @@ input {
   flex-direction: column;
 }
 
+/* 工具与网页共用实际布局，原生 HWND 仅占据工具宿主，标题和分隔条保留在外壳。 */
+.browser-devtools-workspace {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.browser-devtools-workspace > .sia-splitter { width: 100%; height: 100%; }
+.browser-devtools-workspace > .sia-splitter > .sia-splitter__panel > .sia-splitter__panel-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+/* 保留同一个网页节点，仅隐藏空工具面板，设置页和新标签页不会因停靠切换丢失状态。 */
+.browser-devtools-workspace:not(.is-docked) > .sia-splitter > .sia-splitter__panel:first-child { flex: 1 !important; }
+.browser-devtools-workspace:not(.is-docked) > .sia-splitter > .sia-splitter__panel:not(:first-child),
+.browser-devtools-workspace:not(.is-docked) > .sia-splitter > [role="separator"] { display: none; }
+.browser-devtools-dock { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.browser-devtools-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: var(--browser-toolbar);
+  border-bottom: 1px solid var(--sia-color-border);
+}
+.browser-devtools-toolbar strong { flex: 1; font-size: 12px; white-space: nowrap; }
+.browser-devtools-toolbar [aria-pressed="true"] { color: var(--sia-color-primary); }
+.browser-devtools-native-host { flex: 1; min-height: 0; min-width: 0; }
+
 .toolbar-icon-button.sia-button {
   width: 34px;
   min-width: 34px;

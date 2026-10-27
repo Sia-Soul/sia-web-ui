@@ -18,6 +18,8 @@ mod window_resize;
 mod browser_favicon;
 #[cfg(windows)]
 mod browser_shortcuts;
+// 开发者工具的原生停靠与网页视图生命周期分离。
+mod browser_devtools;
 #[cfg(windows)]
 mod popup_window;
 
@@ -701,6 +703,8 @@ fn attach_audio_monitor(
 }
 
 fn hide_browser_webviews(app: &AppHandle, except_label: Option<&str>) -> Result<(), String> {
+    // 切换网页立即取消其他标签尚未完成的工具窗口识别。
+    browser_devtools::cancel_pending_except(app, except_label);
     let visibility = app.state::<browser_visibility::BrowserVisibility>();
     for (label, webview) in app.webviews() {
         if label.starts_with(BROWSER_WEBVIEW_PREFIX)
@@ -977,6 +981,12 @@ async fn switch_browser_tab(
 
 #[tauri::command]
 fn close_browser_tab(app: AppHandle, tab_id: String) -> Result<(), String> {
+    // 关闭工具异步排队，避免在网页销毁回调里等待跨进程窗口消息。
+    let tools_app = app.clone();
+    let tools_tab = tab_id.clone();
+    tauri::async_runtime::spawn(async move {
+        let _ = browser_devtools::control_browser_devtools(tools_app, tools_tab, "close".into()).await;
+    });
     app.state::<browser_visibility::BrowserVisibility>().mark_visible(&browser_label(&tab_id))?;
     if let Some(webview) = app.get_webview(&browser_label(&tab_id)) {
         // 先隐藏再销毁，确保“主页”和关闭标签操作不会因 WebView2 延迟销毁而残留旧网页。
@@ -996,15 +1006,6 @@ fn close_browser_tab(app: AppHandle, tab_id: String) -> Result<(), String> {
         .map_err(|_| "无法移除扩展分组记录")?.remove(&browser_label(&tab_id));
     app.state::<BrowserProfileStore>().0.lock()
         .map_err(|_| "无法移除标签数据目录记录")?.remove(&browser_label(&tab_id));
-    Ok(())
-}
-
-#[tauri::command]
-fn open_browser_devtools(app: AppHandle, tab_id: String) -> Result<(), String> {
-    let webview = app
-        .get_webview(&browser_label(&tab_id))
-        .ok_or_else(|| "当前标签页还没有打开网页".to_string())?;
-    webview.open_devtools();
     Ok(())
 }
 
@@ -1348,19 +1349,20 @@ fn save_browser_state(app: AppHandle, state: serde_json::Value) -> Result<(), St
         .map_err(|error| format!("无法写入浏览器状态文件 {}：{error}", path.display()))
 }
 
+// 网页布局按标签更新，避免当前页的停靠尺寸传播给后台标签。
 #[tauri::command]
-async fn set_browser_bounds(app: AppHandle, bounds: BrowserBounds) -> Result<(), String> {
+async fn set_browser_bounds(app: AppHandle, tab_id: String, bounds: BrowserBounds) -> Result<(), String> {
     eprintln!(
         "[browser-view] bounds=({}, {}, {}, {})",
         bounds.x, bounds.y, bounds.width, bounds.height
     );
     let bounds = logical_rect(bounds);
-    for (label, webview) in app.webviews() {
-        if label.starts_with(BROWSER_WEBVIEW_PREFIX) {
-            webview.set_bounds(bounds).map_err(|error| {
-                format!("同步网页 WebView 边界失败：label={label} error={error}")
-            })?;
-        }
+    let label = browser_label(&tab_id);
+    // 尚未创建的视图由 open_browser_tab 完成后的前端同步补齐，无需更新其他标签。
+    if let Some(webview) = app.get_webview(&label) {
+        webview.set_bounds(bounds).map_err(|error| {
+            format!("同步网页 WebView 边界失败：label={label} error={error}")
+        })?;
     }
     Ok(())
 }
@@ -1694,6 +1696,7 @@ pub fn run() {
         // 必须先检测已有实例，再初始化 WebView 和用户资料目录。
         .plugin(tauri_plugin_single_instance::init(browser_instance::forward))
         .manage(browser_instance::BrowserInstance::default())
+        .manage(browser_devtools::DevtoolsStore::default())
         .manage(browser_startup::BrowserStartup::default())
         .manage(browser_overlay::BrowserOverlayStore::default())
         .manage(floating_windows::TabPanelStore::default())
@@ -1731,7 +1734,9 @@ pub fn run() {
             switch_browser_tab,
             hide_browser_pages,
             close_browser_tab,
-            open_browser_devtools,
+            browser_devtools::open_browser_devtools,
+            browser_devtools::layout_browser_devtools,
+            browser_devtools::control_browser_devtools,
             set_browser_tab_muted,
             show_browser_more_menu,
             show_browser_panel,

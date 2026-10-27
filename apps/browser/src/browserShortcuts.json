@@ -28,5 +28,7 @@
   { "key": "d", "alt": true, "action": "address" },
   { "key": "f4", "action": "address" },
   { "key": "e", "ctrl": true, "action": "address" },
-  { "key": "k", "ctrl": true, "action": "address" }
+  { "key": "k", "ctrl": true, "action": "address" },
+  { "key": "f12", "action": "devtools" },
+  { "key": "i", "ctrl": true, "shift": true, "action": "devtools" }
 ]

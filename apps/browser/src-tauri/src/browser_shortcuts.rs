@@ -94,6 +94,8 @@ fn shortcut_action(key: u32, ctrl: bool, shift: bool, alt: bool, tab_id: &str) -
         0x21 => "pageup".into(),
         0x22 => "pagedown".into(),
         0x73 => "f4".into(),
+        // 网页内的 F12 也交给外壳，使工具经过统一停靠流程。
+        0x7B => "f12".into(),
         0x30..=0x39 | 0x41..=0x5A => char::from_u32(key)?.to_ascii_lowercase().to_string(),
         _ => return None,
     };
@@ -131,6 +133,9 @@ mod tests {
             shortcut_action(0x54, true, true, false, "sample").as_deref(),
             Some("shortcut|reopen-tab|sample")
         );
+        // 两个开发者工具入口都必须经过外壳停靠，避免原生默认行为另开窗口。
+        assert_eq!(shortcut_action(0x7B, false, false, false, "sample").as_deref(), Some("shortcut|devtools|sample"));
+        assert_eq!(shortcut_action(0x49, true, true, false, "sample").as_deref(), Some("shortcut|devtools|sample"));
         // 查找、打印、缩放、控制台及编辑组合保持未处理，让 WebView2 执行。
         for (key, shift) in [
             (0x46, false),

@@ -44,7 +44,8 @@ function ports(dir) {
     const session = await pageBrowser.newBrowserCDPSession();
     const {arguments: args} = await session.send('Browser.getBrowserCommandLine');
     assert.ok(args.includes('--disable-gpu-compositing'),'真实网页进程必须启用软件合成兼容参数');
-    await main.evaluate(()=>window.__TAURI__.core.invoke('set_browser_bounds',{bounds:{x:296,y:47,width:711,height:1341}}));
+    // 布局命令必须明确标签，不能影响其他后台网页的视口。
+    await main.evaluate(()=>window.__TAURI__.core.invoke('set_browser_bounds',{tabId:'render',bounds:{x:296,y:47,width:711,height:1341}}));
     await page.waitForFunction(()=>innerWidth===711&&innerHeight===1341);
     await page.mouse.move(400,900);
     await page.waitForFunction(()=>document.body.dataset.hover==='received');
