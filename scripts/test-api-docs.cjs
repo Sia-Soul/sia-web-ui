@@ -112,6 +112,7 @@ import type { InputProps } from '@sia.soul/sia-react-ui';
 import type { TableColumn } from '@sia.soul/sia-react-ui';
 // 列头提示仅在实际省略时显示的约定必须保留到发布声明。
 declare const headerColumn: TableColumn;
+headerColumn.required; headerColumn.invalid;
 headerColumn.title;
 // 展开编辑的确认回填约定必须保留到发布声明。
 declare const expandableInputProps: InputProps;
@@ -183,6 +184,7 @@ checkboxGroupProps.gap;
 // 动画完成时机必须能从发布声明中直接获知。
 declare const tabsProps: TabsProps;
 tabsProps.deferContent;
+tabsProps.destroyInactiveTabPane;
 tabsProps.contentGap;
 tabsProps.onAfterChange;
 const tagSize: CoreTagSize = 'large';
@@ -235,6 +237,15 @@ querySnapshot.queryForm;
 querySnapshot.queryForm!.defaultCollapsed;
 querySnapshot.queryForm!.fields[0].visible;
 declare const tableProps: TableProps;
+// 行定位必须通过发布入口保留失败条件与表头避让说明。
+declare const progressTable: import('@sia.soul/sia-react-ui').TableRef<Record<string, unknown>>;
+progressTable.scrollToRow;
+progressTable.focusCell;
+// 公开视觉配置必须在发布包中保留颜色、倍率与单位说明。
+declare const focusOptions: import('@sia.soul/sia-react-ui').TableCellFocusOptions;
+focusOptions.color;
+focusOptions.speed;
+focusOptions.lineWidth;
 tableProps.cellSelection;
 tableProps.showIndex;
 tableProps.rowStatus;
@@ -269,6 +280,8 @@ cases.push(['recursive', '子文件夹'], ['pastable', '粘贴'], ['autoUpload',
 cases.push(['tagProps.color', 'CSS 颜色'], ['tagProps.variant', '边框'], ['tagProps.closeOnHover', '向右扩展'], ['tagProps.size', '继承 Form']);
 cases.push(['checkboxGroupProps.columns', '等宽网格'], ['checkboxGroupProps.direction', '纵向单列'], ['checkboxGroupProps.gap', '行间距']);
 cases.push(['tabsProps.contentGap', '仅影响当前 Tabs'], ['tabsProps.deferContent', '保留旧面板'], ['tabsProps.onAfterChange', '连续切换']);
+// 默认保留、首次挂载与显式销毁的区别必须随发布声明出现在悬停正文中。
+cases.push(['tabsProps.destroyInactiveTabPane', '默认 false'], ['tabsProps.destroyInactiveTabPane', '首次激活时挂载'], ['tabsProps.destroyInactiveTabPane', 'true 时切走后卸载']);
 cases.push(['uploadProps.downloadRequest', 'Blob'], ['uploadActions.download', '不打开新标签页']);
 cases.push(['uploadProps.cardSize', '卡片尺寸']);
 cases.push(['headerColumn.title', '完整显示时不提示']);
@@ -326,7 +339,14 @@ cases.push(['externalValidationForm.setFields', '不触发'], ['externalValidati
 cases.push(['fillForm.onFinish', '可返回 Promise'], ['fillForm.onFinishFailed', '仅字段校验失败']);
 // 工作表 API 必须从发布包解析并保留同步受控写回、整次历史和兼容检查约束。
 cases.push(['createWorksheetPlugin;', '整次撤销恢复'], ['worksheetApi.fillTo', '递增'], ['worksheetApi.undo', '整次操作'], ['worksheetApi.replaceData', '同一历史'], ['worksheetOptions.onChange', '同步'], ['worksheetOptions.canWrite', '跳过单元格']);
+cases.push(['progressTable.scrollToRow', '吸顶表头']);
+// 单元格定位的异步结果及动效约束必须保留在发布声明中。
+// 定位能力的编辑器提示应说明固定尾端增长的新动效语义。
+cases.push(['progressTable.focusCell', '尾端固定']);
+cases.push(['focusOptions.color', '#fa8c16'], ['focusOptions.speed', '速度倍率'], ['focusOptions.lineWidth', 'CSS px']);
 cases.push(['editableOptions.showEditIcon', '默认 true']);
+// 必填和校验外观必须通过正式发布声明提供中文业务语义。
+cases.push(['headerColumn.required', '不自动校验'], ['headerColumn.invalid', '不改变行高']);
 for(const[needle,expected]of cases){const offset=needle.includes('.')?needle.lastIndexOf('.')+1:0;const pos=source.indexOf(needle)+offset+1;const info=service.getQuickInfoAtPosition(filename,pos);const text=ts.displayPartsToString(info?.documentation);assert(text.includes(expected),`${needle}: expected ${expected}, got ${JSON.stringify(text)}`);console.log(`PASS hover ${needle}: ${text.slice(0,70)}`);}
 for(const entry of ['index.d.ts','index.d.cts']){
   const text=fs.readFileSync(path.join(packageRoot,'dist',entry),'utf8');assert(text.includes('底部已保存快捷查询标签'));assert(text.includes('@defaultValue'));assert(!text.includes('\uFFFD'),'UTF-8 replacement character found');

@@ -74,6 +74,7 @@ const nativeEditor = (target: EventTarget | null) =>
  * 与 Table 默认单元格选择配合，勿再同时安装 createEditablePlugin；使用稳定 rowKey。
  * 每个表格用 useMemo 创建独立实例，onChange 必须同步更新不可变 dataSource；外部换表自动清空历史。
  * 输入框中的原生复制、粘贴和撤销保留；快捷键只在当前工作表内生效，不发送网络请求。
+ * 填充柄仅在选区右下角单元格可编辑时显示，遵循 editable 与 editable.canEdit；只读格仍可选中和复制。
  */
 export function createWorksheetPlugin<T extends Record<string, unknown>>(
   options: TableWorksheetPluginOptions<T>
@@ -558,6 +559,8 @@ export function createWorksheetPlugin<T extends Record<string, unknown>>(
               area &&
               context.rows[area.bottom]?.key === info.row.key &&
               cols[area.right]?.key === column.key &&
+              // 填充入口与编辑权限一致，避免只读格或保存锁定后仍暗示可以拖拽修改。
+              editable(record, column) &&
               (suppressEditing || !context.state.editing);
             return (
               <>

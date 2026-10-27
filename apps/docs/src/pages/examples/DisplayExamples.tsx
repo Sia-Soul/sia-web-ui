@@ -6,6 +6,7 @@ import type { TreeKey, TreeNode } from "@sia.soul/sia-react-ui";
 export function DisplayExamples() {
   const [event, setEvent] = useState("等待操作");
   const [disabled, setDisabled] = useState(false);
+  const [textSelectable, setTextSelectable] = useState(true);
   const [expanded, setExpanded] = useState<TreeKey[]>(["root"]);
   const [focused, setFocused] = useState<string | null>(null);
   const [nodes, setNodes] = useState<TreeNode[]>([{ key: "root", title: "按需加载", children: [{ key: "a", title: "拖动此节点" }, { key: "b", title: "目标节点" }] }]);
@@ -29,7 +30,9 @@ export function DisplayExamples() {
     <FloatButton.BackTop target={() => scroll.current} visibilityHeight={30} behavior="auto" icon={<Icon name="arrow-up" />} description="顶部" tooltip="返回局部容器顶部" type="primary" shape="square" badge={{ dot: true }} htmlType="button" style={{ position: "static" }} />
     <FloatButton.Group icon={<Icon name="plus" />} closeIcon={<Icon name="close" />} placement="right" defaultOpen={false} trigger="click" style={{ position: "static" }}><FloatButton htmlType="button" tooltip="示例操作" onClick={() => setEvent("浮动按钮操作")} /></FloatButton.Group>
     <ToolPanel title="可调尺寸工具面板" defaultOpen onResizeEnd={size => setEvent(`面板尺寸 ${size}px`)}><Typography.Text>拖动边缘后查看尺寸</Typography.Text></ToolPanel>
-    <WindowFrame titleBar={<WindowTitleBar controls draggable={false} disabledActions={["close"]} controlLabels={{ minimize: "最小化示例", maximize: "最大化示例", close: "关闭示例" }}>内嵌窗口</WindowTitleBar>}><WindowControls maximized={disabled} showMinimize showMaximize showClose disabledActions={["close"]} labels={{ minimize: "最小化", maximize: "最大化", restore: "还原", close: "关闭" }} onAction={action => setEvent(`窗口操作 ${action}`)} /></WindowFrame>
+    {/* 开关直接改变窗口正文的选字行为，便于与桌面式不可选文字对照。 */}
+    <Switch checked={textSelectable} onCheckedChange={setTextSelectable} label="允许选择窗口文字" />
+    <WindowFrame textSelectable={textSelectable} titleBar={<WindowTitleBar controls draggable={false} disabledActions={["close"]} controlLabels={{ minimize: "最小化示例", maximize: "最大化示例", close: "关闭示例" }}>内嵌窗口</WindowTitleBar>}><Typography.Text>拖动选择这段窗口正文，观察开关效果。</Typography.Text><WindowControls maximized={disabled} showMinimize showMaximize showClose disabledActions={["close"]} labels={{ minimize: "最小化", maximize: "最大化", restore: "还原", close: "关闭" }} onAction={action => setEvent(`窗口操作 ${action}`)} /></WindowFrame>
     <Typography.Text role="status">{event}</Typography.Text>
   </Space>;
 }

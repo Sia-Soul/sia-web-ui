@@ -13,7 +13,7 @@ export interface TabItem {
   key: string;
   /** 展示给用户的名称，可传入文本或 React 节点。 */
   label: ReactNode;
-  /** 子内容；组件嵌套内容或当前节点的子项。 */
+  /** 标签面板内容；默认首次激活时挂载，切走后隐藏并保留组件状态。启用 destroyInactiveTabPane 时切走后卸载。 */
   children?: ReactNode;
   /** 是否禁用交互。 */
   disabled?: boolean;
@@ -49,7 +49,7 @@ export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChang
   onChange?: (key: string) => void;
   /** 选中框动画结束且目标面板获准显示时调用，参数为最终目标 key；首次渲染不调用，连续切换仅通知最终目标。无动画或系统减少动态效果时在下一帧完成，不等待面板数据请求；也适用于业务在 Tabs 外渲染内容或切换路由。 */
   onAfterChange?: (key: string) => void;
-  /** 是否等选中框动画结束后再切换 items[].children，等待期间保留旧面板。默认 false，立即切换；true 时配合 destroyInactiveTabPane=false 仅在首次激活后挂载并保留面板。不能延迟父组件已执行的同步计算或 onChange 中的渲染，请将外部重内容更新放到 onAfterChange。 */
+  /** 是否等选中框动画结束后再切换 items[].children，等待期间保留旧面板。默认 false，立即切换；true 时未访问的目标面板在动画结束后首次挂载，连续切换跳过未显示的中间目标。面板是否保留由 destroyInactiveTabPane 决定，与是否延迟无关。不能延迟父组件已执行的同步计算或 onChange 中的渲染，请将外部重内容更新放到 onAfterChange。 */
   deferContent?: boolean;
   /**
    * 标签样式：line 线型、card 卡片、pill 胶囊、capsule 圆角胶囊、underline 紧凑下划线、tech 科技型、tech-line 折线科技型。
@@ -80,8 +80,9 @@ export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChang
   /** 标签栏右侧额外操作 */
   tabBarExtraContent?: ReactNode;
   /**
-   * 是否卸载非激活面板
-   * @defaultValue true
+   * 是否卸载非激活面板。默认 false：未访问的面板首次激活时挂载，切走后隐藏并保留组件状态，切回时不重新挂载；不阻止 props、state 或 Context 更新引起的重新渲染。
+   * true 时切走后卸载，切回时重新挂载并执行初始化副作用。移除 items 中的标签或卸载 Tabs 时释放对应内容；状态保留要求标签 key 和内容组件类型稳定。仅管理 items[].children，不管理外部路由或内容。
+   * @defaultValue false
    */
   destroyInactiveTabPane?: boolean;
   /**
@@ -97,7 +98,7 @@ export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChang
   onTabContextMenuClick?: (info: TabsContextMenuClickInfo) => void;
 }
 
-/** 选项卡组件；横向空间不足时，剩余标签收起到末尾的更多菜单，支持悬停或点击展开。设置确定高度或由父级弹性布局分配高度时，内容面板占满导航之外的剩余空间；未限定高度时按内容自然撑开。 */
+/** 选项卡组件；默认仅挂载首次激活的面板，切走后隐藏并保留，显式设置 destroyInactiveTabPane=true 可在切走后卸载。横向空间不足时，剩余标签收起到末尾的更多菜单，支持悬停或点击展开。设置确定高度或由父级弹性布局分配高度时，内容面板占满导航之外的剩余空间；未限定高度时按内容自然撑开。 */
 export function Tabs({
   items,
   activeKey,
@@ -113,7 +114,7 @@ export function Tabs({
   tabBarTitle,
   tabBarExtraContent,
   contentGap,
-  destroyInactiveTabPane = true,
+  destroyInactiveTabPane = false,
   closable = false,
   onEdit,
   tabContextMenu,
@@ -171,7 +172,8 @@ export function Tabs({
     entries.forEach(entry => observer.observe(entry));
     return () => observer.disconnect();
   }, [items, type, size, closable, resolvedOrientation, tabBarTitle, tabBarExtraContent]);
-  const [contentState, setContentState] = useState(() => ({ key: selectedKey, visited: new Set([selectedKey]) }));
+  const [settledContentKey, setSettledContentKey] = useState(selectedKey);
+  const [visitedKeys, setVisitedKeys] = useState(() => new Set([selectedKey]));
   const settledKeyRef = useRef(selectedKey);
   const afterChangeRef = useRef(onAfterChange);
   useLayoutEffect(() => { afterChangeRef.current = onAfterChange; }, [onAfterChange]);
@@ -216,7 +218,7 @@ export function Tabs({
       const animations = indicator?.getAnimations() ?? [];
       const complete = () => {
         if (cancelled) return;
-        setContentState(previous => ({ key: selectedKey, visited: new Set([...previous.visited].filter(key => items.some(item => item.key === key))).add(selectedKey) }));
+        setSettledContentKey(selectedKey);
         if (settledKeyRef.current !== selectedKey) {
           settledKeyRef.current = selectedKey;
           afterChangeRef.current?.(selectedKey);
@@ -230,7 +232,19 @@ export function Tabs({
     return () => { cancelled = true; cancelAnimationFrame(frame); };
   }, [selectedKey, type, deferContent]);
 
-  const contentKey = deferContent ? contentState.key : selectedKey;
+  // 延迟目标被删除时立即回退到有效选中项，避免等待期间出现没有可见内容的空面板。
+  const contentKey = deferContent && items.some(item => item.key === settledContentKey) ? settledContentKey : selectedKey;
+
+  useLayoutEffect(() => {
+    // 旧面板删除后的回退同时更新延迟目标，防止同键标签重新加入时被过期目标提前挂载。
+    if (deferContent && contentKey !== settledContentKey) setSettledContentKey(contentKey);
+    // 在面板提交后立即记录访问，避免即时模式快速切走时因动画尚未完成而丢失缓存。
+    // 删除标签或开启销毁后同步清理记录，同键标签重新加入时仍应等待首次访问。
+    setVisitedKeys(previous => {
+      const next = new Set(items.filter(item => item.key === contentKey || (!destroyInactiveTabPane && previous.has(item.key))).map(item => item.key));
+      return next.size === previous.size && [...next].every(key => previous.has(key)) ? previous : next;
+    });
+  }, [contentKey, items, destroyInactiveTabPane, deferContent, settledContentKey]);
 
   function selectTab(key: string) {
     if (key === selectedKey) return;
@@ -356,8 +370,8 @@ export function Tabs({
           {items.map((item) => {
             const selected = item.key === contentKey;
             if (destroyInactiveTabPane && !selected) return null;
-            // 延迟模式下未访问的面板不预挂载，避免隐藏表格抢占切换动画的主线程。
-            if (deferContent && !selected && !contentState.visited.has(item.key)) return null;
+            // 所有模式均按首次访问挂载；已访问面板仅隐藏，保持组件状态与挂载副作用。
+            if (!selected && !visitedKeys.has(item.key)) return null;
             return (
               <div
                 key={item.key}

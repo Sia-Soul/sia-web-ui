@@ -6,7 +6,8 @@
     "allowImportingTsExtensions": true,
     "baseUrl": ".",
     "paths": {
-      "@sia.soul/sia-react-ui": ["../../packages/react/src/index.ts"]
+      "@sia.soul/sia-react-ui": ["../../packages/react/src/index.ts"],
+      "@sia.soul/sia-react-ui/game": ["../../packages/react/src/game.ts"]
     }
   },
   "include": ["src", "vite.config.ts"]

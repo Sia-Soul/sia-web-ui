@@ -1,6 +1,6 @@
 import { ResultExamples } from "./examples/ResultExamples";
 /// <reference types="vite/client" />
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button, Input, Select, Space, Table, Typography } from "@sia.soul/sia-react-ui";
 import { DemoCard } from "./DemoCard";
@@ -19,6 +19,10 @@ import { UploadExamples } from "./examples/UploadExamples";
 import { ChartExamples } from "./examples/ChartExamples";
 import { ChartPrimitiveExamples } from "./examples/ChartPrimitiveExamples";
 import { TransferExamples } from "./examples/TransferExamples";
+import { MediaExamples } from "./examples/MediaExamples";
+
+/** 游戏模块和皮肤仅在选择其示例时加载，避免普通属性页初始化游戏资源。 */
+const GameExamples = lazy(() => import("./examples/GameExamples").then(module => ({ default: module.GameExamples })));
 
 /** 源码按需读取，与预览使用同一文件，避免展示代码和运行样例长期漂移。 */
 const sources = import.meta.glob<string>(["./*.tsx", "./examples/*.tsx"], { query: "?raw", import: "default" });
@@ -31,6 +35,8 @@ const groups = [
   { value: "SelectionExamples", label: "输入、选择与选择面板", component: SelectionExamples },
   { value: "DateExamples", label: "日期、时间与日历", component: DateExamples },
   { value: "DisplayExamples", label: "展示、树、面板与窗口", component: DisplayExamples },
+  { value: "MediaExamples", label: "光标与图片预览", component: MediaExamples },
+  { value: "GameExamples", label: "游戏框架与受控面板", component: GameExamples },
   { value: "FormExamples", label: "表单、查询与表格", component: FormExamples },
   { value: "OverlayExamples", label: "弹框与抽屉", component: OverlayExamples },
   { value: "EditorExamples", label: "代码、富文本与 Markdown", component: EditorExamples },
@@ -80,7 +86,7 @@ export function PropertyExamplesPage() {
       ]} />
       <DemoCard title={`属性样例源码：${sourcePath}`} description="展开代码可查看完整文件及其导入、状态和数据定义；位置行号见上方索引。" code={code}><Typography.Text>选中属性对应的源文件，可展开或复制代码。</Typography.Text></DemoCard>
       <Select aria-label="补充样例分组" value={group} options={groups} onChange={value => setGroup(String(value))} />
-      <DemoCard id="property-example-preview" title={selected.label} description="使用开关、输入或点击操作观察效果；事件结果显示在样例底部。代码直接取自正在运行的样例文件。" code={previewCode}><Preview key={group} /></DemoCard>
+      <DemoCard id="property-example-preview" title={selected.label} description="使用开关、输入或点击操作观察效果；事件结果显示在样例底部。代码直接取自正在运行的样例文件。" code={previewCode}><Suspense fallback={<Typography.Text>正在加载样例…</Typography.Text>}><Preview key={group} /></Suspense></DemoCard>
     </Space>
   </>;
 }

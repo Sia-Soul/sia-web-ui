@@ -67,6 +67,9 @@ const columns: TableColumn<Row>[] = [
   {
     key: "code",
     title: "商品编号",
+    // 必填列头与空值校验分别声明，不适用行由业务条件排除。
+    required: true,
+    invalid: (row) => !row.code.trim(),
     dataIndex: "code",
     width: 160,
     editable: true,
@@ -81,6 +84,8 @@ const columns: TableColumn<Row>[] = [
   {
     key: "size",
     title: "尺码",
+    required: true,
+    invalid: (row) => row.applicable && !row.size,
     dataIndex: "size",
     width: 120,
     editable: {
@@ -95,6 +100,9 @@ const columns: TableColumn<Row>[] = [
   {
     key: "price",
     title: "售价",
+    // 数字 0 是合法值，不能用真假值判断必填。
+    required: true,
+    invalid: (row) => row.price == null,
     dataIndex: "price",
     width: 140,
     editable: { type: "inputNumber" },
@@ -120,9 +128,18 @@ export function WorksheetDemo() {
       <p>
         单击选中，双击编辑；Ctrl/Cmd+C/V 复制粘贴；拖动右下角填充柄，按住
         Ctrl/Cmd 递增；双击填满下方连续空格。
+        点击“定位首个问题”后，目标完整可见才会播放橙色边框光线：尾端固定，线身沿边框增长一圈，再从尾部收缩到头部后消失；只读格不显示填充柄。
       </p>
       <Space>
         <Button onClick={() => setRows(initial())}>重新导入示例</Button>
+        <Button onClick={() => {
+          // 示例按业务列顺序查找错误，框架只负责整格定位和一次流光反馈。
+          for (const row of rows) {
+            const column = !row.code.trim() ? 'code' : row.applicable && !row.size ? 'size' : row.price == null ? 'price' : undefined;
+            // 通过公开配置演示商品导入采用的橙色、标准快速速度和 4px 线宽。
+            if (column) { void table.current?.focusCell(row.id, column, { color: '#fa8c16', speed: 1, lineWidth: 4 }); break; }
+          }
+        }}>定位首个问题</Button>
         <Button
           onClick={() => {
             // 行复制也通过同一历史入口，复制编号由业务规则清空。

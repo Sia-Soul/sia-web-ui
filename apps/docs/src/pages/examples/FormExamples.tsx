@@ -11,6 +11,14 @@ export function FormExamples() {
   const table = useRef<TableRef<{ id: number; name: string }>>(null);
   return <Space direction="vertical" style={{ width: "100%" }}>
     <Space><Switch checked={disabled} onCheckedChange={setDisabled} label="禁用" /><Switch checked={loading} onCheckedChange={setLoading} label="加载" /></Space>
+    {/* fill 需要确定高度；表单字段之外的列表分配剩余空间。 */}
+    <div style={{ height: 260 }}>
+      <Form fill onFinish={values => setEvent(`保存：${JSON.stringify(values)}`)}>
+        <Form.Item name="remark" label="填充表单备注"><Input /></Form.Item>
+        <div style={{ flex: 1, minHeight: 0 }}><Table height="100%" rowKey="id" dataSource={[{ id: 1, name: "列表占据表单剩余高度" }]} columns={[{ key: "name", dataIndex: "name", title: "明细" }]} /></div>
+        <Button type="submit">保存填充表单</Button>
+      </Form>
+    </div>
     <Form disabled={disabled} requiredMark="optional" onValuesChange={(changed, all) => setEvent(JSON.stringify({ changed, all }))} initialValues={{ contacts: [{ name: "张三" }] }}>
       <Form.Item name="name" label="名称" required extra="失焦校验" help="请输入两个以上字符" validateStatus="warning" trigger="onChange" validateTrigger="onBlur" getValueFromEvent={event => (event as React.ChangeEvent<HTMLInputElement>).target.value.trim()} rules={[{ min: 2, message: "至少两个字符" }]} className="property-form-item"><Input /></Form.Item>
       <Form.Item dependencies={["name"]} shouldUpdate={(before, after) => before.name !== after.name}>{form => <Typography.Text>名称预览：{String(form.getFieldValue("name") ?? "")}</Typography.Text>}</Form.Item>
@@ -25,7 +33,8 @@ export function FormExamples() {
     <QueryForm loading={loading} collapsed={collapsed} onCollapsedChange={setCollapsed} collapsedCount={1} shortcutsLoading={loading} disabled={disabled} size="large" placeholderMode="floating" layout="vertical" requiredMark searchText="筛选" resetText="清除条件" saveText="保存方案" resetSearch={false} actionsExtra={<Button onClick={() => setEvent("导出当前结果")}>导出</Button>}
       fields={[{ key: "name", name: "name", label: "名称", children: <Input /> }, { key: "code", name: "code", label: "编码", children: <Input /> }]}
       onSearch={async values => { if (values.name === "error") throw new Error("输入 error 演示失败"); setEvent(`查询：${JSON.stringify(values)}`); }} onSaveQuery={query => setEvent(`保存方案：${query.name}`)} onError={(error, operation) => setEvent(`${operation} 失败：${String(error)}`)} onFinishFailed={info => setEvent(`校验失败 ${info.errorFields.length} 项`)} onValuesChange={changed => setEvent(`条件变更：${JSON.stringify(changed)}`)} />
-    <QueryForm defaultCollapsed={false} fields={[{ key: "keyword", name: "keyword", children: <Input placeholder="默认展开的独立查询区" /> }]} onSearch={values => setEvent(JSON.stringify(values))} />
+    {/* QueryForm 将 fill 传给内部 Form；显式高度让示例可观察其纵向容器布局。 */}
+    <QueryForm fill style={{ height: 160 }} defaultCollapsed={false} fields={[{ key: "keyword", name: "keyword", children: <Input placeholder="默认展开的独立查询区" /> }]} onSearch={values => setEvent(JSON.stringify(values))} />
     <Table ref={table} dataSource={disabled ? [] : [{ id: 1, name: "张三" }, { id: 2, name: "李四" }]} columns={[{ key: "name", title: "姓名", dataIndex: "name" }]} rowKey="id" loading={loading} emptyText="暂无匹配人员" tableHeight={200} bordered toolbarBordered striped renderMode="dom" virtualThreshold={1} stickyHeader resizable cellSelection showIndex onRowClick={row => setEvent(`单击 ${row.name}`)} onRowDoubleClick={row => setEvent(`双击 ${row.name}`)} onCellContextMenu={(row, column, index, e) => { e.preventDefault(); setEvent(`右键 ${row.name}，列 ${column.key}，行 ${index}`); }} rowClassName={(_, index) => index === 0 ? "property-first-row" : ""} tableStyle={{ minWidth: 400 }} />
     <Typography.Text role="status">{event}</Typography.Text>
   </Space>;

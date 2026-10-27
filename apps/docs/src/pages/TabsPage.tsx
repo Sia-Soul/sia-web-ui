@@ -1,4 +1,4 @@
-import { Badge, Button, Flex, Icon, Table, Tabs, createPaginationPlugin } from "@sia.soul/sia-react-ui";
+import { Badge, Button, Flex, Icon, Input, Table, Tabs, createPaginationPlugin } from "@sia.soul/sia-react-ui";
 import type { CSSProperties } from "react";
 import { useRef, useState } from "react";
 import { ApiTable } from "./ApiTable";
@@ -32,8 +32,23 @@ const items = [
 ];
 
 export default function Demo() {
+  // 默认首次访问才挂载，切换后保留内容；需要切走销毁时设置 destroyInactiveTabPane。
   return <Tabs items={items} defaultActiveKey="overview" />;
 }`;
+
+/** 用组件内部的输入状态演示切走后保留内容，避免外部状态掩盖重新挂载。 */
+function RetainedPanel({ name }: { /** 面板名称，用于区分各自保存的输入。 */ name: string }) {
+  const [value, setValue] = useState("");
+  return <Input aria-label={`${name}备注`} placeholder={`填写${name}备注，切换标签后再回来`} value={value} onChange={event => setValue(event.target.value)} />;
+}
+
+/** 默认按需挂载的示例，标签内容使用稳定组件类型以保留内部状态。 */
+function RetainedContentDemo() {
+  return <Tabs items={[
+    { key: "overview", label: "概览", children: <RetainedPanel name="概览" /> },
+    { key: "members", label: "成员", children: <RetainedPanel name="成员" /> },
+  ]} />;
+}
 
 /** 空数据、少量数据和大量数据共用有界内容区，用于验收分页位置不随行数变化。 */
 function RemainingHeightDemo() {
@@ -166,7 +181,7 @@ const apiRows = [
   { property: "items", description: "标签项，包含 key、label、children、icon、disabled 和 closable", type: "TabItem[]", defaultValue: "[]" },
   { property: "activeKey / defaultActiveKey", description: "受控激活项与默认激活项", type: "string", defaultValue: "首个可用项" },
   { property: "onChange", description: "激活项变化回调", type: "(key: string) => void", defaultValue: "-" },
-  { property: "deferContent", description: "动画结束后切换面板，等待期间保留旧内容；启用且保留面板时，未访问的面板不预挂载", type: "boolean", defaultValue: "false" },
+  { property: "deferContent", description: "动画结束后切换面板，等待期间保留旧内容；未访问的目标面板在动画结束后首次挂载，连续切换跳过未显示的中间目标；不改变是否保留面板", type: "boolean", defaultValue: "false" },
   { property: "onAfterChange", description: "动画结束后通知最终目标，可用于更新外部表格或路由；首次渲染不触发，连续切换取消中间任务", type: "(key: string) => void", defaultValue: "-" },
   { property: "type", description: "线型、卡片型、胶囊型、圆角胶囊、紧凑下划线或科技样式", type: "'line' | 'card' | 'pill' | 'capsule' | 'underline' | 'tech' | 'tech-line'", defaultValue: "'line'" },
   { property: "tabPosition", description: "标签栏位于内容的上、右、下或左侧", type: "'top' | 'right' | 'bottom' | 'left'", defaultValue: "'top'" },
@@ -175,7 +190,7 @@ const apiRows = [
   { property: "contentGap", description: "导航与内容面板的间距（px），仅作用于当前实例", type: "number", defaultValue: "上下 16 / 左右 20" },
   { property: "tabBarTitle", description: "标签栏左侧标题，科技大屏型会附带装饰线", type: "ReactNode", defaultValue: "-" },
   { property: "tabBarExtraContent", description: "标签栏右侧额外操作", type: "ReactNode", defaultValue: "-" },
-  { property: "destroyInactiveTabPane", description: "是否卸载非激活面板", type: "boolean", defaultValue: "true" },
+  { property: "destroyInactiveTabPane", description: "默认首次访问时挂载，切走后隐藏并保留状态；true 时切走卸载、切回重新初始化。删除标签或卸载 Tabs 时释放内容，仅管理 items[].children", type: "boolean", defaultValue: "false" },
   { property: "closable / onEdit", description: "显示关闭操作，并在移除标签时回调", type: "boolean / (key, 'remove') => void", defaultValue: "false / -" },
 ] as const;
 
@@ -228,6 +243,13 @@ export function TabsPage() {
       <DemoCard title="基础用法" description="底部指示条随选中项平滑滑动；使用方向键切换标签，Home 和 End 可快速跳转首尾。" code={basicCode}>
         <Tabs items={basicItems} defaultActiveKey="overview" />
       </DemoCard>
+      <DemoCard title="首次访问挂载并保留状态" description="默认只挂载当前面板，其他面板首次访问时才挂载。输入备注后切换标签再回来，输入状态仍保留，挂载时的初始化请求不会因切回而重复执行。保留挂载不阻止 props、state 或 Context 更新；标签 key 与内容组件类型需保持稳定。" code={`// 默认按需挂载并保留内容，无需额外配置。
+<Tabs items={items} />
+
+// 需要切走后释放内容、切回重新初始化时，显式启用销毁。
+<Tabs items={items} destroyInactiveTabPane />`}>
+        <RetainedContentDemo />
+      </DemoCard>
       <DemoCard title="填充剩余高度" description="Tabs 获得确定高度后，面板自动占满导航之外的空间。查询区之外的 Table 使用 height=100%，空数据、少量数据和大量数据均保持分页在底部。" code={'<Tabs style={{ height: "100%" }} items={items} />'}>
         <RemainingHeightDemo />
       </DemoCard>
@@ -279,7 +301,7 @@ export function TabsPage() {
           { key: "request", label: "补拉申请", children: "补拉申请内容" },
         ]} />
       </DemoCard>
-      <DemoCard title="动画结束后切换内容" description="deferContent 让旧面板保持到动画结束；外部表格或路由应在 onAfterChange 中更新，onChange 仅同步标签状态。" code={`// 面板在 Tabs 内部：动画结束后才挂载目标组件。
+      <DemoCard title="动画结束后切换内容" description="deferContent 让旧面板保持到动画结束，再显示目标面板；未访问的目标此时才挂载，已访问的默认保留状态。外部表格或路由应在 onAfterChange 中更新，缓存需由业务自行管理。" code={`// 面板在 Tabs 内部：动画结束后显示目标组件，首次访问才挂载，切走后默认保留。
 <Tabs type="tech-line" deferContent items={[
   { key: "amount", label: "金额", children: <AmountTable /> },
   { key: "orders", label: "合作门店订单数", children: <OrderTable /> },

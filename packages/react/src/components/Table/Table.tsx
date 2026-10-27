@@ -5,6 +5,8 @@ import { useRemainingHeight } from "./useRemainingHeight";
 import { TableCanvasLayer } from "./TableCanvasLayer";
 import { createRowIdentity } from "./rowIdentity";
 import "./canvas.css";
+import "./cellFocus.css";
+import { playCellFocusGlow } from "./cellFocus";
 import { Fragment, forwardRef, isValidElement, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactElement, ReactNode, Ref } from "react";
 import { Tooltip } from "../FloatingDisplay";
@@ -22,6 +24,7 @@ import type {
   TableSummaryRow,
 } from "./types";
 import { createCellSelectionPlugin, createHighlightPlugin, createIndexPlugin, createResizePlugin } from "./plugins";
+import type { TableCellSelectionApi } from "./plugins";
 import { createTableRows, flattenTableColumns, getTableValue, isTableAutoWidthColumn, mapTableLeafColumns, normalizeFixed, sortTableColumnsByFixed } from "./utils";
 
 const EMPTY_DATA: readonly Record<string, unknown>[] = [];
@@ -202,6 +205,8 @@ const TableBodyRow = memo(function TableBodyRow<T>({
         const pluginCellProps = getCellProps(column);
         if (pluginCellProps.hidden) return null;
         const value = getTableValue(row.record, column.dataIndex, column.code ?? column.key);
+        // 校验由业务提供语义，框架统一处理空值和有值错误的外观及无障碍标记。
+        const invalid = typeof column.invalid === "function" ? column.invalid(row.record, row.sourceIndex) : column.invalid;
         const cellClass = typeof column.cellClassName === "function" ? column.cellClassName(row.record, rowIndex) : column.cellClassName ?? "";
         const fixed = normalizeFixed(column.fixed);
         const fixedStyle: CSSProperties | undefined = fixed === "left"
@@ -215,11 +220,12 @@ const TableBodyRow = memo(function TableBodyRow<T>({
           <td
             key={column.key}
             data-column-key={column.key}
+            aria-invalid={invalid || undefined}
             data-canvas-dom-ready={canvas && (pluginCellProps.content !== undefined || (!column.canvasRender && column.render)) ? "true" : undefined}
             aria-label={canvas ? column.canvasRender?.(value, row.record, row.sourceIndex, { row, rowIndex, column })?.text ?? (value == null ? "" : String(value)) : undefined}
             rowSpan={pluginCellProps.rowSpan}
             colSpan={pluginCellProps.colSpan}
-            className={`sia-table__cell sia-table__cell--${column.align ?? "left"}${fixed ? ` sia-table__cell--fixed sia-table__cell--fixed-${fixed}` : ""}${fixedEdgeClass}${autoWidthClass}${column.ellipsis !== false ? " sia-table__cell--ellipsis" : ""} ${cellClass} ${pluginCellProps.className ?? ""}`.trim()}
+            className={`sia-table__cell sia-table__cell--${column.align ?? "left"}${fixed ? ` sia-table__cell--fixed sia-table__cell--fixed-${fixed}` : ""}${fixedEdgeClass}${autoWidthClass}${invalid ? " sia-table__cell--invalid" : ""}${column.ellipsis !== false ? " sia-table__cell--ellipsis" : ""} ${cellClass} ${pluginCellProps.className ?? ""}`.trim()}
             style={{ ...fixedStyle, ...pluginCellProps.style }}
             onMouseEnter={() => onCellMouseEnter(column)}
             onMouseLeave={() => onCellMouseLeave(column)}
@@ -284,6 +290,10 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
   // 显式高度保持旧优先级；未指定时由框架统一测量剩余空间。
   const remainingHeight = useRemainingHeight(rootRef, height == null && tableHeight == null ? fillRemaining : false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // 连续定位与卸载取消旧动效，防止异步虚拟行挂载后夺回用户焦点。
+  const cellFocusRequest = useRef(0);
+  const cellGlow = useRef<(() => void) | null>(null);
+  useEffect(() => () => { cellFocusRequest.current++; cellGlow.current?.(); }, []);
   const tableRef = useRef<HTMLTableElement>(null);
   useScrollbarProximity();
   const scrollbarDragRef = useRef<{
@@ -674,11 +684,92 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     if (rootRef.current) rootRef.current.dataset.scrollbarDragging = "false";
   }, []);
 
-  useImperativeHandle(ref, () => ({
+  useImperativeHandle(ref, () => {
+    const api: TableRef<T> = {
     getRows: () => pipeline.rows.map((row) => row.record),
     getColumns: () => pipeline.columns,
     getPluginApi: (pluginId) => pluginApisRef.current[pluginId] as never,
     scrollTo: (options) => scrollRef.current?.scrollTo(options),
+    scrollToRow: (key) => {
+      const viewport = scrollRef.current;
+      const table = tableRef.current;
+      const index = pipeline.rows.findIndex(row => row.key === key);
+      if (!viewport || !table || !viewport.clientHeight || index < 0) return false;
+      // 已挂载行使用实际尺寸，虚拟窗口外的行使用框架自身的行高模型，业务无需猜测像素。
+      const row = Array.from(table.tBodies[0]?.rows ?? []).find(element => element.dataset.rowKey === String(key));
+      const headerHeight = table.tHead?.offsetHeight ?? headerRows.length * rowHeight;
+      const top = row ? row.getBoundingClientRect().top - viewport.getBoundingClientRect().top - viewport.clientTop + viewport.scrollTop : headerHeight + index * rowHeight;
+      const height = row?.offsetHeight ?? rowHeight;
+      const headerInset = stickyHeader ? headerHeight : 0;
+      const footerInset = table.tFoot?.offsetHeight ?? 0;
+      const visibleTop = viewport.scrollTop + headerInset;
+      const visibleBottom = viewport.scrollTop + viewport.clientHeight - footerInset;
+      // 只移动必要距离，避免处理速度快时动画排队，也不牵动页面和横向滚动条。
+      if (top < visibleTop || height > visibleBottom - visibleTop) viewport.scrollTop = Math.max(0, top - headerInset);
+      else if (top + height > visibleBottom) viewport.scrollTop = top + height - viewport.clientHeight + footerInset;
+      if (shouldVirtualize) setScrollTop(viewport.scrollTop);
+      updateScrollMetrics();
+      return true;
+    },
+    focusCell: async (key, columnKey, options) => {
+      const request = ++cellFocusRequest.current;
+      cellGlow.current?.();
+      cellGlow.current = null;
+      const viewport = scrollRef.current;
+      const columnIndex = leafColumns.findIndex(column => column.key === columnKey);
+      if (!viewport || columnIndex < 0 || !api.scrollToRow(key)) return false;
+      const column = leafColumns[columnIndex];
+      // 用框架列宽模型先展开离屏列，Canvas 模式也能在下一帧生成目标单元格。
+      if (!normalizeFixed(column.fixed)) {
+        const start = leafColumns.slice(0, columnIndex).reduce((sum, item) => sum + (columnWidths.get(item.key) ?? DEFAULT_WIDTH), 0);
+        const width = columnWidths.get(columnKey) ?? DEFAULT_WIDTH;
+        const visibleWidth = viewport.clientWidth - left - right;
+        if (start < viewport.scrollLeft + left || width > visibleWidth) viewport.scrollLeft = Math.max(0, start - left);
+        else if (start + width > viewport.scrollLeft + viewport.clientWidth - right) viewport.scrollLeft = start + width - viewport.clientWidth + right;
+        if (canvas) setScrollLeft(viewport.scrollLeft);
+      }
+      updateScrollMetrics();
+      // React 提交虚拟行后再聚焦；按帧等待且可取消，不用固定延时猜测挂载时间。
+      let previousRect: DOMRect | undefined;
+      for (let frame = 0; frame < 20; frame++) {
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+        if (request !== cellFocusRequest.current || !viewport.isConnected || !viewport.clientHeight) return false;
+        const row = Array.from(tableRef.current?.tBodies[0]?.rows ?? []).find(item => item.dataset.rowKey === String(key));
+        const cell = Array.from(row?.cells ?? []).find(item => item.dataset.columnKey === columnKey);
+        if (!cell || !cell.offsetWidth) continue;
+        // 工作表按钮或编辑器可撑高行；挂载后用实测尺寸校正首次虚拟估算，避免末行仍被裁切。
+        api.scrollToRow(key);
+        const visible = () => {
+          if (!cell.isConnected || !viewport.clientHeight || !cell.offsetWidth) return false;
+          const bounds = viewport.getBoundingClientRect(), rect = cell.getBoundingClientRect();
+          const top = bounds.top + viewport.clientTop + (stickyHeader ? tableRef.current?.tHead?.offsetHeight ?? 0 : 0);
+          const bottom = bounds.top + viewport.clientTop + viewport.clientHeight - (tableRef.current?.tFoot?.offsetHeight ?? 0);
+          const fixed = normalizeFixed(column.fixed);
+          return rect.top >= Math.max(0, top) - 1 && rect.bottom <= Math.min(window.innerHeight, bottom) + 1
+            && rect.left >= Math.max(0, bounds.left + viewport.clientLeft + (fixed ? 0 : left)) - 1
+            && rect.right <= Math.min(window.innerWidth, bounds.left + viewport.clientLeft + viewport.clientWidth - (fixed ? 0 : right)) + 1;
+        };
+        const rect = cell.getBoundingClientRect();
+        // 连续两次绘制的实测位置一致且完整可见后才开始，不能把发出滚动命令当作定位完成。
+        const stable = previousRect && Math.abs(rect.top - previousRect.top) < .5 && Math.abs(rect.left - previousRect.left) < .5 && Math.abs(rect.width - previousRect.width) < .5 && Math.abs(rect.height - previousRect.height) < .5;
+        previousRect = rect;
+        if (!visible() || !stable) continue;
+        const address = { rowKey: key, columnKey };
+        (pluginApisRef.current.cellSelection as TableCellSelectionApi<T> | undefined)?.setRange({ anchor: address, focus: address });
+        cell.tabIndex = -1;
+        cell.focus({ preventScroll: true });
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+        if (request !== cellFocusRequest.current || !visible()) return false;
+        if (options?.highlight !== false) {
+          // 页面独立顶层描边避开固定列与祖先裁剪；结束、取消和卸载均清理。
+          // 定位效果由公开配置选择，统一交给框架绘制描边与柔光。
+          const cleanup = playCellFocusGlow(cell, visible, () => { cellGlow.current = null; }, options);
+          cellGlow.current = cleanup;
+        }
+        return true;
+      }
+      return false;
+    },
     setLoading: setInternalLoading,
     getPage: () => (pluginApisRef.current.pagination as any)?.getPage?.() ?? { current: 1, pageSize: dataSource.length || 25 },
     setPage: (page) => (pluginApisRef.current.pagination as any)?.setPage?.(page),
@@ -690,7 +781,9 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     openColumnSetting: () => (pluginApisRef.current.columnSetting as any)?.open?.(),
     generatePageParams: (model) => (pluginApisRef.current.pagination as any)?.generatePageParams?.(model) ?? model,
     requestCount: async (model) => { await (pluginApisRef.current.pagination as any)?.requestCount?.(model); },
-  }), [dataSource.length, pipeline.columns, pipeline.rows]);
+    };
+    return api;
+  }, [dataSource.length, pipeline.columns, pipeline.rows, headerRows.length, rowHeight, stickyHeader, shouldVirtualize, updateScrollMetrics, leafColumns, columnWidths, left, right, canvas]);
 
   const coreContext: TablePluginContext<T, undefined> = {
     pluginId: "core",
@@ -715,7 +808,9 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
   /** 在各表头插件外统一约束文字宽度；仅文案实际省略时提示原始标题，避免混入排序、筛选操作文案。 */
   function renderHeaderContent(column: TableColumn<T>, content: ReactNode) {
     const title = getHeaderTitleText(column.title ?? column.name) || column.name || column.key;
-    return <span className="sia-table__header-label">
+    return <span className={`sia-table__header-label${column.required ? " sia-table__header-label--required" : ""}`}>
+      {/* 星号仅用于必填提示，不混入原始标题及导出列名。 */}
+      {column.required && <span className="sia-table__required-mark" aria-hidden="true">*</span>}
       <span className="sia-table__header-label-content" data-sia-title-overflow-only {...withTitleTooltip({ title })}>{content}</span>
       {column.description != null && <Tooltip title={column.description} placement="top" trigger={["hover", "focus"]}>
         <button type="button" className="sia-table__header-description" aria-label={`${column.name ?? column.key}列说明`} onClick={(event) => event.stopPropagation()}>

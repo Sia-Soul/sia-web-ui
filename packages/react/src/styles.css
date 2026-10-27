@@ -792,6 +792,18 @@
 .sia-table__header-cell.sia-table__cell--center > .sia-table__checkbox { display: block; margin-inline: auto; }
 .sia-table__header-cell.sia-table__cell--center .sia-table__resizable-header { justify-content: center; }
 .sia-table__header-label { display: flex; align-items: center; min-width: 0; gap: 5px; }
+/* 必填标识独立于标题内容，排序、列设置和导出仍使用原始列名。 */
+.sia-table__header-label--required .sia-table__header-label-content,
+.sia-table__required-mark { color: var(--sia-color-error); }
+.sia-table__required-mark { flex: 0 0 auto; }
+/* 校验纹理不改变基础灰底；底线用独立伪元素贴边，不增加行高或覆盖选区与固定列阴影。 */
+.sia-table .sia-table__row td.sia-table__cell.sia-table__cell--invalid {
+  /* 将编辑器、红线和填充柄限制在本格层级，滚动时不盖住固定列或吸顶表头。 */
+  isolation: isolate;
+  background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--sia-color-error) 9%, transparent) 0 7px, transparent 7px 14px);
+}
+/* 底线在编辑器上方仍属于单元格，不拦截任何点击或键盘交互。 */
+.sia-table__cell--invalid::before { position: absolute; z-index: 9; right: 0; bottom: 0; left: 0; height: 3px; content: ""; background: var(--sia-color-error); pointer-events: none; }
 /* 各层插件包裹都允许文字收缩；仅裁剪内容，保留列头上的拖拽热区。 */
 .sia-table__header-label-content { display: block; min-width: 0; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .sia-table__sortable-header > span:first-child,

@@ -2,9 +2,10 @@
 const assert = require('node:assert/strict');
 const { chromium } = require(process.argv[2] || 'playwright');
 const base = process.argv[3] || 'http://127.0.0.1:4197';
-const groups = ['BasicExamples', 'NavigationExamples', 'FeedbackExamples', 'SelectionExamples', 'DateExamples', 'DisplayExamples', 'FormExamples', 'OverlayExamples', 'EditorExamples', 'UploadExamples', 'ChartExamples', 'ChartPrimitiveExamples', 'TransferExamples'];
+const groups = ['BasicExamples', 'NavigationExamples', 'FeedbackExamples', 'SelectionExamples', 'DateExamples', 'DisplayExamples', 'FormExamples', 'OverlayExamples', 'EditorExamples', 'UploadExamples', 'ChartExamples', 'ChartPrimitiveExamples', 'TransferExamples', 'ResultExamples', 'MediaExamples', 'GameExamples'];
 (async () => {
-  const browser = await chromium.launch({ channel: 'msedge', headless: true });
+  // 可选第四参数指定独立浏览器可执行文件，默认仍使用本机 Edge。
+  const browser = await chromium.launch({ ...(process.argv[4] ? { executablePath: process.argv[4] } : { channel: 'msedge' }), headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
     const errors = [];
@@ -57,6 +58,6 @@ const groups = ['BasicExamples', 'NavigationExamples', 'FeedbackExamples', 'Sele
     await page.locator('.demo-card').first().locator('pre').waitFor();
     assert.match(await page.locator('.demo-card').first().locator('pre').innerText(), /import/);
     assert.deepEqual(errors, []);
-    console.log('PASS 属性筛选、源码展示与全部 13 组渲染');
+    console.log('PASS 属性筛选、源码展示与全部 16 组渲染');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -19,7 +19,8 @@ export function BasicExamples() {
       { key: "locked", label: "无权限", disabled: true },
     ]} onAction={setEvent} disabled={disabled} size="medium" variant="default" overflowLabel="收纳的操作" /></div>
     <Icon name="refresh" strokeWidth={1} pulse label="正在同步" />
-    <Card title="受控折叠卡片" extra={<Tag>附加内容</Tag>} disabled={disabled} accentColor="#0e7490" collapsible collapsed={collapsed} onCollapsedChange={setCollapsed} bodyStyle={{ padding: 20 }}>正文内边距为 20px</Card>
+    {/* 普通选择指针适合桌面式卡片，折叠按钮仍可点击和键盘操作。 */}
+    <Card title="受控折叠卡片" interactionCursor="default" extra={<Tag>附加内容</Tag>} disabled={disabled} accentColor="#0e7490" collapsible collapsed={collapsed} onCollapsedChange={setCollapsed} bodyStyle={{ padding: 20 }}>正文内边距为 20px；悬停标题保持普通指针</Card>
     <Card title="默认收起" collapsible defaultCollapsed>展开后看到正文</Card>
     <Row align="middle" justify="space-around" wrap gutter={12}>
       <Col span={8} sm={10} xl={8} xxl={6} offset={1} order={2} push={1} pull={0} flex="1 1 180px"><Card>响应式列：改变窗口宽度观察列宽</Card></Col>

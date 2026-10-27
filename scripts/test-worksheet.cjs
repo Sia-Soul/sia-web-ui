@@ -74,13 +74,13 @@ fs.mkdirSync(out, { recursive: true });
  import {Table} from '../../packages/react/src/components/Table/Table';import {createWorksheetPlugin} from '../../packages/react/src/components/Table/worksheet';import {Icon} from '../../packages/react/src/components/Icon';import {createEditablePlugin,createSortPlugin} from '../../packages/react/src/components/Table/plugins';
  import '../../packages/react/src/styles.css';import '../../packages/react/src/components-extra.css';
  const initial=()=>[{id:1,style:'款式一',code:'SKU001',name:'商品一',size:'M',price:10,ok:true},{id:2,style:'款式一',code:'',name:'',size:'',price:null,ok:true},{id:3,style:'款式二',code:'',name:'',size:'',price:null,ok:false},{id:4,style:'款式二',code:'终点',name:'保留',size:'L',price:40,ok:true}];
- const columns=[{key:'style',title:'款式',dataIndex:'style',width:140,fixed:'left'},{key:'code',title:'编号',dataIndex:'code',width:150,editable:true,sortable:true},{key:'name',title:'名称',dataIndex:'name',width:160,editable:true,render:v=><span><span data-testid="cell-error" style={{color:'var(--sia-color-error)'}}><Icon name="circle-close" variant="filled"/></span>{v}</span>},{key:'size',title:'尺码',dataIndex:'size',width:120,editable:{type:'select',options:[{value:'M',label:'M'},{value:'L',label:'L'}],canEdit:r=>r.ok}},{key:'price',title:'价格',dataIndex:'price',width:120,editable:{type:'inputNumber'}}];
+ const columns=[{key:'style',title:'款式',dataIndex:'style',width:140,fixed:'left',invalid:r=>r.id===4},{key:'code',title:'编号',dataIndex:'code',width:150,editable:true,sortable:true,required:true,invalid:r=>!r.code.trim()},{key:'name',title:'名称',dataIndex:'name',width:160,editable:true,render:v=><span><span data-testid="cell-error" style={{color:'var(--sia-color-error)'}}><Icon name="circle-close" variant="filled"/></span>{v}</span>},{key:'size',title:'尺码',dataIndex:'size',width:120,required:true,invalid:r=>r.ok&&!r.size,editable:{type:'select',options:[{value:'M',label:'M'},{value:'L',label:'L'}],canEdit:r=>r.ok}},{key:'price',title:'价格',dataIndex:'price',width:120,required:true,invalid:r=>r.price==null,editable:{type:'inputNumber'}}];
  // 嵌套表格按各自根节点隔离剪贴板和快捷键，外层已有选区也不能抢走内层操作。
  function NestedCase(){const [rows,setRows]=useState([{id:1,code:'外层'}]),[inner,setInner]=useState([{id:1,code:'内层'}]),outerRef=useRef(null),innerRef=useRef(null);const outer=useMemo(()=>createWorksheetPlugin({onChange:setRows}),[]),inside=useMemo(()=>createWorksheetPlugin({onChange:setInner}),[]);window.nestedRows=rows;window.innerRows=inner;window.prepareNested=()=>{outerRef.current.getPluginApi('cellSelection').setRange({anchor:{rowKey:1,columnKey:'code'},focus:{rowKey:1,columnKey:'code'}});innerRef.current.getPluginApi('cellSelection').setRange({anchor:{rowKey:1,columnKey:'code'},focus:{rowKey:1,columnKey:'code'}});};const innerColumns=[{key:'code',title:'编号',dataIndex:'code',editable:true}];return <Table ref={outerRef} rowKey="id" dataSource={rows} plugins={[outer]} columns={[...innerColumns,{key:'nested',title:'内层',render:()=> <><div id="nested-plain"><Table columns={innerColumns} rowKey="id" dataSource={inner}/></div><div id="nested-sheet"><Table ref={innerRef} columns={innerColumns} rowKey="id" dataSource={inner} plugins={[inside]}/></div></>}]} />;}
- function App(){const [rows,setRows]=useState(initial),[nested,setNested]=useState(false),ref=useRef(null);const plugin=useMemo(()=>createWorksheetPlugin({historyLimit:4,onChange:(next,operation)=>{if(window.reject)return false;if(window.fail)throw Error('reject');setRows(next);window.operations.push(operation);},onError:e=>window.handledError=e.message}),[]);
+ function App(){const [rows,setRows]=useState(initial),[nested,setNested]=useState(false),[locked,setLocked]=useState(false),ref=useRef(null);window.setReadonly=setLocked;const plugin=useMemo(()=>createWorksheetPlugin({historyLimit:4,onChange:(next,operation)=>{if(window.reject)return false;if(window.fail)throw Error('reject');setRows(next);window.operations.push(operation);},onError:e=>window.handledError=e.message}),[]);
  window.operations=window.operations||[];window.rows=rows;window.sheet=()=>ref.current.getPluginApi('worksheet');window.select=(a,b=a)=>ref.current.getPluginApi('cellSelection').setRange({anchor:a,focus:b});
  window.resetData=()=>setRows(initial());
- return <main><button onClick={()=>setRows(initial())}>重置</button><button onClick={()=>setRows(Array.from({length:500},(_,i)=>({...initial()[0],id:i+1,code:i===0?'R001':'',name:''})))}>500行</button><button onClick={()=>window.sheet().replaceData([...rows,{...rows[0],id:99,code:''}])}>复制行</button><button onClick={()=>setNested(true)}>嵌套示例</button><input aria-label="表格外输入" defaultValue="外部"/><div id="sheet"><Table ref={ref} columns={columns} dataSource={rows} rowKey="id" plugins={[plugin,createSortPlugin()]} height={350} size="small" striped={false}/></div><div id="plain"><Table columns={columns} dataSource={initial()} rowKey="id" height={180} plugins={[createEditablePlugin()]}/></div>{nested&&<NestedCase/>}</main>}
+ return <main><button onClick={()=>setRows(initial())}>重置</button><button onClick={()=>setRows(Array.from({length:500},(_,i)=>({...initial()[0],id:i+1,code:i===0?'R001':'',name:''})))}>500行</button><button onClick={()=>window.sheet().replaceData([...rows,{...rows[0],id:99,code:''}])}>复制行</button><button onClick={()=>setNested(true)}>嵌套示例</button><input aria-label="表格外输入" defaultValue="外部"/><div id="sheet"><Table ref={ref} columns={locked?columns.map(c=>({...c,editable:false})):columns} dataSource={rows} rowKey="id" plugins={[plugin,createSortPlugin()]} height={350} size="small" striped={false}/></div><div id="plain"><Table columns={columns} dataSource={initial()} rowKey="id" height={180} plugins={[createEditablePlugin()]}/></div>{nested&&<NestedCase/>}</main>}
  createRoot(document.getElementById('root')).render(<App/>);`,
     },
     bundle: true,
@@ -158,6 +158,28 @@ fs.mkdirSync(out, { recursive: true });
         { type, text }
       );
     // 验证实际单元格几何边界、只读语义和普通编辑器隔离，避免只检查 CSS 文本。
+    // 校验使用真实背景和无障碍属性，空值、条件不适用与修正历史分别覆盖。
+    const header = page.locator('#sheet th[data-column-key="code"]');
+    check('必填表头红色列名与前置星号', await header.locator('.sia-table__required-mark').innerText() === '*' && await header.locator('.sia-table__header-label-content').evaluate(el=>getComputedStyle(el).color) === 'rgb(255, 77, 79)');
+    check('普通表头无星号', await page.locator('#sheet th[data-column-key="name"] .sia-table__required-mark').count() === 0);
+    const invalidVisual = await cell(2, 'code').evaluate(el=>({image:getComputedStyle(el).backgroundImage,line:getComputedStyle(el,'::before').height,left:getComputedStyle(el,'::before').left,right:getComputedStyle(el,'::before').right,height:el.getBoundingClientRect().height}));
+    check('空必填格无叉号且显示淡红斜纹与3像素底线', await cell(2,'code').getAttribute('aria-invalid') === 'true' && await cell(2,'code').locator('svg').count() === 0 && invalidVisual.image.includes('repeating-linear-gradient') && invalidVisual.line === '3px' && invalidVisual.left === '0px' && invalidVisual.right === '0px');
+    check('不适用只读属性不标错', await cell(3,'size').getAttribute('aria-invalid') === null && await cell(3,'size').evaluate(el=>getComputedStyle(el).backgroundImage) === 'none');
+    await cell(2,'code').hover(); await cell(2,'code').click();
+    check('选中悬停仍保留斜纹且不增加行高', await cell(2,'code').evaluate(el=>getComputedStyle(el).backgroundImage) === invalidVisual.image && (await cell(2,'code').boundingBox()).height === invalidVisual.height);
+    check('固定只读列错误保留定位及斜纹', await cell(4,'style').evaluate(el=>getComputedStyle(el).position) === 'sticky' && await cell(4,'style').getAttribute('aria-invalid') === 'true' && (await cell(4,'style').evaluate(el=>getComputedStyle(el).backgroundImage)).includes('repeating-linear-gradient'));
+    await page.screenshot({path:path.join(out,'worksheet-validation.png')});
+    const headerBox = await header.boundingBox(), finalRowBox = await cell(4,'code').boundingBox();
+    await page.screenshot({path:path.join(out,'worksheet-validation-detail.png'),clip:{x:headerBox.x,y:headerBox.y,width:headerBox.width,height:finalRowBox.y+finalRowBox.height-headerBox.y}});
+    await cell(2,'code').dblclick(); check('错误格编辑不撑高且保留全格定位', (await cell(2,'code').boundingBox()).height === invalidVisual.height && await cell(2,'code').locator('.sia-table__cell-content').evaluate(el=>getComputedStyle(el).position) === 'absolute'); check('红底线在编辑器上方且不截获点击', await cell(2,'code').evaluate(el=>getComputedStyle(el,'::before').pointerEvents === 'none' && Number(getComputedStyle(el,'::before').zIndex) > Number(getComputedStyle(el.querySelector('.sia-table__cell-content')).zIndex)));
+    await page.screenshot({path:path.join(out,'worksheet-validation-edit.png'),clip:{x:headerBox.x,y:headerBox.y,width:headerBox.width,height:finalRowBox.y+finalRowBox.height-headerBox.y}});
+    await cell(2,'code').getByRole('textbox').fill('FIXED'); await cell(2,'code').getByRole('textbox').press('Enter');
+    check('填写后校验标记立即消失', await cell(2,'code').getAttribute('aria-invalid') === null);
+    await api('undo'); check('撤销恢复空值错误', await cell(2,'code').getAttribute('aria-invalid') === 'true');
+    await api('redo'); check('恢复填写后移除错误', await cell(2,'code').getAttribute('aria-invalid') === null);
+    await api('editCell',{rowKey:2,columnKey:'price'},0);
+    check('金额0不被当成缺失', await cell(2,'price').getAttribute('aria-invalid') === null);
+    await reset();
     await cell(1, "code").click();
     const cornerHandle = page.locator('#sheet .sia-table__worksheet-handle');
     const hb = await cornerHandle.boundingBox(), cb = await cell(1, 'code').boundingBox();
@@ -172,6 +194,22 @@ fs.mkdirSync(out, { recursive: true });
     const errorStyle = await page.locator('#sheet [data-testid="cell-error"] .sia-icon').first().evaluate(el => ({color:getComputedStyle(el).color,opacity:getComputedStyle(el).opacity,parent:getComputedStyle(el.parentElement).color}));
     check('业务错误图标保留颜色且常驻可见', errorStyle.color === errorStyle.parent && errorStyle.opacity === '1');
     check('普通表格不受只读灰底影响', await page.locator('#plain .sia-table__worksheet-cell--readonly').count() === 0);
+    // 填充柄只表达可编辑能力；只读格仍能选中、复制和接收错误定位。
+    await cell(1, 'style').click();
+    check('只读单元格选中不显示填充柄且仍可复制', await cornerHandle.count() === 0 && await clip('copy') === '款式一');
+    await cell(3, 'size').click();
+    check('条件不可编辑单元格不显示填充柄', await cornerHandle.count() === 0);
+    await select(1, 'code', 3, 'size');
+    check('混合选区右下角只读时不显示填充柄', await cornerHandle.count() === 0);
+    await cell(1, 'code').click();
+    check('切回可编辑单元格恢复填充柄', await cornerHandle.count() === 1);
+    await page.evaluate(() => window.setReadonly(true));
+    await page.waitForFunction(() => !document.querySelector('#sheet .sia-table__worksheet-handle'));
+    check('已有选区动态锁定后填充柄消失', await cornerHandle.count() === 0);
+    await page.screenshot({path:path.join(out,'worksheet-readonly-no-handle.png')});
+    await page.evaluate(() => window.setReadonly(false));
+    await cornerHandle.waitFor();
+    check('解除锁定恢复可编辑选区填充柄', await cornerHandle.count() === 1);
     await cell(1, 'code').click();
     await page.screenshot({path:path.join(out,'worksheet-appearance.png')});
     await page
@@ -333,6 +371,16 @@ fs.mkdirSync(out, { recursive: true });
     check("表格外快捷键不改变工作表", (await data())[0].code === "未撤销");
     await page.screenshot({ path: path.join(out, "worksheet.png") });
     await page.getByRole("button", { name: "500行", exact: true }).click();
+    // 缩窄并滚动实际表格，校验层必须被限制在单元格内，不能穿过固定列与吸顶表头。
+    await page.setViewportSize({width:600,height:850});
+    await page.locator('#sheet .sia-table__viewport').evaluate(el=>{el.scrollLeft=100;el.scrollTop=200;});
+    await page.waitForTimeout(120);
+    check('滚动错误格建立局部层叠上下文', await page.locator('#sheet td[aria-invalid="true"]').first().evaluate(el=>getComputedStyle(el).isolation) === 'isolate');
+    await page.screenshot({path:path.join(out,'worksheet-validation-scroll.png')});
+    await page.locator('#sheet .sia-table__viewport').evaluate(el=>{el.scrollLeft=0;el.scrollTop=0;});
+    await page.setViewportSize({width:1100,height:850});
+    await page.waitForTimeout(80);
+
     await page.waitForTimeout(150);
     await select(1, "code");
     await api("fillTo", 500, true);

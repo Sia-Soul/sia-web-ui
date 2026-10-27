@@ -72,6 +72,7 @@ export type {
   TablePluginEvent,
   TableProps,
   TableRef,
+  TableCellFocusOptions,
   TableRow,
   TableSettingsAdapter,
   TableSettingsSnapshot,

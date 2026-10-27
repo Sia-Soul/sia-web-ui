@@ -69,6 +69,10 @@ export interface TableColumn<T = Record<string, unknown>> {
   name?: string;
   /** 列头内容，可传入文本或 React 节点；默认单行显示，仅文字实际超宽省略时通过框架 title 提示展示完整文本，完整显示时不提示。节点无法提取文本时使用 name 或 key。 */
   title?: ReactNode;
+  /** 是否以红色列名和前置红色星号标识必填列，默认 false；仅表达列头语义，不自动校验单元格。 */
+  required?: boolean;
+  /** 单元格是否校验失败，默认 false；可按行数据和源数据索引返回布尔值。失败时显示淡红斜纹和 3px 红色底线，不插入图标、不改变行高；业务负责判断空值、格式或其他错误。 */
+  invalid?: boolean | ((record: T, index: number) => boolean);
   /** 补充说明内容。 */
   description?: ReactNode;
   /** 读取单元格值的字段名或嵌套路径。 */
@@ -377,6 +381,18 @@ export interface TableProps<T extends Record<string, unknown> = Record<string, u
   tableStyle?: CSSProperties;
 }
 
+/** 单元格定位时的一次性视觉反馈配置；每次调用独立生效，不改变表格数据或全局默认值。 */
+export interface TableCellFocusOptions {
+  /** 是否在目标可见后播放先增长一圈、再由尾部收拢消失的边框光线，默认 true；false 仅滚动、选中和聚焦。 */
+  highlight?: boolean;
+  /** 描边和柔光共用的 CSS 颜色，默认红色 #ff303b；例如 #fa8c16 为橙色。无效颜色回退默认值；CSS 变量需在页面根层可用。 */
+  color?: string;
+  /** 动效速度倍率，默认 1，即增长 300ms、收缩 300ms；2 为双倍速度、0.5 为半速。有限正数限制在 0.1～10，零、负数或非有限值回退 1；减少动态效果时忽略此倍率，统一 200ms 淡出。 */
+  speed?: number;
+  /** 描边线宽，单位 CSS px，默认 4；有限正数限制在 1～12，零、负数或非有限值回退 4。极窄单元格会按可容纳宽度缩小，柔光颜色跟随 color。 */
+  lineWidth?: number;
+}
+
 /** 表格的实例引用接口。 */
 export interface TableRef<T> {
   /** 读取插件当前处理的行数据。 */
@@ -387,6 +403,10 @@ export interface TableRef<T> {
   getPluginApi: <Api = unknown>(pluginId: string) => Api | undefined;
   /** 滚动到指定位置。 */
   scrollTo: (options: ScrollToOptions) => void;
+  /** 按 rowKey 定位当前筛选、排序、分页及树展开后列表中的行，仅在该行被遮挡时立即纵向滚动，使其避开吸顶表头和合计行；支持虚拟列表，不改变横向位置或焦点。返回是否找到目标且视口可见；目标被筛掉、位于其他页、表格隐藏或未挂载时返回 false，不自动切页。应在数据提交和弹框显示后调用。 */
+  scrollToRow: (key: TableKey) => boolean;
+  /** 按稳定行键和叶子列键定位单元格，横纵滚动避开吸顶表头、固定列及合计行，选中并聚焦但不进入编辑。等待虚拟行挂载、位置稳定且整格在可视区后返回成功，再由顶层浮层从左上角沿边框顺时针增长光线：尾端固定，默认速度下 300 毫秒围满一圈，再用 300 毫秒从尾部收拢至头部后消失；不拦截操作，减少动态效果时仅同色边框淡出。隐藏列、其它页、无法完整显示的单元格、不可见表格或被后续定位取代时返回 false，不自动切页或显示隐藏列。应在数据更新及弹框关闭动画完成后调用；再次定位、目标滚出可视区或卸载会清理动效。 */
+  focusCell: (rowKey: TableKey, columnKey: string, options?: TableCellFocusOptions) => Promise<boolean>;
   /** 切换加载状态。 */
   setLoading: (loading: boolean) => void;
   /** 读取当前分页状态。 */

@@ -4,10 +4,13 @@ import { Button, Space, Switch, Typography, Upload } from "@sia.soul/sia-react-u
 /** 文件校验、目录选择、预览与下载；接口示例关闭自动上传，接入时替换 action。 */
 export function UploadExamples() {
   const [disabled, setDisabled] = useState(false);
+  const [validateType, setValidateType] = useState(true);
   const [event, setEvent] = useState("选择小于 1MB 的文本文件；列表中可以预览和下载");
   return <Space direction="vertical">
     <Switch checked={disabled} onCheckedChange={setDisabled} label="禁用文件选择" />
-    <Upload directory recursive pastable disabled={disabled} showUploadList accept=".txt" autoUpload={false} request={{ action: "/api/upload", method: "POST", name: "document", data: { purpose: "demo" }, timeout: 10000 }}
+    {/* hint 仅提示系统选择器，关闭校验后可通过目录或粘贴接收其他类型。 */}
+    <Switch checked={validateType} onCheckedChange={setValidateType} label="校验文本文件类型" />
+    <Upload directory recursive pastable disabled={disabled} showUploadList accept=".txt" acceptMode={validateType ? "validate" : "hint"} onReject={({ file }) => setEvent(`类型不符：${file.name}`)} autoUpload={false} request={{ action: "/api/upload", method: "POST", name: "document", data: { purpose: "demo" }, timeout: 10000 }}
       beforeUpload={file => { const accepted = file.size < 1024 * 1024; setEvent(accepted ? `通过校验：${file.name}` : "文件超过 1MB"); return accepted; }}
       onRemove={file => { setEvent(`移除 ${file.name}`); return true; }} onReadError={error => setEvent(`读取失败：${String(error)}`)} onPreview={file => setEvent(`预览信息：${file.name}，${file.size ?? 0} 字节`)} downloadRequest={file => file.originFileObj ?? new Blob([file.name], { type: "text/plain" })}><Button disabled={disabled}>选择文本目录（不发送请求）</Button></Upload>
     <Upload.Dragger disabled={disabled} listType="picture" cardSize={{ width: 100, height: 80 }} showUploadList autoUpload={false} request={{ action: "/api/upload", method: "PUT", body: "file", timeout: 10000 }}

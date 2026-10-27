@@ -1,0 +1,42 @@
+/* 挂载 body 避免表格/固定列的层叠与裁剪；高于框架浮动滚动条且不拦截操作。 */
+.sia-table__cell-focus-glow {
+  position: fixed;
+  z-index: 2147483647;
+  overflow: visible;
+  pointer-events: none;
+  fill: none;
+  color: #ff303b;
+  /* 父层负责完整生命周期，等尾端收拢完毕再移除，正常模式不整体淡出。 */
+  /* 内部变量由 speed 换算，单位 ms、默认 600ms；减少动态效果的媒体规则优先。 */
+  animation: sia-table-cell-focus-lifetime var(--sia-cell-focus-duration, 600ms) linear forwards;
+}
+.sia-table__cell-focus-glow path {
+  stroke: currentColor;
+  /* 轻微加粗配合柔和外发光，让生长边框清晰且不遮住单元格文字。 */
+  stroke-width: 4px;
+  stroke-linecap: round;
+  stroke-dashoffset: 0;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, currentColor 55%, transparent));
+  animation: sia-table-cell-focus-grow-retract var(--sia-cell-focus-duration, 600ms) linear forwards;
+}
+/* 起点不动，只增加可见描边长度；显式统一长度单位保证连续插值。 */
+@keyframes sia-table-cell-focus-grow-retract {
+  0% { stroke-dasharray: 0px 100px; stroke-dashoffset: 0px; }
+  /* 两个阶段各占 50%，确保增长与收拢沿边框的速度相同。 */
+  50% { stroke-dasharray: 100px 0px; stroke-dashoffset: 0px; }
+  /* 头端保持在终点，尾端顺时针前进：可见长度与偏移同步收拢。 */
+  100% { stroke-dasharray: 0px 100px; stroke-dashoffset: -100px; }
+}
+@keyframes sia-table-cell-focus-lifetime {
+  from { opacity: 1; }
+  to { opacity: 1; }
+}
+@keyframes sia-table-cell-focus-fade {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+/* 减少动态效果时不绕行，只短暂强调红框后淡出。 */
+@media (prefers-reduced-motion: reduce) {
+  .sia-table__cell-focus-glow { animation: sia-table-cell-focus-fade 200ms linear forwards; }
+  .sia-table__cell-focus-glow path { animation: none; stroke-dasharray: none; }
+}

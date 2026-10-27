@@ -25,6 +25,8 @@
 .sia-table__worksheet-fill-preview {
   box-shadow: inset 0 0 0 1px var(--sia-color-primary);
 }
+/* 填充柄位于校验底线上方，保留完整方块和拖拽热区。 */
+.sia-table__cell--invalid .sia-table__worksheet-handle { z-index: 10; }
 .sia-table__worksheet-tools {
   display: inline-flex;
   align-items: center;
