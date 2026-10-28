@@ -21,7 +21,10 @@ function ports(dir) {
     if(request.url==='/download') {
       response.writeHead(200,{'Content-Type':'application/octet-stream','Content-Disposition':'attachment; filename="fixture.bin"','Content-Length':65536});
       response.write(Buffer.alloc(32768,65));setTimeout(()=>response.end(Buffer.alloc(32768,66)),2000);
-    } else if(request.url==='/close') response.end('<!doctype html><title>Closing popup</title><script>setTimeout(()=>window.close(),1000)</script>'); else response.end('<!doctype html><title>Download fixture</title><a id="download" target="_blank" href="/download">Download</a><a id="close" target="_blank" href="/close">Close popup</a>');
+    } else if(request.url==='/unknown') {
+      response.writeHead(200,{'Content-Type':'application/octet-stream','Content-Disposition':'attachment; filename="unknown.bin"'});
+      response.write(Buffer.alloc(1024,67));setTimeout(()=>response.end(Buffer.alloc(1024,68)),100);
+    } else if(request.url==='/close') response.end('<!doctype html><title>Closing popup</title><script>setTimeout(()=>window.close(),1000)</script>'); else response.end('<!doctype html><title>Download fixture</title><a id="download" target="_blank" href="/download">Download</a><a id="unknown" target="_blank" href="/unknown">Unknown size</a><a id="close" target="_blank" href="/close">Close popup</a>');
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const url = `http://127.0.0.1:${server.address().port}/`;
@@ -59,6 +62,17 @@ function ports(dir) {
     const result=await main.evaluate(()=>window.downloadEvents.find(e=>e.state==='finished'));
     assert.equal(result.success,true,'download must survive tab removal');
     assert.equal(fs.statSync(result.filePath).size,65536);
+    await main.locator('.browser-download-action.is-active').waitFor({state:'hidden'});
+    assert.equal(await main.evaluate(id=>window.downloadEvents.filter(e=>e.id===id).at(-1).state,result.id),'finished','terminal event must remain the last state');
+    // 未提供 Content-Length 的下载也必须根据内核完成状态停止转圈。
+    await page.locator('#unknown').click();
+    await main.waitForFunction(()=>window.downloadEvents.some(e=>e.fileName==='unknown.bin'&&e.state==='finished'));
+    const unknown=await main.evaluate(()=>window.downloadEvents.find(e=>e.fileName==='unknown.bin'&&e.state==='finished'));
+    assert.equal(unknown.success,true);
+    assert.equal(fs.statSync(unknown.filePath).size,2048);
+    await main.locator('.browser-download-action.is-active').waitFor({state:'hidden'});
+    // 状态保存有防抖，下面通过同一命令等待最终持久化，避免以事件到达冒充列表收尾。
+    await main.waitForFunction(async id=>(await window.__TAURI__.core.invoke('load_browser_state')).downloads?.some(e=>e.id===id&&e.state==='finished'&&e.success),unknown.id);
     const menu=await main.evaluate(()=>window.__TAURI__.core.invoke('get_browser_menu_state'));
     assert.equal(menu.kind,'downloads');
     await page.locator('#close').click();
@@ -72,7 +86,7 @@ function ports(dir) {
     const waiting=await main.evaluate(()=>window.downloadEvents.find(e=>e.state==='waiting'));
     await main.evaluate(id=>window.__TAURI__.core.invoke('resolve_pending_download',{id,choice:'cancel'}),waiting.id);
     await main.waitForFunction(id=>window.downloadEvents.some(e=>e.id===id&&e.state==='finished'&&e.success===false),waiting.id);
-    console.log('PASS native popup removal, full download bytes, script close, confirmation and cancellation');
+    console.log('PASS native popup removal, known/unknown size completion, toolbar stops, persisted completion, script close, confirmation and cancellation');
   } finally {
     if(child.exitCode===null) await new Promise(resolve=>spawn('taskkill',['/PID',String(child.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'}).on('exit',resolve));
     for(const browser of connections.values()) await browser.close().catch(()=>{});

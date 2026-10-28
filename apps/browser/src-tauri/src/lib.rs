@@ -355,17 +355,6 @@ fn emit_download_event(
     operation: &ICoreWebView2DownloadOperation,
     success: Option<bool>,
 ) -> windows::core::Result<()> {
-    // 已关闭页签的下载仍由隐藏 WebView 托管，最后一个任务结束后才释放它。
-    let runtime = app.state::<DownloadRuntimeState>();
-    if let Ok(mut active) = runtime.active.lock() {
-        if state == "finished" { active.remove(download_id); }
-        else { active.insert(download_id.to_string(), tab_id.to_string()); }
-    }
-    if state == "finished" && runtime.closing_tabs.lock().map(|tabs| tabs.contains(tab_id)).unwrap_or(false) {
-        let cleanup_app = app.clone();
-        let cleanup_tab = tab_id.to_string();
-        let _ = app.run_on_main_thread(move || { let _ = close_browser_tab(cleanup_app, cleanup_tab); });
-    }
     let (received_bytes, total_bytes) = read_download_progress(operation)?;
     let mut raw_source_url = PWSTR::null();
     let source_url = unsafe { operation.Uri(&mut raw_source_url) }
@@ -399,6 +388,21 @@ fn emit_download_event(
             file_name,
         },
     );
+    // 必须先读取下载对象并通知界面，再释放隐藏页签，避免 COM 对象提前失效而吞掉完成通知。
+    let runtime = app.state::<DownloadRuntimeState>();
+    if let Ok(mut active) = runtime.active.lock() {
+        if state == "finished" { active.remove(download_id); }
+        else { active.insert(download_id.to_string(), tab_id.to_string()); }
+    }
+    if state == "finished" && runtime.closing_tabs.lock().map(|tabs| tabs.contains(tab_id)).unwrap_or(false) {
+        let cleanup_app = app.clone();
+        let cleanup_tab = tab_id.to_string();
+        // 从工作线程排回主线程，确保当前完成回调（含自动打开文件）退出后再关闭 WebView。
+        tauri::async_runtime::spawn(async move {
+            let close_app = cleanup_app.clone();
+            let _ = cleanup_app.run_on_main_thread(move || { let _ = close_browser_tab(close_app, cleanup_tab); });
+        });
+    }
     Ok(())
 }
 
@@ -409,11 +413,14 @@ fn attach_download_operation(
     download_id: &str,
     operation: &ICoreWebView2DownloadOperation,
 ) -> windows::core::Result<()> {
+    let finished = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let progress_finished = finished.clone();
     let progress_app = app.clone();
     let progress_tab_id = tab_id.to_string();
     let progress_download_id = download_id.to_string();
     let progress_handler =
         BytesReceivedChangedEventHandler::create(Box::new(move |sender, _args| {
+            if progress_finished.load(Ordering::SeqCst) { return Ok(()); }
             if let Some(operation) = sender {
                 emit_download_event(
                     &progress_app,
@@ -441,6 +448,7 @@ fn attach_download_operation(
                 operation.State(&mut download_state)?;
             }
             if download_state != COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS {
+                if finished.load(Ordering::SeqCst) { return Ok(()); }
                 let completed = download_state == COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED;
                 emit_download_event(
                     &state_app,
@@ -450,6 +458,7 @@ fn attach_download_operation(
                     &operation,
                     Some(completed),
                 )?;
+                finished.store(true, Ordering::SeqCst);
                 let should_open = state_app
                     .state::<DownloadRuntimeState>()
                     .open_after_completion

@@ -176,6 +176,7 @@ export default function BrowserMenuWindow() {
           if (current?.kind !== "downloads") return current;
           const entries = current.entries ?? [];
           const previous = entries.find(entry => entry.id === task.id);
+          if (previous?.state === "finished" && task.state === "progress") return current;
           const next = { ...previous, ...task, title: task.fileName || previous?.title || "未命名下载", url: task.sourceUrl || previous?.url };
           return { ...current, entries: previous ? entries.map(entry => entry.id === task.id ? next : entry) : [next, ...entries] };
         });

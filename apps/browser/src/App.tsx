@@ -1201,6 +1201,8 @@ export default function App() {
           }
         }
         setDownloadTasks((current) => {
+          // 完成通知后仍可能收到排队中的进度；新一轮 started/waiting 才能重新开启同编号任务。
+          if (current[payload.id]?.state === "finished" && payload.state === "progress") return current;
           return {
             ...current,
             [payload.id]: {
