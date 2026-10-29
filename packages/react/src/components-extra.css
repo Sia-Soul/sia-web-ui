@@ -116,6 +116,8 @@ body:has(.sia-window-frame[data-sia-text-selectable="false"]) img { -webkit-user
 .sia-checkbox.is-disabled, .sia-radio.is-disabled { color: var(--sia-color-text-disabled, var(--sia-color-text-secondary)); cursor: not-allowed; opacity: .58; }
 .sia-checkbox__input, .sia-radio__input { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
 .sia-checkbox__control { display: grid; place-items: center; flex: 0 0 auto; width: 17px; height: 17px; background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: 5px; transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease; }
+/* 圆形覆盖各尺寸的方框圆角，复用选中、半选和禁用样式，保持原生复选交互。 */
+.sia-checkbox.sia-checkbox--circle > .sia-checkbox__control { border-radius: 50%; }
 .sia-checkbox__control span { width: 8px; height: 5px; border: 2px solid #fff; border-top: 0; border-right: 0; opacity: 0; transform: translateY(-1px) rotate(-45deg); }
 .sia-checkbox__input:checked + .sia-checkbox__control, .sia-checkbox__input:indeterminate + .sia-checkbox__control { background: var(--sia-color-primary); border-color: var(--sia-color-primary); }
 .sia-checkbox__input:checked + .sia-checkbox__control span { opacity: 1; }

@@ -178,6 +178,11 @@ tagProps.closeOnHover;
 tagProps.size;
 // 验证分组排列属性在发布包中保留中文说明。
 declare const checkboxGroupProps: CheckboxGroupProps;
+// 圆形复选框的单项和分组继承规则须保留到发布声明。
+import type { CheckboxProps } from '@sia.soul/sia-react-ui';
+declare const circleCheckboxProps: CheckboxProps;
+circleCheckboxProps.shape;
+checkboxGroupProps.shape;
 checkboxGroupProps.columns;
 checkboxGroupProps.direction;
 checkboxGroupProps.gap;
@@ -284,6 +289,7 @@ cases.push(['recursive', '子文件夹'], ['pastable', '粘贴'], ['autoUpload',
 // Tag 主入口属性注释与 core 配色类型都必须在发布后可用。
 cases.push(['tagProps.color', 'CSS 颜色'], ['tagProps.variant', '边框'], ['tagProps.closeOnHover', '向右扩展'], ['tagProps.size', '继承 Form']);
 cases.push(['checkboxGroupProps.columns', '等宽网格'], ['checkboxGroupProps.direction', '纵向单列'], ['checkboxGroupProps.gap', '行间距']);
+cases.push(['circleCheckboxProps.shape', 'circle 为圆形'], ['checkboxGroupProps.shape', '子项显式 shape 优先']);
 cases.push(['tabsProps.contentGap', '仅影响当前 Tabs'], ['tabsProps.deferContent', '保留旧面板'], ['tabsProps.onAfterChange', '连续切换']);
 cases.push(['tabsProps.indicatorMotion', '先拉长再收拢'], ['tabsProps.indicatorMotion', '300ms']);
 cases.push(['tabsProps.indicatorPosition', '默认朝向内容区'], ['tabsProps.indicatorPosition', '横向标签可选'], ['tabsProps.type', 'rounded 圆角矩形']);

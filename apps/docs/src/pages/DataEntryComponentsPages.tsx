@@ -82,6 +82,7 @@ export function CheckboxPage() {
   return <DocPage eyebrow="组件 / 数据录入 / Checkbox" title="Checkbox 多选框" description="在一组独立选项中选择零项、多项或全部。" name="Checkbox" apiRows={[
     { property: "size", description: "图形尺寸为 14 / 16 / 18px；支持 Form、Group 继承及单项覆盖", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
     { property: "checked / defaultChecked", description: "受控或默认选中状态", type: "boolean", defaultValue: "false" },
+    { property: "shape / Group.shape", description: "square 圆角方框、circle 圆形；单项继承分组，可显式覆盖，仍支持多选和半选", type: "'square' | 'circle'", defaultValue: "'square'" },
     { property: "indeterminate", description: "半选状态", type: "boolean", defaultValue: "false" },
     { property: "onChange", description: "选中状态变化", type: "(checked, event) => void", defaultValue: "-" },
     { property: "Checkbox.Group", description: "成组管理值和禁用状态", type: "value / options / onChange", defaultValue: "-" },
@@ -98,6 +99,27 @@ export function CheckboxPage() {
     </DemoCard>
     <DemoCard title="同步范围：等宽多列" description="设置 columns={3} 即可排成三列，gap={[20, 24]} 设置行列间距。" code={checkboxColumnsCode}>
       <Checkbox.Group columns={3} gap={[20, 24]} options={scopeOptions} />
+    </DemoCard>
+    {/* 圆形仍是复选框，展示完整状态、尺寸和分组继承，避免与单选框语义混淆。 */}
+    <DemoCard title="圆形多选框" description="shape=circle 使用圆形外框，选中后为主题色圆底与白色勾选；支持半选、禁用和所有尺寸。" code={'<Checkbox shape="circle" defaultChecked>已选中</Checkbox>\n<Checkbox shape="circle" indeterminate>半选</Checkbox>\n<Checkbox shape="circle" disabled defaultChecked>禁用已选</Checkbox>'}>
+      <Space wrap>
+        <Checkbox shape="circle">未选中</Checkbox>
+        <Checkbox shape="circle" defaultChecked>已选中</Checkbox>
+        <Checkbox shape="circle" indeterminate>半选</Checkbox>
+        <Checkbox shape="circle" disabled>禁用</Checkbox>
+        <Checkbox shape="circle" disabled defaultChecked>禁用已选</Checkbox>
+        <Checkbox shape="circle" size="small" defaultChecked>小尺寸</Checkbox>
+        <Checkbox shape="circle" size="large" defaultChecked>大尺寸</Checkbox>
+      </Space>
+    </DemoCard>
+    <DemoCard title="圆形分组与单项覆盖" description="Group.shape 对 options 和子项生效；单个 Checkbox 可以通过 shape=square 保留方框。" code={'<Checkbox.Group shape="circle" options={["查看", "编辑", "管理"]} defaultValue={["查看"]} />\n<Checkbox.Group shape="circle">\n  <Checkbox value="a">继承圆形</Checkbox>\n  <Checkbox value="b" shape="square">单项方形</Checkbox>\n</Checkbox.Group>'}>
+      <Space direction="vertical" align="start">
+        <Checkbox.Group shape="circle" options={allOptions} defaultValue={["查看"]} />
+        <Checkbox.Group shape="circle" defaultValue={["a", "b"]}>
+          <Checkbox value="a">继承圆形</Checkbox>
+          <Checkbox value="b" shape="square">单项方形</Checkbox>
+        </Checkbox.Group>
+      </Space>
     </DemoCard>
     <DemoCard title="纵向排列" description="direction 控制排列方向，gap 设置间距；也支持直接嵌套 Checkbox。" code={`<Checkbox.Group direction="vertical" gap={16}>
   <Checkbox value="view">查看</Checkbox>

@@ -12,6 +12,8 @@ export type CheckboxValue = string | number;
 export interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "size" | "value" | "onChange"> {
   /** small / medium / large 文字字号为 12 / 13 / 16 像素，同时调整图形和间距；默认继承所在组或 Form，无上下文时为 medium（13px），组件显式 size 优先。 */
   size?: ControlSize;
+  /** 外框形状：square 为圆角方框，circle 为圆形；仅改变外观，仍支持多选和半选。未指定时继承 Checkbox.Group.shape，无分组时默认 square；单项显式设置优先。 */
+  shape?: "square" | "circle";
   /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
   value?: CheckboxValue;
   /**
@@ -37,6 +39,10 @@ export interface CheckboxOption {
 
 /** CheckboxGroup的属性配置。 */
 export interface CheckboxGroupProps {
+  /** 组内复选框的默认形状：square 为圆角方框，circle 为圆形；适用于 options 和 Checkbox 子项，子项显式 shape 优先，不改变多选行为。
+   * @defaultValue "square"
+   */
+  shape?: CheckboxProps["shape"];
   /** 等宽网格的列数，按选项顺序从左到右逐行排列并占满容器宽度；仅正整数生效，未设置或无效时使用 direction 排列。设置有效列数后优先于 direction；同样适用于直接传入的 Checkbox 子项。 */
   columns?: number;
   /** 非网格模式的排列方向：horizontal 横向排列并自动换行，vertical 纵向单列排列；有效 columns 优先。默认 horizontal。 */
@@ -70,6 +76,8 @@ export interface CheckboxGroupProps {
 }
 
 type CheckboxGroupContextValue = {
+  /** 当前分组提供的默认形状，由单项显式设置覆盖。 */
+  shape: NonNullable<CheckboxProps["shape"]>;
   values: readonly CheckboxValue[];
   disabled?: boolean;
   name?: string;
@@ -79,11 +87,13 @@ type CheckboxGroupContextValue = {
 const CheckboxGroupContext = createContext<CheckboxGroupContextValue | null>(null);
 
 const CheckboxRoot = forwardRef<HTMLInputElement, CheckboxProps>(function Checkbox(
-  { value, size: sizeProp, indeterminate = false, children, disabled, checked, defaultChecked, className = "", onChange, ...props },
+  { value, size: sizeProp, shape: shapeProp, indeterminate = false, children, disabled, checked, defaultChecked, className = "", onChange, ...props },
   forwardedRef,
 ) {
   const size = useControlSize(sizeProp);
   const group = useContext(CheckboxGroupContext);
+  // 形状继承仅作用于当前分组，单项覆盖不改变选择值或原生输入语义。
+  const shape = shapeProp ?? group?.shape ?? "square";
   const localRef = useRef<HTMLInputElement | null>(null);
   const fallbackId = useId();
   const grouped = group !== null && value !== undefined;
@@ -99,7 +109,7 @@ const CheckboxRoot = forwardRef<HTMLInputElement, CheckboxProps>(function Checkb
     else if (forwardedRef) forwardedRef.current = node;
   }
 
-  return <label className={`sia-checkbox sia-checkbox--${size}${disabled || group?.disabled ? " is-disabled" : ""} ${className}`.trim()}>
+  return <label className={`sia-checkbox sia-checkbox--${size} sia-checkbox--${shape}${disabled || group?.disabled ? " is-disabled" : ""} ${className}`.trim()}>
     <input
       {...withTitleTooltip(props)}
       ref={setRef}
@@ -123,6 +133,7 @@ const CheckboxRoot = forwardRef<HTMLInputElement, CheckboxProps>(function Checkb
 
 function CheckboxGroup({
   size: sizeProp,
+  shape = "square",
   columns,
   direction = "horizontal",
   gap,
@@ -145,6 +156,7 @@ function CheckboxGroup({
   };
   const [values, setValues] = useControllableState<readonly CheckboxValue[]>({ value, defaultValue, onChange });
   const context = useMemo<CheckboxGroupContextValue>(() => ({
+    shape,
     values,
     disabled,
     name,
@@ -154,7 +166,7 @@ function CheckboxGroup({
         : values.filter((item) => item !== optionValue);
       setValues(next);
     },
-  }), [disabled, name, setValues, values]);
+  }), [disabled, name, setValues, values, shape]);
 
   return <ControlSizeContext.Provider value={size}><CheckboxGroupContext.Provider value={context}>
     <div className={`sia-checkbox-group${gridColumns ? " sia-checkbox-group--grid" : direction === "vertical" ? " sia-checkbox-group--vertical" : ""} ${className}`.trim()} style={layoutStyle} role="group">
