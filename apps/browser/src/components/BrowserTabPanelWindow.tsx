@@ -1,3 +1,4 @@
+import { listenNative } from "../nativeEvents";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { applySiaTheme, message } from "@sia.soul/sia-react-ui";
 import type { BrowserGroup, BrowserTab } from "../browserTypes";
@@ -56,7 +57,7 @@ export default function BrowserTabPanelWindow() {
     readCurrentState();
     pollTimer = window.setInterval(readCurrentState, 200);
     if (window.__TAURI__) {
-      void window.__TAURI__.event.listen<FloatingTabPanelPayload>(
+      void listenNative<FloatingTabPanelPayload>(
         "sia://floating-tab-panel-state",
         ({ payload: nextPayload }) => {
           acceptPayload(nextPayload);
@@ -84,7 +85,7 @@ export default function BrowserTabPanelWindow() {
     let unlisten: (() => void) | undefined;
     let openFrame: number | undefined;
     let settleFrame: number | undefined;
-    void window.__TAURI__.event.listen<boolean>(
+    void listenNative<boolean>(
       "sia://floating-tab-panel-visibility",
       ({ payload: visible }) => {
         if (disposed) return;
@@ -229,6 +230,13 @@ export default function BrowserTabPanelWindow() {
             // 使用结构化内容传递目标分组，避免名称或标识中的分隔符影响解析。
             // 同时传递插入锚点，让独立侧栏与主窗口使用相同的排序及跨组移动规则。
             onMoveTab={(tabId, groupId, smallGroupId, beforeTabId) => sendAction("move-tab", JSON.stringify({ tabId, groupId, smallGroupId, beforeTabId }))}
+            onMoveGroup={(item, target) => sendAction("move-group", JSON.stringify({ item, target }))}
+            onDetach={(item) => {
+              // 在源面板立即读取鼠标落点，避免跨 WebView 消息延迟后用户已移动鼠标。
+              void invokeNative<[number, number] | null>("browser_drag_outside").then(position => {
+                if (position) sendAction("detach", JSON.stringify({ item, position }));
+              }).catch(error => message.error(String(error)));
+            }}
             onClose={(tabId) => sendAction("close", tabId)}
             onToggleAudio={(tabId) => sendAction("toggle-audio", tabId)}
             onNewTab={(groupId, smallGroupId) => {

@@ -18,7 +18,8 @@ const { chromium } = require('playwright');
         if (command === 'load_browser_state') return JSON.parse(sessionStorage.getItem('download-order-state') || 'null');
       } } };
     });
-    await main.goto('http://127.0.0.1:1440/');
+    // 主壳与浮层使用同一个隔离回归服务。
+    await main.goto(process.env.BROWSER_TEST_URL || 'http://127.0.0.1:1440/');
     await main.waitForFunction(() => window.autoDownload.handlers['sia://browser-download']);
     await main.evaluate(() => {
       const emit = task => window.autoDownload.handlers['sia://browser-download']({ payload: task });
@@ -64,7 +65,7 @@ const { chromium } = require('playwright');
         if (command === 'get_download_file_icon') return 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect x="4" y="1" width="24" height="30" fill="#fff" stroke="#999"/><rect y="8" width="20" height="17" fill="#159b62"/><text x="5" y="21" fill="white" font-size="14">X</text></svg>');
       } } };
     });
-    await page.goto(process.env.BROWSER_TEST_URL || 'http://127.0.0.1:1440/menu.html');
+    await page.goto(`${(process.env.BROWSER_TEST_URL || 'http://127.0.0.1:1440').replace(/\/$/, '')}/menu.html`);
     const row = id => page.locator(`[data-download-id="${id}"]`);
     await row('old').locator('img').waitFor();
     assert.ok((await row('old').boundingBox()).height <= 58, '完成项应使用紧凑两行布局');

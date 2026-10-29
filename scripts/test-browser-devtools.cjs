@@ -45,7 +45,8 @@ const { chromium } = require('playwright');
         }
       } } };
     });
-    await page.goto('http://127.0.0.1:1440/');
+    // 隔离回归服务端口，避免连接到用户现有的预览实例。
+    await page.goto(process.env.BROWSER_TEST_URL || 'http://127.0.0.1:1440/');
     await page.waitForFunction(() => window.dockTest.handlers['sia://native-menu-action']);
     const host = page.locator('.browser-page-host');
     const original = await host.boundingBox();

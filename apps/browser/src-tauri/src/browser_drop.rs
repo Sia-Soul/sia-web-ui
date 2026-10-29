@@ -6,14 +6,15 @@ pub const SCRIPT: &str = concat!("window.__siaBrowserDropPage = true;\n", includ
 /// 只使用 WebView2 提供的真实 File 路径，不信任网页消息中自报的本地文件路径。
 #[cfg(windows)]
 pub fn attach(app: &tauri::AppHandle, webview: &tauri::Webview) -> Result<(), String> {
-    use tauri::Emitter;
+    use tauri::Manager;
     use windows::core::{Interface, PWSTR};
     use webview2_com::{CoTaskMemPWSTR, WebMessageReceivedEventHandler, Microsoft::Web::WebView2::Win32::{
         ICoreWebView2File, ICoreWebView2WebMessageReceivedEventArgs2,
     }};
     let app = app.clone();
     // 外部网页不能指定浏览器的业务隔离空间，位置元数据只信任两个自有 Tree 宿主。
-    let allow_tree_target = matches!(webview.label(), "main" | "sia-tab-panel-window");
+    let allow_tree_target = webview.label() == webview.window().label() || webview.label().ends_with("sia-tab-panel-window");
+    let label = webview.label().to_string();
     webview.with_webview(move |platform| {
         let result = (|| -> windows::core::Result<()> {
             let core = unsafe { platform.controller().CoreWebView2()? };
@@ -36,11 +37,13 @@ pub fn attach(app: &tauri::AppHandle, webview: &tauri::Webview) -> Result<(), St
                     }
                     _ => None,
                 };
-                if let Some(url) = url {
+                if let (Some(url), Some(view)) = (url, app.get_webview(&label)) {
+                    let context = crate::window_context::BrowserContext::new(&app, view.window().label());
+                    // 位置仅采信外壳 Tree，投递到当前归属窗口并保留插入目标。
                     if allow_tree_target && message["kind"] == "sia-open-dropped-file" && message["target"].is_object() {
-                        let _ = app.emit_to("main", "sia://open-dropped-url", serde_json::json!({ "url": url, "target": message["target"] }));
+                        let _ = context.emit("sia://open-dropped-url", serde_json::json!({ "url": url, "target": message["target"] }));
                     } else {
-                        let _ = app.emit_to("main", "sia://open-dropped-url", url);
+                        let _ = context.emit("sia://open-dropped-url", url);
                     }
                 }
                 Ok(())

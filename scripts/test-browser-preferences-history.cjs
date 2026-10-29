@@ -18,7 +18,8 @@ const { chromium } = require('playwright');
         if (command === 'show_browser_panel') window.settingsTest.panel = args.payload;
       } } };
     });
-    await page.goto('http://127.0.0.1:1440/');
+    // 隔离回归服务端口，避免连接到用户现有的预览实例。
+    await page.goto(process.env.BROWSER_TEST_URL || 'http://127.0.0.1:1440/');
     const time = page.getByRole('spinbutton', { name: '休眠时间', exact: true });
     await time.waitFor();
     // 分钟和小时直接以分段选项显示，初始选中小时，点击即可切换。

@@ -18,7 +18,8 @@ const { chromium } = require('playwright');
         if (command === 'get_download_file_icon') { state.iconCalls++; return state.iconCalls === 1 ? null : 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='; }
       } } };
     });
-    await page.goto('http://127.0.0.1:1440/menu.html');
+    // 浮层与主壳共用指定的隔离测试服务。
+    await page.goto(`${(process.env.BROWSER_TEST_URL || 'http://127.0.0.1:1440').replace(/\/$/, '')}/menu.html`);
     await page.getByText('仅访问未关闭', { exact: true }).waitFor();
     await page.getByRole('button', { name: '最近关闭', exact: true }).click();
     await page.getByText('已关闭页面', { exact: true }).waitFor({ timeout: 2000 });

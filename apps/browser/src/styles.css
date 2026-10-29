@@ -1916,6 +1916,23 @@ input {
 }
 
 .vertical-tree-tab.is-dragging { opacity: 0.45; }
+
+/* 分组插入线不占用布局空间；落入大分组时用内描边区别于同级排序。 */
+[data-group-drop] { position: relative; }
+[data-group-drop="before"]::before,
+[data-group-drop="after"]::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  height: 2px;
+  background: var(--group-color, #2867df);
+  pointer-events: none;
+  z-index: 3;
+}
+[data-group-drop="before"]::before { top: 0; }
+[data-group-drop="after"]::after { bottom: 0; }
+[data-group-drop="inside"] { outline: 2px solid var(--group-color, #2867df); outline-offset: -2px; }
 /* 插入线覆盖在行边缘，4px 粗线不占布局且不参与命中，避免跨行时反复触发离开。 */
 .vertical-tree-drop-line {
   position: absolute;

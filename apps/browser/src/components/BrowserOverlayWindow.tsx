@@ -1,3 +1,4 @@
+import { listenNative } from "../nativeEvents";
 import { useEffect, useRef, useState } from "react";
 import {
   Icon,
@@ -80,7 +81,7 @@ export default function BrowserOverlayWindow() {
       })
       .catch(() => undefined);
     if (window.__TAURI__) {
-      void window.__TAURI__.event.listen<BrowserOverlayPayload>(
+      void listenNative<BrowserOverlayPayload>(
         "sia://browser-overlay-state",
         ({ payload: nextPayload }) => {
           setPayload(nextPayload);

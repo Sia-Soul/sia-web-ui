@@ -1,6 +1,8 @@
 export interface BrowserSmallGroup {
   id: string;
   name: string;
+  /** 跨大分组移动后保留原数据空间的父级 ID；省略时使用当前所属大分组。 */
+  profileGroupId?: string;
 }
 
 /** 外部文件在标签树中的投放位置；原生桥只接受外壳和侧栏提供的定位。 */
@@ -37,6 +39,8 @@ export interface BrowserTab {
   pinned?: boolean;
   groupId: string;
   smallGroupId?: string;
+  /** 分组整体移动时保留的 WebView2 数据空间父级 ID；省略时使用 groupId。 */
+  profileGroupId?: string;
 }
 
 export const ROOT_GROUP_ID = "group-root";

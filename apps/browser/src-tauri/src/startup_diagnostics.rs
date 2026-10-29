@@ -30,7 +30,22 @@ pub fn configure(context: &mut tauri::Context<tauri::Wry>) -> Result<(), String>
     // 主壳层也使用独立的 WebView2 资料目录；子页面由应用目录设置隔离。
     for window in &mut context.config_mut().app.windows {
         window.data_directory = Some(directory.join("shell-webview"));
-        window.visible = false;
+        window.visible = std::env::args_os().any(|argument| argument == "--diagnostic-visible");
     }
     Ok(())
+}
+
+/// 无调试端口的拆窗回归入口，仅在显式隔离目录和测试参数同时存在时启用。
+pub fn run_detach_fixture(app: &tauri::AppHandle) {
+    use tauri::Emitter;
+    let args: Vec<_> = std::env::args().collect();
+    if !args.iter().any(|arg| arg == "--diagnostic-data-dir") { return; }
+    let Some(index) = args.iter().position(|arg| arg == "--diagnostic-detach-group") else { return; };
+    let Some(group_id) = args.get(index + 1).cloned() else { return; };
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        let value = serde_json::json!({ "item": { "kind": "group", "groupId": group_id }, "position": [400, 200] }).to_string();
+        let _ = app.emit("sia://floating-tab-panel-action", serde_json::json!({ "action": "detach", "value": value }));
+    });
 }

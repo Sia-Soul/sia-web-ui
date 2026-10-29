@@ -1,3 +1,4 @@
+import { listenNative } from "./nativeEvents";
 import { extensionMatchesScope } from "./extensionScopes";
 import { browserShortcut } from "./browserShortcuts";
 import { newestDownloadsFirst, nextDownloadStartedAt } from "./downloadOrder";
@@ -22,6 +23,7 @@ import BrowserFavicon, { BrowserBrandGlyph } from "./components/BrowserFavicon";
 import type { BrowserDropTarget } from "./browserTypes";
 import VerticalTabTree from "./components/VerticalTabTree";
 import BrowserDevtoolsWorkspace, { requestBrowserDevtools, controlBrowserDevtools } from "./components/BrowserDevtoolsWorkspace";
+import { extractTreeItem, moveTreeGroup, profileScopeGroups, type GroupDropTarget, type TreeDragItem } from "./tabTreeMove";
 import type { BrowserOverlayPayload } from "./components/BrowserOverlayWindow";
 import type { FloatingTabPanelPayload } from "./components/BrowserTabPanelWindow";
 import type {
@@ -98,6 +100,13 @@ interface BrowserPersistedState {
   alwaysOpenDownloadExtensions?: string[];
   downloadDirectory?: string;
   askBeforeDownload?: boolean;
+  /** 仅在同进程交接时使用，冷启动不恢复运行期引用。 */
+  liveTransfer?: {
+    popupTabs: Array<[string, string]>;
+    loadedPopupTabs: string[];
+    navigationStacks: Record<string, BrowserNavigationStack>;
+    navigationTargets: Record<string, number | undefined>;
+  };
 }
 
 interface BrowserHistoryEntry {
@@ -286,6 +295,18 @@ export default function App() {
     return () => observer.disconnect();
   }, [darkMode]);
   const [groups, setGroups] = useState<BrowserGroup[]>(() => [...BROWSER_GROUPS]);
+  const groupsRef = useRef(groups);
+  groupsRef.current = groups;
+  const detachingRef = useRef(false);
+  const restoredSessionRef = useRef(false);
+  const [restoredPageReady, setRestoredPageReady] = useState(false);
+  /** 所有创建入口统一继承小分组的数据空间，包含复制、相邻新建及最后一页的占位页。 */
+  function createScopedBlankTab(groupId = DEFAULT_GROUP_ID, smallGroupId?: string) {
+    const tab = createBlankTab(groupId, smallGroupId);
+    tab.profileGroupId = groupsRef.current.find(group => group.id === groupId)?.smallGroups
+      .find(small => small.id === smallGroupId)?.profileGroupId;
+    return tab;
+  }
   const [stateHydrated, setStateHydrated] = useState(!isDesktopRuntime);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([...DEFAULT_BOOKMARKS]);
   const [bookmarkFolders, setBookmarkFolders] = useState<BookmarkFolder[]>([]);
@@ -299,7 +320,7 @@ export default function App() {
     let disposed = false;
     let unlisten: (() => void) | undefined;
     // 原生菜单在网页上点击外部或按 Escape 也能关闭，同步 Dropdown 的受控展开状态。
-    void window.__TAURI__.event.listen<{ visible: boolean; panelKey?: string }>("sia://browser-menu-visibility", ({ payload }) => {
+    void listenNative<{ visible: boolean; panelKey?: string }>("sia://browser-menu-visibility", ({ payload }) => {
       setOpenBookmarkFolder(payload.visible && payload.panelKey?.startsWith("bookmark-folder|")
         ? payload.panelKey.slice("bookmark-folder|".length) : undefined);
     }).then(dispose => { if (disposed) dispose(); else unlisten = dispose; });
@@ -315,7 +336,7 @@ export default function App() {
     let disposed = false;
     let unlisten: (() => void) | undefined;
     // 缩放命中来自原生窗口边缘；主文档无法通过 CSS :hover 读取该区域。
-    void window.__TAURI__.event.listen<string>("sia://window-resize-edges", ({ payload }) => {
+    void listenNative<string>("sia://window-resize-edges", ({ payload }) => {
       if (!disposed) setWindowResizeEdges(payload);
     }).then((dispose) => { if (disposed) dispose(); else unlisten = dispose; });
     return () => { disposed = true; unlisten?.(); };
@@ -339,7 +360,7 @@ export default function App() {
     window.addEventListener("blur", refresh);
     if (isDesktopRuntime && window.__TAURI__) {
       for (const name of ["tauri://focus", "tauri://blur"]) {
-        void window.__TAURI__.event.listen(name, refresh).then((dispose) => {
+        void listenNative(name, refresh).then((dispose) => {
           if (disposed) dispose(); else { disposers.push(dispose); refresh(); }
         });
       }
@@ -466,6 +487,7 @@ export default function App() {
     const nextSleepAt = Math.min(...candidates.map((tab) => (tab.inactiveSince ?? Date.now()) + sleepDelay));
     const delay = Math.max(0, nextSleepAt - Date.now());
     const timer = window.setTimeout(() => {
+      if (detachingRef.current) return;
       const now = Date.now();
       const sleepingIds = new Set(candidates
         .filter((tab) => (
@@ -543,6 +565,7 @@ export default function App() {
         groupId: tab.groupId,
         // 新开及唤醒标签均传递小分组标识，保持其 WebView2 数据空间一致。
         smallGroupId: tab.smallGroupId ?? null,
+        profileGroupId: tab.profileGroupId ?? null,
         url: tab.url,
         bounds: boundsRef.current,
       });
@@ -562,6 +585,7 @@ export default function App() {
       tabId: tab.id,
       groupId: tab.groupId,
       smallGroupId: tab.smallGroupId ?? null,
+      profileGroupId: tab.profileGroupId ?? null,
       bounds: boundsRef.current,
     });
     if (found) {
@@ -579,7 +603,7 @@ export default function App() {
     const currentTab = activeTabRef.current;
     const resolvedGroupId = groupId ?? currentTab.groupId ?? DEFAULT_GROUP_ID;
     const resolvedSmallGroupId = smallGroupId ?? (groupId ? undefined : currentTab.smallGroupId);
-    const tab = createBlankTab(resolvedGroupId, resolvedSmallGroupId);
+    const tab = createScopedBlankTab(resolvedGroupId, resolvedSmallGroupId);
     if (openerId) popupTabsRef.current.set(tab.id, openerId);
     const targetUrl = url ? resolveAddress(url) : "";
     const nextTab: BrowserTab = targetUrl
@@ -646,7 +670,7 @@ export default function App() {
     const previewDrop = (event: Event) => openDropped((event as CustomEvent<string>).detail);
     window.addEventListener('sia-open-dropped-url', previewDrop);
     if (window.__TAURI__) {
-      void window.__TAURI__.event.listen<string | { url: string; target?: BrowserDropTarget }>('sia://open-dropped-url', ({ payload }) => openDropped(payload))
+      void listenNative<string | { url: string; target?: BrowserDropTarget }>('sia://open-dropped-url', ({ payload }) => openDropped(payload))
         .then(dispose => { if (disposed) dispose(); else unlisten = dispose; });
     }
     return () => {
@@ -690,7 +714,7 @@ export default function App() {
       }
     };
     // 先订阅再读取积压请求，覆盖会话恢复期间和注册监听前后到达的外部打开。
-    void window.__TAURI__.event.listen("sia://external-open-pending", () => { void drain(); })
+    void listenNative("sia://external-open-pending", () => { void drain(); })
       .then(dispose => {
         if (disposed) dispose();
         else { unlisten = dispose; void drain(); }
@@ -706,11 +730,11 @@ export default function App() {
 
     const absoluteOptionsUrl = /^[a-z][a-z\d+.-]*:\/\//i.test(optionsPage);
     const currentTab = activeTabRef.current;
-    if (!extension.enabled || !extensionMatchesScope(extension.scopes, currentTab.groupId, currentTab.smallGroupId)) {
+    if (!extension.enabled || !extensionMatchesScope(extension.scopes, currentTab.profileGroupId ?? currentTab.groupId, currentTab.smallGroupId)) {
       throw new Error("当前分组未启用此扩展，请切换到允许的分组或调整生效分组");
     }
     const nextTab = {
-      ...createBlankTab(
+      ...createScopedBlankTab(
         currentTab.groupId ?? DEFAULT_GROUP_ID,
         currentTab.smallGroupId,
       ),
@@ -779,7 +803,7 @@ export default function App() {
   function openAdjacentTab(sourceId: string, duplicate = false) {
     const source = tabs.find((tab) => tab.id === sourceId);
     if (!source) return;
-    const blankTab = createBlankTab(source.groupId, source.smallGroupId);
+    const blankTab = createScopedBlankTab(source.groupId, source.smallGroupId);
     const internalSource = isInternalBrowserUrl(source.url);
     const nextTab: BrowserTab = duplicate && source.url
       ? {
@@ -945,9 +969,11 @@ export default function App() {
     // 系统关联传入的网址作为根级新标签恢复，不覆盖已保存标签或借用某个小分组的登录态。
     void Promise.all([
       invokeNative<BrowserPersistedState | null>("load_browser_state"),
-      invokeNative<string | null>("get_browser_launch_url"),
+      window.__SIA_DETACHED_WINDOW__ ? Promise.resolve(null) : invokeNative<string | null>("get_browser_launch_url"),
+      window.__SIA_LIVE_TRANSFER__ ? invokeNative<string[]>("transferred_browser_tabs") : Promise.resolve([] as string[]),
     ])
-      .then(([savedState, launchUrl]) => {
+      .then(([savedState, launchUrl, transferredIds]) => {
+        const transferred = new Set(transferredIds);
         const launchTab = launchUrl ? { ...createBlankTab(ROOT_GROUP_ID), url: launchUrl, title: hostLabel(launchUrl) } : null;
         const state = launchTab ? {
           ...savedState,
@@ -965,16 +991,23 @@ export default function App() {
             ...tab,
             // 仅更新旧版自动生成的设置标题，保留用户自定义名称和既有内部地址。
             title: tab.url === SETTINGS_URL && ["Sia设置", "栖页设置"].includes(tab.title) ? "西娅设置" : tab.title,
-            loading: active && Boolean(tab.url) && !internal,
-            hasWebview: active && Boolean(tab.url) && !internal,
-            sleeping: !active && Boolean(tab.url) && !internal,
+            loading: transferred.has(tab.id) ? tab.loading : active && Boolean(tab.url) && !internal,
+            hasWebview: transferred.has(tab.id) || (active && Boolean(tab.url) && !internal),
+            sleeping: !transferred.has(tab.id) && !active && Boolean(tab.url) && !internal,
             inactiveSince: active ? undefined : tab.inactiveSince,
-            audible: false,
+            audible: transferred.has(tab.id) && tab.audible,
             muted: Boolean(tab.muted),
             pinned: Boolean(tab.pinned),
           };
         });
+        if (window.__SIA_LIVE_TRANSFER__ && state.liveTransfer) {
+          popupTabsRef.current = new Map(state.liveTransfer.popupTabs);
+          loadedPopupTabsRef.current = new Set(state.liveTransfer.loadedPopupTabs);
+          navigationStacksRef.current = state.liveTransfer.navigationStacks;
+          navigationTargetRef.current = state.liveTransfer.navigationTargets;
+        }
         const restoredActiveTab = restoredTabs.find((tab) => tab.id === savedActiveId) ?? restoredTabs[0];
+        restoredSessionRef.current = true;
 
         setTabs(restoredTabs);
         setGroups(Array.isArray(state.groups) ? state.groups : [...BROWSER_GROUPS]);
@@ -992,7 +1025,7 @@ export default function App() {
               .filter((item) => item?.id)
               .map((item, index) => [
                 item.id,
-                { ...(item.state === "finished"
+                { ...(window.__SIA_LIVE_TRANSFER__ || item.state === "finished"
                   ? item
                   : { ...item, state: "finished" as const, success: false }),
                   // 旧版本未记录时间，只能保留已保存的先后顺序；新下载使用实际触发时间。
@@ -1030,28 +1063,32 @@ export default function App() {
                 return;
               }
               syncBrowserBounds();
-              void invokeNative("open_browser_tab", {
-                tabId: restoredActiveTab.id,
-                groupId: restoredActiveTab.groupId,
-                smallGroupId: restoredActiveTab.smallGroupId ?? null,
-                url: restoredActiveTab.url,
-                bounds: boundsRef.current,
-              }).then(() => {
-                // 会话恢复也会异步创建原生网页，打开工具期间完成时应采用最新布局。
+              const restorePage = transferred.has(restoredActiveTab.id)
+                ? invokeNative<boolean>("switch_browser_tab", {
+                  tabId: restoredActiveTab.id, groupId: restoredActiveTab.groupId,
+                  smallGroupId: restoredActiveTab.smallGroupId ?? null,
+                  profileGroupId: restoredActiveTab.profileGroupId ?? null, bounds: boundsRef.current,
+                }).then(found => { if (!found) throw new Error("迁移的网页视图未找到，已保留原页签"); })
+                : invokeNative("open_browser_tab", {
+                  tabId: restoredActiveTab.id, groupId: restoredActiveTab.groupId,
+                  smallGroupId: restoredActiveTab.smallGroupId ?? null,
+                  profileGroupId: restoredActiveTab.profileGroupId ?? null,
+                  url: restoredActiveTab.url, bounds: boundsRef.current,
+                });
+              void restorePage.then(() => {
+                if (!cancelled) setRestoredPageReady(true);
+                // 恢复或迁移完成后重测当前页，避免沿用其他页签的开发工具占位。
                 if (activeTabRef.current.id === restoredActiveTab.id) syncBrowserBounds();
-                if (restoredActiveTab.muted) {
-                  return invokeNative("set_browser_tab_muted", {
-                    tabId: restoredActiveTab.id,
-                    muted: true,
-                  });
-                }
-                return undefined;
+                if (restoredActiveTab.muted) return invokeNative("set_browser_tab_muted", { tabId: restoredActiveTab.id, muted: true });
               }).catch((error) => {
+                if (window.__SIA_LIVE_TRANSFER__) void invokeNative("reject_detached_window", { error: String(error) });
                 updateTab(restoredActiveTab.id, { loading: false, hasWebview: false, sleeping: true });
                 message.error(error instanceof Error ? error.message : String(error));
               });
             });
           });
+        } else {
+          void invokeNative("hide_browser_pages").then(() => setRestoredPageReady(true));
         }
       })
       .catch((error) => {
@@ -1067,6 +1104,18 @@ export default function App() {
       window.cancelAnimationFrame(secondFrame);
     };
   }, [syncBrowserBounds, updateTab]);
+
+  useEffect(() => {
+    if (stateHydrated && restoredPageReady && restoredSessionRef.current && isDesktopRuntime) {
+      void invokeNative("present_detached_window").catch(error => message.error(String(error)));
+    }
+  }, [stateHydrated, restoredPageReady]);
+
+  useEffect(() => {
+    if (stateHydrated && restoredPageReady && restoredSessionRef.current && isDesktopRuntime) {
+      void invokeNative("acknowledge_detached_window").catch(error => message.error(String(error)));
+    }
+  }, [stateHydrated, restoredPageReady]);
 
   useEffect(() => {
     if (!isDesktopRuntime || !stateHydrated) return undefined;
@@ -1143,7 +1192,7 @@ export default function App() {
     let unlistenPassword: (() => void) | undefined;
     let disposed = false;
 
-    void window.__TAURI__.event.listen<BrowserNativeEvent>("sia://browser-event", ({ payload }) => {
+    void listenNative<BrowserNativeEvent>("sia://browser-event", ({ payload }) => {
       if (payload.kind === "new-window" && payload.url) {
         const sourceTab = tabsRef.current.find((tab) => tab.id === payload.tabId);
         openTab(
@@ -1249,7 +1298,7 @@ export default function App() {
       else unlisten = dispose;
     });
 
-    void window.__TAURI__.event.listen<PasswordSubmission>(
+    void listenNative<PasswordSubmission>(
       "sia://password-submission",
       ({ payload }) => {
         if (!payload.password || !payload.origin) return;
@@ -1275,7 +1324,7 @@ export default function App() {
     if (!isDesktopRuntime || !window.__TAURI__) return;
     let disposed = false;
     let unlisten: (() => void) | undefined;
-    void window.__TAURI__.event.listen<BrowserDownloadNativeEvent>(
+    void listenNative<BrowserDownloadNativeEvent>(
       "sia://browser-download",
       ({ payload }) => {
         const announce = (payload.state === "waiting" || payload.state === "started")
@@ -1294,6 +1343,8 @@ export default function App() {
           }
         }
         setDownloadTasks((current) => {
+          // 完成通知后仍可能收到排队中的进度；新一轮 started/waiting 才能重新开启同编号任务。
+          if (current[payload.id]?.state === "finished" && payload.state === "progress") return current;
           return {
             ...current,
             [payload.id]: {
@@ -1333,7 +1384,7 @@ export default function App() {
     if (!isDesktopRuntime || !window.__TAURI__) return;
     let disposed = false;
     let unlisten: (() => void) | undefined;
-    void window.__TAURI__.event.listen<{ tabIds?: string[] }>("sia://extensions-changed", ({ payload }) => {
+    void listenNative<{ tabIds?: string[] }>("sia://extensions-changed", ({ payload }) => {
       setTabs((current) => current.map((tab) => (
         isInternalBrowserUrl(tab.url) || (payload?.tabIds && !payload.tabIds.includes(tab.id))
           ? tab
@@ -1402,6 +1453,7 @@ export default function App() {
       tabId,
       groupId: tabs.find((tab) => tab.id === tabId)?.groupId ?? DEFAULT_GROUP_ID,
       smallGroupId: tabs.find((tab) => tab.id === tabId)?.smallGroupId ?? null,
+      profileGroupId: tabs.find((tab) => tab.id === tabId)?.profileGroupId ?? null,
       url: targetUrl,
       bounds: boundsRef.current,
     }).catch((error) => {
@@ -1518,7 +1570,7 @@ export default function App() {
     let remaining = tabs.filter((tab) => !closingIds.has(tab.id));
     if (remaining.length === 0) {
       const source = removedTabs[0];
-      remaining = [createBlankTab(source.groupId, source.smallGroupId)];
+      remaining = [createScopedBlankTab(source.groupId, source.smallGroupId)];
     }
     // 同一次批量关闭保留为一条会话，避免丢失恢复时的顺序。
     setClosedTabs((current) => [...current, { id: createTabId(), closedAt: Date.now(), tabs: removedTabs, title: removedTabs[0].title }].slice(-20));
@@ -1591,7 +1643,7 @@ export default function App() {
       }).catch(() => undefined);
     };
     for (const name of ["sia://extensions-changed", "sia://extension-toolbar-changed"]) {
-      void window.__TAURI__.event.listen(name, refresh).then((dispose) => {
+      void listenNative(name, refresh).then((dispose) => {
         if (disposed) dispose(); else disposers.push(dispose);
       });
     }
@@ -1609,10 +1661,10 @@ export default function App() {
   useEffect(() => {
     if (!isDesktopRuntime || !window.__TAURI__) return;
     void invokeNative("update_browser_extension_context", {
-      extensionScope: { groupId: activeTab.groupId, smallGroupId: activeTab.smallGroupId },
+      extensionScope: { groupId: activeTab.profileGroupId ?? activeTab.groupId, smallGroupId: activeTab.smallGroupId },
       heading: activeExtensionHeading,
     }).catch(() => undefined);
-  }, [activeTab.groupId, activeTab.smallGroupId, activeExtensionHeading]);
+  }, [activeTab.groupId, activeTab.profileGroupId, activeTab.smallGroupId, activeExtensionHeading]);
 
   /** 使用缓存立即展示扩展列表，面板自身在后台校准最新安装状态。 */
   function showExtensionsPanel(trigger: HTMLElement) {
@@ -1620,7 +1672,7 @@ export default function App() {
     showBrowserPanel({
       darkMode, kind: "extensions", panelKey: "extensions", toggleKey: "extensions",
       items: [], extensions: toolbarExtensions, currentUrl: activeTab?.url,
-      extensionScope: { groupId: activeTab.groupId, smallGroupId: activeTab.smallGroupId },
+      extensionScope: { groupId: activeTab.profileGroupId ?? activeTab.groupId, smallGroupId: activeTab.smallGroupId },
       heading: activeExtensionHeading,
     }, { x: rect.right - 340, y: rect.bottom }, { width: 340, height: 560 }, trigger);
   }
@@ -1883,8 +1935,84 @@ export default function App() {
     });
   }
 
+  /** 分组整体移动只改变树结构，保留现有网页及其登录数据。 */
+  function moveGroup(item: TreeDragItem, target: GroupDropTarget) {
+    if (detachingRef.current) return;
+    const next = moveTreeGroup(groupsRef.current, tabsRef.current, item, target);
+    groupsRef.current = next.groups;
+    tabsRef.current = next.tabs;
+    setGroups(next.groups);
+    setTabs(next.tabs);
+    activeTabRef.current = next.tabs.find(tab => tab.id === activeTabRef.current.id) ?? activeTabRef.current;
+    if (item.kind === "small-group") setCollapsedGroupIds(current => current.filter(id => id !== target.groupId));
+  }
+
+  /** 等新窗口确认接收后再移除源项；失败时保留原分组与页签。 */
+  async function detachItem(item: TreeDragItem, position?: [number, number]) {
+    if (detachingRef.current) return;
+    if (!isDesktopRuntime) { message.info("拖出为独立窗口需要在桌面版浏览器中使用。"); return; }
+    const extracted = extractTreeItem(groupsRef.current, tabsRef.current, item);
+    if (!extracted) return;
+    detachingRef.current = true;
+    const selectedIds = new Set(extracted.tabs.map(tab => tab.id));
+    const childTabs = extracted.tabs.length ? extracted.tabs : [createScopedBlankTab(extracted.groupId, extracted.smallGroupId)];
+    const active = childTabs.find(tab => tab.id === activeTabRef.current.id) ?? childTabs[0];
+    const state: BrowserPersistedState = {
+      version: 3, groups: extracted.groups, tabs: childTabs, activeId: active.id,
+      downloads: Object.values(downloadTasks).filter(task => selectedIds.has(task.tabId)),
+      liveTransfer: {
+        popupTabs: [...popupTabsRef.current].filter(([id]) => selectedIds.has(id)),
+        loadedPopupTabs: [...loadedPopupTabsRef.current].filter(id => selectedIds.has(id)),
+        navigationStacks: Object.fromEntries(Object.entries(navigationStacksRef.current).filter(([id]) => selectedIds.has(id))),
+        navigationTargets: Object.fromEntries(Object.entries(navigationTargetRef.current).filter(([id]) => selectedIds.has(id))),
+      },
+      bookmarks, history: historyEntries, showBookmarksBar, verticalPanelPinned, verticalPanelWidth,
+      alwaysOpenDownloadExtensions, downloadDirectory, askBeforeDownload,
+    };
+    try {
+      await invokeNative("detach_browser_window", { state, sourceActiveId: activeTabRef.current.id, position: position ?? null });
+      let remaining = tabsRef.current.filter(tab => !selectedIds.has(tab.id));
+      const nextGroups = groupsRef.current.flatMap(group => {
+        if (item.kind === "group" && group.id === item.groupId && !remaining.some(tab => tab.groupId === group.id)) return [];
+        if (item.kind === "small-group" && group.id === item.groupId
+          && !remaining.some(tab => tab.groupId === group.id && tab.smallGroupId === item.smallGroupId)) {
+          return [{ ...group, smallGroups: group.smallGroups.filter(small => small.id !== item.smallGroupId) }];
+        }
+        return [group];
+      });
+      if (!remaining.length) remaining = [createBlankTab(ROOT_GROUP_ID)];
+      const previousId = activeTabRef.current.id;
+      const ordered = getLayoutOrderedTabs();
+      const index = ordered.findIndex(tab => tab.id === previousId);
+      const adjacent = ordered.slice(0, index).reverse().find(tab => !selectedIds.has(tab.id))
+        ?? ordered.slice(index + 1).find(tab => !selectedIds.has(tab.id));
+      const nextActive = remaining.find(tab => tab.id === previousId)
+        ?? remaining.find(tab => tab.id === adjacent?.id) ?? remaining[0];
+      groupsRef.current = nextGroups;
+      tabsRef.current = remaining;
+      activeTabRef.current = nextActive;
+      setGroups(nextGroups);
+      setTabs(remaining);
+      setActiveId(nextActive.id);
+      setAddressDraft(nextActive.url);
+      for (const id of selectedIds) { popupTabsRef.current.delete(id); loadedPopupTabsRef.current.delete(id); }
+      // 原生网页已经迁移，源窗口只能移除数据，不能再关闭这些 WebView。
+      setDownloadTasks(current => Object.fromEntries(Object.entries(current).filter(([, task]) => !selectedIds.has(task.tabId))));
+      if (nextActive.id !== previousId) await activateNativeTab(nextActive, nextActive.sleeping);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : String(error));
+    } finally { detachingRef.current = false; }
+  }
+
+  function detachAfterDrag(item: TreeDragItem) {
+    void invokeNative<[number, number] | null>("browser_drag_outside").then(position => {
+      if (position) void detachItem(item, position);
+    }).catch(error => message.error(String(error)));
+  }
+
   /** 同组按锚点排序且保留网页实例；跨组重建隔离空间，后台页继续休眠。null 锚点表示目标列表末尾。 */
   function moveTabToGroup(tabId: string, groupId: string, smallGroupId?: string, beforeTabId?: string | null) {
+    if (detachingRef.current) return;
     const tab = tabs.find((item) => item.id === tabId);
     const group = groups.find((item) => item.id === groupId);
     if (!tab || movingTabIdsRef.current.has(tabId) || (!group && groupId !== ROOT_GROUP_ID)) return;
@@ -1922,6 +2050,7 @@ export default function App() {
       ...tab,
       groupId,
       smallGroupId,
+      profileGroupId: group?.smallGroups.find(small => small.id === smallGroupId)?.profileGroupId,
       loading: active && remote,
       hasWebview: false,
       sleeping: !active && remote,
@@ -1950,7 +2079,7 @@ export default function App() {
       // 旧实例未能关闭时恢复原归属，不能把仍使用旧 Cookie 的页面显示为目标分组页面。
       if (!oldWebviewClosed) {
         const restore = (item: BrowserTab) => item.id === tabId ? {
-          ...item, groupId: tab.groupId, smallGroupId: tab.smallGroupId,
+          ...item, groupId: tab.groupId, smallGroupId: tab.smallGroupId, profileGroupId: tab.profileGroupId,
           loading: false, hasWebview: tab.hasWebview, sleeping: tab.sleeping,
         } : item;
         const restorePlacement = (current: BrowserTab[]) => {
@@ -2284,7 +2413,7 @@ export default function App() {
     else if (key === "move" && value) moveTabToGroup(tabId, value);
     else if (key === "refresh") refreshTab(tabId);
     else if (key === "duplicate") openAdjacentTab(tabId, true);
-    else if (key === "move-window") message.info("独立浏览器窗口将在下一阶段接入。");
+    else if (key === "move-window") void detachItem({ kind: "tab", tabId });
     else if (key === "toggle-pin") togglePinnedTab(tabId);
     else if (key === "toggle-mute") toggleTabAudio(tabId);
     else if (key === "close") closeTabsByIds([tabId]);
@@ -2302,6 +2431,20 @@ export default function App() {
     else if (action === "toggle-audio" && value) toggleTabAudio(value);
     else if (action === "new-root-tab") openTab();
     else if (action === "new-group") openNewGroupModal();
+    else if (action === "move-group" || action === "detach") {
+      try {
+        const data = JSON.parse(value);
+        const item = data?.item;
+        const validItem = item && (item.kind === "tab" && typeof item.tabId === "string"
+          || item.kind === "group" && typeof item.groupId === "string"
+          || item.kind === "small-group" && typeof item.groupId === "string" && typeof item.smallGroupId === "string");
+        if (!validItem) return;
+        if (action === "move-group" && typeof data.target?.groupId === "string"
+          && (data.target.beforeId === null || typeof data.target.beforeId === "string")) moveGroup(item, data.target);
+        if (action === "detach" && Array.isArray(data.position) && data.position.length === 2
+          && data.position.every((value: unknown) => typeof value === "number" && Number.isFinite(value))) void detachItem(item, data.position);
+      } catch { /* 非法面板消息不修改树或打开窗口。 */ }
+    }
     else if (action === "move-tab") {
       // 独立面板传入 JSON；仅接受已存在标签与分组，非法消息不改变状态。
       try {
@@ -2382,7 +2525,7 @@ export default function App() {
 
     const currentTab = activeTabRef.current;
     const settingsTab: BrowserTab = {
-      ...createBlankTab(currentTab.groupId, currentTab.smallGroupId),
+      ...createScopedBlankTab(currentTab.groupId, currentTab.smallGroupId),
       title: "西娅设置",
       url: SETTINGS_URL,
     };
@@ -2800,13 +2943,13 @@ export default function App() {
     let unlistenFloatingPanelVisibility: (() => void) | undefined;
     let unlistenFloatingPanelError: (() => void) | undefined;
     let disposed = false;
-    void window.__TAURI__.event.listen<string>("sia://native-menu-action", ({ payload }) => {
+    void listenNative<string>("sia://native-menu-action", ({ payload }) => {
       nativeMenuActionHandlerRef.current(payload);
     }).then((dispose) => {
       if (disposed) dispose();
       else unlistenNative = dispose;
     });
-    void window.__TAURI__.event.listen<BrowserOverlayAction>(
+    void listenNative<BrowserOverlayAction>(
       "sia://browser-overlay-action",
       ({ payload }) => {
         browserOverlayActionHandlerRef.current(payload);
@@ -2815,7 +2958,7 @@ export default function App() {
       if (disposed) dispose();
       else unlistenOverlay = dispose;
     });
-    void window.__TAURI__.event.listen<BrowserOverlayAction>(
+    void listenNative<BrowserOverlayAction>(
       "sia://floating-tab-panel-action",
       ({ payload }) => {
         floatingPanelActionHandlerRef.current(payload);
@@ -2824,7 +2967,7 @@ export default function App() {
       if (disposed) dispose();
       else unlistenFloatingPanel = dispose;
     });
-    void window.__TAURI__.event.listen<boolean>(
+    void listenNative<boolean>(
       "sia://floating-tab-panel-visibility",
       ({ payload }) => {
         floatingPanelOpenRef.current = payload;
@@ -2833,7 +2976,7 @@ export default function App() {
       if (disposed) dispose();
       else unlistenFloatingPanelVisibility = dispose;
     });
-    void window.__TAURI__.event.listen<string>(
+    void listenNative<string>(
       "sia://floating-tab-panel-error",
       ({ payload }) => {
         floatingPanelOpenRef.current = false;
@@ -2975,7 +3118,7 @@ export default function App() {
         />
         {/* 只展示有限数量的快捷入口，避免挤出地址栏和窗口控制；完整列表仍在扩展面板中。 */}
         <div className="browser-pinned-extensions">
-        {toolbarExtensions.filter((extension) => extension.pinned && extension.enabled && extensionMatchesScope(extension.scopes, activeTab.groupId, activeTab.smallGroupId)).slice(0, 4).map((extension) => (
+        {toolbarExtensions.filter((extension) => extension.pinned && extension.enabled && extensionMatchesScope(extension.scopes, activeTab.profileGroupId ?? activeTab.groupId, activeTab.smallGroupId)).slice(0, 4).map((extension) => (
           <Button key={extension.id} className="toolbar-icon-button" variant="text" size="small"
             aria-label={`${extension.name} · ${extension.optionsPage ? "扩展选项" : "管理扩展"}`}
             title={`${extension.name} · ${extension.optionsPage ? "扩展选项" : "管理扩展"}`}
@@ -3301,6 +3444,8 @@ export default function App() {
               panelWidth={verticalPanelWidth}
               onSelect={selectTab}
               onMoveTab={moveTabToGroup}
+              onMoveGroup={moveGroup}
+              onDetach={detachAfterDrag}
               onClose={closeTab}
               onToggleAudio={toggleTabAudio}
               onNewTab={(groupId, smallGroupId) => openTab(undefined, groupId, smallGroupId)}
@@ -3340,7 +3485,7 @@ export default function App() {
           <BrowserSettingsPage
             tabSleep={tabSleep}
             onTabSleepChange={value => setTabSleep(normalizeTabSleep(value))}
-            groups={groups}
+            groups={profileScopeGroups(groups)}
             activeDownloadCount={activeDownloadTasks.length}
             askBeforeDownload={askBeforeDownload}
             downloadDirectory={downloadDirectory}

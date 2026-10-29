@@ -1,3 +1,4 @@
+use crate::window_context::{BrowserContext as AppHandle, WindowState};
 use std::sync::{
     atomic::{AtomicBool, AtomicU64, Ordering},
     Mutex,
@@ -7,8 +8,8 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{
-    AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, PhysicalPosition, PhysicalSize,
-    Position, Rect, Size, State, Webview, WebviewBuilder, WebviewUrl, WebviewWindow,
+    Emitter, LogicalPosition, LogicalSize, Manager, PhysicalPosition, PhysicalSize,
+    Position, Rect, Size, Webview, WebviewBuilder, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder, WindowEvent,
 };
 #[cfg(windows)]
@@ -28,25 +29,29 @@ use windows::Win32::UI::WindowsAndMessaging::{
     SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
 };
 
+#[derive(Default)]
+pub struct FloatingRuntime {
+    tab_tooltip_generation: AtomicU64,
+    tab_panel_visible: AtomicBool,
+    tab_panel_visibility_generation: AtomicU64,
+    tab_panel_menu_hold: AtomicBool,
+    menu_visibility_generation: AtomicU64,
+    menu_region_revision: AtomicU64,
+    // 每个浏览器窗口独立记录请求、测量和实际显示，避免浮层批次相互干扰。
+    menu_requested_open: AtomicBool,
+    menu_presented_revision: AtomicU64,
+    menu_region_sequence: AtomicU64,
+}
+
 const TAB_PANEL_LABEL: &str = "sia-tab-panel-window";
 const MENU_LABEL: &str = "browser-menu";
 // 提示不是网页页签，不能匹配 browser-tab- 前缀的批量隐藏与布局操作。
 const TAB_TOOLTIP_LABEL: &str = "sia-tab-tooltip-window";
-static TAB_TOOLTIP_GENERATION: AtomicU64 = AtomicU64::new(0);
 const TAB_PANEL_SHADOW_SPACE: f64 = 8.0;
 // 菜单布局留白（逻辑像素）与 CSS 外边距一致，保留阴影绘制区域。
 const MENU_SHADOW_SPACE: f64 = 20.0;
 const TAB_PANEL_TRANSITION_DURATION: Duration = Duration::from_millis(190);
-static TAB_PANEL_VISIBLE: AtomicBool = AtomicBool::new(false);
-static TAB_PANEL_VISIBILITY_GENERATION: AtomicU64 = AtomicU64::new(0);
-static TAB_PANEL_MENU_HOLD: AtomicBool = AtomicBool::new(false);
-static MENU_VISIBILITY_GENERATION: AtomicU64 = AtomicU64::new(0);
 // 显示批次和外部点击监视代次独立，避免旧 DOM 测量覆盖刚切换的面板。
-static MENU_REGION_REVISION: AtomicU64 = AtomicU64::new(0);
-// 请求与实际显示分开记录：排版期间再次点击同一入口也应关闭，旧回传不能重新打开。
-static MENU_REQUESTED_OPEN: AtomicBool = AtomicBool::new(false);
-static MENU_PRESENTED_REVISION: AtomicU64 = AtomicU64::new(0);
-static MENU_REGION_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 /// 菜单实际可见表面的客户区范围，单位为 CSS 像素；不包含透明外边距。
 #[derive(Clone, Debug, Deserialize)]
@@ -124,18 +129,19 @@ fn accept_menu_measurement(requested: bool, current_revision: u64, revision: u64
 /// 由菜单 WebView 回传表面；只接受当前批次，并在主线程再次校验以避免切换竞态。
 #[tauri::command]
 pub async fn update_browser_menu_regions(window: WebviewWindow, revision: u64, sequence: Option<u64>, regions: Vec<MenuSurfaceRegion>) -> Result<(), String> {
-    if window.label() != MENU_LABEL || regions.len() > 32 { return Err("无效的菜单区域请求".into()); }
-    let app = window.app_handle().clone();
+    let app = AppHandle::new(window.app_handle(), window.label());
+    let runtime = app.window_state::<FloatingRuntime>();
+    if window.label() != app.label(MENU_LABEL) || regions.len() > 32 { return Err("无效的菜单区域请求".into()); }
     window.clone().run_on_main_thread(move || {
-        let previous = MENU_REGION_SEQUENCE.load(Ordering::SeqCst);
+        let previous = runtime.menu_region_sequence.load(Ordering::SeqCst);
         let sequence = sequence.unwrap_or(previous + 1);
-        if !accept_menu_measurement(MENU_REQUESTED_OPEN.load(Ordering::SeqCst), MENU_REGION_REVISION.load(Ordering::SeqCst), revision, previous, sequence) || regions.is_empty() { return; }
+        if !accept_menu_measurement(runtime.menu_requested_open.load(Ordering::SeqCst), runtime.menu_region_revision.load(Ordering::SeqCst), revision, previous, sequence) || regions.is_empty() { return; }
         if let Err(error) = apply_menu_regions(&window, &regions) {
             let _ = app.emit("sia://browser-menu-error", error);
             return;
         }
         // 与只读气泡一样，首个有效测量完成后才显示；后续子层变化只更新形状。
-        if MENU_PRESENTED_REVISION.load(Ordering::SeqCst) != revision {
+        if runtime.menu_presented_revision.load(Ordering::SeqCst) != revision {
             #[cfg(windows)]
             {
                 let mut foreground_process = 0;
@@ -146,10 +152,10 @@ pub async fn update_browser_menu_regions(window: WebviewWindow, revision: u64, s
                 let _ = app.emit("sia://browser-menu-error", error);
                 return;
             }
-            MENU_PRESENTED_REVISION.store(revision, Ordering::SeqCst);
+            runtime.menu_presented_revision.store(revision, Ordering::SeqCst);
             start_menu_pointer_watcher(&app);
         }
-        MENU_REGION_SEQUENCE.store(sequence, Ordering::SeqCst);
+        runtime.menu_region_sequence.store(sequence, Ordering::SeqCst);
     }).map_err(|error| error.to_string())
 }
 
@@ -198,7 +204,7 @@ fn owned_window(
         return Ok(window);
     }
 
-    let builder = WebviewWindowBuilder::new(app, label, WebviewUrl::App(page.into()))
+    let builder = WebviewWindowBuilder::new(app.raw(), app.label(label), WebviewUrl::App(page.into()))
         .title(title)
         .inner_size(320.0, 480.0)
         .decorations(false)
@@ -213,6 +219,7 @@ fn owned_window(
         // 只读提示窗口永不获取焦点，显示时保持当前网页和输入框的焦点。
         .focusable(label != TAB_TOOLTIP_LABEL)
         .visible(false);
+
 
     #[cfg(windows)]
     let builder = {
@@ -256,7 +263,7 @@ fn tab_panel_webview(app: &AppHandle) -> Result<Webview, String> {
     let main = app
         .get_window("main")
         .ok_or_else(|| "找不到浏览器主窗口".to_string())?;
-    let builder = WebviewBuilder::new(TAB_PANEL_LABEL, WebviewUrl::App("tab-panel.html".into()))
+    let builder = WebviewBuilder::new(app.label(TAB_PANEL_LABEL), WebviewUrl::App("tab-panel.html".into()))
         // 标签树使用 HTML 拖放，关闭原生文件拖放拦截以允许 WebView2 派发 drop 事件。
         .disable_drag_drop_handler()
         .transparent(true)
@@ -310,8 +317,9 @@ fn set_owned_window_visible(window: &WebviewWindow, visible: bool) -> Result<(),
 /// 立即收起提示并取消旧监视任务；不会改变菜单或标签面板状态。
 #[tauri::command]
 pub fn close_browser_tab_tooltip(app: AppHandle) -> Result<(), String> {
-    TAB_TOOLTIP_GENERATION.fetch_add(1, Ordering::SeqCst);
-    *app.state::<TabTooltipStore>().0.lock().map_err(|_| "无法锁定标签提示状态")? = None;
+    let runtime = app.window_state::<FloatingRuntime>();
+    runtime.tab_tooltip_generation.fetch_add(1, Ordering::SeqCst);
+    *app.window_state::<TabTooltipStore>().0.lock().map_err(|_| "无法锁定标签提示状态")? = None;
     if let Some(window) = app.get_webview_window(TAB_TOOLTIP_LABEL) {
         set_owned_window_visible(&window, false)?;
     }
@@ -321,7 +329,7 @@ pub fn close_browser_tab_tooltip(app: AppHandle) -> Result<(), String> {
 /// 初始加载时读取最近的提示，避免 WebView 尚未订阅事件而漏掉首次悬停。
 #[tauri::command]
 pub fn get_browser_tab_tooltip_state(app: AppHandle) -> Result<Option<Value>, String> {
-    app.state::<TabTooltipStore>().0.lock().map(|state| state.as_ref().map(|state| state.payload.clone()))
+    app.window_state::<TabTooltipStore>().0.lock().map(|state| state.as_ref().map(|state| state.payload.clone()))
         .map_err(|_| "无法读取标签提示状态".to_string())
 }
 
@@ -329,7 +337,7 @@ pub fn get_browser_tab_tooltip_state(app: AppHandle) -> Result<Option<Value>, St
 #[tauri::command]
 pub fn present_browser_tab_tooltip(app: AppHandle, revision: u64, height: f64) -> Result<(), String> {
     if !height.is_finite() || height <= 0.0 { return Ok(()); }
-    let store = app.state::<TabTooltipStore>();
+    let store = app.window_state::<TabTooltipStore>();
     let mut state = store.0.lock().map_err(|_| "无法锁定标签提示状态")?;
     let Some(state) = state.as_mut().filter(|state| state.payload["revision"].as_u64() == Some(revision)) else { return Ok(()); };
     state.bounds.height = height.ceil() + 24.0;
@@ -343,16 +351,17 @@ pub fn present_browser_tab_tooltip(app: AppHandle, revision: u64, height: f64) -
 /// 坐标使用主窗口客户区逻辑像素；气泡留在窗口内，底部项目向上避让。
 #[tauri::command]
 pub fn show_browser_tab_tooltip(app: AppHandle, mut payload: Value, anchor: FloatingWindowBounds) -> Result<(), String> {
-    let generation = TAB_TOOLTIP_GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
+    let runtime = app.window_state::<FloatingRuntime>();
+    let generation = runtime.tab_tooltip_generation.fetch_add(1, Ordering::SeqCst) + 1;
     payload["revision"] = Value::from(generation);
     let bounds = FloatingWindowBounds {
         x: anchor.x + anchor.width - 8.0, y: (anchor.y - 12.0).max(0.0), width: 320.0, height: 160.0,
     };
-    *app.state::<TabTooltipStore>().0.lock().map_err(|_| "无法锁定标签提示状态")? = Some(FloatingWindowState { payload: payload.clone(), bounds });
+    *app.window_state::<TabTooltipStore>().0.lock().map_err(|_| "无法锁定标签提示状态")? = Some(FloatingWindowState { payload: payload.clone(), bounds });
     let window = tab_tooltip_window(&app)?;
     set_owned_window_visible(&window, false)?;
     sync_window_bounds(&app, &window, "main", bounds)?;
-    window.emit("sia://browser-tab-tooltip", payload).map_err(|error| error.to_string())?;
+    window.emit_to(tauri::EventTarget::webview(window.label()), "sia://browser-tab-tooltip", payload).map_err(|error| error.to_string())?;
     #[cfg(windows)]
     {
         let watcher = app.clone();
@@ -363,7 +372,7 @@ pub fn show_browser_tab_tooltip(app: AppHandle, mut payload: Value, anchor: Floa
         let initial_foreground = unsafe { GetForegroundWindow().0 as isize };
         std::thread::spawn(move || loop {
             std::thread::sleep(Duration::from_millis(16));
-            if TAB_TOOLTIP_GENERATION.load(Ordering::SeqCst) != generation { return; }
+            if runtime.tab_tooltip_generation.load(Ordering::SeqCst) != generation { return; }
             let mut cursor = POINT::default();
             let dismiss = unsafe {
                 let foreground = GetForegroundWindow().0 as isize;
@@ -376,7 +385,7 @@ pub fn show_browser_tab_tooltip(app: AppHandle, mut payload: Value, anchor: Floa
             if dismiss {
                 let close_app = watcher.clone();
                 let _ = watcher.run_on_main_thread(move || {
-                    if TAB_TOOLTIP_GENERATION.load(Ordering::SeqCst) == generation {
+                    if runtime.tab_tooltip_generation.load(Ordering::SeqCst) == generation {
                         let _ = close_browser_tab_tooltip(close_app);
                     }
                 });
@@ -491,7 +500,7 @@ fn show_and_sync_window(
     source_window: &str,
     bounds: FloatingWindowBounds,
 ) -> Result<(), String> {
-    if window.label() == MENU_LABEL {
+    if window.label() == app.label(MENU_LABEL) {
         // 先隐藏再调整位置和尺寸，避免切换入口时短暂移动或拉伸上一批内容。
         set_owned_window_visible(window, false)?;
         apply_menu_regions(window, &[])?;
@@ -598,28 +607,29 @@ fn prepare_cascade_menu(app: &AppHandle, payload: &mut Value, source: String, bo
 }
 
 fn hide_tab_panel(app: &AppHandle) -> Result<(), String> {
-    if TAB_PANEL_MENU_HOLD.load(Ordering::SeqCst) {
+    let runtime = app.window_state::<FloatingRuntime>();
+    if runtime.tab_panel_menu_hold.load(Ordering::SeqCst) {
         return Ok(());
     }
-    if !TAB_PANEL_VISIBLE.load(Ordering::SeqCst) {
+    if !runtime.tab_panel_visible.load(Ordering::SeqCst) {
         return app
             .emit("sia://floating-tab-panel-visibility", false)
             .map_err(|error| error.to_string());
     }
 
-    let generation = TAB_PANEL_VISIBILITY_GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
+    let generation = runtime.tab_panel_visibility_generation.fetch_add(1, Ordering::SeqCst) + 1;
     app.emit("sia://floating-tab-panel-visibility", false)
         .map_err(|error| error.to_string())?;
 
     let hide_app = app.clone();
     std::thread::spawn(move || {
         std::thread::sleep(TAB_PANEL_TRANSITION_DURATION);
-        if TAB_PANEL_VISIBILITY_GENERATION.load(Ordering::SeqCst) != generation {
+        if runtime.tab_panel_visibility_generation.load(Ordering::SeqCst) != generation {
             return;
         }
         let main_thread_app = hide_app.clone();
         let _ = hide_app.run_on_main_thread(move || {
-            if TAB_PANEL_VISIBILITY_GENERATION.load(Ordering::SeqCst) != generation {
+            if runtime.tab_panel_visibility_generation.load(Ordering::SeqCst) != generation {
                 return;
             }
             if let Some(panel) = main_thread_app.get_webview(TAB_PANEL_LABEL) {
@@ -629,7 +639,7 @@ fn hide_tab_panel(app: &AppHandle) -> Result<(), String> {
                     return;
                 }
             }
-            TAB_PANEL_VISIBLE.store(false, Ordering::SeqCst);
+            runtime.tab_panel_visible.store(false, Ordering::SeqCst);
         });
     });
     Ok(())
@@ -665,24 +675,25 @@ fn cursor_inside_tab_panel(_app: &AppHandle) -> bool {
 }
 
 fn hide_menu(app: &AppHandle) -> Result<(), String> {
-    MENU_VISIBILITY_GENERATION.fetch_add(1, Ordering::SeqCst);
-    MENU_REQUESTED_OPEN.store(false, Ordering::SeqCst);
-    let revision = MENU_REGION_REVISION.fetch_add(1, Ordering::SeqCst) + 1;
+    let runtime = app.window_state::<FloatingRuntime>();
+    runtime.menu_visibility_generation.fetch_add(1, Ordering::SeqCst);
+    runtime.menu_requested_open.store(false, Ordering::SeqCst);
+    let revision = runtime.menu_region_revision.fetch_add(1, Ordering::SeqCst) + 1;
     // 清空快照并通知宿主释放搜索、子层及异步操作，避免隐藏窗口继续保留旧业务状态。
-    *app.state::<BrowserMenuStore>().0.lock().map_err(|_| "无法清理浏览器浮层状态")? = None;
+    *app.window_state::<BrowserMenuStore>().0.lock().map_err(|_| "无法清理浏览器浮层状态")? = None;
     if let Some(menu) = app.get_webview_window(MENU_LABEL) {
         eprintln!("[browser-menu] hide");
         // 外部窗口已获焦时，只隐藏菜单，不重新提升浏览器主窗口。
         set_owned_window_visible(&menu, false)?;
-        menu.emit("sia://browser-menu-closed", serde_json::json!({ "revision": revision })).map_err(|error| error.to_string())?;
+        menu.emit_to(tauri::EventTarget::webview(menu.label()), "sia://browser-menu-closed", serde_json::json!({ "revision": revision })).map_err(|error| error.to_string())?;
     }
     // 原生窗口外部点击不会进入主壳层 DOM，显式通知受控 Dropdown 收起状态。
-    app.emit_to("main", "sia://browser-menu-visibility", serde_json::json!({ "visible": false }))
+    app.emit( "sia://browser-menu-visibility", serde_json::json!({ "visible": false }))
         .map_err(|error| error.to_string())?;
-    if TAB_PANEL_MENU_HOLD.swap(false, Ordering::SeqCst) {
+    if runtime.tab_panel_menu_hold.swap(false, Ordering::SeqCst) {
         // 标签右键菜单可能超出面板边界；固定模式不能因点击菜单后指针在外而收起。
         if keep_tab_panel_on_pointer_leave(
-            &app.state::<TabPanelStore>(),
+            &app.window_state::<TabPanelStore>(),
             cursor_inside_tab_panel(app),
         )? {
             app.emit("sia://floating-tab-panel-visibility", true)
@@ -695,7 +706,8 @@ fn hide_menu(app: &AppHandle) -> Result<(), String> {
 }
 
 pub fn menu_is_visible(app: &AppHandle) -> bool {
-    MENU_REQUESTED_OPEN.load(Ordering::SeqCst) || app.get_webview_window(MENU_LABEL)
+    let runtime = app.window_state::<FloatingRuntime>();
+    runtime.menu_requested_open.load(Ordering::SeqCst) || app.get_webview_window(MENU_LABEL)
         .and_then(|menu| menu.is_visible().ok())
         .unwrap_or(false)
 }
@@ -719,7 +731,7 @@ fn is_new_outside_press(released_after_open: bool, previous_down: bool, down: bo
 /// 触发按钮自身的点击交给切换命令处理，防止鼠标监视器先关后开。
 #[cfg(windows)]
 fn cursor_on_menu_trigger(app: &AppHandle, cursor: POINT) -> bool {
-    let state = app.state::<BrowserMenuStore>();
+    let state = app.window_state::<BrowserMenuStore>();
     let Ok(Some(state)) = read_menu_state(&state) else { return false; };
     let Some(bounds) = state.payload.get("triggerBounds") else { return false; };
     // 主窗口托管多个子 WebView，必须读取 Window，不能按单 WebView 窗口查询。
@@ -735,14 +747,15 @@ fn cursor_on_menu_trigger(app: &AppHandle, cursor: POINT) -> bool {
 
 #[cfg(windows)]
 fn start_menu_pointer_watcher(app: &AppHandle) {
-    let generation = MENU_VISIBILITY_GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
+    let runtime = app.window_state::<FloatingRuntime>();
+    let generation = runtime.menu_visibility_generation.fetch_add(1, Ordering::SeqCst) + 1;
     let watcher_app = app.clone();
     std::thread::spawn(move || {
         let mut pointer_released_after_open = false;
         let mut previous_pointer_down = false;
         loop {
             std::thread::sleep(Duration::from_millis(16));
-            if MENU_VISIBILITY_GENERATION.load(Ordering::SeqCst) != generation {
+            if runtime.menu_visibility_generation.load(Ordering::SeqCst) != generation {
                 return;
             }
 
@@ -782,7 +795,10 @@ fn start_menu_pointer_watcher(app: &AppHandle) {
             };
             let mut foreground_process = 0;
             unsafe { GetWindowThreadProcessId(GetForegroundWindow(), Some(&mut foreground_process)); }
-            let focus_lost = lost_browser_focus(foreground_process, std::process::id());
+            let foreground = unsafe { GetForegroundWindow() };
+            let main_hwnd = watcher_app.get_window("main").and_then(|window| window.hwnd().ok());
+            let focus_lost = lost_browser_focus(foreground_process, std::process::id())
+                || (!foreground.is_invalid() && foreground != hwnd && Some(foreground) != main_hwnd);
             if !pointer_down {
                 pointer_released_after_open = true;
             }
@@ -794,7 +810,7 @@ fn start_menu_pointer_watcher(app: &AppHandle) {
                 let close_app = watcher_app.clone();
                 let _ = watcher_app.run_on_main_thread(move || {
                     // 关闭任务真正执行时再次核对代次，不能误关刚切换到的面板。
-                    if MENU_VISIBILITY_GENERATION.load(Ordering::SeqCst) == generation {
+                    if runtime.menu_visibility_generation.load(Ordering::SeqCst) == generation {
                         let _ = hide_menu(&close_app);
                     }
                 });
@@ -808,6 +824,7 @@ fn start_menu_pointer_watcher(app: &AppHandle) {
 fn start_menu_pointer_watcher(_app: &AppHandle) {}
 
 pub fn initialize(app: &AppHandle) -> Result<(), String> {
+    let runtime = app.window_state::<FloatingRuntime>();
     // 标签面板使用主窗口内部的子 WebView，网页和面板由同一个窗口托管。
     // 这样面板不会出现在任务栏或 Alt+Tab，也不再需要同步屏幕坐标和窗口焦点。
     tab_panel_webview(app)?;
@@ -821,7 +838,7 @@ pub fn initialize(app: &AppHandle) -> Result<(), String> {
     main.on_window_event(move |event| {
         // 根锚点随主窗口移动、缩放失效，六类面板统一收起；面板内输入获得焦点不走此分支。
         if matches!(event, WindowEvent::Moved(_) | WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. })
-            && MENU_REQUESTED_OPEN.load(Ordering::SeqCst) { let _ = hide_menu(&sync_app); }
+            && runtime.menu_requested_open.load(Ordering::SeqCst) { let _ = hide_menu(&sync_app); }
         // 窗口几何或焦点改变时，旧锚点不再有效，立即关闭只读提示。
         if matches!(event, WindowEvent::Focused(false) | WindowEvent::Moved(_) | WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. }) {
             let _ = close_browser_tab_tooltip(sync_app.clone());
@@ -845,10 +862,10 @@ pub fn initialize(app: &AppHandle) -> Result<(), String> {
         ) {
             return;
         }
-        if !TAB_PANEL_VISIBLE.load(Ordering::SeqCst) {
+        if !runtime.tab_panel_visible.load(Ordering::SeqCst) {
             return;
         }
-        let tab_store = sync_app.state::<TabPanelStore>();
+        let tab_store = sync_app.window_state::<TabPanelStore>();
         if let Ok(Some(state)) = read_tab_panel_state(&tab_store) {
             if let Some(panel) = sync_app.get_webview(TAB_PANEL_LABEL) {
                 let _ = sync_tab_panel_bounds(&panel, state.bounds);
@@ -864,26 +881,27 @@ fn present_tab_panel(
     payload: Value,
     bounds: FloatingWindowBounds,
 ) -> Result<(), String> {
-    TAB_PANEL_VISIBILITY_GENERATION.fetch_add(1, Ordering::SeqCst);
+    let runtime = app.window_state::<FloatingRuntime>();
+    runtime.tab_panel_visibility_generation.fetch_add(1, Ordering::SeqCst);
     let panel = tab_panel_webview(app)?;
     eprintln!(
         "[tab-panel] show x={} y={} width={} height={}",
         bounds.x, bounds.y, bounds.width, bounds.height
     );
     sync_tab_panel_bounds(&panel, bounds)?;
-    panel
-        .emit("sia://floating-tab-panel-state", payload)
+    panel.emit_to(tauri::EventTarget::webview(panel.label()), "sia://floating-tab-panel-state", payload)
         .map_err(|error| error.to_string())?;
     app.emit("sia://floating-tab-panel-visibility", true)
         .map_err(|error| error.to_string())?;
     panel.show().map_err(|error| error.to_string())?;
-    TAB_PANEL_VISIBLE.store(true, Ordering::SeqCst);
+    runtime.tab_panel_visible.store(true, Ordering::SeqCst);
     raise_tab_panel_webview(&panel)?;
     Ok(())
 }
 
 pub fn raise_tab_panel_if_visible(app: &AppHandle) {
-    if !TAB_PANEL_VISIBLE.load(Ordering::SeqCst) {
+    let runtime = app.window_state::<FloatingRuntime>();
+    if !runtime.tab_panel_visible.load(Ordering::SeqCst) {
         return;
     }
     if let Some(panel) = app.get_webview(TAB_PANEL_LABEL) {
@@ -894,12 +912,12 @@ pub fn raise_tab_panel_if_visible(app: &AppHandle) {
 #[tauri::command]
 pub async fn open_floating_tab_panel(
     app: AppHandle,
-    store: State<'_, TabPanelStore>,
+    store: WindowState<TabPanelStore>,
     payload: Value,
     bounds: FloatingWindowBounds,
 ) -> Result<(), String> {
     // IPC 可早于 setup 完成到达，异步等待可防止同线程重入 WebView 创建锁。
-    app.state::<crate::browser_startup::BrowserStartup>().wait().await?;
+    app.window_state::<crate::browser_startup::BrowserStartup>().wait().await?;
     {
         let mut state = store
             .0
@@ -927,7 +945,7 @@ pub async fn open_floating_tab_panel(
 #[tauri::command]
 pub fn update_floating_tab_panel(
     app: AppHandle,
-    store: State<'_, TabPanelStore>,
+    store: WindowState<TabPanelStore>,
     payload: Value,
 ) -> Result<(), String> {
     {
@@ -940,8 +958,7 @@ pub fn update_floating_tab_panel(
         }
     }
     if let Some(panel) = app.get_webview(TAB_PANEL_LABEL) {
-        panel
-            .emit("sia://floating-tab-panel-state", payload)
+        panel.emit_to(tauri::EventTarget::webview(panel.label()), "sia://floating-tab-panel-state", payload)
             .map_err(|error| error.to_string())?;
         raise_tab_panel_if_visible(&app);
     }
@@ -950,7 +967,7 @@ pub fn update_floating_tab_panel(
 
 #[tauri::command]
 pub fn get_floating_tab_panel_state(
-    store: State<'_, TabPanelStore>,
+    store: WindowState<TabPanelStore>,
 ) -> Result<Option<Value>, String> {
     read_tab_panel_state(&store).map(|state| state.map(|entry| entry.payload))
 }
@@ -964,7 +981,7 @@ pub fn close_floating_tab_panel(app: AppHandle) -> Result<(), String> {
 /// 指针移到未固定面板外时收起；固定面板保持显示，读取状态失败时返回错误。
 pub fn close_floating_tab_panel_if_pointer_outside(app: AppHandle) -> Result<(), String> {
     if keep_tab_panel_on_pointer_leave(
-        &app.state::<TabPanelStore>(),
+        &app.window_state::<TabPanelStore>(),
         cursor_inside_tab_panel(&app),
     )? {
         return Ok(());
@@ -975,7 +992,7 @@ pub fn close_floating_tab_panel_if_pointer_outside(app: AppHandle) -> Result<(),
 #[tauri::command]
 pub fn floating_tab_panel_action(
     app: AppHandle,
-    store: State<'_, TabPanelStore>,
+    store: WindowState<TabPanelStore>,
     action: FloatingWindowAction,
 ) -> Result<(), String> {
     eprintln!(
@@ -1000,8 +1017,7 @@ pub fn floating_tab_panel_action(
                 })
             };
             if let (Some(panel), Some(payload)) = (app.get_webview(TAB_PANEL_LABEL), next_payload) {
-                panel
-                    .emit("sia://floating-tab-panel-state", payload)
+                panel.emit_to(tauri::EventTarget::webview(panel.label()), "sia://floating-tab-panel-state", payload)
                     .map_err(|error| error.to_string())?;
             }
         }
@@ -1017,26 +1033,27 @@ pub fn show_menu(
     source_window: String,
     bounds: FloatingWindowBounds,
 ) -> Result<(), String> {
+    let runtime = app.window_state::<FloatingRuntime>();
     close_browser_tab_tooltip(app.clone())?;
     let current = read_menu_state(store)?.map(|state| state.payload).unwrap_or(Value::Null);
     if should_toggle_menu(menu_is_visible(app), &current, &payload) {
         return hide_menu(app);
     }
-    if source_window == TAB_PANEL_LABEL {
-        TAB_PANEL_MENU_HOLD.store(true, Ordering::SeqCst);
-        TAB_PANEL_VISIBILITY_GENERATION.fetch_add(1, Ordering::SeqCst);
-        if TAB_PANEL_VISIBLE.load(Ordering::SeqCst) {
+    if source_window == app.label(TAB_PANEL_LABEL) || source_window == TAB_PANEL_LABEL {
+        runtime.tab_panel_menu_hold.store(true, Ordering::SeqCst);
+        runtime.tab_panel_visibility_generation.fetch_add(1, Ordering::SeqCst);
+        if runtime.tab_panel_visible.load(Ordering::SeqCst) {
             app.emit("sia://floating-tab-panel-visibility", true)
                 .map_err(|error| error.to_string())?;
             raise_tab_panel_if_visible(app);
         }
     }
     let (source_window, bounds) = prepare_cascade_menu(app, &mut payload, source_window, bounds)?;
-    let revision = MENU_REGION_REVISION.fetch_add(1, Ordering::SeqCst) + 1;
+    let revision = runtime.menu_region_revision.fetch_add(1, Ordering::SeqCst) + 1;
     payload["hitRegionRevision"] = Value::from(revision);
-    MENU_REGION_SEQUENCE.store(0, Ordering::SeqCst);
-    MENU_VISIBILITY_GENERATION.fetch_add(1, Ordering::SeqCst);
-    MENU_REQUESTED_OPEN.store(true, Ordering::SeqCst);
+    runtime.menu_region_sequence.store(0, Ordering::SeqCst);
+    runtime.menu_visibility_generation.fetch_add(1, Ordering::SeqCst);
+    runtime.menu_requested_open.store(true, Ordering::SeqCst);
     {
         let mut state = store
             .0
@@ -1049,10 +1066,10 @@ pub fn show_menu(
     }
     if let Some(menu) = app.get_webview_window(MENU_LABEL) {
         show_and_sync_window(app, &menu, &source_window, menu_outer_bounds(bounds))?;
-        menu.emit("sia://browser-menu-state", &payload)
+        menu.emit_to(tauri::EventTarget::webview(menu.label()), "sia://browser-menu-state", &payload)
             .map_err(|error| error.to_string())?;
         // 切换到其他入口时也通知壳层，清除旧文件夹触发器的展开状态。
-        app.emit_to("main", "sia://browser-menu-visibility", serde_json::json!({ "visible": true, "panelKey": payload.get("panelKey") }))
+        app.emit( "sia://browser-menu-visibility", serde_json::json!({ "visible": true, "panelKey": payload.get("panelKey") }))
             .map_err(|error| error.to_string())?;
         return Ok(());
     }
@@ -1060,7 +1077,7 @@ pub fn show_menu(
     let create_app = app.clone();
     app.run_on_main_thread(move || {
         // 窗口首次创建排队期间可能已切换入口或关闭，旧显示请求不能重新打开面板。
-        if !MENU_REQUESTED_OPEN.load(Ordering::SeqCst) || MENU_REGION_REVISION.load(Ordering::SeqCst) != revision { return; }
+        if !runtime.menu_requested_open.load(Ordering::SeqCst) || runtime.menu_region_revision.load(Ordering::SeqCst) != revision { return; }
         let result: Result<(), String> = (|| {
             let menu = menu_window(&create_app)?;
             show_and_sync_window(
@@ -1069,9 +1086,9 @@ pub fn show_menu(
                 &source_window,
                 menu_outer_bounds(bounds),
             )?;
-            menu.emit("sia://browser-menu-state", &payload)
+            menu.emit_to(tauri::EventTarget::webview(menu.label()), "sia://browser-menu-state", &payload)
                 .map_err(|error| error.to_string())?;
-            create_app.emit_to("main", "sia://browser-menu-visibility", serde_json::json!({ "visible": true, "panelKey": payload.get("panelKey") }))
+            create_app.emit( "sia://browser-menu-visibility", serde_json::json!({ "visible": true, "panelKey": payload.get("panelKey") }))
                 .map_err(|error| error.to_string())?;
             Ok(())
         })();
@@ -1084,7 +1101,7 @@ pub fn show_menu(
 }
 
 #[tauri::command]
-pub fn get_browser_menu_state(store: State<'_, BrowserMenuStore>) -> Result<Option<Value>, String> {
+pub fn get_browser_menu_state(store: WindowState<BrowserMenuStore>) -> Result<Option<Value>, String> {
     read_menu_state(&store).map(|state| state.map(|entry| entry.payload))
 }
 

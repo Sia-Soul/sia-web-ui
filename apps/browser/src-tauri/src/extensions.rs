@@ -312,7 +312,7 @@ fn invalidate_browser_webviews(app: &AppHandle, changed: Option<(&BrowserExtensi
 
 /// 向独立扩展面板发送当前标签上下文，不改变面板的打开状态。
 #[tauri::command]
-pub fn update_browser_extension_context(app: AppHandle, extension_scope: ExtensionScope, heading: String) -> Result<(), String> {
+pub fn update_browser_extension_context(app: crate::window_context::BrowserContext, extension_scope: ExtensionScope, heading: String) -> Result<(), String> {
     app.emit("sia://extension-context-changed", serde_json::json!({ "extensionScope": extension_scope, "heading": heading })).map_err(|error| error.to_string())
 }
 

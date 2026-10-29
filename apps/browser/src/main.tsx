@@ -13,7 +13,7 @@ import "../src-tauri/src/browser_drop.js";
 
 async function resolveCurrentWindowLabel() {
   const globalLabel = window.__TAURI__?.window?.getCurrentWindow().label;
-  if (globalLabel) return globalLabel;
+  if (globalLabel) return globalLabel.split("--").at(-1)!;
   if (!window.__TAURI__) return "main";
   return window.__TAURI__.core.invoke<string>("current_window_label");
 }

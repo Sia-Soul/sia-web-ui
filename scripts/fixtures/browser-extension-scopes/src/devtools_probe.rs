@@ -1,6 +1,9 @@
 //! 真实 WebView2 回归：验证停靠父级、标签隐藏、解除停靠与关闭重开。
 #[path = "../../../../apps/browser/src-tauri/src/browser_devtools.rs"]
 mod browser_devtools;
+// 使用与产品相同的窗口状态容器，验证停靠会话的归属。
+#[path = "../../../../apps/browser/src-tauri/src/window_context.rs"]
+mod window_context;
 use tauri::{LogicalPosition, LogicalSize, WebviewBuilder, WebviewUrl, WebviewWindowBuilder};
 use windows::{
     core::BOOL,
@@ -130,7 +133,8 @@ fn assert_content_region(handle: isize, parent: isize, expected: [i32; 4]) -> Re
         Ok(())
     }
 }
-async fn probe(app: tauri::AppHandle) -> Result<(), String> {
+async fn probe(raw_app: tauri::AppHandle) -> Result<(), String> {
+    let app = window_context::BrowserContext::new(&raw_app, "main");
     // 使用真实 HTTP 文档校验 DevTools 的地址标题，不能只依赖 about:blank。
     let listener = std::net::TcpListener::bind("127.0.0.1:0").map_err(|e| e.to_string())?;
     let port = listener.local_addr().map_err(|e| e.to_string())?.port();
@@ -146,7 +150,7 @@ async fn probe(app: tauri::AppHandle) -> Result<(), String> {
     });
     let directory = std::env::temp_dir().join(format!("sia-devtools-probe-{}", std::process::id()));
     let host = WebviewWindowBuilder::new(
-        &app,
+        app.raw(),
         "main",
         WebviewUrl::External("about:blank".parse().unwrap()),
     )
@@ -176,7 +180,7 @@ async fn probe(app: tauri::AppHandle) -> Result<(), String> {
     tokio::time::sleep(std::time::Duration::from_millis(600)).await;
     // 在调用打开前启动采样，防止只检查最终停靠状态而漏掉中间独立窗口。
     let (send, receive) = tokio::sync::oneshot::channel();
-    tauri::Manager::get_webview(&app, &browser_label("one"))
+    tauri::Manager::get_webview(app.raw(), &browser_label("one"))
         .unwrap()
         .with_webview(move |view| unsafe {
             let mut pid = 0;
@@ -365,7 +369,7 @@ async fn probe(app: tauri::AppHandle) -> Result<(), String> {
     browser_devtools::control_browser_devtools(app.clone(), "one".into(), "close".into()).await?;
     for id in ["one", "two"] {
         // 显式销毁临时网页，让 Chromium 完成子窗口清理后再退出测试进程。
-        if let Some(view) = tauri::Manager::get_webview(&app, &browser_label(id)) {
+        if let Some(view) = tauri::Manager::get_webview(app.raw(), &browser_label(id)) {
             view.close().map_err(|e| e.to_string())?;
         }
     }
@@ -375,7 +379,7 @@ async fn probe(app: tauri::AppHandle) -> Result<(), String> {
 
 fn main() {
     tauri::Builder::default()
-        .manage(browser_devtools::DevtoolsStore::default())
+        .manage(window_context::WindowStates::default())
         .setup(|app| {
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {

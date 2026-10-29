@@ -1,3 +1,4 @@
+import { listenNative } from "../nativeEvents";
 import { extensionMatchesScope, type ExtensionScope } from "../extensionScopes";
 import { browserShortcut } from "../browserShortcuts";
 import { newestDownloadsFirst, nextDownloadStartedAt } from "../downloadOrder";
@@ -228,11 +229,11 @@ function BrowserMenuContent() {
     const retain = (cleanup: () => void) => { if (disposed) cleanup(); else cleanups.push(cleanup); };
     void (async () => {
       if (!window.__TAURI__) return;
-      retain(await window.__TAURI__.event.listen<BrowserMenuPayload>('sia://browser-menu-state', ({ payload: next }) => {
+      retain(await listenNative<BrowserMenuPayload>('sia://browser-menu-state', ({ payload: next }) => {
         receivedEvent = true;
         acceptPayload(next);
       }));
-      retain(await window.__TAURI__.event.listen<{ revision: number }>('sia://browser-menu-closed', ({ payload: closed }) => {
+      retain(await listenNative<{ revision: number }>('sia://browser-menu-closed', ({ payload: closed }) => {
         if (disposed || closed.revision < latestRevision) return;
         receivedEvent = true;
         latestRevision = closed.revision;
@@ -256,12 +257,13 @@ function BrowserMenuContent() {
     if (!window.__TAURI__) return;
     let disposed = false;
     let unlisten: (() => void) | undefined;
-    void window.__TAURI__.event.listen<BrowserPanelEntry & { fileName?: string; sourceUrl?: string }>(
+    void listenNative<BrowserPanelEntry & { fileName?: string; sourceUrl?: string }>(
       "sia://browser-download", ({ payload: task }) => {
         setPayload(current => {
           if (current?.kind !== "downloads") return current;
           const entries = current.entries ?? [];
           const previous = entries.find(entry => entry.id === task.id);
+          if (previous?.state === "finished" && task.state === "progress") return current;
           const next = { ...previous, ...task, title: task.fileName || previous?.title || "未命名下载", url: task.sourceUrl || previous?.url,
             startedAt: previous?.startedAt ?? task.startedAt ?? nextDownloadStartedAt(entries),
             // 原生事件早于自动打开面板时由主窗口传递时间；面板已开时只为首次出现的下载记录时间。
@@ -278,7 +280,7 @@ function BrowserMenuContent() {
     if (!window.__TAURI__) return;
     let disposed = false;
     let unlisten: (() => void) | undefined;
-    void window.__TAURI__.event.listen<Pick<BrowserMenuPayload, "extensionScope" | "heading">>("sia://extension-context-changed", ({ payload: context }) => {
+    void listenNative<Pick<BrowserMenuPayload, "extensionScope" | "heading">>("sia://extension-context-changed", ({ payload: context }) => {
       payloadRevision.current += 1;
       setExtensionBusy(false);
       setExtensionError("");

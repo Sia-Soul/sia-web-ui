@@ -4,7 +4,8 @@ use std::{
     collections::{HashMap, HashSet},
     sync::Mutex,
 };
-use tauri::{AppHandle, Manager};
+// 工具会话跟随浏览器窗口隔离，迁移后的页签使用新窗口的停靠空间。
+use crate::window_context::BrowserContext as AppHandle;
 
 #[cfg(windows)]
 #[path = "browser_devtools_capture.rs"]
@@ -498,7 +499,7 @@ fn title_matches_document(title: &str, source: &str) -> bool {
 
 /// 页面切换立即撤销旧标签的窗口发现，避免将后来通过其他标签“检查”打开的工具认领过来。
 pub fn cancel_pending_except(app: &AppHandle, label: Option<&str>) {
-    if let Ok(mut pending) = app.state::<DevtoolsStore>().pending.lock() {
+    if let Ok(mut pending) = app.window_state::<DevtoolsStore>().pending.lock() {
         pending.retain(|id| Some(crate::browser_label(id).as_str()) == label);
     }
 }
@@ -506,7 +507,7 @@ pub fn cancel_pending_except(app: &AppHandle, label: Option<&str>) {
 /// 已有未知窗口直接独立回退；仅在目标标签仍活动、且本次唯一新窗口出现时认领。
 #[tauri::command]
 pub async fn open_browser_devtools(app: AppHandle, tab_id: String) -> Result<bool, String> {
-    let store = app.state::<DevtoolsStore>();
+    let store = app.window_state::<DevtoolsStore>();
     let _operation = store.operations.lock().await;
     let view = app
         .get_webview(&crate::browser_label(&tab_id))
@@ -682,7 +683,7 @@ pub async fn layout_browser_devtools(
     }) {
         return Err("开发者工具区域无效".into());
     }
-    let store = app.state::<DevtoolsStore>();
+    let store = app.window_state::<DevtoolsStore>();
     let _mutation = store.mutations.lock().await;
     #[cfg(windows)]
     {
@@ -737,7 +738,7 @@ pub async fn control_browser_devtools(
     if action != "close" && action != "detach" {
         return Err("未知开发者工具操作".into());
     }
-    let store = app.state::<DevtoolsStore>();
+    let store = app.window_state::<DevtoolsStore>();
     if action == "close" {
         store
             .pending

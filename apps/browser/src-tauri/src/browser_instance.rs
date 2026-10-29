@@ -3,6 +3,14 @@
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, State};
 
+fn receiver_window(app: &AppHandle) -> Option<tauri::Window> {
+    app.get_window("main").or_else(|| {
+        let mut windows: Vec<_> = app.windows().into_iter().filter(|(label, _)| label.starts_with("sia-window-") && !label.contains("--")).collect();
+        windows.sort_by(|a,b|a.0.cmp(&b.0));
+        windows.into_iter().next().map(|(_, window)|window)
+    })
+}
+
 /// 每次外部打开都有独立编号，相同网址连续打开也保留为两次操作。
 #[derive(Clone, serde::Serialize)]
 pub struct OpenRequest {
@@ -43,10 +51,10 @@ pub fn forward(app: &AppHandle, args: Vec<String>, cwd: String) {
             if let Ok(mut pending) = app.state::<BrowserInstance>().0.lock() {
                 pending.push(url);
             }
-            let _ = app.emit_to("main", "sia://external-open-pending", ());
+            if let Some(window) = receiver_window(&app) { let _ = app.emit_to(tauri::EventTarget::webview(window.label()), "sia://external-open-pending", ()); }
         }
         // 即使再次点击快捷方式没有携带网址，也恢复并激活已有窗口。
-        if let Some(window) = app.get_window("main") {
+        if let Some(window) = receiver_window(&app) {
             let _ = window.unminimize();
             let _ = window.show();
             let _ = window.set_focus();
@@ -56,7 +64,8 @@ pub fn forward(app: &AppHandle, args: Vec<String>, cwd: String) {
 
 /// 界面完成会话恢复并注册通知后读取待办；读取本身不删除数据。
 #[tauri::command]
-pub fn pending_browser_opens(state: State<'_, BrowserInstance>) -> Result<Vec<OpenRequest>, String> {
+pub fn pending_browser_opens(app: crate::window_context::BrowserContext, state: State<'_, BrowserInstance>) -> Result<Vec<OpenRequest>, String> {
+    if !receiver_window(app.raw()).is_some_and(|window| window.label() == app.owner()) { return Ok(Vec::new()); }
     state.0.lock().map(|pending| pending.requests.clone()).map_err(|error| error.to_string())
 }
 
