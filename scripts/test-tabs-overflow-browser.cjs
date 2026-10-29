@@ -20,7 +20,8 @@ const { chromium } = require(require('node:path').join(process.argv[2], 'playwri
         ...extra,
       }));
     });
-    for (const type of ['line', 'card', 'pill', 'capsule', 'underline', 'tech', 'tech-line']) {
+    // 圆角矩形样式也必须复用相同的溢出与选择逻辑。
+    for (const type of ['line', 'card', 'pill', 'capsule', 'underline', 'rounded', 'tech', 'tech-line']) {
       await page.evaluate(type => window.renderTabs(type, 1450), type);
       const more = page.getByRole('button', { name: '更多选项卡' });
       await page.waitForTimeout(150);

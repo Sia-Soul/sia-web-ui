@@ -24,7 +24,7 @@ export interface TabItem {
 }
 
 /** 选项卡的类型标识。 */
-export type TabsType = "line" | "card" | "pill" | "capsule" | "underline" | "tech" | "tech-line";
+export type TabsType = "line" | "card" | "pill" | "capsule" | "underline" | "rounded" | "tech" | "tech-line";
 /** 选项卡沿水平方向或垂直方向排列。 */
 export type TabsOrientation = "horizontal" | "vertical";
 /** 选项卡导航相对于内容区的位置。 */
@@ -52,12 +52,14 @@ export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChang
   /** 是否等选中框动画结束后再切换 items[].children，等待期间保留旧面板。默认 false，立即切换；true 时未访问的目标面板在动画结束后首次挂载，连续切换跳过未显示的中间目标。面板是否保留由 destroyInactiveTabPane 决定，与是否延迟无关。不能延迟父组件已执行的同步计算或 onChange 中的渲染，请将外部重内容更新放到 onAfterChange。 */
   deferContent?: boolean;
   /**
-   * 标签样式：line 线型、card 卡片、pill 胶囊、capsule 圆角胶囊、underline 紧凑下划线、tech 科技型、tech-line 折线科技型。
+   * 标签样式：line 线型、card 卡片、pill 胶囊、capsule 圆角胶囊、underline 紧凑下划线、rounded 圆角矩形背景配短指示线、tech 科技型、tech-line 折线科技型。
    * @defaultValue "line"
    */
   type?: TabsType;
-  /** 选中指示器的切换动效：stretch 朝目标方向先拉长再收拢，slide 同步平移并调整尺寸。line、underline 默认 stretch，其余样式默认 slide；card、pill 无独立指示器，不受此项影响。stretch 时长 300ms，首次定位及系统减少动态效果时不播放；支持四个方向，连续切换从当前显示位置续接。 */
+  /** 选中指示器的切换动效：stretch 朝目标方向先拉长再收拢，slide 同步平移并调整尺寸。line、underline、rounded 默认 stretch，其余样式默认 slide；card、pill 无独立指示器，不受此项影响。stretch 时长 300ms，首次定位及系统减少动态效果时不播放；支持四个方向，连续切换从当前显示位置续接。 */
   indicatorMotion?: "slide" | "stretch";
+  /** 指示线位于标签的哪一侧，仅适用于 line、underline、rounded。横向标签可选 top / bottom，纵向标签可选 left / right；未指定或传入与排列方向不符的值时，默认朝向内容区（顶部标签为 bottom、底部为 top、左侧为 right、右侧为 left）。只移动指示线，不改变标签栏位置或分隔线；动态修改立即生效，并保留切换动效。 */
+  indicatorPosition?: TabsPosition;
   /**
    * 组件尺寸；用于调整控件高度、字号和间距。
    * @defaultValue "medium"
@@ -109,7 +111,8 @@ export function Tabs({
   onAfterChange,
   deferContent = false,
   type = "line",
-  indicatorMotion = type === "line" || type === "underline" ? "stretch" : "slide",
+  indicatorMotion = type === "line" || type === "underline" || type === "rounded" ? "stretch" : "slide",
+  indicatorPosition,
   size = "medium",
   tabPosition,
   orientation = "horizontal",
@@ -133,8 +136,12 @@ export function Tabs({
   const enabledItems = useMemo(() => items.filter((item) => !item.disabled), [items]);
   const resolvedPosition = tabPosition ?? (orientation === "vertical" ? "left" : "top");
   const resolvedOrientation: TabsOrientation = resolvedPosition === "left" || resolvedPosition === "right" ? "vertical" : "horizontal";
+  // 指示线只在排列方向的两侧切换，方向不匹配时沿用面向内容的默认位置。
+  const defaultIndicatorPosition = ({ top: "bottom", bottom: "top", left: "right", right: "left" } as const)[resolvedPosition];
+  const resolvedIndicatorPosition = indicatorPosition && (resolvedOrientation === "vertical" ? ["left", "right"] : ["top", "bottom"]).includes(indicatorPosition)
+    ? indicatorPosition : defaultIndicatorPosition;
 
-  const sliding = ["capsule", "line", "underline", "tech", "tech-line"].includes(type);
+  const sliding = ["capsule", "line", "underline", "rounded", "tech", "tech-line"].includes(type);
   const listRef = useRef<HTMLDivElement>(null);
   const indicatorRef = useRef<HTMLSpanElement>(null);
   // 保存实际定位目标，ResizeObserver 的重复通知不能重启正在播放的动画。
@@ -198,7 +205,12 @@ export function Tabs({
         return;
       }
       const listRect = list.getBoundingClientRect();
-      const rect = active.getBoundingClientRect();
+      const tabRect = active.getBoundingClientRect();
+      // 圆角矩形背景留在选中标签上，独立短线按实际尺寸定位，拉伸时才能连贯延长。
+      const vertical = resolvedOrientation === "vertical";
+      const width = type === "rounded" && !vertical ? Math.min(24, tabRect.width) : tabRect.width;
+      const height = type === "rounded" && vertical ? Math.min(16, tabRect.height) : tabRect.height;
+      const rect = { left: tabRect.left + (tabRect.width - width) / 2, top: tabRect.top + (tabRect.height - height) / 2, width, height };
       const x = rect.left - listRect.left - list.clientLeft + list.scrollLeft;
       const y = rect.top - listRect.top - list.clientTop + list.scrollTop;
       const previous = indicatorTargetRef.current;
@@ -222,7 +234,6 @@ export function Tabs({
         && previous.position === resolvedPosition && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         const fromX = current.left - listRect.left - list.clientLeft + list.scrollLeft;
         const fromY = current.top - listRect.top - list.clientTop + list.scrollTop;
-        const vertical = resolvedOrientation === "vertical";
         // 中间帧覆盖起点和终点：前端先到目标，随后尾端收拢；横纵方向共用同一规则。
         const start = vertical ? Math.min(fromY, y) : Math.min(fromX, x);
         const end = vertical ? Math.max(fromY + current.height, y + rect.height) : Math.max(fromX + current.width, x + rect.width);
@@ -324,7 +335,7 @@ export function Tabs({
           </svg>
         ) : null}</div> : null}
         <div ref={listRef} style={resolvedOrientation === "horizontal" && overflow.width ? { width: overflow.width } : undefined} className={`sia-tabs__list${sliding ? " sia-tabs__list--sliding" : ""}`} role="tablist" aria-orientation={resolvedOrientation}>
-          {sliding ? <span key={`${type}-${indicatorMotion}`} ref={indicatorRef} className={`sia-tabs__indicator${indicatorMotion === "stretch" ? " sia-tabs__indicator--stretch" : ""}${type === "capsule" ? " sia-tabs__capsule-indicator" : ""}`} aria-hidden="true">
+          {sliding ? <span key={`${type}-${indicatorMotion}`} ref={indicatorRef} data-indicator-position={resolvedIndicatorPosition} className={`sia-tabs__indicator${indicatorMotion === "stretch" ? " sia-tabs__indicator--stretch" : ""}${type === "capsule" ? " sia-tabs__capsule-indicator" : ""}`} aria-hidden="true">
             {type === "tech-line" ? (                    <span className="sia-tabs__indicator-shape" aria-hidden="true" />) : null}
           </span> : null}
           {items.map((item, index) => {

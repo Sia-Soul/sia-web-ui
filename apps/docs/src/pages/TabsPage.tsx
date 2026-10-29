@@ -183,8 +183,9 @@ const apiRows = [
   { property: "onChange", description: "激活项变化回调", type: "(key: string) => void", defaultValue: "-" },
   { property: "deferContent", description: "动画结束后切换面板，等待期间保留旧内容；未访问的目标面板在动画结束后首次挂载，连续切换跳过未显示的中间目标；不改变是否保留面板", type: "boolean", defaultValue: "false" },
   { property: "onAfterChange", description: "动画结束后通知最终目标，可用于更新外部表格或路由；首次渲染不触发，连续切换取消中间任务", type: "(key: string) => void", defaultValue: "-" },
-  { property: "type", description: "线型、卡片型、胶囊型、圆角胶囊、紧凑下划线或科技样式", type: "'line' | 'card' | 'pill' | 'capsule' | 'underline' | 'tech' | 'tech-line'", defaultValue: "'line'" },
-  { property: "indicatorMotion", description: "stretch 朝目标先拉长再收拢（300ms），slide 平移；支持四个方向及连续切换，减少动态效果时直接定位。card、pill 无独立指示器", type: "'slide' | 'stretch'", defaultValue: "line / underline 为 stretch，其余为 slide" },
+  { property: "type", description: "线型、卡片型、胶囊型、圆角胶囊、紧凑下划线、圆角矩形配短指示线或科技样式", type: "'line' | 'card' | 'pill' | 'capsule' | 'underline' | 'rounded' | 'tech' | 'tech-line'", defaultValue: "'line'" },
+  { property: "indicatorMotion", description: "stretch 朝目标先拉长再收拢（300ms），slide 平移；支持四个方向及连续切换，减少动态效果时直接定位。card、pill 无独立指示器", type: "'slide' | 'stretch'", defaultValue: "line / underline / rounded 为 stretch，其余为 slide" },
+  { property: "indicatorPosition", description: "指示线侧边，仅适用于 line / underline / rounded；横向支持 top / bottom，纵向支持 left / right。不匹配时回退默认，不移动分隔线", type: "'top' | 'bottom' | 'left' | 'right'", defaultValue: "朝向内容区" },
   { property: "tabPosition", description: "标签栏位于内容的上、右、下或左侧", type: "'top' | 'right' | 'bottom' | 'left'", defaultValue: "'top'" },
   { property: "orientation", description: "兼容旧版横向、纵向排列，推荐使用 tabPosition", type: "'horizontal' | 'vertical'", defaultValue: "'horizontal'" },
   { property: "size / centered", description: "尺寸与居中排列", type: "ControlSize / boolean", defaultValue: "'medium' / false" },
@@ -251,6 +252,18 @@ export function TabsPage() {
       </DemoCard>
       <DemoCard title="保留平移动效" description="显式指定 slide，可继续使用平移并同步调整尺寸的动效。" code={'<Tabs indicatorMotion="slide" items={items} />'}>
         <Tabs indicatorMotion="slide" items={basicItems} />
+      </DemoCard>
+      {/* 标签栏位置和指示线位置独立设置，覆盖横向与纵向的两侧。 */}
+      <DemoCard title="指示线位置" description="左侧标签默认把线画在右边，设置 indicatorPosition=left 可移到左边；顶部标签可在上、下两侧选择，保留原有拉伸动画。" code={'<Tabs tabPosition="left" indicatorPosition="left" items={items} />\n<Tabs tabPosition="left" indicatorPosition="right" items={items} />\n<Tabs indicatorPosition="top" items={items} />\n<Tabs indicatorPosition="bottom" items={items} />'}>
+        <Tabs tabPosition="left" indicatorPosition="left" items={basicItems} />
+        <Tabs tabPosition="left" indicatorPosition="right" items={basicItems} />
+        <Tabs indicatorPosition="top" items={basicItems} />
+        <Tabs indicatorPosition="bottom" items={basicItems} />
+      </DemoCard>
+      {/* 圆角矩形选中背景配居中短线，复现侧栏导航，也适用于顶部标签。 */}
+      <DemoCard title="圆角矩形导航" description="选中项显示圆角矩形背景和短指示线，支持图标、亮暗主题、键盘与拉伸切换。左侧布局可将短线放到左边，顶部布局可放在上边。" code={'<Tabs type="rounded" tabPosition="left" indicatorPosition="left" items={items} />\n<Tabs type="rounded" indicatorPosition="top" items={items} />'}>
+        <Tabs type="rounded" tabPosition="left" indicatorPosition="left" items={basicItems} />
+        <Tabs type="rounded" indicatorPosition="top" items={basicItems} />
       </DemoCard>
       <DemoCard title="首次访问挂载并保留状态" description="默认只挂载当前面板，其他面板首次访问时才挂载。输入备注后切换标签再回来，输入状态仍保留，挂载时的初始化请求不会因切回而重复执行。保留挂载不阻止 props、state 或 Context 更新；标签 key 与内容组件类型需保持稳定。" code={`// 默认按需挂载并保留内容，无需额外配置。
 <Tabs items={items} />

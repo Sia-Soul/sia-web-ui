@@ -18,7 +18,11 @@ Table 单元格选区在滚动后保留；正文选区描边位于吸顶表头�
 
 Tabs 设置确定高度（或由父级弹性布局分配高度）后，内容面板占满标签栏之外的剩余空间；未限定高度时仍随内容自然撑开。面板内的列表可采用纵向 Flex、查询区、`flex: 1; min-height: 0` 表格容器和 `Table height="100%"`，使空表分页保持在容器底部。上下左右页签、嵌套页签及保留隐藏面板均沿用此规则，不需要业务覆盖内部 CSS。
 
-Tabs 的 `indicatorMotion` 可设置为 `stretch`（先朝目标拉长再收拢，300ms）或 `slide`（平移并同步调整尺寸）。`line`、`underline` 默认拉伸，其余样式默认平移；`card`、`pill` 没有独立指示器，不受此项影响。支持上下左右布局、长短标签、受控及键盘切换，快速反向切换从当前可见位置继续；首次定位、布局变化及系统减少动态效果时直接定位。`deferContent` 和 `onAfterChange` 等待真实动画结束，连续切换只完成最终目标。
+Tabs 的 `indicatorMotion` 可设置为 `stretch`（先朝目标拉长再收拢，300ms）或 `slide`（平移并同步调整尺寸）。`line`、`underline`、`rounded` 默认拉伸，其余样式默认平移；`card`、`pill` 没有独立指示器，不受此项影响。支持上下左右布局、长短标签、受控及键盘切换，快速反向切换从当前可见位置继续；首次定位、布局变化及系统减少动态效果时直接定位。`deferContent` 和 `onAfterChange` 等待真实动画结束，连续切换只完成最终目标。
+
+Tabs 的 `indicatorPosition` 控制 `line`、`underline`、`rounded` 的指示线侧边：横向可用 `top` / `bottom`，纵向可用 `left` / `right`。未指定或与排列方向不匹配时，沿用面向内容区的默认位置（顶部为下边、底部为上边、左侧为右边、右侧为左边）。例如 `<Tabs tabPosition="left" indicatorPosition="left" items={items} />` 将左侧标签的蓝线移到左边，不移动标签栏或分隔线。
+
+`type="rounded"` 使用 8px 圆角的选中背景和居中短指示线：纵向静止长度 16px，横向 24px，线条向标签内部缩进 4px。切换时短线仍可拉伸，选中背景按主题颜色过渡；与图标、禁用、关闭、更多菜单、受控状态及延迟内容切换组合使用。`<Tabs type="rounded" tabPosition="left" indicatorPosition="left" items={items} />` 可呈现左侧短线的圆角矩形导航。
 
 Tabs 的 `destroyInactiveTabPane` 默认为 `false`：初次只挂载当前面板，其他面板首次访问时才挂载；切走后隐藏并保留组件状态，切回时不重新挂载，避免由重复挂载引起的初始化请求和状态重置。此行为不依赖 `deferContent`。保留挂载不阻止 props、state 或 Context 更新，也不会暂停隐藏组件的副作用；标签 key 和内容组件类型需保持稳定。从 `items` 移除标签或卸载 Tabs 时释放对应内容，同键标签重新添加后仍按首次访问挂载。仅管理 `items[].children`，Tabs 外部路由和内容的缓存由业务负责。
 
