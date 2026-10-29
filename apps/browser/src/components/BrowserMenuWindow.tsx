@@ -4,8 +4,8 @@ import { extensionMatchesScope, type ExtensionScope } from "../extensionScopes";
 import { browserShortcut } from "../browserShortcuts";
 import { newestDownloadsFirst, nextDownloadStartedAt } from "../downloadOrder";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Icon, Input, Menu, Progress, Tree } from "@sia.soul/sia-react-ui";
-import type { MenuItem, TreeNode } from "@sia.soul/sia-react-ui";
+import { Button, Icon, Input, Menu, Progress, Tag, Tree } from "@sia.soul/sia-react-ui";
+import type { MenuItem, TagStatus, TreeNode } from "@sia.soul/sia-react-ui";
 import type { BrowserExtensionRecord } from "./BrowserSettingsPage";
 import BrowserFavicon from "./BrowserFavicon";
 import BrowserFloatingHost, { BrowserFloatingSubmenu, type BrowserFloatingAnchor } from "./BrowserFloatingHost";
@@ -513,17 +513,19 @@ function BrowserMenuContent() {
             const progress = entry.totalBytes && entry.totalBytes > 0
               ? Math.max(0, Math.min(100, Math.round((entry.receivedBytes ?? 0) / entry.totalBytes * 100)))
               : undefined;
-            const status = entry.cancelled ? "已取消" : entry.paused ? `已暂停 · ${formatBytes(entry.receivedBytes)} · 0 B/s` : entry.state === "waiting"
-              ? "执行什么操作？"
-              : entry.fileDeleted
-              ? "文件已删除"
-              : entry.unsafe
-                ? "已标记为不安全"
-                : entry.state === "finished"
-              ? (entry.success === false ? "下载失败" : "已完成")
-              : progress === undefined
-                ? `已下载 ${formatBytes(entry.receivedBytes)}`
-                : `${progress}% · ${formatBytes(entry.receivedBytes)} / ${formatBytes(entry.totalBytes)}`;
+            // 各生命周期状态使用小尺寸语义标签，进度和速率作为独立信息保留。
+            const status = entry.cancelled ? "已取消" : entry.paused ? "已暂停"
+              : entry.state === "waiting" ? "准备下载" : entry.fileDeleted ? "文件已删除"
+              : entry.unsafe ? "已标记为不安全" : entry.state === "finished"
+              ? (entry.success === false ? "下载失败" : "已完成") : "正在下载";
+            const statusTone: TagStatus = entry.cancelled ? "default" : entry.paused ? "warning"
+              : entry.fileDeleted ? "warning" : entry.unsafe || (entry.state === "finished" && entry.success === false) ? "error"
+              : entry.state === "finished" ? "success" : "processing";
+            const details = entry.cancelled || entry.fileDeleted || entry.unsafe || entry.state === "finished" ? undefined
+              : entry.paused ? `${formatBytes(entry.receivedBytes)} · 0 B/s`
+              : entry.state === "waiting" ? "执行什么操作？"
+              : progress === undefined ? `已下载 ${formatBytes(entry.receivedBytes)}`
+              : `${progress}% · ${formatBytes(entry.receivedBytes)} / ${formatBytes(entry.totalBytes)}`;
             return (
               <article
                 className={`browser-download-entry${entry.state === "waiting" ? " is-waiting" : ""}`}
@@ -548,8 +550,9 @@ function BrowserMenuContent() {
                   </strong>
                   {/* 完成项将状态与操作并排，保持两行紧凑布局。 */}
                   {!(entry.state === "finished" && entry.success !== false && entry.filePath && !entry.fileDeleted && !entry.unsafe) ? (
-                    <span className={(!entry.cancelled && entry.success === false) || entry.unsafe || entry.fileDeleted ? "is-error" : ""}>
-                      {status}{inProgress && !entry.paused ? <DownloadSpeed receivedBytes={entry.receivedBytes} /> : null}
+                    <span className="browser-download-entry__status">
+                      <Tag size="small" status={statusTone}>{status}</Tag>
+                      {details ? <span>{details}{inProgress && !entry.paused ? <DownloadSpeed receivedBytes={entry.receivedBytes} /> : null}</span> : null}
                     </span>
                   ) : null}
                   {entry.state === "waiting" && !entry.paused ? (
@@ -576,7 +579,8 @@ function BrowserMenuContent() {
                   ) : null}
                   {entry.state === "finished" && entry.success !== false && entry.filePath && !entry.fileDeleted ? (
                     <div className="browser-download-entry__completed">
-                    {!entry.unsafe ? <span>已完成</span> : null}
+                    {/* 使用紧凑成功标签，与打开文件入口在同一行对齐。 */}
+                    {!entry.unsafe ? <Tag size="small" status="success">已完成</Tag> : null}
                     <Button
                       className="browser-download-entry__open"
                       variant="text"

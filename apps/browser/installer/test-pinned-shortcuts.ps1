@@ -5,7 +5,7 @@ $installed = Join-Path $testRoot '安装目录'
 $pins = Join-Path $testRoot '模拟任务栏'
 New-Item -ItemType Directory -Path $installed,$pins | Out-Null
 [IO.File]::WriteAllBytes((Join-Path $installed 'sia-browser.exe'), [byte[]]@(0))
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../src-tauri/icons/icon.ico') -Destination (Join-Path $installed 'app-sia-swift-05.ico')
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../src-tauri/icons/icon.ico') -Destination (Join-Path $installed 'app-sia-demon-eyes-mouth.ico')
 $shell = New-Object -ComObject WScript.Shell
 $cases = @(
     @{ Name='Sia 浏览器'; Target='C:\Program Files\sia-browser\Sia浏览器.exe'; Update=$true },
@@ -28,7 +28,7 @@ foreach ($case in $cases) {
         $link = $shell.CreateShortcut((Join-Path $pins ($case.Name + '.lnk')))
         $expected = if ($case.Update) { Join-Path $installed 'sia-browser.exe' } else { $case.Target }
         if ($link.TargetPath -ne $expected) { throw "目标错误：$($case.Name)" }
-        $expectedIcon = if ($case.Update) { (Join-Path $installed 'app-sia-swift-05.ico') + ',0' } else { 'C:\old\app.ico,0' }
+        $expectedIcon = if ($case.Update) { (Join-Path $installed 'app-sia-demon-eyes-mouth.ico') + ',0' } else { 'C:\old\app.ico,0' }
         if ($link.IconLocation -ne $expectedIcon) { throw "图标错误：$($case.Name)" }
         if ($link.Arguments -ne '--keep-user-argument') { throw '迁移丢失用户参数' }
     }

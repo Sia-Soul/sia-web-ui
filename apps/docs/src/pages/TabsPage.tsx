@@ -184,6 +184,7 @@ const apiRows = [
   { property: "deferContent", description: "动画结束后切换面板，等待期间保留旧内容；未访问的目标面板在动画结束后首次挂载，连续切换跳过未显示的中间目标；不改变是否保留面板", type: "boolean", defaultValue: "false" },
   { property: "onAfterChange", description: "动画结束后通知最终目标，可用于更新外部表格或路由；首次渲染不触发，连续切换取消中间任务", type: "(key: string) => void", defaultValue: "-" },
   { property: "type", description: "线型、卡片型、胶囊型、圆角胶囊、紧凑下划线或科技样式", type: "'line' | 'card' | 'pill' | 'capsule' | 'underline' | 'tech' | 'tech-line'", defaultValue: "'line'" },
+  { property: "indicatorMotion", description: "stretch 朝目标先拉长再收拢（300ms），slide 平移；支持四个方向及连续切换，减少动态效果时直接定位。card、pill 无独立指示器", type: "'slide' | 'stretch'", defaultValue: "line / underline 为 stretch，其余为 slide" },
   { property: "tabPosition", description: "标签栏位于内容的上、右、下或左侧", type: "'top' | 'right' | 'bottom' | 'left'", defaultValue: "'top'" },
   { property: "orientation", description: "兼容旧版横向、纵向排列，推荐使用 tabPosition", type: "'horizontal' | 'vertical'", defaultValue: "'horizontal'" },
   { property: "size / centered", description: "尺寸与居中排列", type: "ControlSize / boolean", defaultValue: "'medium' / false" },
@@ -240,8 +241,16 @@ export function TabsPage() {
     <PageHeader eyebrow="组件 / 导航 / Tabs" title="Tabs 标签页" description="在同一层级的内容分组之间切换，支持完整键盘与无障碍语义。" />
     <DocsTabs activeKey={tab} onChange={setTab} />
     {tab === "examples" ? <div className="demo-stack">
-      <DemoCard title="基础用法" description="底部指示条随选中项平滑滑动；使用方向键切换标签，Home 和 End 可快速跳转首尾。" code={basicCode}>
+      <DemoCard title="基础用法" description="底部指示条朝目标先拉长再收拢；使用方向键切换标签，Home 和 End 可快速跳转首尾。" code={basicCode}>
         <Tabs items={basicItems} defaultActiveKey="overview" />
+      </DemoCard>
+      {/* 展示与侧栏导航相同的拉伸效果，以及显式保留平移动效的配置。 */}
+      <DemoCard title="指示条拉伸切换" description="顶部沿水平方向拉伸，左侧沿垂直方向拉伸。点击较远的标签可观察先延伸再收拢；快速反向切换会从当前动画位置继续，line / underline 默认启用。" code={'<Tabs tabPosition="top" indicatorMotion="stretch" items={items} />\n<Tabs tabPosition="left" indicatorMotion="stretch" items={items} />'}>
+        <Tabs tabPosition="top" indicatorMotion="stretch" items={basicItems} />
+        <Tabs tabPosition="left" indicatorMotion="stretch" items={basicItems} />
+      </DemoCard>
+      <DemoCard title="保留平移动效" description="显式指定 slide，可继续使用平移并同步调整尺寸的动效。" code={'<Tabs indicatorMotion="slide" items={items} />'}>
+        <Tabs indicatorMotion="slide" items={basicItems} />
       </DemoCard>
       <DemoCard title="首次访问挂载并保留状态" description="默认只挂载当前面板，其他面板首次访问时才挂载。输入备注后切换标签再回来，输入状态仍保留，挂载时的初始化请求不会因切回而重复执行。保留挂载不阻止 props、state 或 Context 更新；标签 key 与内容组件类型需保持稳定。" code={`// 默认按需挂载并保留内容，无需额外配置。
 <Tabs items={items} />

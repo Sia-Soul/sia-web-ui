@@ -1063,6 +1063,8 @@
 .sia-tabs__indicator[data-ready="true"] { transition: transform 180ms ease, width 180ms ease, height 180ms ease; }
 /* 选中框以 180ms 同步完成位移与尺寸变化，伸缩贯穿整个移动过程。 */
 .sia-tabs--tech-line > .sia-tabs__header .sia-tabs__indicator[data-ready="true"] { transition: transform 180ms cubic-bezier(.4, 0, .2, 1), width 180ms cubic-bezier(.4, 0, .2, 1), height 180ms cubic-bezier(.4, 0, .2, 1); }
+/* 拉伸动效由真实几何关键帧驱动，禁用叠加的 CSS 过渡以保证快速切换时位置连续。 */
+.sia-tabs > .sia-tabs__header .sia-tabs__indicator--stretch[data-ready="true"] { transition: none; }
 .sia-tabs--line > .sia-tabs__header .sia-tabs__tab[aria-selected="true"]::after { display: none; }
 .sia-tabs--line > .sia-tabs__header .sia-tabs__indicator::after { position: absolute; content: ""; background: var(--sia-tabs-accent, var(--sia-color-primary)); }
 .sia-tabs--line.sia-tabs--top > .sia-tabs__header .sia-tabs__indicator::after { bottom: -1px; left: 0; right: 0; height: 2px; border-radius: 2px 2px 0 0; }

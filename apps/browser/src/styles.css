@@ -3052,3 +3052,7 @@ input {
 
 /* 完成状态与打开入口共用第二行，保持下载列表的紧凑高度。 */
 .browser-download-entry__completed { display: flex; align-items: center; gap: 8px; }
+
+/* 状态标签与下载指标对齐，窄面板允许指标换行，避免遮住操作按钮。 */
+.browser-download-entry__status { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 6px; }
+.browser-download-entry__status > .sia-tag { flex-shrink: 0; }

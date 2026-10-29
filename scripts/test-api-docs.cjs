@@ -186,6 +186,8 @@ declare const tabsProps: TabsProps;
 tabsProps.deferContent;
 tabsProps.destroyInactiveTabPane;
 tabsProps.contentGap;
+// 动效选项的默认范围与时长必须出现在发布后的编辑器提示中。
+tabsProps.indicatorMotion;
 tabsProps.onAfterChange;
 const tagSize: CoreTagSize = 'large';
 const tagVariant: CoreTagVariant = 'outlined';
@@ -280,6 +282,7 @@ cases.push(['recursive', '子文件夹'], ['pastable', '粘贴'], ['autoUpload',
 cases.push(['tagProps.color', 'CSS 颜色'], ['tagProps.variant', '边框'], ['tagProps.closeOnHover', '向右扩展'], ['tagProps.size', '继承 Form']);
 cases.push(['checkboxGroupProps.columns', '等宽网格'], ['checkboxGroupProps.direction', '纵向单列'], ['checkboxGroupProps.gap', '行间距']);
 cases.push(['tabsProps.contentGap', '仅影响当前 Tabs'], ['tabsProps.deferContent', '保留旧面板'], ['tabsProps.onAfterChange', '连续切换']);
+cases.push(['tabsProps.indicatorMotion', '先拉长再收拢'], ['tabsProps.indicatorMotion', '300ms']);
 // 默认保留、首次挂载与显式销毁的区别必须随发布声明出现在悬停正文中。
 cases.push(['tabsProps.destroyInactiveTabPane', '默认 false'], ['tabsProps.destroyInactiveTabPane', '首次激活时挂载'], ['tabsProps.destroyInactiveTabPane', 'true 时切走后卸载']);
 cases.push(['uploadProps.downloadRequest', 'Blob'], ['uploadActions.download', '不打开新标签页']);

@@ -56,6 +56,8 @@ export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChang
    * @defaultValue "line"
    */
   type?: TabsType;
+  /** 选中指示器的切换动效：stretch 朝目标方向先拉长再收拢，slide 同步平移并调整尺寸。line、underline 默认 stretch，其余样式默认 slide；card、pill 无独立指示器，不受此项影响。stretch 时长 300ms，首次定位及系统减少动态效果时不播放；支持四个方向，连续切换从当前显示位置续接。 */
+  indicatorMotion?: "slide" | "stretch";
   /**
    * 组件尺寸；用于调整控件高度、字号和间距。
    * @defaultValue "medium"
@@ -107,6 +109,7 @@ export function Tabs({
   onAfterChange,
   deferContent = false,
   type = "line",
+  indicatorMotion = type === "line" || type === "underline" ? "stretch" : "slide",
   size = "medium",
   tabPosition,
   orientation = "horizontal",
@@ -134,6 +137,8 @@ export function Tabs({
   const sliding = ["capsule", "line", "underline", "tech", "tech-line"].includes(type);
   const listRef = useRef<HTMLDivElement>(null);
   const indicatorRef = useRef<HTMLSpanElement>(null);
+  // 保存实际定位目标，ResizeObserver 的重复通知不能重启正在播放的动画。
+  const indicatorTargetRef = useRef<{ node: HTMLSpanElement; key: string; position: TabsPosition; x: number; y: number; width: number; height: number }>();
   const moreRef = useRef<HTMLButtonElement>(null);
   const [overflow, setOverflow] = useState({ count: items.length, width: 0 });
   const [moreOpen, setMoreOpen] = useState(false);
@@ -186,11 +191,25 @@ export function Tabs({
     function updateIndicator() {
       if (!list || !indicator) return;
       const active = list.querySelector<HTMLButtonElement>('[role="tab"][aria-selected="true"]');
-      if (!active || active.closest('[data-tab-hidden="true"]')) { indicator.style.visibility = "hidden"; return; }
+      if (!active || active.closest('[data-tab-hidden="true"]')) {
+        indicator.getAnimations().forEach(animation => animation.cancel());
+        indicator.style.visibility = "hidden";
+        indicatorTargetRef.current = undefined;
+        return;
+      }
       const listRect = list.getBoundingClientRect();
       const rect = active.getBoundingClientRect();
-      const currentRect = active.getBoundingClientRect();
-      indicator.style.transform = `translate(${currentRect.left - listRect.left - list.clientLeft + list.scrollLeft}px, ${currentRect.top - listRect.top - list.clientTop + list.scrollTop}px)`;
+      const x = rect.left - listRect.left - list.clientLeft + list.scrollLeft;
+      const y = rect.top - listRect.top - list.clientTop + list.scrollTop;
+      const previous = indicatorTargetRef.current;
+      const sameTarget = previous?.node === indicator && previous.key === selectedKey && previous.position === resolvedPosition
+        && Math.abs(previous.x - x) < .5 && Math.abs(previous.y - y) < .5
+        && Math.abs(previous.width - rect.width) < .5 && Math.abs(previous.height - rect.height) < .5;
+      if (indicatorMotion === "stretch" && sameTarget) return;
+      // 先读取动画中的可见位置，再取消旧动画，连续反向切换也不会跳回旧标签。
+      const current = indicator.getBoundingClientRect();
+      if (indicatorMotion === "stretch") indicator.getAnimations().forEach(animation => animation.cancel());
+      indicator.style.transform = `translate(${x}px, ${y}px)`;
       indicator.style.width = `${rect.width}px`;
       indicator.style.height = `${rect.height}px`;
       indicator.style.visibility = "visible";
@@ -199,13 +218,32 @@ export function Tabs({
         indicator.getBoundingClientRect();
         indicator.dataset.ready = "true";
       }
+      if (indicatorMotion === "stretch" && previous?.node === indicator && previous.key !== selectedKey
+        && previous.position === resolvedPosition && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        const fromX = current.left - listRect.left - list.clientLeft + list.scrollLeft;
+        const fromY = current.top - listRect.top - list.clientTop + list.scrollTop;
+        const vertical = resolvedOrientation === "vertical";
+        // 中间帧覆盖起点和终点：前端先到目标，随后尾端收拢；横纵方向共用同一规则。
+        const start = vertical ? Math.min(fromY, y) : Math.min(fromX, x);
+        const end = vertical ? Math.max(fromY + current.height, y + rect.height) : Math.max(fromX + current.width, x + rect.width);
+        indicator.animate([
+          { transform: `translate(${fromX}px, ${fromY}px)`, width: `${current.width}px`, height: `${current.height}px`, offset: 0 },
+          { transform: `translate(${vertical ? x : start}px, ${vertical ? start : y}px)`, width: `${vertical ? rect.width : end - start}px`, height: `${vertical ? end - start : rect.height}px`, offset: .45 },
+          { transform: `translate(${x}px, ${y}px)`, width: `${rect.width}px`, height: `${rect.height}px`, offset: 1 },
+        ], { duration: 300, easing: "cubic-bezier(.4, 0, .2, 1)" });
+      }
+      indicatorTargetRef.current = { node: indicator, key: selectedKey, position: resolvedPosition, x, y, width: rect.width, height: rect.height };
     }
     updateIndicator();
     const observer = new ResizeObserver(updateIndicator);
     observer.observe(list);
     list.querySelectorAll('[role="tab"]').forEach(tab => observer.observe(tab));
-    return () => observer.disconnect();
-  }, [sliding, type, selectedKey, items, size, resolvedPosition, centered, closable, visibleCount]);
+    // 系统在播放期间切换为减少动态效果时，立即落到已写入的最终位置。
+    const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const stopMotion = () => { if (motionPreference.matches) indicator.getAnimations().forEach(animation => animation.cancel()); };
+    motionPreference.addEventListener("change", stopMotion);
+    return () => { observer.disconnect(); motionPreference.removeEventListener("change", stopMotion); };
+  }, [sliding, type, selectedKey, items, size, resolvedPosition, centered, closable, visibleCount, indicatorMotion]);
 
   useEffect(() => {
     let cancelled = false;
@@ -230,7 +268,7 @@ export function Tabs({
       });
     });
     return () => { cancelled = true; cancelAnimationFrame(frame); };
-  }, [selectedKey, type, deferContent]);
+  }, [selectedKey, type, deferContent, indicatorMotion]);
 
   // 延迟目标被删除时立即回退到有效选中项，避免等待期间出现没有可见内容的空面板。
   const contentKey = deferContent && items.some(item => item.key === settledContentKey) ? settledContentKey : selectedKey;
@@ -286,7 +324,7 @@ export function Tabs({
           </svg>
         ) : null}</div> : null}
         <div ref={listRef} style={resolvedOrientation === "horizontal" && overflow.width ? { width: overflow.width } : undefined} className={`sia-tabs__list${sliding ? " sia-tabs__list--sliding" : ""}`} role="tablist" aria-orientation={resolvedOrientation}>
-          {sliding ? <span key={type} ref={indicatorRef} className={`sia-tabs__indicator${type === "capsule" ? " sia-tabs__capsule-indicator" : ""}`} aria-hidden="true">
+          {sliding ? <span key={`${type}-${indicatorMotion}`} ref={indicatorRef} className={`sia-tabs__indicator${indicatorMotion === "stretch" ? " sia-tabs__indicator--stretch" : ""}${type === "capsule" ? " sia-tabs__capsule-indicator" : ""}`} aria-hidden="true">
             {type === "tech-line" ? (                    <span className="sia-tabs__indicator-shape" aria-hidden="true" />) : null}
           </span> : null}
           {items.map((item, index) => {
