@@ -1,3 +1,4 @@
+import { useDownloadReconciliation } from "./useDownloadReconciliation";
 import { listenNative } from "./nativeEvents";
 import { extensionMatchesScope } from "./extensionScopes";
 import { browserShortcut } from "./browserShortcuts";
@@ -72,6 +73,17 @@ interface BrowserDownloadNativeEvent {
   tabId: string;
   state: "waiting" | "started" | "progress" | "finished";
   receivedBytes: number;
+  /** 下载由用户暂停，继续后保留同一个任务编号。 */
+  paused?: boolean;
+  /** 主动取消的终态，不作为网络失败显示。 */
+  cancelled?: boolean;
+  /** 首次收到下载时保存的隔离分组，弹出标签关闭后仍用于原地址重试。 */
+  downloadScope?: {
+    /** 原始大分组标识。 */
+    groupId: string;
+    /** 原始小分组标识；省略时使用大分组独立环境。 */
+    smallGroupId?: string;
+  };
   totalBytes?: number;
   success?: boolean;
   sourceUrl?: string;
@@ -441,6 +453,9 @@ export default function App() {
   alwaysOpenDownloadExtensionsRef.current = alwaysOpenDownloadExtensions;
   const allDownloadTasks = Object.values(downloadTasks);
   const activeDownloadTasks = allDownloadTasks.filter((task) => task.state !== "finished");
+  // 事件用于即时更新，快照校准漏送的完成通知。
+  const receiveDownloadRef = useRef<((event: { payload: BrowserDownloadNativeEvent }) => void) | undefined>();
+  useDownloadReconciliation(activeDownloadTasks.map(task => task.id), receiveDownloadRef);
   const downloadHasUnknownSize = activeDownloadTasks.some((task) => !task.totalBytes);
   const downloadTotalBytes = activeDownloadTasks.reduce(
     (total, task) => total + (task.totalBytes ?? 0),
@@ -1324,9 +1339,11 @@ export default function App() {
     if (!isDesktopRuntime || !window.__TAURI__) return;
     let disposed = false;
     let unlisten: (() => void) | undefined;
-    void listenNative<BrowserDownloadNativeEvent>(
-      "sia://browser-download",
-      ({ payload }) => {
+    receiveDownloadRef.current = ({ payload }) => {
+        // 在下载弹出页自动关闭之前固定分组，不让后续重试继承当前标签的账号环境。
+        const sourceTab = tabsRef.current.find(tab => tab.id === payload.tabId)
+          ?? tabsRef.current.find(tab => tab.id === popupTabsRef.current.get(payload.tabId));
+        const downloadScope = sourceTab ? { groupId: sourceTab.groupId ?? ROOT_GROUP_ID, smallGroupId: sourceTab.smallGroupId } : undefined;
         const announce = (payload.state === "waiting" || payload.state === "started")
           && !announcedDownloadsRef.current.has(payload.id);
         if (announce) {
@@ -1352,6 +1369,7 @@ export default function App() {
               ...payload,
               // 原生时间在创建时固定，优先于旧版本保存的接收时间及跨窗重放时间。
               startedAt: payload.startedAt ?? current[payload.id]?.startedAt ?? nextDownloadStartedAt(Object.values(current)),
+              downloadScope: current[payload.id]?.downloadScope ?? payload.downloadScope ?? downloadScope,
             },
           };
         });
@@ -1370,8 +1388,8 @@ export default function App() {
             void invokeNative("open_download_file", { path: payload.filePath }).catch(() => undefined);
           }
         }
-      },
-    ).then((dispose) => {
+      };
+    void listenNative<BrowserDownloadNativeEvent>("sia://browser-download", receiveDownloadRef.current).then((dispose) => {
       if (disposed) dispose();
       else unlisten = dispose;
     });
@@ -1771,6 +1789,8 @@ export default function App() {
         url: task.sourceUrl,
         state: task.state,
         receivedBytes: task.receivedBytes,
+        paused: task.paused,
+        cancelled: task.cancelled,
         totalBytes: task.totalBytes,
         success: task.success,
         alwaysOpen: alwaysOpenDownloadExtensions.includes(
@@ -2232,7 +2252,20 @@ export default function App() {
         return;
       }
       const task = id ? downloadTasks[id] : undefined;
-      if (key === "open" && id) {
+      // 控制原生下载对象，错误时保持当前记录并提示；取消后的重试创建新的下载。
+      if (["pause", "resume", "cancel"].includes(key) && task) {
+        void invokeNative("control_browser_download", { id: task.id, action: key }).catch(error => message.warning(String(error)));
+      } else if (key === "retry" && task?.sourceUrl) {
+        const source = tabsRef.current.find(tab => tab.id === task.tabId);
+        const scope = task.downloadScope ?? (source ? { groupId: source.groupId ?? ROOT_GROUP_ID, smallGroupId: source.smallGroupId } : undefined);
+        const group = groupsRef.current.find(group => group.id === scope?.groupId);
+        if (!scope || (!group && scope.groupId !== ROOT_GROUP_ID)
+          || (scope.smallGroupId && !group?.smallGroups.some(small => small.id === scope.smallGroupId))) {
+          message.warning("原下载分组已不存在或无法确认，请从原网站重新发起下载。");
+          return;
+        }
+        openTab(task.sourceUrl, scope.groupId, scope.smallGroupId, source?.id ?? activeTabRef.current.id);
+      } else if (key === "open" && id) {
         if (!task?.filePath || task.fileDeleted) {
           message.warning("找不到这个下载文件的位置。");
           return;

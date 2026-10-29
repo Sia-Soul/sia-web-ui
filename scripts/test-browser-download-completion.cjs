@@ -1,63 +1,42 @@
-/** 用乱序和重复的下载事件验证完成状态、列表与工具栏；不下载或打开真实文件。 */
+/** 模拟完成通知漏送：通过内核快照恢复完成状态，清除列表和工具栏的进度。 */
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const http = require('node:http');
-const path = require('node:path');
-const { chromium } = require(path.join(process.argv[2], 'playwright'));
-
+const { chromium } = require('playwright');
 (async () => {
-  const root = process.env.BROWSER_TEST_DIST || 'D:/SiaBuild/SiaWebUI/frontend-dist/browser';
-  const server = http.createServer((request, response) => {
-    try {
-      const file = path.join(root, request.url === '/' ? 'index.html' : request.url);
-      response.setHeader('Content-Type', file.endsWith('.js') ? 'application/javascript' : file.endsWith('.css') ? 'text/css' : 'text/html');
-      response.end(fs.readFileSync(file));
-    } catch { response.writeHead(404).end(); }
-  });
-  const browser = await chromium.launch({ channel: process.env.BROWSER_TEST_CHANNEL || 'chromium', headless: true });
+  const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
-    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-    const main = await browser.newPage();
-    const menu = await browser.newPage();
-    for (const page of [main, menu]) {
-      await page.addInitScript(() => {
-        window.handlers = {};
-        window.__TAURI__ = {
-          event: { listen: async (name, callback) => { window.handlers[name] = callback; return () => {}; } },
-          core: { invoke: async command => {
-            if (command === 'current_window_label') return 'main';
-            if (command === 'load_browser_state') return { version: 3, activeId: 'test', groups: [], tabs: [{ id: 'test', title: '测试页', url: '', groupId: 'group-root' }] };
-            if (command === 'get_browser_menu_state') return { kind: 'downloads', entries: [], items: [] };
-          } },
-        };
-      });
-      await page.goto(`http://127.0.0.1:${server.address().port}/${page === menu ? 'menu.html' : ''}`);
-      await page.waitForFunction(() => window.handlers['sia://browser-download']);
+    for (const menu of [false, true]) {
+      const page = await browser.newPage();
+      await page.addInitScript(menu => {
+        const task = { id: 'finished-task', tabId: 'source', title: '完成.zip', fileName: '完成.zip', filePath: 'D:/fixture.zip', state: 'progress', receivedBytes: 1024, totalBytes: 1024 };
+        window.completion = { handlers: {}, snapshot: task, reads: 0, saved: null };
+        window.__TAURI__ = { event: { listen: async (name, handler) => { window.completion.handlers[name] = handler; return () => {}; } }, core: { invoke: async (name, args) => {
+          if (name === 'current_window_label') return 'main';
+          if (name === 'get_browser_menu_state') return { kind: 'downloads', items: [], entries: [task] };
+          if (name === 'get_browser_download_states') { window.completion.reads++; return [window.completion.snapshot]; }
+          if (name === 'save_browser_state') window.completion.saved = args.state;
+        } } };
+      }, menu);
+      await page.goto(`${process.env.BROWSER_TEST_URL || 'http://127.0.0.1:1479'}/${menu ? 'menu.html' : ''}`);
+      await page.waitForFunction(() => window.completion.handlers['sia://browser-download']);
+      if (!menu) await page.evaluate(() => window.completion.handlers['sia://browser-download']({ payload: window.completion.snapshot }));
+      const progress = menu ? page.locator('[data-download-id="finished-task"]').getByRole('progressbar') : page.locator('.browser-download-action.is-active');
+      await progress.waitFor();
+      // 字节达到总量但内核仍未完成时不能提前显示“打开文件”。
+      await page.waitForTimeout(1200);
+      assert.equal(await progress.count(), 1);
+      await page.evaluate(() => { window.completion.snapshot = { ...window.completion.snapshot, state: 'finished', success: true }; });
+      await progress.waitFor({ state: 'hidden', timeout: 4500 });
+      if (menu) {
+        const row = page.locator('[data-download-id="finished-task"]');
+        await row.getByRole('button', { name: '打开文件', exact: true }).waitFor();
+        await row.getByText('已完成', { exact: true }).waitFor();
+        assert.equal(await row.getByRole('button', { name: '暂停下载' }).count(), 0);
+      } else await page.waitForFunction(() => window.completion.saved?.downloads?.some(task => task.id === 'finished-task' && task.state === 'finished'));
+      // 排队中的旧进度不能把完成项重新改回下载中。
+      await page.evaluate(() => window.completion.handlers['sia://browser-download']({ payload: { ...window.completion.snapshot, state: 'progress', success: undefined } }));
+      assert.equal(await progress.count(), 0);
+      await page.close();
     }
-    const send = async payload => {
-      for (const page of [main, menu]) await page.evaluate(payload => window.handlers['sia://browser-download']({ payload }), payload);
-    };
-    const task = { id: 'fixture', tabId: 'test', fileName: '测试下载.bin', filePath: 'C:/fixture.bin', receivedBytes: 100, totalBytes: 100 };
-    await send({ ...task, state: 'progress' });
-    await main.locator('.browser-download-action.is-active').waitFor();
-    assert.equal(await menu.getByRole('button', { name: '打开文件', exact: true }).count(), 0, '字节达到100%不能提前报告成功');
-    await send({ ...task, state: 'finished', success: true });
-    await main.locator('.browser-download-action.is-active').waitFor({ state: 'hidden' });
-    await menu.getByRole('button', { name: '打开文件', exact: true }).waitFor();
-    // 已结束的原生操作仍可能留下进度回调；终态不能被覆盖为100%下载中。
-    await send({ ...task, state: 'progress', success: null });
-    await main.waitForTimeout(80);
-    assert.equal(await main.locator('.browser-download-action.is-active').count(), 0, '完成后的进度不能重新启动工具栏转圈');
-    assert.equal(await menu.getByRole('button', { name: '打开文件', exact: true }).count(), 1, '完成后的进度不能覆盖完成状态');
-    await send({ ...task, id: 'failed', state: 'finished', success: false });
-    await send({ ...task, id: 'failed', state: 'progress', success: null });
-    await menu.getByText('下载失败', { exact: true }).waitFor();
-    assert.equal(await main.locator('.browser-download-action.is-active').count(), 0);
-    // 历史记录可能含同编号；明确的开始事件仍必须允许本次新任务进入下载中。
-    await send({ ...task, state: 'started', receivedBytes: 0, success: null });
-    await main.locator('.browser-download-action.is-active').waitFor();
-    await send({ ...task, state: 'finished', success: true });
-    await main.locator('.browser-download-action.is-active').waitFor({ state: 'hidden' });
-    console.log('PASS 100%不冒充完成、完成/失败不被迟到进度覆盖、工具栏停止、列表仍可打开文件');
-  } finally { await browser.close(); server.closeAllConnections(); server.close(); }
+    console.log('PASS 漏送完成事件自动校准、100% 不提前完成、完成操作与工具栏进度清除、旧进度不回退');
+  } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

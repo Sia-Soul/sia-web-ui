@@ -1112,7 +1112,9 @@ pub fn close_browser_menu(app: AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 pub fn browser_menu_action(app: AppHandle, action: FloatingWindowAction) -> Result<(), String> {
-    close_browser_menu(app.clone())?;
+    // 下载状态切换在原面板内反馈，不因暂停、继续或取消而关闭面板。
+    let keep_download_panel = ["pause", "resume", "cancel"].iter().any(|verb| action.action.starts_with(&format!("panel|downloads|{verb}|")));
+    if !keep_download_panel { close_browser_menu(app.clone())?; }
     if crate::passwords::handle_password_menu_action(&app, &action.action)? {
         return Ok(());
     }

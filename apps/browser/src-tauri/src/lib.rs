@@ -13,6 +13,8 @@ mod floating_windows;
 mod passwords;
 mod startup_diagnostics;
 mod browser_startup;
+#[cfg(windows)]
+mod browser_navigation;
 mod default_browser;
 mod browser_drop;
 mod download_file_icon;
@@ -49,7 +51,7 @@ use passwords::{attach_password_bridge, PASSWORD_AUTOFILL_SCRIPT};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tauri::{
-    webview::{NewWindowResponse, PageLoadEvent, WebviewBuilder},
+    webview::{NewWindowResponse, WebviewBuilder},
     LogicalPosition, LogicalSize, Manager, Position, Rect, Size, WebviewUrl,
 };
 #[cfg(windows)]
@@ -61,6 +63,9 @@ use webview2_com::{
         ICoreWebView2DownloadStartingEventArgs, ICoreWebView2_4, ICoreWebView2_8,
         COREWEBVIEW2_DOWNLOAD_STATE, COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED,
         COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS,
+        COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED, COREWEBVIEW2_DOWNLOAD_INTERRUPT_REASON,
+        COREWEBVIEW2_DOWNLOAD_INTERRUPT_REASON_USER_PAUSED,
+        COREWEBVIEW2_DOWNLOAD_INTERRUPT_REASON_USER_CANCELED,
     },
     StateChangedEventHandler, WindowCloseRequestedEventHandler,
 };
@@ -95,6 +100,9 @@ struct PendingDownloadMetadata {
 #[derive(Default)]
 struct DownloadRuntimeState {
     pending: Mutex<HashMap<String, PendingDownloadMetadata>>,
+    /// 等待确认时暂停只延长等待；取消标记在发送最终事件后释放。
+    pending_paused: Mutex<HashSet<String>>,
+    pending_cancelled: Mutex<HashSet<String>>,
     open_after_completion: Mutex<HashSet<String>>,
     active: Mutex<HashMap<String, String>>,
     closing_tabs: Mutex<HashSet<String>>,
@@ -111,6 +119,8 @@ struct PendingDownload {
 
 #[cfg(windows)]
 thread_local! {
+    // 下载 COM 对象只在原生 UI 线程读写，终态及时释放控制句柄。
+    static ACTIVE_DOWNLOAD_OPERATIONS: RefCell<HashMap<String, (String, ICoreWebView2DownloadOperation)>> = RefCell::new(HashMap::new());
     static PENDING_DOWNLOADS: RefCell<HashMap<String, PendingDownload>> =
         RefCell::new(HashMap::new());
 }
@@ -155,6 +165,10 @@ struct BrowserDownloadEvent {
     tab_id: String,
     state: &'static str,
     received_bytes: u64,
+    /// 暂停不属于下载终态，恢复后继续接收同一任务的进度。
+    paused: bool,
+    /// 用户主动取消，与网络或文件写入失败区分。
+    cancelled: bool,
     total_bytes: Option<u64>,
     success: Option<bool>,
     source_url: Option<String>,
@@ -384,7 +398,10 @@ fn emit_download_event(
     operation: &ICoreWebView2DownloadOperation,
     success: Option<bool>,
 ) -> windows::core::Result<()> {
-    let (received_bytes, total_bytes) = read_download_progress(operation)?;
+    // 终态比统计字段优先：COM 统计读取失败时保留上一次字节数，仍发出完成通知。
+    let previous = app.state::<DownloadRuntimeState>().latest_events.lock().unwrap_or_else(|e| e.into_inner()).get(download_id).cloned();
+    if previous.as_ref().is_some_and(|event| event.state == "finished") { return Ok(()); }
+    let (received_bytes, total_bytes) = read_download_progress(operation).unwrap_or_else(|_| previous.as_ref().map(|event| (event.received_bytes, event.total_bytes)).unwrap_or((0, None)));
     let mut raw_source_url = PWSTR::null();
     let source_url = unsafe { operation.Uri(&mut raw_source_url) }
         .ok()
@@ -403,16 +420,30 @@ fn emit_download_event(
     eprintln!(
         "[browser-download] id={download_id} tab={tab_id} state={state} received={received_bytes} total={total_bytes:?}"
     );
+    let runtime = app.state::<DownloadRuntimeState>();
+    let mut native_state = COREWEBVIEW2_DOWNLOAD_STATE::default();
+    let mut reason = COREWEBVIEW2_DOWNLOAD_INTERRUPT_REASON::default();
+    unsafe {
+        operation.State(&mut native_state)?;
+        if native_state == COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED { operation.InterruptReason(&mut reason)?; }
+    }
+    let interrupted = native_state == COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED;
+    let paused = state != "finished" && ((interrupted && reason == COREWEBVIEW2_DOWNLOAD_INTERRUPT_REASON_USER_PAUSED)
+        || runtime.pending_paused.lock().unwrap_or_else(|e| e.into_inner()).contains(download_id));
+    let cancelled = (interrupted && reason == COREWEBVIEW2_DOWNLOAD_INTERRUPT_REASON_USER_CANCELED)
+        || runtime.pending_cancelled.lock().unwrap_or_else(|e| e.into_inner()).contains(download_id);
     let event = BrowserDownloadEvent {
             id: download_id.to_string(),
             started_at: download_identity::started_at(download_id),
             tab_id: tab_id.to_string(),
             state,
             received_bytes,
+            paused,
+            cancelled,
             total_bytes,
             success,
             source_url,
-            file_path,
+            file_path: file_path.clone(),
             file_name,
     };
     app.state::<DownloadRuntimeState>().latest_events.lock().unwrap_or_else(|e| e.into_inner()).insert(download_id.to_string(), event.clone());
@@ -422,6 +453,16 @@ fn emit_download_event(
     if let Ok(mut active) = runtime.active.lock() {
         if state == "finished" { active.remove(download_id); }
         else { active.insert(download_id.to_string(), tab_id.to_string()); }
+    }
+    if state == "finished" {
+        // 回调和快照核对使用相同的收尾路径，自动打开标记只消费一次。
+        let should_open = runtime.open_after_completion.lock().map(|mut entries| entries.remove(download_id)).unwrap_or(false);
+        if success == Some(true) && should_open {
+            if let Some(path) = file_path.as_ref() { open_download_path(Path::new(path)); }
+        }
+        ACTIVE_DOWNLOAD_OPERATIONS.with(|entries| entries.borrow_mut().remove(download_id));
+        runtime.pending_paused.lock().unwrap_or_else(|e| e.into_inner()).remove(download_id);
+        runtime.pending_cancelled.lock().unwrap_or_else(|e| e.into_inner()).remove(download_id);
     }
     if state == "finished" && runtime.closing_tabs.lock().map(|tabs| tabs.contains(tab_id)).unwrap_or(false) {
         let cleanup_app = app.for_tab(tab_id);
@@ -475,6 +516,14 @@ fn attach_download_operation(
             unsafe {
                 operation.State(&mut download_state)?;
             }
+            if finished.load(Ordering::SeqCst) { return Ok(()); }
+            let mut reason = COREWEBVIEW2_DOWNLOAD_INTERRUPT_REASON::default();
+            if download_state == COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED { unsafe { operation.InterruptReason(&mut reason)?; } }
+            // 暂停保留监听和页签资源；恢复同一操作后继续接收字节变化。
+            if download_state == COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS
+                || (download_state == COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED && reason == COREWEBVIEW2_DOWNLOAD_INTERRUPT_REASON_USER_PAUSED) {
+                return emit_download_event(&state_app, &state_tab_id, &state_download_id, "progress", &operation, None);
+            }
             if download_state != COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS {
                 if finished.load(Ordering::SeqCst) { return Ok(()); }
                 let completed = download_state == COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED;
@@ -487,21 +536,7 @@ fn attach_download_operation(
                     Some(completed),
                 )?;
                 finished.store(true, Ordering::SeqCst);
-                let should_open = state_app
-                    .state::<DownloadRuntimeState>()
-                    .open_after_completion
-                    .lock()
-                    .map(|mut entries| entries.remove(&state_download_id))
-                    .unwrap_or(false);
-                if completed && should_open {
-                    let mut raw_file_path = PWSTR::null();
-                    if unsafe { operation.ResultFilePath(&mut raw_file_path) }.is_ok() {
-                        let path = CoTaskMemPWSTR::from(raw_file_path).to_string();
-                        if !path.is_empty() {
-                            open_download_path(Path::new(&path));
-                        }
-                    }
-                }
+
             }
         }
         Ok(())
@@ -511,6 +546,7 @@ fn attach_download_operation(
         operation.add_StateChanged(&state_handler, &mut state_token)?;
     }
 
+    ACTIVE_DOWNLOAD_OPERATIONS.with(|entries| entries.borrow_mut().insert(download_id.to_string(), (tab_id.to_string(), operation.clone())));
     emit_download_event(app, tab_id, download_id, "started", operation, None)
 }
 
@@ -791,6 +827,8 @@ async fn open_browser_tab(
         webview
             .set_bounds(logical_rect(bounds))
             .map_err(|error| error.to_string())?;
+        #[cfg(windows)]
+        browser_navigation::prepare(&app, &tab_id);
         webview
             .navigate(parsed_url)
             .map_err(|error| error.to_string())?;
@@ -806,10 +844,6 @@ async fn open_browser_tab(
         .ok_or_else(|| "找不到浏览器主窗口".to_string())?;
     let desired_extensions = extensions::profile_extensions(&app, profile_group_id.as_deref().unwrap_or(&group_id), small_group_id.as_deref())?;
 
-    let suppress_initial_blank = parsed_url.as_str() != "about:blank";
-    let page_event_app = app.clone();
-    let page_event_tab_id = tab_id.clone();
-    let page_event_group_id = group_id.clone();
     let title_event_app = app.clone();
     let title_event_tab_id = tab_id.clone();
     let title_event_group_id = group_id.clone();
@@ -832,23 +866,6 @@ async fn open_browser_tab(
                 next_url.scheme(),
                 "http" | "https" | "chrome-extension" | "about" | "data" | "blob"
             ) || (next_url.scheme() == "file" && parse_browser_url(next_url.as_str()).is_ok())
-        })
-        .on_page_load(move |_webview, payload| {
-            if suppress_initial_blank && payload.url().as_str() == "about:blank" { return; }
-            emit_browser_event(
-                &page_event_app,
-                BrowserEvent {
-                    tab_id: page_event_tab_id.clone(),
-                    group_id: page_event_group_id.clone(),
-                    kind: "load",
-                    url: Some(payload.url().to_string()),
-                    title: None,
-                    loading: Some(matches!(payload.event(), PageLoadEvent::Started)),
-                    audible: None,
-                    muted: None,
-                    message: None,
-                },
-            );
         })
         .on_document_title_changed(move |_webview, title| {
             emit_browser_event(
@@ -885,6 +902,33 @@ async fn open_browser_tab(
             }
             NewWindowResponse::Deny
         });
+
+    // 非 Windows 平台继续使用框架加载事件；Windows 改用带导航编号的原生监听。
+    #[cfg(not(windows))]
+    let builder = {
+        let suppress_initial_blank = parsed_url.as_str() != "about:blank";
+        let page_event_app = app.clone();
+        let page_event_tab_id = tab_id.clone();
+        let page_event_group_id = group_id.clone();
+        builder
+        .on_page_load(move |_webview, payload| {
+            if suppress_initial_blank && payload.url().as_str() == "about:blank" { return; }
+            emit_browser_event(
+                &page_event_app,
+                BrowserEvent {
+                    tab_id: page_event_tab_id.clone(),
+                    group_id: page_event_group_id.clone(),
+                    kind: "load",
+                    url: Some(payload.url().to_string()),
+                    title: None,
+                    loading: Some(matches!(payload.event(), tauri::webview::PageLoadEvent::Started)),
+                    audible: None,
+                    muted: None,
+                    message: None,
+                },
+            );
+        })
+    };
 
     // WebView2 在窄高窗口播放铺满视口的视频时可能停止呈现页面合成层，
     // 导致控制栏 DOM 已显示而屏幕仍为黑色；只对外部网页启用软件合成兼容路径。
@@ -933,6 +977,9 @@ async fn open_browser_tab(
     if let Err(error) = browser_frame_menu::attach(&webview).await {
         eprintln!("无法安装框架刷新菜单：{error}");
     }
+    // 开始事件携带目标地址与编号，避免复用视图时旧完成通知回写旧地址。
+    #[cfg(windows)]
+    browser_navigation::attach(&app, &webview, tab_id.clone(), group_id.clone()).await?;
     // 下载链接可能立即返回附件，必须在首次导航前完成订阅。
     attach_download_monitor(&app, &webview, tab_id.clone()).await?;
     webview.navigate(parsed_url).map_err(|error| error.to_string())?;
@@ -1068,6 +1115,8 @@ async fn close_browser_tab_locked(app: &AppHandle, tab_id: String) -> Result<(),
             browser_profile_lifetime::watch_exit(app.raw().clone(), profile, retiring);
         }
     }
+    #[cfg(windows)]
+    browser_navigation::forget(app, &tab_id);
     app.state::<extensions::ExtensionScopeStore>().0.lock()
         .map_err(|_| "无法移除扩展分组记录")?.remove(&browser_label(&tab_id));
     app.state::<BrowserProfileStore>().0.lock()
@@ -1598,7 +1647,9 @@ async fn resolve_pending_download(
                 return Err("找不到待处理的 WebView2 下载任务".to_string());
             };
             let action_result = (|| -> windows::core::Result<()> {
+                callback_app.state::<DownloadRuntimeState>().pending_paused.lock().unwrap_or_else(|e| e.into_inner()).remove(&callback_id);
                 if choice == "cancel" {
+                    callback_app.state::<DownloadRuntimeState>().pending_cancelled.lock().unwrap_or_else(|e| e.into_inner()).insert(callback_id.clone());
                     unsafe {
                         download.args.SetCancel(true)?;
                     }
@@ -1641,6 +1692,75 @@ async fn resolve_pending_download(
         pending.remove(&id);
     }
     Ok(true)
+}
+
+/// 核对指定任务的原生状态并返回快照；仅内核完成状态可以结束下载，不用字节百分比推断。
+#[cfg(windows)]
+#[tauri::command]
+async fn get_browser_download_states(app: AppHandle, ids: Vec<String>) -> Result<Vec<BrowserDownloadEvent>, String> {
+    let (send, receive) = tokio::sync::oneshot::channel();
+    let callback_app = app.clone();
+    app.run_on_main_thread(move || {
+        for id in &ids {
+            // 不持有 RefCell 借用或互斥锁执行 COM 调用，以允许状态回调重入。
+            let active = ACTIVE_DOWNLOAD_OPERATIONS.with(|entries| entries.borrow().get(id).cloned());
+            if let Some((tab_id, operation)) = active {
+                let mut state = COREWEBVIEW2_DOWNLOAD_STATE::default();
+                if unsafe { operation.State(&mut state) }.is_err() { continue; }
+                let mut reason = COREWEBVIEW2_DOWNLOAD_INTERRUPT_REASON::default();
+                if state == COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED && unsafe { operation.InterruptReason(&mut reason) }.is_err() { continue; }
+                if state == COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED || (state == COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED && reason != COREWEBVIEW2_DOWNLOAD_INTERRUPT_REASON_USER_PAUSED) {
+                    let _ = emit_download_event(&callback_app, &tab_id, id, "finished", &operation, Some(state == COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED));
+                }
+            }
+        }
+        // 终态句柄已释放时仍返回缓存，补偿前端漏送或浮层重新创建的情况。
+        let runtime = callback_app.state::<DownloadRuntimeState>();
+        let events = runtime.latest_events.lock().unwrap_or_else(|e| e.into_inner());
+        let snapshot: Vec<_> = ids.iter().filter_map(|id| events.get(id).cloned()).collect();
+        let _ = send.send(snapshot);
+    }).map_err(|e| e.to_string())?;
+    receive.await.map_err(|_| "读取下载状态中断".to_string())
+}
+
+/// 操作等待确认或实际传输中的下载；不跨线程传递 WebView2 COM 对象。
+#[cfg(windows)]
+#[tauri::command]
+async fn control_browser_download(app: AppHandle, id: String, action: String) -> Result<(), String> {
+    if !["pause", "resume", "cancel"].contains(&action.as_str()) { return Err("未知的下载操作".into()); }
+    let is_pending = app.state::<DownloadRuntimeState>().pending.lock().unwrap_or_else(|e| e.into_inner()).contains_key(&id);
+    if is_pending && action == "cancel" {
+        return resolve_pending_download(app.clone(), app.state::<DownloadRuntimeState>(), id, "cancel".into()).await.map(|_| ());
+    }
+    let (send, receive) = tokio::sync::oneshot::channel();
+    let callback_app = app.clone();
+    app.run_on_main_thread(move || {
+        let result = (|| -> Result<(), String> {
+            let pending = PENDING_DOWNLOADS.with(|entries| entries.borrow().get(&id).map(|entry| (entry.tab_id.clone(), entry.operation.clone())));
+            if let Some((tab_id, operation)) = pending {
+                let runtime = callback_app.state::<DownloadRuntimeState>();
+                { let mut paused = runtime.pending_paused.lock().unwrap_or_else(|e| e.into_inner());
+                  if action == "pause" { paused.insert(id.clone()); } else { paused.remove(&id); } }
+                return emit_download_event(&callback_app, &tab_id, &id, "waiting", &operation, None).map_err(|e| e.to_string());
+            }
+            // 先克隆句柄再释放借用，Pause/Cancel 可能同步触发状态回调。
+            let (_, operation) = ACTIVE_DOWNLOAD_OPERATIONS.with(|entries| entries.borrow().get(&id).cloned()).ok_or("下载已结束或不存在")?;
+            unsafe {
+                match action.as_str() {
+                    "pause" => operation.Pause(),
+                    "resume" => {
+                        let mut can_resume = BOOL(0);
+                        operation.CanResume(&mut can_resume).map_err(|e| e.to_string())?;
+                        if !can_resume.as_bool() { return Err("此下载暂时无法继续，请取消后重试".into()); }
+                        operation.Resume()
+                    },
+                    _ => operation.Cancel(),
+                }.map_err(|e| format!("下载操作失败：{e}"))
+            }
+        })();
+        let _ = send.send(result);
+    }).map_err(|e| e.to_string())?;
+    receive.await.map_err(|_| "下载操作中断".to_string())?
 }
 
 #[tauri::command]
@@ -1759,6 +1879,8 @@ pub fn run() {
     let mut builder = tauri::Builder::default();
     // 系统入口由同一进程转交给存活的浏览器窗口。
     builder = builder.plugin(tauri_plugin_single_instance::init(browser_instance::forward));
+    #[cfg(windows)]
+    { builder = builder.manage(browser_navigation::States::default()); }
     builder
         .manage(window_context::WindowStates::default())
         .manage(detached_windows::DetachedWindowRuntime::default())
@@ -1814,6 +1936,8 @@ pub fn run() {
             set_download_preferences,
             choose_download_directory,
             resolve_pending_download,
+            control_browser_download,
+            get_browser_download_states,
             open_download_file,
             download_file_icon::get_download_file_icon,
             bookmark_import::list_bookmark_sources,

@@ -157,3 +157,15 @@ WebView2 没有公开的停靠 API，此处使用 Windows 子窗口接入，未�
 打开菜单后框架发生导航或被移除时，旧命令不会刷新替代文档。定位异步完成，最多等待两秒；无法可靠定位时保留默认菜单，不回退到刷新整个页面。嵌套框架跟踪依赖支持 `ICoreWebView2Frame7` 的 WebView2 Runtime。
 
 原生回归先运行 `cargo build --release --manifest-path scripts/fixtures/browser-extension-scopes/Cargo.toml --bin browser-frame-menu-probe`，再运行 `node scripts/test-browser-frame-menu.cjs`（需通过 `NODE_PATH` 提供 Playwright）。测试仅使用 D 盘独立资料目录，验证同地址框架、跨域嵌套、动态框架、网页取消菜单后的定位，以及主页面表单保留，不访问用户现有浏览资料。
+
+### 下载进度与控制
+
+下载面板的活动项显示已接收量、已知总量和实时速率，速率按实际接收字节与单调时钟每秒采样，停流后归零。已知总量时以框架 Progress 组件在整行背景绘制浅绿色进度，左边 0%、右边 100%；未知总量不显示虚假的百分比。暂停保留当前进度，取消或完成后移除进度背景。
+
+准备确认及下载中的项提供暂停、继续和取消，控制操作不关闭面板。等待确认时暂停仅保持等待，不开始网络传输；实际下载通过 WebView2 Pause/Resume/Cancel 控制。用户暂停不会标记为失败或释放下载句柄；终态才释放句柄。取消显示“已取消”，重试按原始地址发起新的下载，保留原记录；下载开始时记录原分组与小分组，原网页关闭、切换分组后仍沿用原隔离环境；原分组已删除或旧记录无法确认来源时提示从原网站重新下载。服务器地址过期、需要重新登录或原请求依赖 POST 数据时，重新打开原始地址可能需要再次从网站发起下载。
+
+`scripts/test-browser-download-retry-scope.cjs` 验证关闭原网页并切换分组后的重试隔离；`scripts/test-browser-download-controls.cjs` 验证实时速率、整行背景和按钮状态；`scripts/test-browser-download-native.cjs` 使用独立资料及支持 Range 的限速测试服务，验证暂停后字节停止、恢复完成、取消、原地址重试及等待确认阶段的控制。
+
+下载终态通过事件即时更新，并在有未结束任务时每秒串行核对内核状态。内核快照确认完成后，列表显示“已完成 / 打开文件”，移除行背景和工具栏进度；字节达到 100% 不代表内核收尾完成。原生句柄释放后仍可补取终态快照，统计字段读取失败不会吞掉终态，旧进度不能覆盖完成状态。`scripts/test-browser-download-completion.cjs` 覆盖完成通知漏送、100% 但仍传输中、终态后迟到进度及工具栏同步。
+
+Windows 网页导航使用 WebView2 的 NavigationStarting / NavigationCompleted 编号关联：发起请求即显示 loading，旧请求被新导航替代后的结束事件不覆盖地址；重定向保留同编号的最新目标，失败时保留本次输入地址，hash/history 同文档跳转单独同步地址。`scripts/test-browser-address-navigation-native.cjs` 使用本地慢响应、断开连接和重定向验证真实回车导航。

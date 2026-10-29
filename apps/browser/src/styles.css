@@ -117,6 +117,15 @@ body.browser-tab-panel-document__body,
 /* 面板树复用框架展开开关，行高保持紧凑，长标题留在可视区域内。 */
 .browser-bookmark-tree .sia-tree__row,
 .browser-history-tree .sia-tree__row { min-height: 34px; }
+/* 最近关闭的页签及分组标题统一单行省略，为图标和恢复分组操作保留空间。 */
+.browser-history-tree { grid-template-columns: minmax(0, 1fr); }
+.browser-history-tree .sia-tree__title {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.browser-history-tree .sia-tree__icon { flex-shrink: 0; }
 
 .browser-extension-icon { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
 /* 窄窗口优先保留导航和窗口控制，隐藏的快捷入口仍可在扩展面板中管理。 */
@@ -407,7 +416,20 @@ body.browser-tab-panel-document__body,
   12%, 35% { opacity: 1; }
   100% { opacity: 0; }
 }
-.browser-download-entry > :not(.browser-download-entry__highlight) { position: relative; }
+.browser-download-entry > :not(.browser-download-entry__highlight):not(.browser-download-entry__progress) { position: relative; }
+/* 框架进度条作为整行背景，左侧为 0%，右侧为 100%，不遮挡下载操作。 */
+.browser-download-entry__progress.sia-progress {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.browser-download-entry__progress .sia-progress__outer { height: 100% !important; border-radius: 0; }
+.browser-download-entry__progress .sia-progress__bar { border-radius: 0; }
+.browser-download-entry__controls { display: flex; align-items: center; gap: 2px; }
+.browser-download-entry__controls .sia-button { width: 26px; min-width: 26px; height: 26px; padding: 0; }
+.browser-download-speed { white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 .browser-download-entry:hover,
 .browser-download-entry:focus-visible,
@@ -3027,3 +3049,6 @@ input {
 @media (prefers-reduced-motion: reduce) {
   .browser-download-action__pulse { animation: browser-download-button-flash 250ms ease-out both; }
 }
+
+/* 完成状态与打开入口共用第二行，保持下载列表的紧凑高度。 */
+.browser-download-entry__completed { display: flex; align-items: center; gap: 8px; }

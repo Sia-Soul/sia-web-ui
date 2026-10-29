@@ -1,9 +1,10 @@
+import { useDownloadReconciliation } from "../useDownloadReconciliation";
 import { listenNative } from "../nativeEvents";
 import { extensionMatchesScope, type ExtensionScope } from "../extensionScopes";
 import { browserShortcut } from "../browserShortcuts";
 import { newestDownloadsFirst, nextDownloadStartedAt } from "../downloadOrder";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Icon, Input, Menu, Tree } from "@sia.soul/sia-react-ui";
+import { Button, Icon, Input, Menu, Progress, Tree } from "@sia.soul/sia-react-ui";
 import type { MenuItem, TreeNode } from "@sia.soul/sia-react-ui";
 import type { BrowserExtensionRecord } from "./BrowserSettingsPage";
 import BrowserFavicon from "./BrowserFavicon";
@@ -49,6 +50,10 @@ export interface BrowserPanelEntry {
   filePath?: string;
   state?: "waiting" | "started" | "progress" | "finished";
   receivedBytes?: number;
+  /** 暂停时保留进度，显示继续操作。 */
+  paused?: boolean;
+  /** 主动取消时显示重试，不显示下载失败。 */
+  cancelled?: boolean;
   totalBytes?: number;
   success?: boolean;
   active?: boolean;
@@ -166,6 +171,26 @@ function DownloadFileIcon({ entry }: { entry: BrowserPanelEntry }) {
     : <Icon name="file" size={22} />;
 }
 
+/** 按实际接收字节每秒采样；停流时自然归零，暂停或面板关闭后释放定时器。 */
+function DownloadSpeed({ receivedBytes = 0 }: { receivedBytes?: number }) {
+  const latest = useRef(receivedBytes);
+  const [speed, setSpeed] = useState(0);
+  useEffect(() => { latest.current = receivedBytes; }, [receivedBytes]);
+  useEffect(() => {
+    let bytes = latest.current;
+    let time = performance.now();
+    const timer = window.setInterval(() => {
+      const now = performance.now();
+      const elapsed = now - time;
+      if (elapsed > 0) setSpeed(Math.max(0, latest.current - bytes) * 1000 / elapsed);
+      bytes = latest.current;
+      time = now;
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  return <span className="browser-download-speed"> · {formatBytes(speed)}/s</span>;
+}
+
 /** 同一下载只播放一次；面板打开稍晚时从已流逝的位置继续，进度刷新不重新计时。 */
 function DownloadHighlight({ startedAt }: { startedAt?: number }) {
   const elapsed = useMemo(() => startedAt ? Math.max(0, Date.now() - startedAt) : 1500, [startedAt]);
@@ -253,12 +278,15 @@ function BrowserMenuContent() {
     };
   }, []);
 
+  // 主窗口和下载浮层独立校准，避免一个窗口漏掉完成通知后长期停留在 100%。
+  const receiveDownloadRef = useRef<((event: { payload: BrowserPanelEntry & { sourceUrl?: string } }) => void) | undefined>();
+  useDownloadReconciliation(payload?.kind === "downloads" ? (payload.entries ?? []).filter(entry => entry.state !== "finished").map(entry => entry.id) : [], receiveDownloadRef);
+
   useEffect(() => {
     if (!window.__TAURI__) return;
     let disposed = false;
     let unlisten: (() => void) | undefined;
-    void listenNative<BrowserPanelEntry & { fileName?: string; sourceUrl?: string }>(
-      "sia://browser-download", ({ payload: task }) => {
+    receiveDownloadRef.current = ({ payload: task }) => {
         setPayload(current => {
           if (current?.kind !== "downloads") return current;
           const entries = current.entries ?? [];
@@ -272,8 +300,8 @@ function BrowserMenuContent() {
               ?? (!previous && (task.state === "waiting" || task.state === "started") ? Date.now() : undefined) };
           return { ...current, entries: newestDownloadsFirst(previous ? entries.map(entry => entry.id === task.id ? next : entry) : [next, ...entries]) };
         });
-      },
-    ).then(dispose => { if (disposed) dispose(); else unlisten = dispose; });
+      };
+    void listenNative("sia://browser-download", receiveDownloadRef.current).then(dispose => { if (disposed) dispose(); else unlisten = dispose; });
     return () => { disposed = true; unlisten?.(); };
   }, []);
 
@@ -350,9 +378,11 @@ function BrowserMenuContent() {
   }, [payload?.entries, query]);
 
   async function dispatchAction(action: string) {
-    payloadRevision.current += 1;
+    // 原地更新下载状态；其余菜单动作仍沿用执行后关闭的行为。
+    const keepDownloadPanel = /^panel\|downloads\|(pause|resume|cancel)\|/.test(action);
+    if (!keepDownloadPanel) payloadRevision.current += 1;
     setDownloadContextMenu(null);
-    setPayload(null);
+    if (!keepDownloadPanel) setPayload(null);
     await invokeNative("browser_menu_action", {
       action: {
         action,
@@ -478,17 +508,19 @@ function BrowserMenuContent() {
         ) : null}
         <div className="browser-panel__scroll">
           {entries.length ? entries.map((entry) => {
-            const progress = entry.totalBytes
-              ? Math.min(100, Math.round((entry.receivedBytes ?? 0) / entry.totalBytes * 100))
+            const inProgress = entry.state === "started" || entry.state === "progress";
+            const controllable = inProgress || entry.state === "waiting";
+            const progress = entry.totalBytes && entry.totalBytes > 0
+              ? Math.max(0, Math.min(100, Math.round((entry.receivedBytes ?? 0) / entry.totalBytes * 100)))
               : undefined;
-            const status = entry.state === "waiting"
+            const status = entry.cancelled ? "已取消" : entry.paused ? `已暂停 · ${formatBytes(entry.receivedBytes)} · 0 B/s` : entry.state === "waiting"
               ? "执行什么操作？"
               : entry.fileDeleted
               ? "文件已删除"
               : entry.unsafe
                 ? "已标记为不安全"
                 : entry.state === "finished"
-              ? (entry.success === false ? "下载失败" : "下载完成")
+              ? (entry.success === false ? "下载失败" : "已完成")
               : progress === undefined
                 ? `已下载 ${formatBytes(entry.receivedBytes)}`
                 : `${progress}% · ${formatBytes(entry.receivedBytes)} / ${formatBytes(entry.totalBytes)}`;
@@ -500,6 +532,10 @@ function BrowserMenuContent() {
                 tabIndex={0}
                 onContextMenu={(event) => openDownloadContextMenu(event, entry)}
               >
+                {/* 使用框架 Progress 铺满行背景；未知总量不绘制虚假的百分比。 */}
+                {inProgress && progress !== undefined ? <Progress className="browser-download-entry__progress" percent={progress} showInfo={false}
+                  strokeColor="rgba(82, 196, 110, 0.22)" trailColor="transparent" status="normal"
+                  role="progressbar" aria-label="下载进度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} /> : null}
                 <DownloadHighlight startedAt={entry.highlightStartedAt} />
                 <span className="browser-download-entry__icon">
                   <DownloadFileIcon entry={entry} />
@@ -510,11 +546,13 @@ function BrowserMenuContent() {
                       ? `要对 ${entry.fileName ?? entry.title}`
                       : entry.fileName ?? entry.title}
                   </strong>
-                  {/* 完成项用“打开文件”作为第二行，其余状态保留进度或失败原因。 */}
+                  {/* 完成项将状态与操作并排，保持两行紧凑布局。 */}
                   {!(entry.state === "finished" && entry.success !== false && entry.filePath && !entry.fileDeleted && !entry.unsafe) ? (
-                    <span className={entry.success === false || entry.unsafe || entry.fileDeleted ? "is-error" : ""}>{status}</span>
+                    <span className={(!entry.cancelled && entry.success === false) || entry.unsafe || entry.fileDeleted ? "is-error" : ""}>
+                      {status}{inProgress && !entry.paused ? <DownloadSpeed receivedBytes={entry.receivedBytes} /> : null}
+                    </span>
                   ) : null}
-                  {entry.state === "waiting" ? (
+                  {entry.state === "waiting" && !entry.paused ? (
                     <div className="browser-download-entry__choice-actions">
                       <Button
                         size="small"
@@ -537,6 +575,8 @@ function BrowserMenuContent() {
                     </div>
                   ) : null}
                   {entry.state === "finished" && entry.success !== false && entry.filePath && !entry.fileDeleted ? (
+                    <div className="browser-download-entry__completed">
+                    {!entry.unsafe ? <span>已完成</span> : null}
                     <Button
                       className="browser-download-entry__open"
                       variant="text"
@@ -545,9 +585,20 @@ function BrowserMenuContent() {
                     >
                       打开文件
                     </Button>
+                    </div>
                   ) : null}
                 </div>
-                {entry.state !== "waiting" ? (
+                {controllable ? (
+                  <div className="browser-download-entry__controls" aria-label="下载控制">
+                    <Button variant="text" size="small" icon={<Icon name={entry.paused ? "play" : "pause"} size={17} />}
+                      aria-label={entry.paused ? "继续下载" : "暂停下载"} title={entry.paused ? "继续下载" : "暂停下载"}
+                      onClick={() => void dispatchAction(`panel|downloads|${entry.paused ? "resume" : "pause"}|${entry.id}`)} />
+                    <Button variant="text" size="small" icon={<Icon name="close" size={17} />} aria-label="取消下载" title="取消下载"
+                      onClick={() => void dispatchAction(`panel|downloads|cancel|${entry.id}`)} />
+                  </div>
+                ) : entry.cancelled ? (
+                  <Button variant="link" size="small" disabled={!entry.url} onClick={() => void dispatchAction(`panel|downloads|retry|${entry.id}`)}>重试</Button>
+                ) : entry.state !== "waiting" ? (
                   <div className="browser-download-entry__actions" aria-label="下载项操作">
                     <Button
                       variant="text"
