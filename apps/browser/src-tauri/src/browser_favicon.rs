@@ -1,7 +1,7 @@
 //! 从网页所属 WebView2 Profile 读取实际站点图标，支持自定义路径、登录态和动态换图标。
 use base64::Engine;
 use std::{cell::Cell, rc::Rc};
-use tauri::{AppHandle, Emitter, Webview};
+use tauri::{AppHandle, Webview};
 use webview2_com::{
     CoTaskMemPWSTR, FaviconChangedEventHandler, GetFaviconCompletedHandler,
     Microsoft::Web::WebView2::Win32::{
@@ -88,7 +88,7 @@ pub async fn attach(app: &AppHandle, view: &Webview, tab_id: String) -> Result<(
                             return Ok(());
                         }
                         let favicon = png_data_url(stream)?;
-                        let _ = app.emit("sia://browser-event", serde_json::json!({
+                        let _ = crate::window_context::BrowserContext::new(&app, "main").for_tab(&tab_id).emit("sia://browser-event", serde_json::json!({
                         "kind": "favicon", "tabId": tab_id, "url": url, "faviconUrl": favicon,
                     }));
                         Ok(())

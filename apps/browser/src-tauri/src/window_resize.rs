@@ -2,7 +2,6 @@
 #[cfg(windows)]
 mod native {
     use std::cell::Cell;
-    use tauri::Emitter;
     use windows::{
         core::w,
         Win32::{
@@ -25,7 +24,7 @@ mod native {
 
     /// 状态只由 UI 线程访问；原生命中区域与外壳 CSS 共用方向，避免 DOM 被子 WebView 遮挡后收不到悬停。
     struct HoverState {
-        app: tauri::AppHandle,
+        app: crate::window_context::BrowserContext,
         edges: Cell<&'static str>,
         dragging: Cell<bool>,
     }
@@ -216,7 +215,7 @@ mod native {
     }
 
     /// 必须在主线程调用；同时覆盖已经创建的外壳 WebView 和之后创建的标签网页。
-    pub(super) unsafe fn install(parent: HWND, app: tauri::AppHandle) -> Result<(), String> {
+    pub(super) unsafe fn install(parent: HWND, app: crate::window_context::BrowserContext) -> Result<(), String> {
         let border = FindWindowExW(Some(parent), None, w!("TAURI_DRAG_RESIZE_BORDERS"), None)
             .map_err(|_| "未创建原生窗口缩放边缘".to_string())?;
         let mut existing = 0;
@@ -264,7 +263,7 @@ pub fn initialize(window: &tauri::Window) -> Result<(), String> {
         let hwnd = window.hwnd().map_err(|error| error.to_string())?;
         unsafe {
             use tauri::Manager;
-            native::install(hwnd, window.app_handle().clone())?;
+            native::install(hwnd, crate::window_context::BrowserContext::new(window.app_handle(), window.label()))?;
         }
     }
     #[cfg(not(windows))]

@@ -1,3 +1,5 @@
+mod window_context;
+use crate::window_context::{BrowserContext as AppHandle, WindowState};
 mod browser_overlay;
 mod browser_profiles;
 mod browser_visibility;
@@ -11,6 +13,7 @@ mod browser_startup;
 mod default_browser;
 mod browser_drop;
 mod browser_instance;
+mod detached_windows;
 mod window_resize;
 #[cfg(windows)]
 mod browser_favicon;
@@ -37,7 +40,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tauri::{
     webview::{NewWindowResponse, PageLoadEvent, WebviewBuilder},
-    AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Position, Rect, Size, WebviewUrl,
+    LogicalPosition, LogicalSize, Manager, Position, Rect, Size, WebviewUrl,
 };
 #[cfg(windows)]
 use webview2_com::{
@@ -83,11 +86,11 @@ struct PendingDownloadMetadata {
 #[cfg(windows)]
 #[derive(Default)]
 struct DownloadRuntimeState {
-    preferences: Mutex<DownloadPreferences>,
     pending: Mutex<HashMap<String, PendingDownloadMetadata>>,
     open_after_completion: Mutex<HashSet<String>>,
     active: Mutex<HashMap<String, String>>,
     closing_tabs: Mutex<HashSet<String>>,
+    latest_events: Mutex<HashMap<String, BrowserDownloadEvent>>,
 }
 
 #[cfg(windows)]
@@ -167,6 +170,7 @@ fn browser_label(tab_id: &str) -> String {
 }
 
 fn browser_state_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    if let Some(path) = detached_windows::state_path(app)? { return Ok(path); }
     let directory = app
         .path()
         .app_local_data_dir()
@@ -178,7 +182,7 @@ fn browser_state_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
 
 /// 按大分组和小分组的稳定标识创建独立 WebView2 数据目录，重命名不会改变目录。
 fn browser_group_data_directory(
-    app: &AppHandle,
+    app: &tauri::AppHandle,
     group_id: &str,
     small_group_id: Option<&str>,
 ) -> Result<std::path::PathBuf, String> {
@@ -216,12 +220,27 @@ fn parse_browser_url(value: &str) -> Result<tauri::Url, String> {
     }
 }
 
+#[derive(Default)]
+struct PendingPageEvents(Mutex<Vec<BrowserEvent>>);
+
+fn replay_transferred_events(app: &AppHandle) {
+    let events = std::mem::take(&mut *app.window_state::<PendingPageEvents>().0.lock().unwrap_or_else(|e| e.into_inner()));
+    for event in events { emit_browser_event(app, event); }
+    let events: Vec<_> = app.state::<DownloadRuntimeState>().latest_events.lock().unwrap_or_else(|e| e.into_inner()).values().cloned().collect();
+    for event in events {
+        if app.get_webview(&browser_label(&event.tab_id)).is_some() { let _ = app.emit("sia://browser-download", event); }
+    }
+}
+
 fn emit_browser_event(app: &AppHandle, event: BrowserEvent) {
     eprintln!(
         "[browser-event] tab={} kind={} loading={:?} url={:?}",
         event.tab_id, event.kind, event.loading, event.url
     );
-    let _ = app.emit("sia://browser-event", event);
+    let owner=app.for_tab(&event.tab_id);
+    if detached_windows::awaiting_receiver(&owner) {
+        owner.window_state::<PendingPageEvents>().0.lock().unwrap_or_else(|e|e.into_inner()).push(event);
+    } else { let _ = owner.emit("sia://browser-event", event); }
 }
 
 #[cfg(windows)]
@@ -374,9 +393,7 @@ fn emit_download_event(
     eprintln!(
         "[browser-download] id={download_id} tab={tab_id} state={state} received={received_bytes} total={total_bytes:?}"
     );
-    let _ = app.emit(
-        "sia://browser-download",
-        BrowserDownloadEvent {
+    let event = BrowserDownloadEvent {
             id: download_id.to_string(),
             tab_id: tab_id.to_string(),
             state,
@@ -386,8 +403,9 @@ fn emit_download_event(
             source_url,
             file_path,
             file_name,
-        },
-    );
+    };
+    app.state::<DownloadRuntimeState>().latest_events.lock().unwrap_or_else(|e| e.into_inner()).insert(download_id.to_string(), event.clone());
+    let _ = app.for_tab(tab_id).emit("sia://browser-download", event);
     // 必须先读取下载对象并通知界面，再释放隐藏页签，避免 COM 对象提前失效而吞掉完成通知。
     let runtime = app.state::<DownloadRuntimeState>();
     if let Ok(mut active) = runtime.active.lock() {
@@ -395,7 +413,7 @@ fn emit_download_event(
         else { active.insert(download_id.to_string(), tab_id.to_string()); }
     }
     if state == "finished" && runtime.closing_tabs.lock().map(|tabs| tabs.contains(tab_id)).unwrap_or(false) {
-        let cleanup_app = app.clone();
+        let cleanup_app = app.for_tab(tab_id);
         let cleanup_tab = tab_id.to_string();
         // 从工作线程排回主线程，确保当前完成回调（含自动打开文件）退出后再关闭 WebView。
         tauri::async_runtime::spawn(async move {
@@ -521,9 +539,8 @@ async fn attach_download_monitor(
                                 "download-{}",
                                 NEXT_DOWNLOAD_ID.fetch_add(1, Ordering::Relaxed)
                             );
-                            let preferences = event_app
-                                .state::<DownloadRuntimeState>()
-                                .preferences
+                            let preferences = event_app.for_tab(&event_tab_id)
+                                .window_state::<Mutex<DownloadPreferences>>()
                                 .lock()
                                 .map(|preferences| preferences.clone())
                                 .unwrap_or_default();
@@ -732,17 +749,18 @@ async fn open_browser_tab(
     tab_id: String,
     group_id: String,
     small_group_id: Option<String>,
+    profile_group_id: Option<String>,
     url: String,
     bounds: BrowserBounds,
 ) -> Result<(), String> {
     // 外部页面创建也必须排在壳层和辅助视图预加载之后。
-    app.state::<browser_startup::BrowserStartup>().wait().await?;
+    app.window_state::<browser_startup::BrowserStartup>().wait().await?;
     // 导航与扩展策略修改串行执行，确保页面只能在最新策略同步成功后加载。
     let extension_lock = app.state::<extension_runtime::ExtensionOperationLock>();
     let _extension_guard = extension_lock.0.lock().await;
     let parsed_url = parse_browser_url(&url)?;
     let label = browser_label(&tab_id);
-    let data_directory = browser_group_data_directory(&app, &group_id, small_group_id.as_deref())?;
+    let data_directory = browser_group_data_directory(&app, profile_group_id.as_deref().unwrap_or(&group_id), small_group_id.as_deref())?;
     // 相同标签只有在隔离目录一致时才能复用；跨范围必须销毁旧 WebView 后重建。
     let profile_matches = app.state::<BrowserProfileStore>().0.lock()
         .map_err(|_| "无法读取标签数据目录")?.get(&label) == Some(&data_directory);
@@ -775,7 +793,7 @@ async fn open_browser_tab(
     let window = app
         .get_window("main")
         .ok_or_else(|| "找不到浏览器主窗口".to_string())?;
-    let desired_extensions = extensions::profile_extensions(&app, &group_id, small_group_id.as_deref())?;
+    let desired_extensions = extensions::profile_extensions(&app, profile_group_id.as_deref().unwrap_or(&group_id), small_group_id.as_deref())?;
 
     let suppress_initial_blank = parsed_url.as_str() != "about:blank";
     let page_event_app = app.clone();
@@ -887,7 +905,7 @@ async fn open_browser_tab(
         return Err(format!("分组扩展初始化失败：{error}"));
     }
     app.state::<extensions::ExtensionScopeStore>().0.lock().map_err(|_| "无法记录扩展分组")?
-        .insert(browser_label(&tab_id), (tab_id.clone(), group_id.clone(), small_group_id));
+        .insert(browser_label(&tab_id), (tab_id.clone(), profile_group_id.unwrap_or_else(|| group_id.clone()), small_group_id));
     app.state::<BrowserProfileStore>().0.lock()
         .map_err(|_| "无法记录标签数据目录")?.insert(browser_label(&tab_id), data_directory);
     // 在首次导航前订阅内核站点图标；旧运行时不支持时仍允许正常浏览网页。
@@ -949,6 +967,7 @@ async fn switch_browser_tab(
     tab_id: String,
     group_id: String,
     small_group_id: Option<String>,
+    profile_group_id: Option<String>,
     bounds: BrowserBounds,
 ) -> Result<bool, String> {
     let label = browser_label(&tab_id);
@@ -956,7 +975,7 @@ async fn switch_browser_tab(
     // 已有视图只需比对隔离路径；目录在创建视图时已建立，切页不再触发磁盘访问。
     let expected_directory = app.path().app_local_data_dir()
         .map_err(|error| error.to_string())?
-        .join(browser_profiles::relative_profile_path(&group_id, small_group_id.as_deref()));
+        .join(browser_profiles::relative_profile_path(profile_group_id.as_deref().unwrap_or(&group_id), small_group_id.as_deref()));
     if app.state::<BrowserProfileStore>().0.lock()
         .map_err(|_| "无法读取标签数据目录")?.get(&label) != Some(&expected_directory) {
         return Ok(false);
@@ -984,6 +1003,7 @@ async fn switch_browser_tab(
 
 #[tauri::command]
 fn close_browser_tab(app: AppHandle, tab_id: String) -> Result<(), String> {
+    if app.raw().get_webview(&browser_label(&tab_id)).is_some() && app.get_webview(&browser_label(&tab_id)).is_none() { return Ok(()); }
     app.state::<browser_visibility::BrowserVisibility>().mark_visible(&browser_label(&tab_id))?;
     if let Some(webview) = app.get_webview(&browser_label(&tab_id)) {
         // 先隐藏再销毁，确保“主页”和关闭标签操作不会因 WebView2 延迟销毁而残留旧网页。
@@ -1071,7 +1091,7 @@ fn set_browser_tab_muted(app: AppHandle, tab_id: String, muted: bool) -> Result<
 /// 打开浏览器功能菜单；标签固定使用左侧树形布局，不提供布局切换入口。
 fn show_browser_more_menu(
     app: AppHandle,
-    menu_store: tauri::State<'_, floating_windows::BrowserMenuStore>,
+    menu_store: WindowState<floating_windows::BrowserMenuStore>,
     show_bookmarks_bar: bool,
     dark_mode: bool,
     source_window: String,
@@ -1125,7 +1145,7 @@ fn show_browser_more_menu(
 #[allow(clippy::too_many_arguments)]
 fn show_browser_panel(
     app: AppHandle,
-    menu_store: tauri::State<'_, floating_windows::BrowserMenuStore>,
+    menu_store: WindowState<floating_windows::BrowserMenuStore>,
     payload: serde_json::Value,
     source_window: String,
     x: f64,
@@ -1151,7 +1171,7 @@ fn show_browser_panel(
 #[allow(clippy::too_many_arguments)]
 fn show_browser_tab_menu(
     app: AppHandle,
-    menu_store: tauri::State<'_, floating_windows::BrowserMenuStore>,
+    menu_store: WindowState<floating_windows::BrowserMenuStore>,
     tab_id: String,
     adjacent_direction: String,
     groups: Vec<BrowserMenuGroup>,
@@ -1255,7 +1275,7 @@ fn show_browser_tab_menu(
 /// 节点的更多按钮和右键共用此菜单；小分组仅提供新增标签、重命名和删除操作。
 fn show_browser_tree_menu(
     app: AppHandle,
-    menu_store: tauri::State<'_, floating_windows::BrowserMenuStore>,
+    menu_store: WindowState<floating_windows::BrowserMenuStore>,
     group_id: String,
     small_group_id: Option<String>,
     dark_mode: bool,
@@ -1445,7 +1465,7 @@ fn get_default_download_directory(app: AppHandle) -> Result<String, String> {
 #[cfg(windows)]
 #[tauri::command]
 fn set_download_preferences(
-    state: tauri::State<'_, DownloadRuntimeState>,
+    state: WindowState<Mutex<DownloadPreferences>>,
     directory: String,
     ask_before_download: bool,
 ) -> Result<(), String> {
@@ -1455,7 +1475,6 @@ fn set_download_preferences(
             .map_err(|error| format!("无法创建下载目录 {}：{error}", directory.display()))?;
     }
     let mut preferences = state
-        .preferences
         .lock()
         .map_err(|_| "无法更新下载设置".to_string())?;
     preferences.directory = directory;
@@ -1492,8 +1511,7 @@ async fn resolve_pending_download(
         .get(&id)
         .cloned()
         .ok_or_else(|| "找不到待处理的下载任务".to_string())?;
-    let preferences = state
-        .preferences
+    let preferences = app.window_state::<Mutex<DownloadPreferences>>()
         .lock()
         .map_err(|_| "无法读取下载设置".to_string())?
         .clone();
@@ -1668,7 +1686,7 @@ fn browser_window_action(app: AppHandle, action: String) -> Result<(), String> {
 
 #[tauri::command]
 fn current_window_label(window: tauri::Window) -> String {
-    window.label().to_string()
+    window.label().split_once("--").map_or(window.label(), |(_, label)| label).to_string()
 }
 
 /// 查询主窗口是否为活动窗口；网页子视图之间切换焦点不会误判为浏览器失活。
@@ -1692,15 +1710,13 @@ pub fn run() {
     // 开发版与已安装版本分别复用各自窗口，避免本地调试接管正式浏览器。
     if cfg!(debug_assertions) { context.config_mut().identifier.push_str(".dev"); }
     // 主窗口在 tauri.conf.json 中关闭系统阴影，窗口边界由 Sia WindowFrame 的细边框呈现。
-    tauri::Builder::default()
-        // 必须先检测已有实例，再初始化 WebView 和用户资料目录。
-        .plugin(tauri_plugin_single_instance::init(browser_instance::forward))
+    let mut builder = tauri::Builder::default();
+    // 系统入口由同一进程转交给存活的浏览器窗口。
+    builder = builder.plugin(tauri_plugin_single_instance::init(browser_instance::forward));
+    builder
+        .manage(window_context::WindowStates::default())
+        .manage(detached_windows::DetachedWindowRuntime::default())
         .manage(browser_instance::BrowserInstance::default())
-        .manage(browser_startup::BrowserStartup::default())
-        .manage(browser_overlay::BrowserOverlayStore::default())
-        .manage(floating_windows::TabPanelStore::default())
-        .manage(floating_windows::BrowserMenuStore::default())
-        .manage(floating_windows::TabTooltipStore::default())
         .manage(DownloadRuntimeState::default())
         .manage(BrowserProfileStore::default())
         .manage(browser_visibility::BrowserVisibility::default())
@@ -1709,22 +1725,17 @@ pub fn run() {
         .manage(extensions::ExtensionScopeStore::default())
         .manage(passwords::PasswordThemeStore::default())
         .setup(|app| {
-            // 先建立原生缩放边缘，再创建可能覆盖窗口四边的标签和辅助 WebView。
-            let main = app.get_window("main").ok_or("找不到浏览器主窗口")?;
-            window_resize::initialize(&main)?;
-            if let Some(webview) = app.get_webview("main") {
-                browser_drop::attach(app.handle(), &webview)?;
-            }
             if let Ok(directory) = app.path().download_dir() {
-                if let Ok(mut preferences) = app.state::<DownloadRuntimeState>().preferences.lock()
+                if let Ok(mut preferences) = AppHandle::new(app.handle(), "main").window_state::<Mutex<DownloadPreferences>>().lock()
                 {
                     preferences.directory = directory;
                 }
             }
             // WebView2 初始化会泵送 IPC；辅助视图建好后才允许主界面启动。
-            let result = browser_overlay::initialize(app.handle())
-                .and_then(|()| floating_windows::initialize(app.handle()));
-            app.state::<browser_startup::BrowserStartup>().finish(result);
+            let result = detached_windows::initialize_window(&AppHandle::new(app.handle(), "main"));
+            AppHandle::new(app.handle(), "main").window_state::<browser_startup::BrowserStartup>().finish(result);
+            detached_windows::initialize(app.handle())?;
+            startup_diagnostics::run_detach_fixture(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -1742,6 +1753,13 @@ pub fn run() {
             clear_browser_tabs_data,
             load_browser_state,
             save_browser_state,
+            detached_windows::acknowledge_detached_window,
+            detached_windows::present_detached_window,
+            detached_windows::browser_drag_outside,
+            detached_windows::begin_browser_tree_drag,
+            detached_windows::detach_browser_window,
+            detached_windows::transferred_browser_tabs,
+            detached_windows::reject_detached_window,
             set_browser_bounds,
             browser_page_action,
             get_default_download_directory,

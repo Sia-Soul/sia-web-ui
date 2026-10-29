@@ -5,7 +5,7 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 
 #[cfg(windows)]
 use std::{ffi::c_void, slice};
@@ -1010,7 +1010,7 @@ pub fn attach_password_bridge(
                         {
                             return Ok(());
                         }
-                        let _ = handler_app.emit(
+                        let _ = crate::window_context::BrowserContext::new(&handler_app, "main").for_tab(&handler_tab_id).emit(
                             "sia://password-submission",
                             PasswordSubmissionEvent {
                                 tab_id: handler_tab_id.clone(),

@@ -1,10 +1,11 @@
+use crate::window_context::{BrowserContext as AppHandle, WindowState};
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{
-    AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, PhysicalPosition, Position, Rect,
-    Size, State, Webview, WebviewBuilder, WebviewUrl,
+    Emitter, LogicalPosition, LogicalSize, PhysicalPosition, Position, Rect,
+    Size, Webview, WebviewBuilder, WebviewUrl,
 };
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::{SetWindowPos, HWND_TOP, SWP_NOMOVE, SWP_NOSIZE};
@@ -30,7 +31,7 @@ fn overlay_webview(app: &AppHandle) -> Result<Webview, String> {
         .get_window("main")
         .ok_or_else(|| "找不到浏览器主窗口".to_string())?;
     let builder = WebviewBuilder::new(
-        BROWSER_OVERLAY_LABEL,
+        app.label(BROWSER_OVERLAY_LABEL),
         WebviewUrl::App("overlay.html".into()),
     )
     .transparent(true)
@@ -97,8 +98,7 @@ fn raise_overlay(_overlay: &Webview) -> Result<(), String> {
 fn present_overlay(app: &AppHandle, payload: Value) -> Result<(), String> {
     let overlay = overlay_webview(app)?;
     sync_overlay_bounds(app, &overlay)?;
-    overlay
-        .emit("sia://browser-overlay-state", payload)
+    overlay.emit_to(tauri::EventTarget::webview(overlay.label()), "sia://browser-overlay-state", payload)
         .map_err(|error| error.to_string())?;
     overlay.show().map_err(|error| error.to_string())?;
     raise_overlay(&overlay)?;
@@ -108,7 +108,7 @@ fn present_overlay(app: &AppHandle, payload: Value) -> Result<(), String> {
 #[tauri::command]
 pub fn open_browser_overlay(
     app: AppHandle,
-    store: State<'_, BrowserOverlayStore>,
+    store: WindowState<BrowserOverlayStore>,
     payload: Value,
 ) -> Result<(), String> {
     crate::floating_windows::close_browser_menu(app.clone())?;
@@ -136,7 +136,7 @@ pub fn open_browser_overlay(
 
 #[tauri::command]
 pub fn get_browser_overlay_state(
-    store: State<'_, BrowserOverlayStore>,
+    store: WindowState<BrowserOverlayStore>,
 ) -> Result<Option<Value>, String> {
     store
         .0
@@ -148,7 +148,7 @@ pub fn get_browser_overlay_state(
 #[tauri::command]
 pub fn close_browser_overlay(
     app: AppHandle,
-    store: State<'_, BrowserOverlayStore>,
+    store: WindowState<BrowserOverlayStore>,
 ) -> Result<(), String> {
     {
         let mut state = store
@@ -169,7 +169,7 @@ pub fn close_browser_overlay(
 #[tauri::command]
 pub fn browser_overlay_action(
     app: AppHandle,
-    store: State<'_, BrowserOverlayStore>,
+    store: WindowState<BrowserOverlayStore>,
     action: BrowserOverlayAction,
 ) -> Result<(), String> {
     close_browser_overlay(app.clone(), store)?;

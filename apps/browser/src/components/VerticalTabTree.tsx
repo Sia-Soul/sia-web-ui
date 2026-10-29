@@ -4,6 +4,7 @@ import { Button, FloatingScrollbarProvider, Icon } from "@sia.soul/sia-react-ui"
 import { ROOT_GROUP_ID, type BrowserGroup, type BrowserTab } from "../browserTypes";
 import BrowserFavicon from "./BrowserFavicon";
 import { useCompactTabTooltip } from "./BrowserTabTooltip";
+import type { GroupDropTarget, TreeDragItem } from "../tabTreeMove";
 
 interface VerticalTabTreeProps {
   groups: readonly BrowserGroup[];
@@ -12,6 +13,10 @@ interface VerticalTabTreeProps {
   onSelect: (tabId: string) => void;
   /** 将标签移入目标分组；beforeTabId 指定插入其前，null 表示末尾，省略时沿用原位置规则。 */
   onMoveTab: (tabId: string, groupId: string, smallGroupId?: string, beforeTabId?: string | null) => void;
+  /** 移动整个分组及其页签；目标锚点为 null 时放到该层末尾。 */
+  onMoveGroup: (item: TreeDragItem, target: GroupDropTarget) => void;
+  /** 拖放未在树内完成时交给宿主检查窗口外落点；Escape 取消不会触发。 */
+  onDetach: (item: TreeDragItem) => void;
   onClose: (tabId: string) => void;
   onToggleAudio: (tabId: string) => void;
   onNewTab: (groupId: string, smallGroupId?: string) => void;
@@ -55,6 +60,8 @@ export default function VerticalTabTree({
   activeId,
   onSelect,
   onMoveTab,
+  onMoveGroup,
+  onDetach,
   onClose,
   onToggleAudio,
   onNewTab,
@@ -79,6 +86,9 @@ export default function VerticalTabTree({
   // 插入位置独立于分组高亮，同一目标分组中移动时也能即时更新横线。
   const [dropInsertion, setDropInsertion] = useState<{ key: string; beforeTabId: string | null } | null>(null);
   const draggedTabRef = useRef<string | null>(null);
+  const draggedItemRef = useRef<TreeDragItem | null>(null);
+  const cancelledDragRef = useRef(false);
+  const [groupDropHint, setGroupDropHint] = useState<{ key: string; edge: string } | null>(null);
   const resizeStateRef = useRef<{ pointerId: number; startX: number; startWidth: number } | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const revealedTabRef = useRef<string | null>(null);
@@ -98,6 +108,56 @@ export default function VerticalTabTree({
   }, [tabs]);
   const rootTabs = tabsByGroup.get(ROOT_GROUP_ID) ?? [];
   const activeTab = tabs.find((tab) => tab.id === activeId);
+
+  useEffect(() => {
+    const cancel = (event: KeyboardEvent) => { if (event.key === "Escape") cancelledDragRef.current = true; };
+    document.addEventListener("keydown", cancel, true);
+    return () => document.removeEventListener("keydown", cancel, true);
+  }, []);
+
+  /** 分组标题与页签共用拖动生命周期，内部落下和取消都不会再次触发拆窗。 */
+  function dragHandlers(item: TreeDragItem) {
+    return {
+      draggable: true,
+      onDragStart: (event: ReactDragEvent<HTMLElement>) => {
+        event.stopPropagation();
+        cancelledDragRef.current = false;
+        void window.__TAURI__?.core.invoke("begin_browser_tree_drag").catch(() => undefined);
+        draggedItemRef.current = item;
+        draggedTabRef.current = item.kind === "tab" ? item.tabId : null;
+        setDraggedTabId(item.kind === "tab" ? item.tabId : null);
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("application/x-sia-browser-tree", JSON.stringify(item));
+      },
+      onDragEnd: (event: ReactDragEvent<HTMLElement>) => {
+        const dragged = draggedItemRef.current;
+        const cancelled = cancelledDragRef.current;
+        finishTabDrag();
+        if (dragged && !cancelled && event.dataTransfer.dropEffect === "none") onDetach(dragged);
+      },
+    };
+  }
+
+  function groupDestination(event: ReactDragEvent<HTMLElement>, groupId: string, smallGroupId?: string) {
+    const item = draggedItemRef.current;
+    if (!item || item.kind === "tab") return null;
+    const group = groups.find(candidate => candidate.id === groupId) ?? groups[groups.length - 1];
+    if (!group) return null;
+    const rootEnd = groupId === ROOT_GROUP_ID;
+    if (item.kind === "group") {
+      const section = event.currentTarget.closest<HTMLElement>("[data-tree-group]") ?? event.currentTarget;
+      const rect = section.getBoundingClientRect();
+      const after = rootEnd || event.clientY >= rect.top + rect.height / 2;
+      const beforeId = after ? groups[groups.indexOf(group) + 1]?.id ?? null : group.id;
+      return { target: { groupId: group.id, beforeId }, hint: { key: group.id, edge: after ? "after" : "before" } };
+    }
+    if (!smallGroupId) return { target: { groupId: group.id, beforeId: null }, hint: { key: group.id, edge: "inside" } };
+    const rect = event.currentTarget.getBoundingClientRect();
+    const after = event.clientY >= rect.top + rect.height / 2;
+    const index = group.smallGroups.findIndex(small => small.id === smallGroupId);
+    const beforeId = after ? group.smallGroups[index + 1]?.id ?? null : smallGroupId;
+    return { target: { groupId: group.id, beforeId }, hint: { key: smallGroupId, edge: after ? "after" : "before" } };
+  }
 
   // 内嵌和原生侧栏共用定位逻辑；折叠分组展开或容器获得尺寸后再定位到活动标签。
   useLayoutEffect(() => {
@@ -143,6 +203,14 @@ export default function VerticalTabTree({
     // 进入子节点与周期性悬停均接受内部标签，避免切换命中元素时短暂显示禁止指针。
     const acceptDrag = (event: ReactDragEvent<HTMLElement>) => {
       event.stopPropagation();
+      const destination = groupDestination(event, groupId, smallGroupId);
+      if (destination) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        setGroupDropHint(destination.hint);
+        setDropTarget(key);
+        return true;
+      }
       const tab = tabs.find((item) => item.id === draggedTabRef.current);
       if (!tab) { setDropTarget(null); return false; }
       event.preventDefault();
@@ -157,6 +225,7 @@ export default function VerticalTabTree({
       "data-drop-group": groupId,
       "data-drop-small-group": smallGroupId,
       "data-drop-active": dropTarget === key ? "true" : undefined,
+      "data-group-drop": groupDropHint?.key === (smallGroupId ?? groupId) ? groupDropHint.edge : undefined,
       onDragEnter: acceptDrag,
       onDragOver: (event: ReactDragEvent<HTMLElement>) => {
         if (!acceptDrag(event)) return;
@@ -181,6 +250,14 @@ export default function VerticalTabTree({
       },
       onDrop: (event: ReactDragEvent<HTMLElement>) => {
         event.stopPropagation();
+        const destination = groupDestination(event, groupId, smallGroupId);
+        const item = draggedItemRef.current;
+        if (destination && item) {
+          event.preventDefault();
+          finishTabDrag();
+          onMoveGroup(item, destination.target);
+          return;
+        }
         const tab = tabs.find((item) => item.id === draggedTabRef.current);
         if (!tab) return;
         event.preventDefault();
@@ -194,6 +271,8 @@ export default function VerticalTabTree({
   /** 拖动结束或按 Escape 取消后清理高亮，避免残留目标提示。 */
   function finishTabDrag() {
     draggedTabRef.current = null;
+    draggedItemRef.current = null;
+    setGroupDropHint(null);
     setDraggedTabId(null);
     setDropTarget(null);
     setDropInsertion(null);
@@ -209,7 +288,7 @@ export default function VerticalTabTree({
 
   // 悬停折叠分组后展开，便于继续拖入内部小分组；离开目标立即取消定时器。
   useEffect(() => {
-    if (!dropTarget || !draggedTabId) return;
+    if (!dropTarget || !draggedItemRef.current) return;
     const [groupId, smallGroupId] = JSON.parse(dropTarget) as [string, string | null];
     const timer = window.setTimeout(() => {
       if (collapsedGroups.has(groupId)) onToggleGroup?.(groupId);
@@ -278,14 +357,7 @@ export default function VerticalTabTree({
           icon={<BrowserFavicon url={tab.url} faviconUrl={tab.faviconPageUrl === tab.url ? tab.faviconUrl : undefined} loading={tab.loading} size={15} />}
           aria-label={tab.title}
           aria-current={active ? "page" : undefined}
-          draggable
-          onDragStart={(event) => {
-            draggedTabRef.current = tab.id;
-            setDraggedTabId(tab.id);
-            event.dataTransfer.effectAllowed = "move";
-            event.dataTransfer.setData("application/x-sia-browser-tab", tab.id);
-          }}
-          onDragEnd={finishTabDrag}
+          {...dragHandlers({ kind: "tab", tabId: tab.id })}
           onClick={() => onSelect(tab.id)}
         >
           <span className="vertical-tree-tab__title">{tab.title}</span>
@@ -342,6 +414,7 @@ export default function VerticalTabTree({
           aria-current={active ? "page" : undefined}
           // 图标相同的页面通过完整标题、网址和状态区分，不依赖原生 title。
           {...compactTooltip.handlers({ title: tab.title || "新标签页", url: tab.url, detail: statusText })}
+          {...dragHandlers({ kind: "tab", tabId: tab.id })}
           onClick={() => onSelect(tab.id)}
         />
         {tab.muted || tab.audible ? (
@@ -434,6 +507,7 @@ export default function VerticalTabTree({
             <section
               key={group.id}
               className="vertical-tree-group"
+              data-tree-group={group.id}
               style={{ "--group-color": group.color } as React.CSSProperties}
               // 整个大分组都可接收；小分组处理器阻止冒泡以保持更精确的归属。
               {...dropHandlers(group.id)}
@@ -445,6 +519,7 @@ export default function VerticalTabTree({
                 <div className="vertical-tree-group__heading">
                   <Button
                     className="vertical-tree-group__toggle"
+                    {...dragHandlers({ kind: "group", groupId: group.id })}
                     variant="text"
                     size="small"
                     aria-expanded={!groupCollapsed}
@@ -482,6 +557,7 @@ export default function VerticalTabTree({
                           <div className="vertical-tree-small-group__heading">
                             <Button
                               className="vertical-tree-small-group__toggle"
+                              {...dragHandlers({ kind: "small-group", groupId: group.id, smallGroupId: smallGroup.id })}
                               variant="text"
                               size="small"
                               icon={<Icon name="folder" size={16} />}
@@ -541,10 +617,13 @@ export default function VerticalTabTree({
               <section
                 key={group.id}
                 className="vertical-tree-compact-group"
+                data-tree-group={group.id}
+                {...dropHandlers(group.id)}
                 style={{ "--group-color": group.color } as React.CSSProperties}
               >
                 <Button
                   className="vertical-tree-compact-group__title"
+                  {...dragHandlers({ kind: "group", groupId: group.id })}
                   variant="text"
                   size="small"
                   aria-label={`分组：${group.name}`}
@@ -568,9 +647,11 @@ export default function VerticalTabTree({
                         <section
                           key={smallGroup.id}
                           className="vertical-tree-compact-small-group"
+                          {...dropHandlers(group.id, smallGroup.id)}
                         >
                           <Button
                             className={`vertical-tree-compact-small-group__title${activeSmallGroupParent ? " is-current-ancestor" : ""}`}
+                            {...dragHandlers({ kind: "small-group", groupId: group.id, smallGroupId: smallGroup.id })}
                             variant="text"
                             size="small"
                             aria-label={`小分组：${smallGroup.name}`}
@@ -598,7 +679,7 @@ export default function VerticalTabTree({
             );
           })}
           {rootTabs.length > 0 ? (
-            <div className="vertical-tree-compact-root-tabs">
+            <div className="vertical-tree-compact-root-tabs" {...dropHandlers(ROOT_GROUP_ID)}>
               {rootTabs.map(renderCompactTab)}
             </div>
           ) : null}

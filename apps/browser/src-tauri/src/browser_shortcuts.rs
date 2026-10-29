@@ -1,5 +1,5 @@
 //! 将网页视图中的快捷键交给外壳执行，保持标签状态和原生视图同步。
-use tauri::{AppHandle, Emitter, Webview};
+use tauri::{AppHandle, Webview};
 use webview2_com::{
     AcceleratorKeyPressedEventHandler,
     Microsoft::Web::WebView2::Win32::COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN,
@@ -36,11 +36,11 @@ pub async fn attach(app: &AppHandle, view: &Webview, tab_id: String) -> Result<(
                 args.KeyEventLParam(&mut lparam)?;
                 // 长按产生的重复事件也要吞掉，防止切换焦点后连续关闭其他标签。
                 if lparam & (1 << 30) == 0 {
-                    let app = app.clone();
+                    let app = crate::window_context::BrowserContext::new(&app, "main").for_tab(&tab_id);
                     let action = format!("tab|{tab_id}|close");
                     // 原生输入回调同步阻塞网页进程；异步通知外壳，避免在回调里销毁视图。
                     tauri::async_runtime::spawn(async move {
-                        if let Err(error) = app.emit_to("main", "sia://native-menu-action", action)
+                        if let Err(error) = app.emit("sia://native-menu-action", action)
                         {
                             eprintln!("无法发送关闭标签快捷键：{error}");
                         }

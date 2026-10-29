@@ -28,6 +28,6 @@ impl BrowserStartup {
 
 /// 前端挂载应用前调用；初始化失败会拒绝 Promise，由壳层呈现错误信息。
 #[tauri::command]
-pub async fn wait_browser_ready(state: tauri::State<'_, BrowserStartup>) -> Result<(), String> {
+pub async fn wait_browser_ready(state: crate::window_context::WindowState<BrowserStartup>) -> Result<(), String> {
     state.wait().await
 }

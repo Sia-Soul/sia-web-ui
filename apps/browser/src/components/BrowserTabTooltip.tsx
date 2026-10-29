@@ -1,3 +1,4 @@
+import { listenNative } from "../nativeEvents";
 import { useEffect, useRef, useState } from "react";
 import type { MouseEvent, ReactNode } from "react";
 import { Tooltip, applySiaTheme } from "@sia.soul/sia-react-ui";
@@ -99,7 +100,7 @@ export default function BrowserTabTooltipWindow() {
     let disposed = false;
     let unlisten: (() => void) | undefined;
     let receivedEvent = false;
-    void window.__TAURI__?.event.listen<TabTooltipPayload>("sia://browser-tab-tooltip", ({ payload: next }) => {
+    void listenNative<TabTooltipPayload>("sia://browser-tab-tooltip", ({ payload: next }) => {
       receivedEvent = true;
       if (!disposed) setPayload(next);
     }).then((dispose) => { if (disposed) dispose(); else unlisten = dispose; });

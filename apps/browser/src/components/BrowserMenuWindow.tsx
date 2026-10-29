@@ -1,3 +1,4 @@
+import { listenNative } from "../nativeEvents";
 import { extensionMatchesScope, type ExtensionScope } from "../extensionScopes";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Icon, Input, Menu, applySiaTheme } from "@sia.soul/sia-react-ui";
@@ -149,7 +150,7 @@ export default function BrowserMenuWindow() {
     readCurrentState();
     pollTimer = window.setInterval(readCurrentState, 200);
     if (window.__TAURI__) {
-      void window.__TAURI__.event.listen<BrowserMenuPayload>(
+      void listenNative<BrowserMenuPayload>(
         "sia://browser-menu-state",
         ({ payload: nextPayload }) => {
           acceptPayload(nextPayload);
@@ -170,7 +171,7 @@ export default function BrowserMenuWindow() {
     if (!window.__TAURI__) return;
     let disposed = false;
     let unlisten: (() => void) | undefined;
-    void window.__TAURI__.event.listen<BrowserPanelEntry & { fileName?: string; sourceUrl?: string }>(
+    void listenNative<BrowserPanelEntry & { fileName?: string; sourceUrl?: string }>(
       "sia://browser-download", ({ payload: task }) => {
         setPayload(current => {
           if (current?.kind !== "downloads") return current;
@@ -194,7 +195,7 @@ export default function BrowserMenuWindow() {
     if (!window.__TAURI__) return;
     let disposed = false;
     let unlisten: (() => void) | undefined;
-    void window.__TAURI__.event.listen<Pick<BrowserMenuPayload, "extensionScope" | "heading">>("sia://extension-context-changed", ({ payload: context }) => {
+    void listenNative<Pick<BrowserMenuPayload, "extensionScope" | "heading">>("sia://extension-context-changed", ({ payload: context }) => {
       payloadRevision.current += 1;
       setExtensionBusy(false);
       setExtensionError("");

@@ -6,12 +6,13 @@ pub const SCRIPT: &str = concat!("window.__siaBrowserDropPage = true;\n", includ
 /// 只使用 WebView2 提供的真实 File 路径，不信任网页消息中自报的本地文件路径。
 #[cfg(windows)]
 pub fn attach(app: &tauri::AppHandle, webview: &tauri::Webview) -> Result<(), String> {
-    use tauri::Emitter;
+    use tauri::Manager;
     use windows::core::{Interface, PWSTR};
     use webview2_com::{CoTaskMemPWSTR, WebMessageReceivedEventHandler, Microsoft::Web::WebView2::Win32::{
         ICoreWebView2File, ICoreWebView2WebMessageReceivedEventArgs2,
     }};
     let app = app.clone();
+    let label = webview.label().to_string();
     webview.with_webview(move |platform| {
         let result = (|| -> windows::core::Result<()> {
             let core = unsafe { platform.controller().CoreWebView2()? };
@@ -34,7 +35,10 @@ pub fn attach(app: &tauri::AppHandle, webview: &tauri::Webview) -> Result<(), St
                     }
                     _ => None,
                 };
-                if let Some(url) = url { let _ = app.emit_to("main", "sia://open-dropped-url", url); }
+                if let (Some(url), Some(view)) = (url, app.get_webview(&label)) {
+                    let context = crate::window_context::BrowserContext::new(&app, view.window().label());
+                    let _ = context.emit("sia://open-dropped-url", url);
+                }
                 Ok(())
             }));
             let mut token = 0;
