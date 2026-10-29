@@ -2701,6 +2701,22 @@ input {
   min-width: 0;
 }
 
+/* 导入入口复用 Upload 的唯一按钮，保持主操作配色，不额外绘制一层按钮。 */
+.browser-settings-passwords__toolbar .sia-upload__choose {
+  color: #fff;
+  background: var(--sia-color-primary);
+  border-color: var(--sia-color-primary);
+}
+.browser-settings-passwords__toolbar .sia-upload__choose:hover:not(:disabled) {
+  color: #fff;
+  background: var(--sia-color-primary-hover);
+  border-color: var(--sia-color-primary-hover);
+}
+.browser-settings-passwords__toolbar .sia-upload__choose:active:not(:disabled) {
+  background: var(--sia-color-primary-active);
+  border-color: var(--sia-color-primary-active);
+}
+
 .browser-settings-list {
   overflow: hidden;
 }

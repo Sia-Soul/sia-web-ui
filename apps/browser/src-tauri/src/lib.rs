@@ -16,6 +16,8 @@ mod browser_startup;
 mod default_browser;
 mod browser_drop;
 mod download_file_icon;
+#[cfg(windows)]
+mod download_identity;
 mod browser_instance;
 mod detached_windows;
 mod window_resize;
@@ -23,6 +25,8 @@ mod window_resize;
 mod browser_favicon;
 #[cfg(windows)]
 mod browser_shortcuts;
+#[cfg(windows)]
+mod browser_frame_menu;
 // 开发者工具的原生停靠与网页视图生命周期分离。
 mod browser_devtools;
 #[cfg(windows)]
@@ -36,7 +40,7 @@ use std::{
     os::windows::ffi::OsStrExt,
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicU64, Ordering},
+        atomic::Ordering,
         Mutex,
     },
 };
@@ -73,8 +77,6 @@ const BROWSER_STATE_FILE: &str = "browser-state.json";
 /// 记录每个已创建 WebView 的数据目录，防止标签变更隔离范围后复用旧登录状态。
 #[derive(Default)]
 struct BrowserProfileStore(std::sync::Mutex<std::collections::HashMap<String, std::path::PathBuf>>);
-#[cfg(windows)]
-static NEXT_DOWNLOAD_ID: AtomicU64 = AtomicU64::new(1);
 
 #[cfg(windows)]
 #[derive(Clone, Debug, Default)]
@@ -148,6 +150,8 @@ struct BrowserEvent {
 #[serde(rename_all = "camelCase")]
 struct BrowserDownloadEvent {
     id: String,
+    /// 下载创建时固定的 Unix 毫秒时间，重放和进度事件不重新计时。
+    started_at: Option<u64>,
     tab_id: String,
     state: &'static str,
     received_bytes: u64,
@@ -401,6 +405,7 @@ fn emit_download_event(
     );
     let event = BrowserDownloadEvent {
             id: download_id.to_string(),
+            started_at: download_identity::started_at(download_id),
             tab_id: tab_id.to_string(),
             state,
             received_bytes,
@@ -540,10 +545,8 @@ async fn attach_download_monitor(
                     DownloadStartingEventHandler::create(Box::new(move |_sender, args| {
                         if let Some(args) = args {
                             let operation = unsafe { args.DownloadOperation()? };
-                            let download_id = format!(
-                                "download-{}",
-                                NEXT_DOWNLOAD_ID.fetch_add(1, Ordering::Relaxed)
-                            );
+                            // 开始时间和身份在源头固定，不能复用重启前的下载编号。
+                            let download_id = download_identity::new_download_id()?;
                             let preferences = event_app.for_tab(&event_tab_id)
                                 .window_state::<Mutex<DownloadPreferences>>()
                                 .lock()
@@ -924,6 +927,11 @@ async fn open_browser_tab(
     if let Err(error) = browser_shortcuts::attach(&app, &webview, tab_id.clone()).await {
         let _ = webview.close();
         return Err(error);
+    }
+    // 框架刷新补充到默认右键菜单，保留原有站点及扩展菜单项。
+    #[cfg(windows)]
+    if let Err(error) = browser_frame_menu::attach(&webview).await {
+        eprintln!("无法安装框架刷新菜单：{error}");
     }
     // 下载链接可能立即返回附件，必须在首次导航前完成订阅。
     attach_download_monitor(&app, &webview, tab_id.clone()).await?;

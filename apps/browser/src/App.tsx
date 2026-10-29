@@ -66,7 +66,7 @@ interface BrowserNativeEvent {
 }
 
 interface BrowserDownloadNativeEvent {
-  /** 首次收到此下载事件的时间，毫秒；持久化后保持不变，不随完成或进度更新。 */
+  /** 原生下载开始时间，Unix 毫秒；旧内核无此字段时使用首次接收时间，完成及进度不重置。 */
   startedAt?: number;
   id: string;
   tabId: string;
@@ -1350,7 +1350,8 @@ export default function App() {
             [payload.id]: {
               ...current[payload.id],
               ...payload,
-              startedAt: current[payload.id]?.startedAt ?? payload.startedAt ?? nextDownloadStartedAt(Object.values(current)),
+              // 原生时间在创建时固定，优先于旧版本保存的接收时间及跨窗重放时间。
+              startedAt: payload.startedAt ?? current[payload.id]?.startedAt ?? nextDownloadStartedAt(Object.values(current)),
             },
           };
         });

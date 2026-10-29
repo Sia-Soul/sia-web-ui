@@ -318,7 +318,8 @@ export default function PasswordManagerModal({
                 return Upload.LIST_IGNORE as never;
               }}
             >
-              <Button icon={<Icon name="upload" size={15} />}>从浏览器导入</Button>
+              {/* 文件选择和键盘激活由 Upload 内置按钮处理，不再嵌套 Button。 */}
+              <Icon name="upload" size={15} /><span>从浏览器导入</span>
             </Upload>
             <Button
               variant="primary"

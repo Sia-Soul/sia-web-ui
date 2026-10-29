@@ -265,7 +265,8 @@ function BrowserMenuContent() {
           const previous = entries.find(entry => entry.id === task.id);
           if (previous?.state === "finished" && task.state === "progress") return current;
           const next = { ...previous, ...task, title: task.fileName || previous?.title || "未命名下载", url: task.sourceUrl || previous?.url,
-            startedAt: previous?.startedAt ?? task.startedAt ?? nextDownloadStartedAt(entries),
+            // 与主窗口使用同一源头时间，面板是否已打开、事件到达顺序均不影响排序。
+            startedAt: task.startedAt ?? previous?.startedAt ?? nextDownloadStartedAt(entries),
             // 原生事件早于自动打开面板时由主窗口传递时间；面板已开时只为首次出现的下载记录时间。
             highlightStartedAt: previous?.highlightStartedAt ?? task.highlightStartedAt
               ?? (!previous && (task.state === "waiting" || task.state === "started") ? Date.now() : undefined) };

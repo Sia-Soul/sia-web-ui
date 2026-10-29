@@ -397,9 +397,9 @@ export default function BrowserSettingsPage({
               return Upload.LIST_IGNORE as never;
             }}
           >
-            <Button variant="primary" icon={<Icon name="upload" size={16} />}>
-              从 Edge 导入 CSV
-            </Button>
+            {/* Upload 自带可点击按钮，子内容只放图标和文字，避免嵌套按钮及重复边框。 */}
+            <Icon name="upload" size={16} />
+            <span>从 Edge 导入 CSV</span>
           </Upload>
         </div>
         <section className="browser-settings-list" aria-busy={passwordLoading}>

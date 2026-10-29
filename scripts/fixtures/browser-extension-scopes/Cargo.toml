@@ -38,3 +38,8 @@ path = "src/popup_order_probe.rs"
 [[bin]]
 name = "browser-devtools-probe"
 path = "src/devtools_probe.rs"
+
+# 原生右键菜单回归，验证 iframe 刷新只作用于命中的文档。
+[[bin]]
+name = "browser-frame-menu-probe"
+path = "src/frame_menu_probe.rs"

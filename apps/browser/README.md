@@ -93,6 +93,8 @@ Windows 菜单、工具栏面板和悬停提示使用普通附属窗口，不设
 
 ## 验证与构建
 
+下载列表按下载开始时间倒序排列，进度更新和完成顺序不参与排序。Windows 内核在创建下载时固定开始时间并生成跨重启唯一的身份；主窗口、下载浮层及跨窗口事件重放使用相同时间，保存和恢复后保持排序。同一毫秒内的连续下载使用递增毫秒区分先后。旧版没有开始时间的记录仍按原保存顺序兼容恢复，不根据文件名中的数字猜测时间。`scripts/test-browser-download-time.cjs` 验证原生时间优先、乱序事件和浮层实际列表顺序；`cargo test --lib download_identity::tests` 检查身份与时间生成。
+
 从资源管理器拖入 `.html` / `.htm` 文件时，左侧标签树沿用页签拖动的目标分组高亮和 4px 插入线，支持小分组、大分组直属区域、空分组与根级区域。松手后在指示位置新建标签；移出侧栏或结束拖动会清除反馈。文件路径仍通过原生 File 对象读取，外部网页不能指定分组；拖到网页区域仍按原有规则在根级新建。`scripts/test-browser-file-drop-position.cjs` 使用虚构文件和原生桥检查显示位置、创建顺序及提示清理，可通过 `BROWSER_TEST_URL` 指定开发服务地址。
 
 ### 收藏夹导入与快捷键
@@ -147,3 +149,11 @@ pnpm browser:build
 WebView2 没有公开的停靠 API，此处使用 Windows 子窗口接入，未开启远程调试端口。仅接入当前网页内核进程中新出现、文档地址匹配且归属明确的工具窗口；切换标签会撤销未完成的认领。DPI 模式不兼容、窗口没有响应、同时出现多个候选或已有未登记的独立工具时保留独立窗口。原生右键“检查”及内核其他控制台入口仍可能打开独立工具；关闭该独立窗口后使用 F12 即可经过停靠流程。不要将这些入口的独立窗口视为停靠失败后必须强制接管的对象。
 
 `scripts/test-browser-devtools.cjs` 覆盖底部/右侧布局、分隔拖动、标签切换、独立窗口、关闭与回退，并检查网页宿主不被重新挂载。真实 WebView2 回归使用 `cargo run --locked --release --manifest-path scripts/fixtures/browser-extension-scopes/Cargo.toml --bin browser-devtools-probe`，使用 D 盘临时资料检查两个共享进程的标签、父窗口、实际 DPI 坐标、后台隐藏、关闭重开及未知窗口回退；工具初始化期间可能短暂出现测试 DevTools，不读取现有浏览器资料。
+
+### 网页框架刷新（Windows）
+
+在 iframe 内容中右键，默认菜单的“刷新”下方显示“刷新框架”，只重新加载本次右键所在文档。普通“刷新”和 Ctrl+R 仍刷新整个标签页。该入口使用原生 WebView2 框架对象，支持同地址兄弟框架、跨域及嵌套框架，不按 URL 推测目标，也不阻止网页原有的右键事件。网页自己取消默认菜单时继续尊重网页行为。
+
+打开菜单后框架发生导航或被移除时，旧命令不会刷新替代文档。定位异步完成，最多等待两秒；无法可靠定位时保留默认菜单，不回退到刷新整个页面。嵌套框架跟踪依赖支持 `ICoreWebView2Frame7` 的 WebView2 Runtime。
+
+原生回归先运行 `cargo build --release --manifest-path scripts/fixtures/browser-extension-scopes/Cargo.toml --bin browser-frame-menu-probe`，再运行 `node scripts/test-browser-frame-menu.cjs`（需通过 `NODE_PATH` 提供 Playwright）。测试仅使用 D 盘独立资料目录，验证同地址框架、跨域嵌套、动态框架、网页取消菜单后的定位，以及主页面表单保留，不访问用户现有浏览资料。
