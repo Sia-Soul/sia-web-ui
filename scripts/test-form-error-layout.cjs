@@ -1,4 +1,4 @@
-// 校验气泡不得改变表单布局；覆盖经过隐藏、键盘避让、恢复、普通提示隔离及错误重置。
+// 校验气泡不得改变表单布局；覆盖经过隐藏、键盘避让、悬停恢复、普通提示隔离及错误重置。
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const http = require('node:http');
@@ -84,6 +84,8 @@ const { chromium } = require(path.join(process.env.USERPROFILE, '.cache/codex-ru
           await page.waitForFunction(({errorId}) => getComputedStyle(document.getElementById(errorId).closest('[role="alert"]')).opacity === '0', measured);
         }
         await page.locator('#normal').focus();
+        // 自动提示期结束后通过悬停当前控件恢复，不再依赖错误气泡常显。
+        await page.locator(`[data-sia-form-field="${current}"] .sia-form-item__input-wrap`).hover();
         await page.waitForFunction(({errorId}) => getComputedStyle(document.getElementById(errorId).closest('[role="alert"]')).opacity === '1', measured);
         if (measured.overlap) {
           // 不经过气泡的键盘聚焦也能避让。

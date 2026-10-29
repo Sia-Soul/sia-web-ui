@@ -10,6 +10,13 @@ export function FormExamples() {
   const [event, setEvent] = useState("等待操作");
   const table = useRef<TableRef<{ id: number; name: string }>>(null);
   return <Space direction="vertical" style={{ width: "100%" }}>
+    {/* 同时触发多个错误，演示两秒渐隐、悬停重显以及重复提交重新提示。 */}
+    <Form onFinish={() => setEvent("校验通过")}>
+      <Typography.Text>提交空表单后，错误提示显示 2 秒并渐隐；悬停输入框可再次查看，再次提交会重新提示。</Typography.Text>
+      <Form.Item name="ruleName" label="规则名称" rules={[{ required: true, message: "请输入规则名称" }]}><Input /></Form.Item>
+      <Form.Item name="brand" label="品牌方" rules={[{ required: true, message: "请输入品牌方" }]}><Input /></Form.Item>
+      <Button type="submit">校验并观察错误提示</Button>
+    </Form>
     <Space><Switch checked={disabled} onCheckedChange={setDisabled} label="禁用" /><Switch checked={loading} onCheckedChange={setLoading} label="加载" /></Space>
     {/* fill 需要确定高度；表单字段之外的列表分配剩余空间。 */}
     <div style={{ height: 260 }}>

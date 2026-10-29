@@ -531,7 +531,7 @@ export interface FormItemProps {
   required?: boolean;
   /** 主体之外的补充内容或操作区。 */
   extra?: ReactNode;
-  /** 字段下方的辅助说明或校验提示；错误气泡默认位于下方，指针进入覆盖区域或其他被遮挡控件获得焦点时暂时透明，移出且焦点离开后恢复。保留错误文本和无障碍关联，视口空间不足时沿用浮层防溢出规则。 */
+  /** 字段下方的辅助说明或校验提示；错误气泡在校验失败或设置错误后显示 2 秒并渐隐，之后悬停控件时显示、移开时渐隐。再次校验失败会重新计时；手动错误状态或提示变化时也重新提示。保留错误边框、错误文本及无障碍关联；气泡遮挡其他控件时仍暂时避让。 */
   help?: ReactNode;
   /** 手动指定字段校验状态。 */
   validateStatus?: "success" | "warning" | "error" | "validating";
@@ -598,6 +598,8 @@ function FormItem({
   const itemRef = useRef<HTMLDivElement>(null);
   const errorContentRef = useRef<HTMLSpanElement>(null);
   const [errorObscured, setErrorObscured] = useState(false);
+  const [errorPreview, setErrorPreview] = useState(false);
+  const [errorHovered, setErrorHovered] = useState(false);
   if (!form) throw new Error("Form.Item 必须在 Form 内使用");
   useSyncExternalStore(form.subscribe, form.getSnapshot, form.getSnapshot);
   const path = name === undefined ? undefined : pathArray(name);
@@ -609,6 +611,16 @@ function FormItem({
   const labelId = label && !noStyle ? `${id}-label` : undefined;
   const errorId = `${id}-error`;
   const hasError = status === "error" && Boolean(helpContent);
+  // 错误数组仅在该字段重新校验或设置错误时更换，避免其他字段更新重启提示计时。
+  const errorVersion = errors.length ? errors : undefined;
+
+  useEffect(() => {
+    setErrorPreview(hasError && !noStyle);
+    if (!hasError || noStyle) return;
+    const timer = window.setTimeout(() => setErrorPreview(false), 2000);
+    // 清除错误、重复校验和卸载时取消旧计时，防止旧回调提前隐藏新提示。
+    return () => window.clearTimeout(timer);
+  }, [hasError, noStyle, errorVersion, helpContent]);
 
   useEffect(() => {
     setErrorObscured(false);
@@ -704,7 +716,8 @@ function FormItem({
   }
 
   if (noStyle) return <>{content}</>;
-  const inputWrap = <div className="sia-form-item__input-wrap">{content}</div>;
+  // 只以控件区域为悬停入口，透明气泡不拦截下一行的鼠标事件。
+  const inputWrap = <div className="sia-form-item__input-wrap" onMouseEnter={() => setErrorHovered(true)} onMouseLeave={() => setErrorHovered(false)}>{content}</div>;
   return <div ref={itemRef} className={`sia-form-item${align === "center" ? " sia-form-item--align-center" : ""}${status ? ` sia-form-item--${status}` : ""} ${className}`.trim()} data-sia-form-field={key || undefined}>
     {label ? <div id={labelId} className="sia-form-item__label"><span className="sia-form-item__label-content">{ruleRequired ? <span className="sia-form-item__required-mark" aria-hidden="true">*</span> : null}{label}</span></div> : null}
     <div className="sia-form-item__control">
@@ -718,7 +731,7 @@ function FormItem({
         open={hasError}
         role="alert"
         color="var(--sia-color-error)"
-        overlayClassName={`sia-form-item__error-popover${errorObscured ? " sia-form-item__error-popover--obscured" : ""}`}
+        overlayClassName={`sia-form-item__error-popover${errorObscured || (!errorPreview && !errorHovered) ? " sia-form-item__error-popover--obscured" : ""}`}
       >
         {inputWrap}
       </Tooltip>

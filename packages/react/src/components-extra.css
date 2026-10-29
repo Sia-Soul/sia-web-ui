@@ -488,8 +488,14 @@ body:has(.sia-window-frame[data-sia-text-selectable="false"]) img { -webkit-user
 .sia-form-item__control > .sia-floating { display: block; width: 100%; min-width: 0; max-width: 100%; }
 .sia-form-item__input-wrap > .sia-field, .sia-form-item__input-wrap > .sia-input-control, .sia-form-item__input-wrap > .sia-input-number, .sia-form-item__input-wrap > .sia-picker, .sia-form-item__input-wrap > .sia-tree-select, .sia-form-item__input-wrap > .sia-select, .sia-form-item__input-wrap > .sia-cascader { width: 100%; }
 .sia-floating__overlay.sia-form-item__error-popover { max-width: min(380px, calc(100vw - 16px)); min-height: 30px; color: #fff; pointer-events: none; border-radius: 7px; box-shadow: 0 2px 8px rgb(255 77 79 / 40%); font-size: 12px; line-height: 1.45; }
+/* 定时和悬停只改变透明度，保留错误文本及定位；关闭入场动画，避免反复显隐时重新跳动。 */
+.sia-floating__overlay.sia-form-item__error-popover { opacity: 1; animation: none; transition: opacity 160ms ease; }
 /* 只让表单错误气泡透明，保留命中区域和无障碍文本；禁止上移后遮挡上一行。 */
 .sia-floating__overlay.sia-form-item__error-popover--obscured { opacity: 0; animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  /* 尊重系统减少动画偏好，显隐时机保持一致。 */
+  .sia-floating__overlay.sia-form-item__error-popover { transition: none; }
+}
 .sia-form-item__error-content { display: flex; align-items: center; gap: 7px; }
 .sia-form-item__error-icon { --sia-icon-contrast: var(--sia-color-error); position: relative; z-index: 1; flex: 0 0 16px; color: #fff; }
 .sia-form-item__help { color: var(--sia-color-text-secondary); font-size: 12px; }
