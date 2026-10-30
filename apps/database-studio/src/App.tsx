@@ -1233,6 +1233,8 @@ export default function App() {
       onContextMenu={(event) => event.preventDefault()}
       titleBar={(
         <WindowTitleBar
+          // 已有主题入口会同步宿主窗口，关闭重复的默认入口。
+          showThemeSwitch={false}
           className="data-studio-titlebar"
           leading={(
             <div className="studio-brand" aria-label="Sia Database">

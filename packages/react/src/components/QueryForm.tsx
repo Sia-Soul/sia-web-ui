@@ -1,4 +1,5 @@
 import { Children, isValidElement, useLayoutEffect, useRef, useState } from "react";
+import { useQueryFormMotion } from "./useQueryFormMotion";
 import { useQueryFormSettings } from "./QueryFormSettings";
 import { countQueryFieldRows, reconcileQueryFields } from "./queryFormSettingsUtils";
 import type { QueryFormSettingsConfig } from "./queryFormSettingsTypes";
@@ -87,7 +88,7 @@ export interface QueryFormProps<T extends FormValues = FormValues> extends Omit<
    * @defaultValue true
    */
   collapsible?: boolean;
-  /** 受控收起状态，需在 onCollapsedChange 中更新；全部字段能单行显示时不执行收起。收起时保留字段挂载和值，只隐藏放不下的字段，底部快捷标签始终保留。 */
+  /** 受控收起状态，需在 onCollapsedChange 中更新；全部字段能单行显示时不执行收起。展开/收起共用 240ms 高度及字段过渡，退场字段立即停止交互、结束后隐藏，保留挂载和值；底部快捷标签始终保留。最多对前 24 个字段和操作区建立独立位移动画，减少动态效果时直接切换。 */
   collapsed?: boolean;
   /**
    * 非受控模式的初始收起状态；显式 true/false 分别指定收起/展开。未指定且没有云端设置或用户手动切换时，按可见查询字段的实际展开行数自动决定：达到 3 行收起，少于 3 行展开；不计操作按钮、快捷查询或设置隐藏的字段，容器宽度变化后重新计算。
@@ -250,7 +251,7 @@ export function QueryForm<T extends FormValues = FormValues>({
     const actions = actionsRef.current;
     if (!row || !actions) return;
     function measure() {
-      if (!row || !actions) return;
+      if (!row || !actions || row.dataset.queryMotion === "true") return;
       const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
       // 同行字段按中心对齐，以中心坐标兼容不同高度控件；暂时展开完整字段测量行数；不把按钮算作查询条件，也不因用户隐藏字段而丢失设置入口。
       const sourceFields = Array.from(row.querySelectorAll<HTMLElement>(":scope > .sia-query-form__field"));
@@ -312,7 +313,8 @@ export function QueryForm<T extends FormValues = FormValues>({
     row
       .querySelectorAll(":scope > .sia-query-form__field")
       .forEach((field) => observer.observe(field));
-    return () => observer.disconnect();
+    row.addEventListener("sia-query-motion-end", measure);
+    return () => { observer.disconnect(); row.removeEventListener("sia-query-motion-end", measure); };
   }, [
     collapsed,
     layoutKey,
@@ -328,6 +330,9 @@ export function QueryForm<T extends FormValues = FormValues>({
     resetText,
     saveText,
   ]);
+
+  // 展开状态和字段配置变化才启动过渡，普通输入和查询值更新不重播动画。
+  useQueryFormMotion(rowRef, `${collapsed}|${fittingCount}|${layoutKey}`);
 
   async function search(values: FormValues) {
     const info = source.current;
@@ -455,6 +460,8 @@ export function QueryForm<T extends FormValues = FormValues>({
             ))}{" "}
           </div>
         ) : null}
+        {/* 高度过渡独立于字段布局，保持展开/收起时控件的交叉轴对齐稳定。 */}
+        <div className="sia-query-form__motion">
         <div
           ref={rowRef}
           className={`sia-query-form__fields${collapsed ? " is-collapsed" : ""}`}
@@ -470,6 +477,7 @@ export function QueryForm<T extends FormValues = FormValues>({
               key={entry.key}
               className="sia-query-form__field"
               data-settings-hidden={!entry.visible || undefined}
+              data-query-hidden={(!entry.visible || (collapsed && entry.visibleIndex >= Math.min(limit, fittingCount))) || undefined}
               hidden={!entry.visible || (collapsed && entry.visibleIndex >= Math.min(limit, fittingCount))}
               style={
                 entry.width !== undefined
@@ -534,6 +542,7 @@ export function QueryForm<T extends FormValues = FormValues>({
             {actionsExtra}
             {cloudSettings.panel}
           </div>
+        </div>
         </div>
         {/* 快捷查询是独立操作入口，不随查询字段收起而隐藏。 */}
         {savedQueries.length ? (

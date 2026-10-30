@@ -152,6 +152,11 @@ pub async fn update_browser_menu_regions(window: WebviewWindow, revision: u64, s
                 let _ = app.emit("sia://browser-menu-error", error);
                 return;
             }
+            // 网页右键菜单接收 Escape 和键盘操作；只在显示完成后激活，不影响只读气泡。
+            if read_menu_state(&app.window_state::<BrowserMenuStore>()).ok().flatten()
+                .is_some_and(|state| state.payload["kind"] == "web-context") {
+                let _ = window.set_focus();
+            }
             runtime.menu_presented_revision.store(revision, Ordering::SeqCst);
             start_menu_pointer_watcher(&app);
         }
@@ -675,6 +680,9 @@ fn cursor_inside_tab_panel(_app: &AppHandle) -> bool {
 }
 
 fn hide_menu(app: &AppHandle) -> Result<(), String> {
+    #[cfg(windows)]
+    crate::browser_web_menu::cancel(app, read_menu_state(&app.window_state::<BrowserMenuStore>())?
+        .and_then(|state| state.payload["nativeRequestId"].as_u64()));
     let runtime = app.window_state::<FloatingRuntime>();
     runtime.menu_visibility_generation.fetch_add(1, Ordering::SeqCst);
     runtime.menu_requested_open.store(false, Ordering::SeqCst);
@@ -1035,6 +1043,9 @@ pub fn show_menu(
 ) -> Result<(), String> {
     let runtime = app.window_state::<FloatingRuntime>();
     close_browser_tab_tooltip(app.clone())?;
+    #[cfg(windows)]
+    crate::browser_web_menu::cancel(app, read_menu_state(&app.window_state::<BrowserMenuStore>())?
+        .and_then(|state| state.payload["nativeRequestId"].as_u64()));
     let current = read_menu_state(store)?.map(|state| state.payload).unwrap_or(Value::Null);
     if should_toggle_menu(menu_is_visible(app), &current, &payload) {
         return hide_menu(app);
@@ -1112,6 +1123,9 @@ pub fn close_browser_menu(app: AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 pub fn browser_menu_action(app: AppHandle, action: FloatingWindowAction) -> Result<(), String> {
+    // 网页命令必须先从会话取出再关闭浮层，否则取消流程会提前释放内核句柄。
+    #[cfg(windows)]
+    if crate::browser_web_menu::select(&app, &action.action) { return Ok(()); }
     // 下载状态切换在原面板内反馈，不因暂停、继续或取消而关闭面板。
     let keep_download_panel = ["pause", "resume", "cancel"].iter().any(|verb| action.action.starts_with(&format!("panel|downloads|{verb}|")));
     if !keep_download_panel { close_browser_menu(app.clone())?; }

@@ -28,7 +28,7 @@ export default function Demo() {
 export function CascaderPage() {
   const [value, setValue] = useState<readonly CascaderValue[]>(["zhejiang", "hangzhou", "xihu"]);
   const [multiple, setMultiple] = useState<readonly (readonly CascaderValue[])[]>([["zhejiang", "hangzhou", "xihu"]]);
-  return <ComponentDocPage eyebrow="组件 / 数据录入 / Cascader" title="Cascader 级联选择" description="从关联的多级选项中逐层选择路径，支持搜索、多选与异步加载。" name="Cascader" apiRows={[
+  return <ComponentDocPage eyebrow="组件 / 数据录入 / Cascader" title="Cascader 级联选择" description="从关联的多级选项中逐层选择路径，支持搜索、多选与异步加载；面板按实际展开的列显示宽度，未展开子项时不预留右侧区域。" name="Cascader" apiRows={[
     { property: "size", description: "small / medium / large 高度为 22 / 30 / 38px；默认继承 Form，组件自身 size 优先", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
     { property: "options", description: "级联选项树", type: "CascaderOption[]", defaultValue: "[]" },
     { property: "value / defaultValue", description: "单条或多条路径值", type: "Value[] | Value[][]", defaultValue: "-" },

@@ -1,6 +1,6 @@
 import { withTitleTooltip } from "./titleTooltip";
 import { useControlSize } from "./shared";
-import { forwardRef, useRef } from "react";
+import { forwardRef, useEffect, useRef } from "react";
 import type { ButtonHTMLAttributes, CSSProperties, MouseEvent, ReactNode } from "react";
 import type { ControlSize } from "./shared";
 
@@ -42,7 +42,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   iconPosition?: "start" | "end";
 }
 
-/** 按钮组件。 */
+/** 按钮组件；有效点击默认播放 320ms 的缩小、弹起和回稳动效，鼠标、触摸及键盘激活共用此反馈。连续点击从当前缩放继续，onClick 和表单默认行为不等待动画；禁用、加载中或系统减少动态效果时不启动动效。 */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   {
     variant = "default",
@@ -63,6 +63,35 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
 ) {
   const size = useControlSize(sizeProp);
   const localRef = useRef<HTMLButtonElement | null>(null);
+  const bounceRef = useRef<Animation | null>(null);
+  const waveTimerRef = useRef<number>();
+
+  // 释放独立动画及波纹计时器，路由切换或按钮卸载后不再访问旧节点。
+  useEffect(() => () => {
+    bounceRef.current?.cancel();
+    window.clearTimeout(waveTimerRef.current);
+  }, []);
+
+  /** 缩放独立于宿主 transform，且只使用合成属性，不改变按钮占位或推挤相邻内容。 */
+  function playBounce(button: HTMLButtonElement) {
+    if (!button.animate || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const current = getComputedStyle(button).scale;
+    bounceRef.current?.cancel();
+    const base = getComputedStyle(button).scale;
+    const [x = 1, y = x] = base === "none" ? [] : base.split(/\s+/).map(Number);
+    const scaled = (factor: number) => `${x * factor} ${y * factor}`;
+    // 等比缩放保持文字与圆形图标比例，快速重击从当前画面接续，不先跳回原尺寸。
+    const animation = button.animate([
+      { scale: current === "none" ? "1" : current, offset: 0 },
+      // 宽按钮保持等比缩放，以更明显的过冲表现弹性但不改变布局占位。
+      { scale: scaled(.9), offset: .2 },
+      { scale: scaled(1.09), offset: .52 },
+      { scale: scaled(.96), offset: .78 },
+      { scale: scaled(1), offset: 1 },
+    ], { duration: 320, easing: "cubic-bezier(.3, 0, .25, 1)" });
+    bounceRef.current = animation;
+    animation.onfinish = () => { if (bounceRef.current === animation) bounceRef.current = null; };
+  }
 
   function setRef(node: HTMLButtonElement | null) {
     localRef.current = node;
@@ -72,12 +101,16 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
 
   function handleClick(event: MouseEvent<HTMLButtonElement>) {
     const button = localRef.current;
+    if (disabled || loading) return;
+    if (button) playBounce(button);
     if (button && variant === "primary") {
       const rect = button.getBoundingClientRect();
-      button.style.setProperty("--sia-wave-x", `${event.clientX - rect.left}px`);
-      button.style.setProperty("--sia-wave-y", `${event.clientY - rect.top}px`);
+      // 键盘激活没有指针坐标；波纹从中心展开，并换算回未缩放的本地坐标。
+      button.style.setProperty("--sia-wave-x", `${event.detail === 0 ? button.offsetWidth / 2 : (event.clientX - rect.left) * button.offsetWidth / rect.width}px`);
+      button.style.setProperty("--sia-wave-y", `${event.detail === 0 ? button.offsetHeight / 2 : (event.clientY - rect.top) * button.offsetHeight / rect.height}px`);
       button.dataset.wave = "active";
-      window.setTimeout(() => delete button.dataset.wave, 360);
+      window.clearTimeout(waveTimerRef.current);
+      waveTimerRef.current = window.setTimeout(() => delete button.dataset.wave, 360);
     }
     onClick?.(event);
   }

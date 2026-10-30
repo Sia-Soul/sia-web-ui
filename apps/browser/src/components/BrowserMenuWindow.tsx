@@ -11,6 +11,8 @@ import BrowserFavicon from "./BrowserFavicon";
 import BrowserFloatingHost, { BrowserFloatingSubmenu, type BrowserFloatingAnchor } from "./BrowserFloatingHost";
 
 export interface BrowserMenuItem {
+  /** 内核已提供的 PNG 数据地址，仅用于网页菜单的扩展图标。 */
+  iconDataUrl?: string;
   /** 收藏链接地址，用于显示网站图标；不指定时不显示网站图标。 */
   faviconUrl?: string;
   /** 收藏目录使用文件夹图标，子项由悬停级联菜单展示。 */
@@ -79,7 +81,7 @@ export interface BrowserMenuPayload {
     height: number;
   };
   darkMode: boolean;
-  kind?: "menu" | "back-history" | "downloads" | "history" | "bookmarks" | "bookmark-folder" | "extensions";
+  kind?: "web-context" | "menu" | "back-history" | "downloads" | "history" | "bookmarks" | "bookmark-folder" | "extensions";
   /** 面板入口标识；自动显示和用户切换共享此身份。 */
   panelKey?: string;
   /** 仅用户点击时设置，相同入口再次点击关闭面板。 */
@@ -361,6 +363,11 @@ function BrowserMenuContent() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [downloadContextMenu, openKeys, extensionMenu, payload?.kind]);
+
+  useEffect(() => {
+    // 原生菜单展示后以根菜单作为键盘起点，方向键由框架 Menu 统一处理。
+    if (payload?.kind === "web-context") document.querySelector<HTMLElement>('.browser-window-menu > .sia-menu')?.focus();
+  }, [payload?.hitRegionRevision, payload?.kind]);
 
   const items = useMemo(
     () => payload?.items ?? [],
@@ -895,14 +902,14 @@ function BrowserMenuContent() {
     if (payload.kind === "history") return renderHistory();
     if (payload.kind === "bookmarks") return renderBookmarks();
 
-    if (payload.kind === "bookmark-folder" || items.some((item) => item.children?.length)) {
+    if (payload.kind === "web-context" || payload.kind === "bookmark-folder" || items.some((item) => item.children?.length)) {
       // 框架 Menu 负责悬停延迟、跨面板保持和边缘翻转；主菜单不因展开子项而被替换。
       const convertItems = (source: BrowserMenuItem[], prefix = "root"): MenuItem[] => source.map((item, index) => ({
         key: item.key ?? `${prefix}-${index}`,
         type: item.type,
         disabled: item.disabled,
         danger: item.danger,
-        icon: item.folder ? <Icon name="folder" size={16} /> : item.faviconUrl ? <BrowserFavicon url={item.faviconUrl} size={16} /> : undefined,
+        icon: item.iconDataUrl ? <img src={item.iconDataUrl} width={16} height={16} alt="" /> : item.folder ? <Icon name="folder" size={16} /> : item.faviconUrl ? <BrowserFavicon url={item.faviconUrl} size={16} /> : undefined,
         label: <span className="browser-window-menu__copy">
           <span className="browser-window-menu__label">{item.label}</span>
           {item.subtitle ? <span className="browser-window-menu__subtitle">{item.subtitle}</span> : null}
@@ -912,13 +919,16 @@ function BrowserMenuContent() {
             <span className={!item.checked ? "is-active" : ""}><Icon name="sun" size={13} /></span>
             <span className={item.checked ? "is-active" : ""}><Icon name="moon" size={13} /></span>
           </span>
-        ) : item.checked !== undefined ? (item.checked ? "✓" : undefined)
-          : item.shortcut ? <span className="browser-window-menu__shortcut">{item.shortcut}</span> : undefined,
+        ) : <>
+          {/* 勾选状态与快捷键同时保留，不能因为菜单项可勾选而丢失快捷键说明。 */}
+          {item.checked ? <Icon name="check" size={14} /> : null}
+          {item.shortcut ? <span className="browser-window-menu__shortcut">{item.shortcut}</span> : null}
+        </>,
         children: item.children ? convertItems(item.children, item.key ?? `${prefix}-${index}`) : undefined,
       }));
       return <div className="browser-window-menu browser-window-menu--cascade">
         {payload.heading ? <div className="browser-window-menu__heading">{payload.heading}</div> : null}
-        <Menu items={convertItems(items)} mode="vertical" theme={payload.darkMode ? 'dark' : 'light'}
+        <Menu items={convertItems(items)} tabIndex={payload.kind === "web-context" ? -1 : undefined} mode="vertical" theme={payload.darkMode ? 'dark' : 'light'}
           interactionCursor="default" selectable={false} triggerSubMenuAction="hover"
           openKeys={openKeys} onOpenChange={setOpenKeys}
           onClick={({ key }) => void dispatchAction(key)} />

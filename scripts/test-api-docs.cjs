@@ -18,6 +18,18 @@ declare const editableOptions: TableEditablePluginOptions<Record<string, unknown
 editableOptions.showEditIcon;
 import { IdleGameApp, createIdleEngine, sampleHexPlayback } from '@sia.soul/sia-react-ui/game';
 import type { FormInstance, FormFieldData, FormProps, ImagePreviewGroupProps, ImagePreviewProps, StepsProps } from '@sia.soul/sia-react-ui';
+// 关闭完成回调和浮层反播规则必须保留在发布声明中。
+import type { AlertProps, FloatButtonGroupProps } from '@sia.soul/sia-react-ui';
+// 实心按钮分组的阶段和时长必须同步发布到编辑器提示。
+import type { RadioGroupProps } from '@sia.soul/sia-react-ui';
+declare const animatedRadio: RadioGroupProps; animatedRadio.buttonStyle;
+// 空值规则须从发布声明中可见，避免业务将未填写字段当作自定义选项。
+import type { InputSelectProps } from '@sia.soul/sia-react-ui';
+declare const emptyInputSelect: InputSelectProps; emptyInputSelect.value;
+declare const emptySelectionPanel: SelectionPanelProps; emptySelectionPanel.includeUnknownValues;
+declare const animatedAlert: AlertProps; animatedAlert.afterClose;
+declare const animatedPanel: FloatingPanelProps; animatedPanel.open;
+declare const animatedFloatGroup: FloatButtonGroupProps; animatedFloatGroup.open;
 declare const importSteps: StepsProps; importSteps.labelPlacement;
 declare const importUpload: UploadProps; importUpload.acceptMode;
 declare const externalValidationForm: FormInstance;
@@ -33,7 +45,18 @@ import type { FormItemProps } from '@sia.soul/sia-react-ui';
 // 弹框的默认输入聚焦行为必须保留到发布声明。
 import type { ModalProps } from '@sia.soul/sia-react-ui';
 declare const inputFocusModal: ModalProps;
+inputFocusModal.open;
 inputFocusModal.autoFocus;
+inputFocusModal.deferContent; inputFocusModal.loadingFallback;
+import type { DrawerProps } from "@sia.soul/sia-react-ui";
+declare const deferredDrawer: DrawerProps;
+deferredDrawer.open;
+deferredDrawer.deferContent; deferredDrawer.loadingFallback;
+import type { FloatingScrollbarProviderProps } from "@sia.soul/sia-react-ui/core";
+declare const automaticScrollbar: FloatingScrollbarProviderProps; automaticScrollbar.disabled;
+import type { SkeletonProps } from "@sia.soul/sia-react-ui";
+declare const skeletonPreview: SkeletonProps;
+skeletonPreview.rows; skeletonPreview.columns; skeletonPreview.rowHeight; skeletonPreview.gap;
 declare const centeredFormItem: FormItemProps;
 centeredFormItem.align;
 import type { IconProps } from '@sia.soul/sia-react-ui';
@@ -60,6 +83,7 @@ gridMenu.gridColumns;
 gridMenu.interactionCursor;
 // 自动定位的触发时机和保留手动滚动语义必须保留到发布声明。
 gridMenu.autoScrollSelected;
+gridMenu.selectedKeys;
 declare const appliedMenuItem: MenuItem;
 // 桌面窗口的文本选择能力从发布入口验证中文声明。
 import type { WindowFrameProps, WindowControlsProps } from '@sia.soul/sia-react-ui';
@@ -68,6 +92,10 @@ desktopWindow.textSelectable;
 // 窗口最大化状态的图标语义应保留到发布声明。
 declare const windowControls: WindowControlsProps;
 windowControls.maximized;
+// 标题栏主题入口的默认显示与受控更新规则必须保留到发布声明。
+import type { WindowTitleBarProps } from '@sia.soul/sia-react-ui';
+declare const themeTitleBar: WindowTitleBarProps;
+themeTitleBar.showThemeSwitch; themeTitleBar.theme; themeTitleBar.onThemeChange;
 appliedMenuItem.applied;
 appliedMenuItem.appliedLabel;
 appliedMenuItem.iconSize;
@@ -96,6 +124,9 @@ declare const resultProps: ResultProps;
 resultProps.icon;
 resultProps.extra;
 import type { SelectOption, SelectProps, SelectionPanelProps } from '@sia.soul/sia-react-ui';
+// 直接输入与标签宽度自适应的默认语义必须出现在发布后的属性提示中。
+declare const adaptiveSelect: SelectProps;
+adaptiveSelect.allowInput; adaptiveSelect.searchPlaceholder; adaptiveSelect.maxTagCount;
 declare const helpOption: SelectOption;
 helpOption.description;
 declare const groupedSelection: SelectionPanelProps;
@@ -231,6 +262,7 @@ selection.maxHeight;
 selection.extraValues;
 selection.onConfirm;
 declare const queryProps: QueryFormProps;
+queryProps.collapsed;
 queryProps.fieldWidth;
   // 默认折叠阈值和手动选择优先级必须出现在发布后的悬停说明中。
   queryProps.defaultCollapsed;
@@ -274,6 +306,7 @@ assert.equal(errors.length,0,ts.formatDiagnosticsWithColorAndContext(errors,{get
 // 行状态须保留主题和交互优先级的编辑器说明。
 const cases=[['tableProps.rowStatus','悬停和勾选反馈优先'],['showSettings', '两行'],['savedQueries', '业务方'],['onSaveQuery','快照'],['allowClear','清空'],['modalThreshold','阈值'],['Modal.open','打开'],['message.success','成功'],['Form.useForm','表单实例'],['createColumnSettingPlugin({','列设置'],['adapter.save','保存'],['chart.barCategoryGap','间距'],['selection.maxHeight','像素'],['selection.extraValues','浅拷贝'],['selection.onConfirm','取消'],['queryProps.fieldWidth','列间距'],['tableProps.cellSelection','单元格选择'],['tableProps.showIndex','序号列']];
 cases.push(['inputNumberProps.formatter', '原始草稿'], ['inputNumberProps.parser', '不经过 parser']);
+cases.push(['adaptiveSelect.allowInput', '自动聚焦'], ['adaptiveSelect.searchPlaceholder', '输入或搜索'], ['adaptiveSelect.maxTagCount', '默认不限制数量']);
   cases.push(['queryProps.defaultCollapsed', '达到 3 行'], ['queryProps.defaultCollapsed', '用户手动切换']);
 cases.push(['inputFocusModal.autoFocus', '首个可用输入组件'], ['inputFocusModal.autoFocus', '异步加载']);
 // 验证默认自适应排列及显式数量上限都能在编辑器悬停正文中读取。
@@ -337,6 +370,20 @@ cases.push(['gridMenu.mode', '双列圆角卡片'], ['cursorPreview.showHotspot'
 cases.push(['appliedMenuItem.applied', '浏览选中'], ['appliedMenuItem.appliedLabel', '当前使用'], ['appliedMenuItem.iconSize', 'px']);
 cases.push(['desktopWindow.textSelectable', '输入框']);
 cases.push(['windowControls.maximized', '叠放方框']);
+// 重内容延后挂载和占位说明必须保留在发布声明。
+cases.push(['skeletonPreview.rows', '默认 6']);
+cases.push(['skeletonPreview.columns', '默认 2']);
+cases.push(['skeletonPreview.rowHeight', 'CSS px']);
+cases.push(['skeletonPreview.gap', '默认 16']);
+cases.push(['inputFocusModal.deferContent', '入场完成']);
+cases.push(['inputFocusModal.loadingFallback', '关闭退场']);
+cases.push(['deferredDrawer.deferContent', '默认 false']);
+cases.push(['automaticScrollbar.disabled', '默认全局接管']);
+cases.push(['deferredDrawer.loadingFallback', '占位']);
+cases.push(['themeTitleBar.showThemeSwitch', '默认 true']);
+cases.push(['gridMenu.selectedKeys', '260ms']);
+cases.push(['themeTitleBar.theme', '由宿主']);
+cases.push(['themeTitleBar.onThemeChange', '目标主题']);
 // 六边形回放和在线/离线统一时钟的公开说明必须保留在发布声明中。
 cases.push(['gameConfig.turnDurationMs','毫秒'],['sampleHexPlayback;','命中前不扣血']);
 // 游戏独立入口同样验证真实编辑器悬停和时间单位。
@@ -360,6 +407,13 @@ cases.push(['focusOptions.color', '#fa8c16'], ['focusOptions.speed', '速度倍�
 cases.push(['editableOptions.showEditIcon', '默认 true']);
 // 必填和校验外观必须通过正式发布声明提供中文业务语义。
 cases.push(['headerColumn.required', '不自动校验'], ['headerColumn.invalid', '不改变行高']);
+cases.push(['queryProps.collapsed', '240ms']);
+cases.push(['animatedRadio.buttonStyle', '液体轮廓']);
+cases.push(['emptyInputSelect.value', '空字符串']);
+// 面板快速关闭是成对时长规则的明确例外，发布声明必须告知业务。
+cases.push(['inputFocusModal.open', '160ms'], ['deferredDrawer.open', '180ms']);
+cases.push(['emptySelectionPanel.includeUnknownValues', '纯空格']);
+cases.push(['animatedAlert.afterClose', '180ms'], ['animatedPanel.open', '反播'], ['animatedFloatGroup.open', '保留原有面板外观']);
 for(const[needle,expected]of cases){const offset=needle.includes('.')?needle.lastIndexOf('.')+1:0;const pos=source.indexOf(needle)+offset+1;const info=service.getQuickInfoAtPosition(filename,pos);const text=ts.displayPartsToString(info?.documentation);assert(text.includes(expected),`${needle}: expected ${expected}, got ${JSON.stringify(text)}`);console.log(`PASS hover ${needle}: ${text.slice(0,70)}`);}
 for(const entry of ['index.d.ts','index.d.cts']){
   const text=fs.readFileSync(path.join(packageRoot,'dist',entry),'utf8');assert(text.includes('底部已保存快捷查询标签'));assert(text.includes('@defaultValue'));assert(!text.includes('\uFFFD'),'UTF-8 replacement character found');

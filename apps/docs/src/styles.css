@@ -35,6 +35,14 @@ a { color: inherit; text-decoration: none; }
 .search .sia-input-control:focus-within { border-color: var(--sia-color-primary); box-shadow: 0 0 0 3px var(--sia-color-focus-ring); }
 .search input { min-width: 0; flex: 1; color: var(--sia-color-text); background: transparent; border: 0; outline: 0; font-size: 14px; }
 .search kbd { color: var(--sia-color-text-secondary); font-size: 12px; }
+/* 搜索浮层使用框架 Popover；结果列表独立滚动，不挤占顶部主题操作。 */
+.docs-search { min-width: 0; margin-right: auto; }
+.docs-search-popup { width: min(440px, calc(100vw - 24px)); max-width: calc(100vw - 24px); }
+.docs-search-summary { padding: 4px 8px 10px; color: var(--sia-color-text-secondary); font-size: 12px; }
+.docs-search-results { display: flex; flex-direction: column; max-height: min(420px, 60vh); overflow-y: auto; }
+.docs-search-results .sia-button { width: 100%; min-height: 46px; height: auto; flex-shrink: 0; justify-content: flex-start; text-align: left; }
+.docs-search-results .is-active { background: var(--sia-color-primary-bg); color: var(--sia-color-primary); }
+.docs-search-results small { margin-left: 12px; color: var(--sia-color-text-secondary); font-size: 11px; }
 .topnav { display: flex; align-self: stretch; margin-left: auto; }
 .topnav a { position: relative; display: flex; align-items: center; gap: 7px; padding: 0 16px; font-size: 14px; }
 .topnav a:hover, .topnav a.active { color: var(--sia-color-primary); }
@@ -42,27 +50,16 @@ a { color: inherit; text-decoration: none; }
 .create-button { min-width: 92px; }
 
 .sidebar { position: fixed; z-index: 15; top: 66px; bottom: 0; left: 0; display: flex; flex-direction: column; width: var(--sidebar-width); overflow: hidden; background: var(--sia-color-surface); border-right: 1px solid var(--sia-color-border); transition: width 180ms ease, transform 180ms ease; }
-.sidebar-scroll-area { min-height: 0; flex: 1; }
-.sidebar nav { height: 100%; padding: 18px 12px 72px; }
-.nav-group { margin-bottom: 12px; }
-.nav-title { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 36px; padding: 0 8px; color: var(--sia-color-text); cursor: pointer; background: transparent; border: 0; border-radius: var(--sia-radius); font-size: 14px; font-weight: 650; text-align: left; }
-.nav-title:hover { color: var(--sia-color-primary); background: var(--sia-color-control-hover); }
-.nav-title:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--sia-color-focus-ring); }
-.nav-items { margin-top: 2px; }
-.nav-chart-parent.sia-button { display: flex; width: 100%; justify-content: flex-start; gap: 10px; min-height: 42px; padding: 8px 12px; color: var(--sia-color-text); font: inherit; text-align: left; }
-.nav-chart-parent.sia-button > span { display: flex; align-items: center; gap: 10px; width: 100%; }
-.nav-chart-parent.sia-button > span > .sia-icon:last-child { margin-left: auto; }
-.nav-chart-parent.sia-button.is-current { color: var(--sia-color-primary); background: var(--sia-color-control-hover); }
-.nav-children { margin: 4px 0 8px 18px; padding-left: 6px; border-left: 1px solid var(--sia-color-border); }
+/* 侧栏只定制站点配色和尺寸，交互、浮动滚动条与选中背景移动使用框架 Menu。 */
+.sidebar-navigation { min-height: 0; flex: 1; overflow: hidden; }
+.sidebar .docs-sidebar-menu { width: 100%; height: 100%; overflow: auto; padding: 18px 12px 72px; border: 0; font-size: 14px; }
+.docs-sidebar-menu:not(.sia-menu--collapsed) > .sia-menu__entry > .sia-menu__item { font-weight: 650; }
+.docs-sidebar-menu .sia-menu__submenu { background: transparent !important; }
+.docs-sidebar-menu .sia-menu__selection { background: var(--sia-color-primary); }
+.docs-sidebar-menu .sia-menu__entry.is-selected > .sia-menu__item { color: #fff; }
+.sidebar .docs-sidebar-menu.sia-menu--collapsed { padding-inline: 10px; }
 .chart-football-map .sia-chart__heading strong { color: #fff; }
 .chart-football-timeline .sia-chart__heading strong { color: #ffff00; }
-.sidebar-nav .nav-children a { padding-left: 12px; font-size: 13px; }
-.is-collapsed .nav-children { display: none; }
-.is-collapsed .nav-chart-parent.sia-button > span > span:not(.nav-item-icon), .is-collapsed .nav-chart-parent.sia-button > span > .sia-icon { display: none; }
-.nav-group a { display: flex; align-items: center; gap: 9px; min-height: 38px; margin: 2px 0; padding: 8px 10px; color: var(--sia-color-text-secondary); font-size: 14px; border-radius: var(--sia-radius); }
-.nav-group a:hover { color: var(--sia-color-primary); background: var(--sia-color-control-hover); }
-.nav-group a.active { color: #fff; background: var(--sia-color-primary); }
-.nav-item-icon { display: inline-grid; place-items: center; flex: 0 0 18px; width: 18px; height: 18px; }
 .collapse-action { position: absolute; right: 0; bottom: 0; left: 0; display: flex; align-items: center; gap: 10px; height: 54px; padding: 0 20px; color: var(--sia-color-text-secondary); cursor: pointer; background: var(--sia-color-surface); border: 0; border-top: 1px solid var(--sia-color-border); }
 .mobile-sidebar-head, .mobile-only, .sidebar-backdrop { display: none; }
 
@@ -257,10 +254,7 @@ pre code { color: inherit; }
 .window-frame-demo__body main > span { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 
 .docs-app.is-collapsed { --sidebar-width: 76px; }
-.is-collapsed .sidebar nav { padding-inline: 10px; }
-.is-collapsed .nav-title span, .is-collapsed .nav-title .sia-icon, .is-collapsed .nav-group a > span:last-child, .is-collapsed .collapse-action span { display: none; }
-.is-collapsed .nav-title { height: 12px; }
-.is-collapsed .nav-group a { justify-content: center; padding-inline: 0; }
+.is-collapsed .collapse-action span { display: none; }
 .is-collapsed .collapse-action { justify-content: center; padding: 0; }
 .is-collapsed .collapse-action svg { transform: rotate(180deg); }
 

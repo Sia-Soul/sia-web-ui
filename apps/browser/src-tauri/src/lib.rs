@@ -29,6 +29,8 @@ mod browser_favicon;
 mod browser_shortcuts;
 #[cfg(windows)]
 mod browser_frame_menu;
+#[cfg(windows)]
+mod browser_web_menu;
 // 开发者工具的原生停靠与网页视图生命周期分离。
 mod browser_devtools;
 #[cfg(windows)]
@@ -974,7 +976,11 @@ async fn open_browser_tab(
     }
     // 框架刷新补充到默认右键菜单，保留原有站点及扩展菜单项。
     #[cfg(windows)]
-    if let Err(error) = browser_frame_menu::attach(&webview).await {
+    if let Err(error) = browser_frame_menu::attach(&webview, {
+        let handle = webview.app_handle().clone();
+        let label = webview.label().to_string();
+        move || browser_web_menu::presenter(handle, label)
+    }).await {
         eprintln!("无法安装框架刷新菜单：{error}");
     }
     // 开始事件携带目标地址与编号，避免复用视图时旧完成通知回写旧地址。
@@ -1077,6 +1083,8 @@ async fn close_browser_tab(app: AppHandle, tab_id: String) -> Result<(), String>
 async fn close_browser_tab_locked(app: &AppHandle, tab_id: String) -> Result<(), String> {
     // 页面迁移后，旧窗口的迟到关闭请求不能释放新窗口的视图。
     if app.raw().get_webview(&browser_label(&tab_id)).is_some() && app.get_webview(&browser_label(&tab_id)).is_none() { return Ok(()); }
+    #[cfg(windows)]
+    browser_web_menu::dismiss_view(app.raw(), browser_label(&tab_id));
     // 关闭工具异步排队，避免在网页销毁回调里等待跨进程窗口消息。
     let tools_app = app.clone();
     let tools_tab = tab_id.clone();

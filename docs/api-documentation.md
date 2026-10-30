@@ -1,5 +1,58 @@
 # 公开 API 的编辑器注释
 
+Select 多选标签默认不限制显示数量，随组件可用宽度自动折叠为 `+N`，宽度增加时恢复显示；显式 `maxTagCount` 额外限制显示数量，`0` 表示全部折叠。折叠计算为汇总标签预留空间，保持单行。
+
+Select 设置 `allowInput` 后始终显示面板输入框，默认提示为“输入或搜索”，普通搜索默认提示为“搜索选项”；显式 `searchPlaceholder` 优先。下拉定位可见后自动聚焦，可直接键入并按 Enter 或点击“使用”提交自定义值，无需等待入场动画。单选提交后收起，多选保留面板以继续输入；受控值仍通过 `onChange` 回填。
+
+InputSelect 下拉面板使用 `--sia-color-surface` 与 `--sia-color-text` 作为默认背景及文字色，随深浅主题同步变化；保留业务显式 `--sia-color-bg` 的背景覆盖，不再以白色作为缺省背景。
+
+标准 Switch 的关闭态使用 `--sia-switch-track-off`（轨道）和 `--sia-switch-thumb-off`（圆球），均为无单位 CSS 颜色。浅色默认 `#8c8c8c` / `#ffffff`，深色默认 `#333335` / `#8b90a0`；组件局部覆盖优先于祖先及主题值。开启态保持主题色轨道与白色圆球，圆球颜色以 160ms 过渡；禁用态沿用整体 0.5 透明度，分段样式沿用自身选中背景。
+
+Checkbox 与普通 Radio 的图形点击反馈为 360ms：0.68 倍压缩、1.34 倍弹大、0.88 倍回收、1.08 倍二次回弹后归位；仅图形变化，标签文字不缩放。描边按钮式 Radio 的点击反馈为 320ms，缩放范围 0.92～1.08 倍；Button 保持 320ms，范围增强到 0.90～1.09 倍。禁用不触发，减少动态效果时跳过，连续点击从当前比例接续，值和业务回调不等待动画。Modal/Drawer 适度增强入场过冲；菜单液体轨迹、页签滑动和面板快速退出时长保持原样。
+
+实色 Icon 内部的问号、勾号、时针等细节使用 `--sia-icon-contrast`（CSS 颜色，无单位），浅色默认 `#ffffff`，暗色默认 `#1f1f1f`；主体仍继承 `currentColor`。图标节点上的局部覆盖优先于祖先主题；自定义主体颜色时可同时覆盖此变量以保证对比度。无内部细节的剪影及线框图标不受影响。
+
+浮动标签在已填写并浮起后使用 `--sia-floating-label-color`（CSS 颜色，无单位）：浅色默认次要文字色，暗色默认 `#d6d6d6`，组件局部覆盖优先。聚焦或展开时使用主题文字蓝色 `--sia-color-primary-text`；校验警告和错误色保持优先。未浮起的占位文字保留原透明度和颜色。
+
+Select 和 SelectionPanel 的选中项使用主题强调背景 `--sia-color-primary-light` 与强调文字 `--sia-color-primary-text`：浅色为 `#e6f4ff` / `#1677ff`，深色为 `#15345b` / `#69a7ff`。业务已有的 `--sia-color-primary-bg` 显式背景覆盖仍优先，不再在深色主题下回退为硬编码浅蓝色。
+
+Button 的 default、dashed 样式在非禁用、非 danger 的静止状态下使用 `--sia-control-border-color`：浅色继承通用边框，暗色默认 `#595959`；悬停、按下及焦点继续使用原有交互色，禁用和危险按钮不受影响。
+
+Message、Notification 的暗色外边框按类型显示：info（以及 Message loading）沿用蓝色，success 使用成功绿，warning 使用橙色 `#fa8c16`，error 使用错误红，均混入 14% 白色。三个状态可分别通过 `--sia-feedback-success-border`、`--sia-feedback-warning-border`、`--sia-feedback-error-border`（CSS 颜色，无单位）覆盖，节点局部值优先；浅色默认 `initial`，保留原有边框。不影响其他弹层、图标与文字颜色。
+
+表单控件的静止边框使用 `--sia-control-border-color`（CSS 颜色，无单位）：浅色继承通用边框，暗色默认 `#595959`。局部覆盖优先；焦点、校验与禁用状态仍使用各自状态色。Alert 的 `--sia-alert-border-strength` 为状态边框原色的混合比例，浅色默认 `100%`，暗色 `28%`，其余部分与组件表面色混合；局部覆盖优先，不改变图标与文字颜色。
+
+Drawer、Popover/Popconfirm、Notification、Message、Tour 和选择器/菜单弹出面板的暗色外轮廓使用 `--sia-overlay-border-color`（CSS 颜色，无单位），默认将 `--sia-color-primary-hover` 混入 14% 白色（约 `#5798ea`）。浅色值为 `initial`，回退到各组件原有颜色；局部覆盖优先于祖先主题。气泡和下拉箭头同步使用外框色，内容分隔线不变。Drawer 使用 1px 内描边以保持内容尺寸；Message 在承担动画的背景伪元素上绘制外框。
+
+Modal 的外边框使用 `--sia-modal-border-color`（CSS 颜色，无单位）：浅色默认 `rgb(0 0 0 / 6%)`，暗色默认跟随 `--sia-overlay-border-color`（约 `#5798ea`），宽度为 1px。组件局部覆盖优先于容器和主题值；仅影响弹框外轮廓，不改变遮罩、内容分隔线或语义状态颜色。使用 Modal 的选择器弹框沿用该主题规则。
+
+Notification 使用独立阴影 `--sia-shadow-notification`（CSS `box-shadow` 值，长度单位 px）：浅色默认 `0 3px 10px rgb(0 0 0 / 10%)`，深色默认 `0 3px 10px rgb(0 0 0 / 24%)`。通知节点局部值优先于祖先和主题值；全局通知挂载到 body，可在 `html` 上覆盖，例如 `html { --sia-shadow-notification: 0 2px 8px rgb(0 0 0 / 8%); }`。嵌套主题恢复相应默认值，其他弹层仍使用各自原有阴影。
+
+InputSelect 与 SelectionPanel 不将未匹配候选项的空字符串或纯空格计入选择，也不会为其生成“自定义值”分组。下拉、弹窗和已选数量采用相同规则；数字 `0`、非空自定义值，以及 `options` 中明确声明的空值选项（例如 `{ value: "", label: "全部" }`）仍正常显示。归一化本身不触发 `onChange`。
+
+Cascader 弹层宽度取决于实际展开的菜单列及搜索栏，不以输入框宽度预留空白子级区域。每列最小宽度为 170px；展开子项后才增加对应列，分隔线仅出现在相邻列之间，搜索栏较宽时由已有列填满面板。
+
+Checkbox / Radio 普通形态的有效点击提供 360ms 等比图形回弹，文字不缩放，原生选择、受控更新及回调立即执行；描边 Radio.Button 使用较小幅度，实心按钮分组以 280ms 液体沙漏形变经过细颈流入目标项，两向等时长，连续操作从当前画面接续。Segmented 普通形态以 260ms 移动同一个选中背景，横向、纵向、不等宽选项及快速反向共用行为，zigzag 保留自身折线过渡。QueryForm 展开/收起均为 240ms：容器高度平滑调整，保留字段和操作按钮以 transform 过渡，退场字段淡出后隐藏且保留值；过渡期间停止自适应布局测量，结束后补测一次，最多给前 24 个字段及操作区建立独立动效，减少动态效果时直接切换。
+
+动效统一遵循 [组件动效规范与检查记录](component-motion.md)：同一组件完整入退场原则上等时长；面板关闭是唯一例外，取消回弹并缩短时长，其他提示和淡入淡出仍共用关键帧与缓动反播。Alert、Spin、Tour、ImagePreview、FloatingPanel、FloatButton.BackTop 使用 180ms 对称淡入淡出；FloatButton.Group 菜单展开为 260ms 弹性回弹，关闭为 140ms 缩小淡出。Alert 的 onClose 立即触发，afterClose 在真实淡出完成后触发；外部提前卸载组件无法保留退场。
+
+Button 有效点击默认播放 320ms 弹性反馈：等比缩小至 0.94 倍，弹起至 1.055 倍，再回稳到原尺寸；使用独立 scale 合成属性，不改变布局占位或覆盖宿主 transform。鼠标、触摸、Enter 和空格激活共用行为，连续点击从当前缩放接续，点击回调及表单默认行为立即执行。禁用或加载中的按钮不触发动画，系统减少动态效果时跳过动画；主按钮保留波纹，键盘激活的波纹从中心展开。
+
+Table 的网格、外框和工具栏分隔线统一使用 `--sia-table-border-color`（CSS 颜色，无单位）：浅色默认 `#EFF2F6`，深色默认 `#363636`。组件局部覆盖优先于祖先容器和主题值；嵌套的 `data-sia-theme="light"` / `"dark"` 容器会恢复对应默认色。例如 `<Table style={{ "--sia-table-border-color": "#454545" } as React.CSSProperties} />` 可局部加深边框，不改变选区和焦点的主题色描边。
+
+Menu 同一面板内的单选背景默认以 260ms 滑到新选项，覆盖纵向、横向、内嵌和网格布局。文字、aria-current 和选择回调立即更新；快速连续切换从当前可见背景位置继续。首次显示、跨菜单面板选择、多个选中项及系统减少动态效果时直接定位；尺寸变化重新对齐，背景层不参与点击和键盘导航。多选保留各项目的独立选中背景。
+
+示例站左侧目录使用 `Menu mode="inline"`，路由同步 `selectedKeys`，分类及图表目录同步 `openKeys`，收起后使用 `inlineCollapsed` 显示图标及弹出子目录。内嵌目录按实际内容高度展开，长列表不受固定高度限制；`autoScrollSelected` 在选中项所在目录展开后补做定位，已定位项目的普通刷新保留用户滚动位置。图标模式以纯文本 label 或 title 提供无障碍名称。
+
+Modal、Drawer、选择面板、Dropdown/Menu 弹出菜单、Tooltip/Popover、message 和 notification 使用弹性回弹的合成属性动画。面板打开保留弹性，关闭取消回弹：Drawer 320/180ms、Modal 240/160ms、下拉及菜单面板260/140ms（打开/关闭）；Tooltip/Popover 与消息/通知仍为 280/280ms，Modal/Drawer 遮罩同步；下拉面板恢复果冻缩放与渐显渐隐，仅动画 transform 和 opacity，保留组件原有圆角、边框和阴影，不动画裁剪路径或虚化滤镜，面板快速反向从当前画面接续，其他提示沿原时间轴返回，关闭保留节点直到真实退场结束，系统减少动态效果时跳过动效。窗口渲染帧率由浏览器、屏幕刷新率及负载决定，框架不设置这些动效的帧率上限。提示气泡与消息背景入场过冲至横向 1.11 / 纵向 1.085 倍，再回收到 0.945 / 0.965 倍后归位；退场严格反向播放相同关键帧、缓动曲线和时长，不再单独定义预备形变。message 的背景独立承担缩放形变，正文、图标和关闭按钮只做位移与透明度动画，保持原始字号和比例。表单校验气泡保留原有两秒展示与避让渐隐规则。
+
+Modal/Drawer 的 `deferContent` 默认 false，立即挂载正文；设为 true 时先绘制外壳及 `loadingFallback`，入场完成后再挂载 children。占位默认是两列六行的静态 Skeleton 骨架；自然高度 Modal 的正文补入会改变高度，建议显式设置 height 或提供等高占位。骨架占位期间裁剪溢出，不显示原生或浮动滚动条，正文就绪后恢复正常滚动。正文挂载后以 100ms 透明度过渡显示，关闭时卸载正文，由 loadingFallback（未传时按已显示正文的可见控件、文本行生成近似布局骨架）占据原正文高度，并锁定外壳高度直到退场完成；此关闭占位不受 deferContent 控制，loadingFallback=null 可隐藏占位内容。入场期间关闭则取消正文挂载；退出中重新打开时，deferContent=true 会重新等待入场完成后挂载正文，false 则立即挂载。该选项只延后子组件渲染，父组件中已执行的数组构建、同步数据处理和请求不会被自动延后。Modal 自动聚焦等待延后正文挂载，afterOpen/afterOpenChange(true) 在正文提交后通知；后续异步数据仍由业务管理。长列表仍应使用虚拟滚动，重计算应拆分或移出主线程。
+
+
+WindowTitleBar 默认在窗口控制组前显示浅色/深色切换按钮，`showThemeSwitch={false}` 隐藏入口；入口位置不受 `actionsAlign` 或 `controls` 影响。未传 `theme` 时读取当前文档根节点的 `data-sia-theme`（未设置时为 light），点击自动应用文档主题，并同步其他标题栏的显示；不保存到本地存储。传入 `theme="light" | "dark"` 后为受控模式，点击通过 `onThemeChange` 返回目标主题，由宿主回填属性并调用 `applySiaTheme` 或设置局部 `data-sia-theme`。外部主题变化不会触发回调，主题按钮不触发拖动或最大化。
+
+输入框、文本域、数字输入与区间、下拉选择、日期时间、树选择和级联选择的禁用状态使用独立配色：`--sia-color-control-disabled` 为背景，`--sia-color-border-disabled` 为边框，均为无单位 CSS 颜色。浅色默认分别为 `#fdfdfd` / `#f0f0f0`，深色为 `#303030` / `#494949`；组件局部覆盖优先于祖先容器及主题值。直接设置 `disabled` 和 Form 的 `fieldset` 禁用使用同一配色，浮动标签底色同步。容器保持不透明，避免背景和边框经透明混合后出现深浅差异；日期时间、树选择和级联选择的禁用文字使用次要文本色，尺寸与不可交互行为保持不变。
+
 Checkbox 的 `shape` 支持 `square`（默认圆角方框）和 `circle`（圆形外框、选中后白色勾选）。不改变复选语义，继续支持多选、半选、禁用及所有尺寸。`Checkbox.Group shape="circle"` 可统一设置 `options` 与子项的形状，单个 Checkbox 的显式 `shape` 优先；未指定时继承当前分组，无分组时为 `square`。例如 `<Checkbox shape="circle" defaultChecked>已选中</Checkbox>`。
 
 Menu 的侧向子菜单相对父菜单项水平偏移 16px，为父面板内边距和边框留出空间；上下弹出仍偏移 4px，视口边缘沿用自动翻转。自定义父面板内边距时需考虑此偏移，以免面板边缘相互覆盖。
@@ -254,3 +307,16 @@ ImagePreviewGroup 按内部 Image 的页面顺序提供分组预览，可嵌套�
 ## Table 工作表插件
 
 createWorksheetPlugin 提供双击编辑、TSV 批量复制粘贴、填充柄与整次撤销恢复；通过 canWrite 和 setValue 适配业务属性，不在框架请求接口。使用契约、交互及验证范围见 [Table 工作表插件](worksheet.md)，组件示例见 Table 页。
+
+Skeleton 是不挂载真实内容的静态布局骨架，默认 rows=6、columns=2、rowHeight=30px、gap=16px。rows 限制 1～30，columns 限制 1～4，rowHeight 限制 8～200px，gap 限制 0～64px，均取整且非有限值回退默认值；style 可覆盖外层布局。它不自动推断任意业务组件的布局，有字段配置时可用同一份配置确定行列，复杂内容可通过 loadingFallback 提供自己的骨架。
+
+
+框架的浏览器入口默认启用全局浮动滚动条，无需重复挂载 Provider；SSR 导入不访问 DOM。显式全局 FloatingScrollbarProvider disabled 可暂停默认接管，卸载后恢复。data-sia-native-scrollbar 只保留当前容器的原生或自有滚动条，不影响后代滚动容器。Table 保留自身浮动轨道，避免重复创建。
+
+Switch 滑块使用 220ms transform 回弹切换，按压时标准圆球等比例放大至 1.35 倍，允许轻微超出轨道边缘以保持完整圆形；segmented 分段滑块保持 1.16 倍，松开后回弹恢复，禁用时不响应按压；系统减少动态效果时取消过渡。长文字、三种尺寸和 segmented 样式按实际轨道尺寸计算行程。
+
+
+Modal/Drawer 关闭时的自动骨架只保存几何位置与尺寸，不复制业务 DOM、文字或输入值。复合输入控件作为整体，过滤隐藏及可视区域外内容；最多检查 600 个节点、绘制 80 块，表格和画布等复杂内容使用整体占位。它是已渲染布局的近似快照，不是对任意组件语义的推断。初次延后挂载时尚无真实 DOM，仍使用默认两列六行骨架，或显式 loadingFallback；显式占位优先且不会执行自动采集。
+
+
+Select、Dropdown 和弹出子菜单以 260ms 缩放淡入、弹大回收后归位，关闭以 140ms 无回弹缩小淡出。缩放原点位于靠近触发器的边缘中心，最终外观沿用组件样式；定位使用未缩放布局尺寸；快速反向从当前变换与透明度继续。连续关键帧由浏览器插值播放，不逐帧触发 React 更新。右键菜单保留定位锚点直到真实退出完成，不用固定计时提前释放。

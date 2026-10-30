@@ -1,3 +1,4 @@
+import { OverlayMotionDemo } from "./OverlayMotionDemo";
 import { useState } from "react";
 import { Button, Drawer, Input, Space, Tag, message } from "@sia.soul/sia-react-ui";
 import type { DrawerPlacement } from "@sia.soul/sia-react-ui";
@@ -63,6 +64,8 @@ export default function Demo() {
 }`;
 
 const apiRows = [
+  { property: "deferContent", description: "入场完成后挂载正文；关闭时卸载正文并用等高骨架占位。父组件已执行的计算不受影响；默认 false 为立即挂载。", type: "boolean", defaultValue: "false" },
+  { property: "loadingFallback", description: "自定义入场和退场占位；未传时入场为默认骨架，退场按已显示的可见控件和文字行生成近似骨架，保持尺寸且无滚动条；null 关闭占位。", type: "ReactNode", defaultValue: "静态骨架" },
   { property: "open", description: "是否显示抽屉", type: "boolean", defaultValue: "false" },
   { property: "placement", description: "出现方向", type: "'left' | 'right' | 'top' | 'bottom'", defaultValue: "'right'" },
   { property: "size", description: "抽屉宽度或高度", type: "number | string", defaultValue: "760 / 320" },
@@ -102,6 +105,7 @@ export function DrawerPage() {
     <PageHeader eyebrow="组件 / 反馈 / Drawer" title="Drawer 抽屉" description="从屏幕边缘滑出的任务面板，支持四个方向和静态 API，主体默认使用不占布局空间的浮动滚动条。" />
     <DocsTabs activeKey={tab} onChange={setTab} />
     {tab === "examples" ? <div className="demo-stack">
+      <OverlayMotionDemo />
       <DemoCard title="出现方向" description="四个方向默认使用浮动滚动条；滚动长内容时，标题和底部操作区保持固定。" code={placementCode}>
         <Space wrap>
           {(["left", "right", "top", "bottom"] as DrawerPlacement[]).map((value) => <Button key={value} onClick={() => showDrawer(value)}>{value}</Button>)}

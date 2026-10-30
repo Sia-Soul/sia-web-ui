@@ -1,5 +1,6 @@
 import { withTitleTooltip } from "./titleTooltip";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useOverlayMotion } from "./overlayMotion";
 import type { HTMLAttributes, ReactNode } from "react";
 import { Icon } from "./Icon";
 
@@ -39,7 +40,7 @@ export interface AlertProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"
   banner?: boolean;
   /** 请求关闭时触发的回调。 */
   onClose?: (event: React.MouseEvent<HTMLButtonElement>) => void;
-  /** 关闭完成后调用。 */
+  /** 180ms 淡出完成并移除提示后调用一次；减少动态效果时直接完成。父组件提前卸载 Alert 时不触发。 */
   afterClose?: () => void;
 }
 
@@ -51,19 +52,21 @@ const alertIcons: Record<AlertStatus, ReactNode> = {
   error: <Icon name="circle-close" size={20} variant="filled" />,
 };
 
-/** 警告提示组件。 */
+/** 警告提示组件；入场及关闭使用同一条 180ms 淡入轨迹，关闭反播后卸载；onClose 立即触发，afterClose 等待退场完成。 */
 export function Alert({
   status, type, title, message, description, action, showIcon = false, closable = false, closeIcon,
   banner = false, onClose, afterClose, className = "", ...props
 }: AlertProps) {
   const [visible, setVisible] = useState(true);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const motion = useOverlayMotion(visible, rootRef, "fade", "bottom", true, opened => { if (!opened) afterClose?.(); });
   const resolvedStatus = status ?? type ?? (banner ? "warning" : "info");
   const heading = message ?? title;
   // 空标题不生成网格行；数字 0 仍是有效标题内容。
   const hasHeading = heading != null && heading !== "" && typeof heading !== "boolean";
-  if (!visible) return null;
+  if (!motion.present) return null;
   return (
-    <div className={`sia-alert sia-alert--${resolvedStatus}${banner ? " sia-alert--banner" : ""}${description ? " sia-alert--with-description" : ""} ${className}`.trim()} role="alert" {...withTitleTooltip(props)}>
+    <div ref={rootRef} className={`sia-alert sia-alert--${resolvedStatus}${banner ? " sia-alert--banner" : ""}${description ? " sia-alert--with-description" : ""} ${className}`.trim()} role="alert" {...withTitleTooltip(props)} {...(!visible ? { inert: "" } : {})}>
       {showIcon || banner ? <span className="sia-alert__icon" aria-hidden="true">{alertIcons[resolvedStatus]}</span> : null}
       <div className="sia-alert__content">
         {hasHeading ? <strong>{heading}</strong> : null}
@@ -73,7 +76,6 @@ export function Alert({
       {closable ? <button type="button" className="sia-alert__close" aria-label="关闭提示" onClick={(event) => {
         onClose?.(event);
         setVisible(false);
-        window.setTimeout(() => afterClose?.(), 0);
       }}>{closeIcon ?? <Icon name="close" size={14} />}</button> : null}
     </div>
   );

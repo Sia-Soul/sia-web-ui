@@ -650,6 +650,8 @@ export default function App() {
   const isScanning = phase === "scanning" || phase === "started";
   const windowTitleBar = (
     <WindowTitleBar
+      // 复用现有主题入口与应用状态同步逻辑。
+      showThemeSwitch={false}
       className="disk-window-titlebar"
       leading={(
         <div className="disk-window-titlebar__brand" aria-label="Sia 磁盘空间探测器">

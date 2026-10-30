@@ -165,7 +165,7 @@ const apiRows = [
   { property: "showSearch", description: "下拉搜索：未设置时总选项超过 15 项自动显示，显式值优先；独立于弹框阈值，弹框始终支持搜索", type: "boolean", defaultValue: "options.length > 15" },
   { property: "allowInput", description: "允许将搜索内容作为自定义选项提交", type: "boolean", defaultValue: "false" },
   { property: "inputMaxLength", description: "手动输入内容的最大长度", type: "number", defaultValue: "-" },
-  { property: "maxTagCount", description: "最多显示的选中标签数；按可用宽度自动继续折叠并预留 +N 空间，始终保持单行", type: "number", defaultValue: "2" },
+  { property: "maxTagCount", description: "默认按可用宽度自动显示标签并预留 +N 空间；显式设置数量上限后，宽度不足时继续折叠，始终保持单行", type: "number", defaultValue: "按宽度自适应" },
   { property: "showValue", description: "在选项名称下方显示 value，下拉与弹框模式均支持；不影响按 value 搜索", type: "boolean", defaultValue: "false" },
   { property: "showSelectAll", description: "多选时显示全选、反选；下拉操作栏固定在列表底部", type: "boolean", defaultValue: "true" },
   { property: "showActions", description: "显示下拉面板底部整行（条数、全选、反选、清空）；默认单选隐藏、多选显示，可显式覆盖；不影响输入框清空按钮或弹框模式", type: "boolean", defaultValue: "mode === 'multiple'" },
@@ -255,7 +255,7 @@ export function SelectPage() {
           <output aria-label="扩展确认结果" style={{ display: "block", overflowWrap: "anywhere" }}>{extraResult}</output>
           <Select aria-label="弹框单选框架" popupMode="modal" options={frameworkOptions} placeholder="弹框单选" modalConfig={{ title: "选择前端框架" }} />
         </DemoCard>
-        <DemoCard title="允许输入自定义选项" description="输入候选项之外的内容后按 Enter，或点击“使用”选项，即可把文本作为新值提交。" code={customInputCode}>
+        <DemoCard title="允许输入自定义选项" description="展开后自动聚焦面板输入框，可直接键入；按 Enter 或点击“使用”提交自定义值。已选标签默认按组件宽度自动折叠，空间充足时全部显示。" code={customInputCode}>
           <div className="component-demo component-demo--column">
             <Select
               className="large-select-demo"

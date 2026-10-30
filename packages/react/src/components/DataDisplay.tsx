@@ -2,6 +2,7 @@ import { withTitleTooltip } from "./titleTooltip";
 import { Children, createContext, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { CSSProperties, HTMLAttributes, ImgHTMLAttributes, ReactElement, ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useOverlayMotion } from "./overlayMotion";
 import { Icon } from "./Icon";
 import { Button } from "./Button";
 import { useOverlayLifecycle } from "./Overlay";
@@ -468,9 +469,10 @@ export interface ImagePreviewProps {
   onOpenChange: (open: boolean) => void;
 }
 
-/** 图片预览弹层，初始按窗口适配大图，支持水平/垂直翻转、左右旋转、缩放及拖动；重新打开或更换图片时重置视图。 */
+/** 图片预览弹层，初始按窗口适配大图，支持水平/垂直翻转、左右旋转、缩放及拖动；重新打开或更换图片时重置视图。入退场共用 180ms 淡入轨迹，关闭反播后卸载，退场期间保留图片视图；减少动态效果时直接切换。 */
 export function ImagePreview({ open, src, alt = "", onOpenChange, current = 0, count = 1, onCurrentChange }: ImagePreviewProps) {
   const previewRef = useRef<HTMLDivElement>(null);
+  const motion = useOverlayMotion(open, previewRef, "fade");
   const stageRef = useRef<HTMLDivElement>(null);
   const [natural, setNatural] = useState({ src: "", width: 0, height: 0 });
   const [area, setArea] = useState({ width: 0, height: 0 });
@@ -480,9 +482,9 @@ export function ImagePreview({ open, src, alt = "", onOpenChange, current = 0, c
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [failed, setFailed] = useState(false);
   const drag = useRef<{ id: number; x: number; y: number; left: number; top: number }>();
-  useOverlayLifecycle(open, previewRef, () => onOpenChange(false));
+  useOverlayLifecycle(motion.present, previewRef, () => { if (open) onOpenChange(false); });
   const reset = () => { setZoom(1); setRotation(0); setFlip({ x: 1, y: 1 }); setPan({ x: 0, y: 0 }); drag.current = undefined; };
-  useEffect(() => { reset(); setFailed(false); }, [open, src]);
+  useEffect(() => { if (open) { reset(); setFailed(false); } }, [open, src]);
   // 分组切换仅在预览打开时处理，不干扰底层表格的方向键操作。
   useEffect(() => {
     if (!open || !onCurrentChange || count < 2) return;
@@ -510,8 +512,8 @@ export function ImagePreview({ open, src, alt = "", onOpenChange, current = 0, c
   const fit = ready ? Math.min(1, area.width / (sideways ? natural.height : natural.width), area.height / (sideways ? natural.width : natural.height)) : 0;
   const changeZoom = (factor: number) => setZoom(value => Math.max(.25, Math.min(8, value * factor)));
 
-  if (!open || !src || typeof document === "undefined") return null;
-  return createPortal(<div ref={previewRef} className="sia-image-preview" role="dialog" aria-modal="true" aria-label="图片预览" tabIndex={-1} onClick={() => onOpenChange(false)}>
+  if (!motion.present || !src || typeof document === "undefined") return null;
+  return createPortal(<div ref={previewRef} className="sia-image-preview" style={{ animation: "none", pointerEvents: open ? undefined : "none" }} {...(!open ? { inert: "" } : {})} role="dialog" aria-modal="true" aria-label="图片预览" tabIndex={-1} onClick={() => onOpenChange(false)}>
     <Button variant="text" className="sia-image-preview__close" aria-label="关闭预览" onClick={event => { event.stopPropagation(); onOpenChange(false); }}><Icon name="close" /></Button>
     <div ref={stageRef} className="sia-image-preview__stage">
       {failed ? <span className="sia-image-preview__error">图片加载失败</span> : <img key={src} src={src} alt={alt} draggable={false}

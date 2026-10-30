@@ -3431,6 +3431,9 @@ export default function App() {
         // WindowFrame 的标题区组合导航与收藏行；收藏行增高不拉伸地址栏和窗口控制按钮。
         <div className="browser-titlebar-area">
           <WindowTitleBar
+            // 默认主题入口复用应用状态，保证原生面板与网页内容同步。
+            theme={darkMode ? "dark" : "light"}
+            onThemeChange={(theme) => handleThemeChange(theme === "dark")}
             className="browser-titlebar is-vertical"
             // 树形标签固定在左侧，顶部只保留品牌图标、导航及窗口操作。
             leading={(

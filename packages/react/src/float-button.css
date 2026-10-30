@@ -20,10 +20,10 @@
 .sia-float-button-group--square:not(.sia-float-button-group--menu) .sia-float-button-root:first-child .sia-float-button { border-radius: 8px 8px 0 0; }
 .sia-float-button-group--square:not(.sia-float-button-group--menu) .sia-float-button-root:last-child .sia-float-button { border-radius: 0 0 8px 8px; }
 .sia-float-button-group--square:not(.sia-float-button-group--menu) .sia-float-button-root + .sia-float-button-root { border-top: 1px solid var(--sia-color-border); }
-.sia-float-button-group--menu > .sia-float-button-group__list { position: absolute; padding: 12px 0; animation: sia-float-menu-enter 160ms ease-out; }
+.sia-float-button-group--menu > .sia-float-button-group__list { position: absolute; padding: 12px 0;  }
 .sia-float-button-group--top.sia-float-button-group--menu > .sia-float-button-group__list { bottom: 100%; right: 0; }
 .sia-float-button-group--bottom.sia-float-button-group--menu > .sia-float-button-group__list { top: 100%; right: 0; }
 .sia-float-button-group--left.sia-float-button-group--menu > .sia-float-button-group__list { right: 100%; top: 0; padding: 0 12px; flex-direction: row; }
 .sia-float-button-group--right.sia-float-button-group--menu > .sia-float-button-group__list { left: 100%; top: 0; padding: 0 12px; flex-direction: row; }
-@keyframes sia-float-menu-enter { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: scale(1); } }
+
 @media (prefers-reduced-motion: reduce) { .sia-float-button { transition: none; } .sia-float-button-group--menu > .sia-float-button-group__list { animation: none; } }

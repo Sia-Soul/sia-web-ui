@@ -70,6 +70,11 @@ body.browser-tab-panel-document__body,
 .browser-window-menu--cascade .sia-menu__item,
 .browser-menu-document .sia-menu__popup .sia-menu__item { min-height: 32px; font-size: 13px; }
 .browser-window-menu--cascade { overflow-y: auto; }
+/* 原生网页菜单复用单层轻阴影，根列表不叠加阴影，子层与根层一致。 */
+.browser-window-menu--cascade > .sia-menu { box-shadow: none; }
+.browser-menu-document .sia-menu__popup {
+  box-shadow: 0 2px 4px rgb(15 23 42 / 6%), 0 6px 12px -2px rgb(15 23 42 / 10%);
+}
 /* 侧向级联使用向右箭头提示下一层，不沿用内嵌折叠菜单的上下箭头。 */
 .browser-menu-document .browser-window-menu--cascade .sia-menu__entry .sia-menu__expand-icon,
 .browser-menu-document .sia-menu__popup .sia-menu__entry .sia-menu__expand-icon { transform: rotate(-90deg); }

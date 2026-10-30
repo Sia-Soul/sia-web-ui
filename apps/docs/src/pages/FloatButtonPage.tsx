@@ -54,7 +54,7 @@ export function FloatButtonPage() {
       <DemoCard title="悬浮按钮组" description="同类操作组合展示；方形按钮组使用相连的边框与阴影。" code={'<FloatButton.Group shape="square">\n  <FloatButton tooltip="帮助" />\n  <FloatButton icon={<Icon name="edit" />} tooltip="反馈" />\n</FloatButton.Group>'}>
         <Space size={32} align="start"><FloatButton.Group style={inline}>{actions}</FloatButton.Group><FloatButton.Group shape="square" style={inline}>{actions}</FloatButton.Group></Space>
       </DemoCard>
-      <DemoCard title="菜单模式与受控展开" description="点击或悬停展开，点击外部或按 Esc 收起。右侧按钮演示受控模式。" code={groupCode}>
+      <DemoCard title="菜单模式与受控展开" description="点击或悬停展开，点击外部或按 Esc 收起；展开为 260ms 弹性回弹，关闭为 140ms 缩小淡出后卸载。右侧按钮演示受控模式。" code={groupCode}>
         <div style={{ minHeight: 180, display: "flex", alignItems: "flex-end", flexWrap: "wrap", gap: 40, padding: 12 }}>
           <FloatButton.Group style={inline} trigger="click" type="primary" tooltip="点击展开">{actions}</FloatButton.Group>
           <FloatButton.Group style={inline} trigger="hover" tooltip="悬停展开">{actions}</FloatButton.Group>

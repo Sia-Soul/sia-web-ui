@@ -134,7 +134,7 @@ export function SpinPage() {
     { property: "tip", description: "加载说明文本", type: "ReactNode", defaultValue: "-" },
     { property: "fullscreen", description: "全屏加载遮罩", type: "boolean", defaultValue: "false" },
   ]}>
-    <DemoCard title="容器加载" description="内容仍保持布局，加载时覆盖半透明遮罩。" code={`<Space direction="vertical" style={{ width: "100%" }}>
+    <DemoCard title="容器加载" description="内容仍保持布局，加载时覆盖半透明遮罩；显隐共用 180ms 淡入轨迹，停止时反播淡出。" code={`<Space direction="vertical" style={{ width: "100%" }}>
   <Spin spinning={spinning} tip="正在读取数据...">
     <Card title="项目数据">
       <p>这里是加载完成后展示的业务内容。</p>
@@ -182,7 +182,7 @@ export function NotificationPage() {
     { property: "placement / duration", description: "出现位置和持续秒数", type: "topLeft | topRight | bottomLeft | bottomRight / number", defaultValue: "topRight / 4.5" },
     { property: "key / destroy", description: "按键更新和主动销毁", type: "string | number / function", defaultValue: "-" },
   ]}>
-    <DemoCard title="命令式通知" description="不需要预先挂载组件，可在业务逻辑中直接调用。" code={`<Space wrap>
+    <DemoCard title="命令式通知" description="不需要预先挂载组件，可在业务逻辑中直接调用。通知采用轻阴影，多条同时显示时保持清晰层次；浅色和深色主题分别适配。" code={`<Space wrap>
   <Button onClick={() => notification.info({ message: "新消息", description: "你有一条新的项目评论。" })}>信息</Button>
   <Button onClick={() => notification.success({ message: "发布完成", description: "版本 v1.2.0 已经上线。" })}>成功</Button>
   <Button onClick={() => notification.warning({ message: "资源不足", description: "存储空间使用率已超过 80%。", placement: "bottomRight" })}>警告</Button>
@@ -205,7 +205,7 @@ export function TourPage() {
     { property: "mask / disabledInteraction", description: "遮罩和目标区交互限制", type: "boolean", defaultValue: "true / false" },
     { property: "onClose / onFinish / onChange", description: "关闭、完成和步骤变化", type: "function", defaultValue: "-" },
   ]}>
-    <DemoCard title="两步功能引导" description="高亮目标位置，并在滚动和窗口变化时实时跟随。" code={`const firstRef = useRef(null);
+    <DemoCard title="两步功能引导" description="高亮目标位置，并在滚动和窗口变化时实时跟随；整体以 180ms 淡入，关闭反向淡出。" code={`const firstRef = useRef(null);
 const secondRef = useRef(null);
 
 <Space>

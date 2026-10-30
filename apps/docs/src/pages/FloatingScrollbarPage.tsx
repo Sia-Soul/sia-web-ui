@@ -20,10 +20,10 @@ export function FloatingScrollbarPage({ enabled, onEnabledChange }: { enabled: b
     name="FloatingScrollbarProvider"
     apiRows={[
       { property: "disabled", description: "停止扫描滚动容器，移除浮动滚动条并恢复原生滚动条", type: "boolean", defaultValue: "false" },
-      { property: "data-sia-native-scrollbar", description: "标记需要保留自身滚动条、不由 Provider 接管的容器", type: "HTML attribute", defaultValue: "-" },
+      { property: "data-sia-native-scrollbar", description: "只保留当前容器自身滚动条，不影响内部独立滚动容器", type: "HTML attribute", defaultValue: "-" },
     ]}
   >
-    <DemoCard title="应用级自动接管" description="Provider 通常只在应用根节点挂载一次；将鼠标移入下方区域并滚动，离开后浮动轨道会自动隐藏。" code={providerCode}>
+    <DemoCard title="应用级自动接管" description="框架默认启用，无需手动挂载；显式 Provider 可控制是否启用。将鼠标移入下方区域并滚动，离开后浮动轨道会自动隐藏。" code={providerCode}>
       <Space direction="vertical" size={12} style={{ width: "100%" }}>
         <Checkbox checked={enabled} onChange={onEnabledChange}>启用全局浮动滚动条</Checkbox>
         <div style={{ width: "100%", height: 220, overflow: "auto", padding: 14, background: "var(--sia-color-background)", border: "1px solid var(--sia-color-border)", borderRadius: 8 }}>
@@ -35,7 +35,7 @@ export function FloatingScrollbarPage({ enabled, onEnabledChange }: { enabled: b
         </div>
       </Space>
     </DemoCard>
-    <DemoCard title="保留组件自有滚动条" description="复杂组件已经管理滚动交互时，可用 data-sia-native-scrollbar 跳过自动接管。" code={`<div data-sia-native-scrollbar style={{ overflow: "auto" }}>
+    <DemoCard title="保留组件自有滚动条" description="复杂组件已经管理滚动交互时，可用 data-sia-native-scrollbar 跳过自身接管，内部容器仍可使用浮动滚动条。" code={`<div data-sia-native-scrollbar style={{ overflow: "auto" }}>
   使用容器自己的滚动条
 </div>`}>
       <div data-sia-native-scrollbar style={{ width: "100%", maxHeight: 120, overflow: "auto", padding: 12, border: "1px solid var(--sia-color-border)", borderRadius: 8 }}>

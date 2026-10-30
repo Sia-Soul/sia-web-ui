@@ -1,3 +1,8 @@
+import { initializeDefaultScrollbars } from "./components/FloatingScrollbarProvider";
+
+// 游戏入口同样默认启用浮动滚动条。
+initializeDefaultScrollbars();
+
 /** 独立游戏框架入口；基础交互复用 Sia 组件，不引入图表及编辑器。 */
 import './styles.css';
 import './game/game.css';

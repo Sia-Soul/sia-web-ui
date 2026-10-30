@@ -4,11 +4,13 @@ import {
   Button,
   Icon,
   Segmented,
+  Switch,
   Tag,
   WindowFrame,
   WindowTitleBar,
   type WindowAction,
   type WindowTitleBarActionsAlign,
+  type SiaThemeMode,
 } from "@sia.soul/sia-react-ui";
 import { ComponentDocPage } from "./ComponentDocPage";
 import { DemoCard } from "./DemoCard";
@@ -71,6 +73,8 @@ export function WindowFramePage() {
   const [lastAction, setLastAction] = useState<WindowAction>("start-dragging");
   const [maximized, setMaximized] = useState(false);
   const [actionsAlign, setActionsAlign] = useState<WindowTitleBarActionsAlign>("right");
+  const [showThemeSwitch, setShowThemeSwitch] = useState(true);
+  const [previewTheme, setPreviewTheme] = useState<SiaThemeMode>("light");
 
   function handleAction(action: WindowAction) {
     setLastAction(action);
@@ -86,6 +90,9 @@ export function WindowFramePage() {
       apiRows={[
         { property: "WindowFrame.titleBar", description: "窗口顶部的自定义标题栏。", type: "ReactNode", defaultValue: "-" },
         { property: "WindowTitleBar.leading", description: "标题栏左侧品牌、图标或标题。", type: "ReactNode", defaultValue: "-" },
+        { property: "WindowTitleBar.showThemeSwitch", description: "显示右侧浅色/深色切换入口，独立于业务动作和窗口控制组。", type: "boolean", defaultValue: "true" },
+        { property: "WindowTitleBar.theme", description: "受控主题，由宿主更新并应用；省略时自动读取和切换文档根节点主题。", type: '"light" | "dark"', defaultValue: "文档主题，未设置时 light" },
+        { property: "WindowTitleBar.onThemeChange", description: "点击后返回目标主题；受控时需回填 theme 并应用主题，外部变化不触发。", type: '(theme: "light" | "dark") => void', defaultValue: "-" },
         { property: "WindowTitleBar.actions", description: "窗口控制按钮前的业务操作区。", type: "ReactNode", defaultValue: "-" },
         { property: "WindowTitleBar.actionsAlign", description: "动作区放在标题栏左侧，或紧贴窗口控制按钮左侧。", type: "\"left\" | \"right\"", defaultValue: "\"right\"" },
         { property: "WindowTitleBar.controls", description: "显示默认控制组，或传入自定义控制节点。", type: "boolean | ReactNode", defaultValue: "true" },
@@ -98,7 +105,7 @@ export function WindowFramePage() {
     >
       <DemoCard
         title="完整自定义窗口"
-        description="标题栏空白区支持按下拖动和双击最大化；按钮、输入框、链接等交互元素不会误触拖动。"
+        description="标题栏默认提供浅色/深色切换，自动应用文档主题；空白区支持拖动和双击最大化，主题按钮不会触发窗口动作。"
         code={basicCode}
       >
         <div className="window-frame-demo">
@@ -152,6 +159,14 @@ export function WindowFramePage() {
             </div>
           </WindowFrame>
         </div>
+      </DemoCard>
+
+      <DemoCard title="主题受控与隐藏入口" description="用 theme 和 onThemeChange 接入应用主题状态；此例仅改变窗口自身主题。showThemeSwitch=false 可隐藏默认入口，保留业务已有的主题按钮。" code={'const [theme, setTheme] = useState<"light" | "dark">("light");\n<WindowFrame data-sia-theme={theme} titleBar={<WindowTitleBar theme={theme} onThemeChange={setTheme} showThemeSwitch={showThemeSwitch} controls={false}>局部主题</WindowTitleBar>}>窗口内容</WindowFrame>'}>
+        <Switch checked={showThemeSwitch} onCheckedChange={setShowThemeSwitch} label="显示标题栏主题按钮" />
+        {/* 受控值和局部主题属性一起更新，不改变文档或其他窗口的主题。 */}
+        <WindowFrame className="window-frame-theme-demo" data-sia-theme={previewTheme} style={{ height: 120, marginTop: 12 }} titleBar={<WindowTitleBar controls={false} theme={previewTheme} onThemeChange={setPreviewTheme} showThemeSwitch={showThemeSwitch} leading={<strong>局部主题</strong>} />}>
+          <div style={{ padding: 16 }}>当前主题：{previewTheme === "dark" ? "深色" : "浅色"}</div>
+        </WindowFrame>
       </DemoCard>
 
       <DemoCard

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "./Icon";
+import { useOverlayMotion } from "./overlayMotion";
 
 /** 自适应容器的实测尺寸，单位为 CSS 像素。 */
 export interface AutoSizerSize {
@@ -34,7 +35,7 @@ export function AutoSizer({ children }: AutoSizerProps) {
 
 /** 非模态任务浮层配置，不管理业务任务或轮询。 */
 export interface FloatingPanelProps {
-  /** 是否显示；关闭时卸载内容，不显示遮罩，也不抢夺焦点。 */
+  /** 是否显示；入场以 180ms 淡入，关闭沿同一轨迹反播后卸载内容。减少动态效果时直接切换，不显示遮罩，也不抢夺焦点。 */
   open: boolean;
   /** 浮层可访问名称，同时作为标题展示。 */
   title: string;
@@ -45,8 +46,10 @@ export interface FloatingPanelProps {
 }
 /** 使用框架默认外观展示持续任务；挂载到 body，避免被业务容器裁剪。 */
 export function FloatingPanel({ open, title, children, placement = "bottomRight" }: FloatingPanelProps) {
-  if (!open || typeof document === "undefined") return null;
-  return createPortal(<section className={`sia-floating-panel sia-floating-panel--${placement}`} aria-label={title} role="status">
+  const ref = useRef<HTMLElement>(null);
+  const motion = useOverlayMotion(open, ref, "fade");
+  if (!motion.present || typeof document === "undefined") return null;
+  return createPortal(<section ref={ref} className={`sia-floating-panel sia-floating-panel--${placement}`} aria-label={title} role="status" {...(!open ? { inert: "" } : {})}>
     <strong className="sia-floating-panel__title">{title}</strong>{children}
   </section>, document.body);
 }

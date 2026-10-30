@@ -7,6 +7,8 @@ import { PopupPortal } from "./PopupPortal";
 import type { PopupPortalPlacement } from "./PopupPortal";
 import { useControllableState } from "./shared";
 import { hasFloatingScrollbarInteraction, resolveFloatingScrollbarTarget } from "./floatingScrollbarOwnership";
+import { MenuSelectionMotion } from "./MenuSelectionMotion";
+import { SegmentedSelectionMotion } from "./SegmentedSelectionMotion";
 
 /** 菜单排列模式；vertical 为纵向列表，horizontal 为横向菜单，inline 为内嵌子菜单，grid 为双列圆角卡片（图标在上、名称在下，子菜单以弹层展开）。 */
 export type MenuMode = "vertical" | "horizontal" | "inline" | "grid";
@@ -55,7 +57,7 @@ export interface MenuProps extends Omit<HTMLAttributes<HTMLUListElement>, "onCli
   /** 按展示顺序排列的项目配置。 */
   items: readonly MenuItem[];
   /**
-   * 展示或交互模式；grid 显示双列圆角卡片，图标居上、名称居下，保留选中和当前生效标记。
+   * 展示或交互模式；inline 子目录按实际内容高度展开，支持长列表及嵌套目录；grid 显示双列圆角卡片，图标居上、名称居下，保留选中和当前生效标记。
    * @defaultValue "vertical"
    */
   mode?: MenuMode;
@@ -68,11 +70,11 @@ export interface MenuProps extends Omit<HTMLAttributes<HTMLUListElement>, "onCli
    * @defaultValue "light"
    */
   theme?: MenuTheme;
-  /** 当前选中项目的标识集合；传入后由外部控制。 */
+  /** 当前选中项目的标识集合；传入后由外部控制。同一面板内单选切换时背景以 260ms 滑到新项目，文字和回调立即更新；首次定位、多选及减少动态效果时直接显示。 */
   selectedKeys?: readonly string[];
   /**
    * 自动将首个选中项目滚动到菜单自身的可见区域，适用于可纵向滚动的列表、内嵌或网格菜单。
-   * 首次渲染、异步项目到达及首个选中标识改变时尝试定位；已完整可见时不滚动，超出时尽量居中。
+   * 首次渲染、异步项目到达、首个选中标识改变或其目录展开后尝试定位；已完整可见时不滚动，超出时尽量居中。
    * 仅调整菜单自身的滚动位置，不展开子菜单、不移动焦点；相同选中项的普通重渲染保留用户手动滚动位置。
    * @defaultValue false
    */
@@ -100,7 +102,7 @@ export interface MenuProps extends Omit<HTMLAttributes<HTMLUListElement>, "onCli
    */
   selectable?: boolean;
   /**
-   * 收起内嵌菜单
+   * 收起内嵌菜单为图标入口；纯文本 label 或 title 同时作为入口的无障碍名称，子菜单以弹层展开。
    * @defaultValue false
    */
   inlineCollapsed?: boolean;
@@ -145,6 +147,7 @@ function MenuPopup({
   placement,
   menuId,
   theme,
+  multiple,
   children,
   onMouseEnter,
   onMouseLeave,
@@ -158,36 +161,29 @@ function MenuPopup({
   placement: PopupPortalPlacement;
   menuId: string;
   theme: MenuTheme;
+  multiple: boolean;
   children: ReactNode;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
 }) {
-  const [mounted, setMounted] = useState(open);
+  const listRef = useRef<HTMLUListElement>(null);
   const [fontSize, setFontSize] = useState<string>();
   // 子菜单也通过 Portal 渲染，沿用父菜单项字号以保持多级菜单文字一致。
   useLayoutEffect(() => {
     const anchor = anchorRef.current;
-    if (!mounted || !anchor) return;
+    if (!open || !anchor) return;
     /** 同步父级菜单项的实际字号，避免子菜单回退到页面默认字号。 */
     const syncFontSize = () => setFontSize(getComputedStyle(anchor).fontSize);
     syncFontSize();
     const observer = new ResizeObserver(syncFontSize);
     observer.observe(anchor);
     return () => observer.disconnect();
-  });
-  useEffect(() => {
-    if (open) {
-      setMounted(true);
-      return undefined;
-    }
-    const timer = window.setTimeout(() => setMounted(false), 160);
-    return () => window.clearTimeout(timer);
-  }, [open]);
+  }, [open, anchorRef, children]);
 
   return <PopupPortal
     ref={popupRef}
     anchorRef={anchorRef}
-    open={mounted}
+    open={open}
     placement={placement}
     // 侧向锚点位于行按钮内，预留 16px 跨过父面板内边距和边框，确保面板间有可见空隙。
     offset={placement.startsWith('right') || placement.startsWith('left') ? 16 : 4}
@@ -198,7 +194,7 @@ function MenuPopup({
     onMouseEnter={onMouseEnter}
     onMouseLeave={onMouseLeave}
   >
-    <ul className="sia-menu__popup-list" role="menu">{children}</ul>
+    <ul ref={listRef} className="sia-menu__popup-list sia-menu-motion-surface" role="menu">{children}<MenuSelectionMotion rootRef={listRef} enabled={!multiple} /></ul>
   </PopupPortal>;
 }
 
@@ -217,6 +213,7 @@ function MenuEntry({
 }) {
   const anchorRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
+  const submenuRef = useRef<HTMLUListElement>(null);
   const closeTimerRef = useRef<number | undefined>(undefined);
   // 延迟关闭必须使用最新菜单状态，避免旧回调把已经关闭的兄弟菜单重新写回。
   const toggleRef = useRef(props.toggle);
@@ -227,6 +224,27 @@ function MenuEntry({
   const path = [item.key, ...parents];
   const collapsed = props.inlineCollapsed && level === 0;
   const inlineSubmenu = props.mode === "inline" && !collapsed;
+
+  // 使用实际内容高度，长目录和嵌套目录展开时不会被固定高度上限截断。
+  useLayoutEffect(() => {
+    const submenu = submenuRef.current;
+    if (!inlineSubmenu || !submenu) return;
+    const measure = () => {
+      const children = [...submenu.children].filter(child => !child.classList.contains("sia-menu__selection")) as HTMLElement[];
+      const first = children[0], last = children.at(-1);
+      if (!first || !last) return;
+      // 使用子项几何而非容器 scrollHeight，目录缩短时也能减少上限；8px 为展开后的上下内边距。
+      const height = `${Math.ceil(last.offsetTop + last.offsetHeight - first.offsetTop + parseFloat(getComputedStyle(first).marginTop) + parseFloat(getComputedStyle(last).marginBottom) + 8)}px`;
+      if (submenu.style.getPropertyValue("--sia-menu-submenu-height") !== height)
+        submenu.style.setProperty("--sia-menu-submenu-height", height);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    // 观察正常布局的子项，排除绝对定位的选中背景，避免动效触发无关测量。
+    for (const child of submenu.children)
+      if (child.classList.contains("sia-menu__entry") || child.classList.contains("sia-menu__group")) observer.observe(child);
+    return () => observer.disconnect();
+  }, [inlineSubmenu, item.children, isOpen]);
 
   useEffect(() => () => {
     if (closeTimerRef.current !== undefined) window.clearTimeout(closeTimerRef.current);
@@ -270,6 +288,7 @@ function MenuEntry({
       style={{ paddingInlineStart: props.mode === "inline" && !props.inlineCollapsed ? 12 + level * props.inlineIndent : undefined }}
       {...withTitleTooltip({ title: collapsed ? item.title ?? (typeof item.label === "string" ? item.label : undefined) : item.title })}
       disabled={item.disabled}
+      aria-label={collapsed ? item.title ?? (typeof item.label === "string" ? item.label : undefined) : undefined}
       aria-current={isSelected ? "page" : undefined}
       data-menu-key={item.key}
       data-applied={item.applied || undefined}
@@ -283,7 +302,7 @@ function MenuEntry({
       {!collapsed && hasChildren ? <Icon className="sia-menu__expand-icon" name="chevron-down" size={13} /> : null}
     </button>
     {hasChildren ? inlineSubmenu
-      ? <ul className="sia-menu__submenu" role="menu" aria-hidden={!isOpen}>{submenu}</ul>
+      ? <ul ref={submenuRef} className="sia-menu__submenu sia-menu-motion-surface" role="menu" aria-hidden={!isOpen}>{submenu}<MenuSelectionMotion rootRef={submenuRef} enabled={!props.multiple} /></ul>
       : <MenuPopup
         anchorRef={anchorRef}
         popupRef={popupRef}
@@ -292,6 +311,7 @@ function MenuEntry({
         placement={popupPlacement}
         menuId={props.menuId}
         theme={props.theme}
+        multiple={props.multiple}
         onMouseEnter={hover ? cancelClose : undefined}
         onMouseLeave={hover ? scheduleClose : undefined}
       >{submenu}</MenuPopup>
@@ -328,7 +348,7 @@ function MenuLevel({
   </>;
 }
 
-/** 菜单组件；弹出子菜单切换时只保留当前分支及其祖先，内嵌模式允许多分支展开；操作浮动滚动条时保持对应菜单展开。侧向子菜单距父菜单项水平偏移 16px，上下弹出偏移 4px，空间不足时自动翻转方向。 */
+/** 菜单组件；同面板单选背景默认滑动到新选项，快速切换从当前位置继续，多选保留独立背景。弹出子菜单切换时只保留当前分支及其祖先，内嵌模式允许多分支展开；操作浮动滚动条时保持对应菜单展开。侧向子菜单距父菜单项水平偏移 16px，上下弹出偏移 4px，空间不足时自动翻转方向。上下键及 Home/End 移动当前层焦点并跳过禁用项；右键展开子菜单，左键或 Escape 返回上层，Enter/空格执行当前按钮。 */
 export function Menu({
   items,
   mode = "vertical",
@@ -384,9 +404,13 @@ export function Menu({
     const reveal = () => {
       if (revealedKey.current === firstSelected || root.clientHeight === 0) return;
       const target = Array.from(root.querySelectorAll<HTMLElement>(".sia-menu__item"))
-        .find(element => element.dataset.menuKey === firstSelected && element.getBoundingClientRect().height > 0);
+        .find(element => element.dataset.menuKey === firstSelected && element.getBoundingClientRect().height > 0 && !element.closest('[aria-hidden="true"]'));
       if (!target) return;
       const bounds = root.getBoundingClientRect(), item = target.getBoundingClientRect();
+      // 等待祖先展开到足以容纳目标，再完成定位，避免把被裁切的项目误判为已经可见。
+      for (let parent = target.parentElement; parent && parent !== root; parent = parent.parentElement) {
+        if (parent.classList.contains("sia-menu__submenu") && item.bottom > parent.getBoundingClientRect().bottom + 1) return;
+      }
       const top = bounds.top + root.clientTop, bottom = top + root.clientHeight;
       // 只滚动本菜单，避免 scrollIntoView 连带移动整个页面或右侧面板。
       if (item.top < top || item.bottom > bottom)
@@ -397,8 +421,9 @@ export function Menu({
     // 初始化布局或隐藏容器恢复时补做定位，成功后回调立即短路，不干扰手动浏览。
     const observer = new ResizeObserver(reveal);
     observer.observe(root);
+    root.querySelectorAll(".sia-menu__submenu").forEach(submenu => observer.observe(submenu));
     return () => observer.disconnect();
-  }, [autoScrollSelected, firstSelected, items, mode]);
+  }, [autoScrollSelected, firstSelected, items, mode, open]);
 
   useEffect(() => {
     if (mode === "inline" || !open.length) return undefined;
@@ -436,10 +461,54 @@ export function Menu({
     else onSelect?.({ ...info, selectedKeys: [...next] });
     if (mode !== "inline") setOpen([]);
   }
+  /** 当前层上下导航跳过禁用项；Portal 子菜单事件沿 React 树返回根菜单。 */
+  function handleMenuKeyDown(event: React.KeyboardEvent<HTMLUListElement>) {
+    rest.onKeyDown?.(event);
+    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+    const target = event.target instanceof Element ? event.target : null;
+    const button = target?.closest<HTMLButtonElement>('button.sia-menu__item');
+    const level = button?.closest<HTMLElement>('ul[role="menu"]') ?? rootRef.current;
+    if (!level) return;
+    const enabled = Array.from(level.querySelectorAll<HTMLButtonElement>('button.sia-menu__item:not(:disabled)'))
+      .filter(item => item.closest('ul[role="menu"]') === level && item.getClientRects().length > 0);
+    const index = button ? enabled.indexOf(button) : -1;
+    if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+      event.preventDefault(); event.stopPropagation();
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? enabled.length - 1
+        : event.key === 'ArrowDown' ? index + 1 : (index < 0 ? enabled.length : index) - 1;
+      enabled[(next + enabled.length) % enabled.length]?.focus();
+      return;
+    }
+    if (event.key === 'ArrowRight' && button?.hasAttribute('aria-expanded')) {
+      event.preventDefault(); event.stopPropagation();
+      const key = button.dataset.menuKey!;
+      toggle(key, true);
+      requestAnimationFrame(() => {
+        const popup = [...document.querySelectorAll<HTMLElement>('.sia-menu__popup[data-sia-menu-owner]')]
+          .find(node => node.dataset.siaMenuOwner === menuId && (JSON.parse(node.dataset.siaMenuPath ?? '[]') as string[])[0] === key);
+        const inline = button.parentElement?.querySelector<HTMLElement>(':scope > .sia-menu__submenu');
+        (popup ?? inline)?.querySelector<HTMLButtonElement>('button.sia-menu__item:not(:disabled)')?.focus();
+      });
+      return;
+    }
+    if (event.key === 'ArrowLeft' || event.key === 'Escape') {
+      const popup = button?.closest<HTMLElement>('.sia-menu__popup');
+      const parentKey = popup ? (JSON.parse(popup.dataset.siaMenuPath ?? '[]') as string[])[0]
+        : level.classList.contains('sia-menu__submenu') ? level.parentElement?.querySelector<HTMLButtonElement>(':scope > button')?.dataset.menuKey : undefined;
+      if (!parentKey) return;
+      event.preventDefault(); event.stopPropagation();
+      toggle(parentKey, false);
+      const roots = [rootRef.current, ...document.querySelectorAll<HTMLElement>('.sia-menu__popup[data-sia-menu-owner]')]
+        .filter(node => node && (node === rootRef.current || node.dataset.siaMenuOwner === menuId));
+      roots.flatMap(node => [...node!.querySelectorAll<HTMLButtonElement>('button.sia-menu__item')])
+        .find(item => item.dataset.menuKey === parentKey)?.focus();
+    }
+  }
   // 列定义由框架统一传入根菜单及分组，业务无需覆写内部卡片样式。
   const gridStyle = mode === "grid" ? { "--sia-menu-grid-columns": gridColumns === "auto" ? "repeat(auto-fill, minmax(88px, 1fr))" : `repeat(${Number.isFinite(gridColumns) ? Math.max(1, Math.floor(Number(gridColumns))) : 2}, minmax(0, 1fr))` } : {};
-  return <ul ref={rootRef} className={`sia-menu sia-menu--${mode} sia-menu--${theme}${inlineCollapsed ? " sia-menu--collapsed" : ""} ${className}`.trim()} role="menu" {...withTitleTooltip(rest)} style={{ ...gridStyle, ...style } as CSSProperties} data-sia-menu-owner={menuId}>
+  return <ul ref={rootRef} className={`sia-menu sia-menu-motion-surface sia-menu--${mode} sia-menu--${theme}${inlineCollapsed ? " sia-menu--collapsed" : ""} ${className}`.trim()} role="menu" {...withTitleTooltip(rest)} onKeyDown={handleMenuKeyDown} style={{ ...gridStyle, ...style } as CSSProperties} data-sia-menu-owner={menuId}>
     <MenuLevel items={items} level={0} parents={[]} props={{ interactionCursor, menuId, mode, theme, multiple, selectable, inlineCollapsed, inlineIndent, triggerSubMenuAction, selected, open, select, toggle }} />
+    <MenuSelectionMotion rootRef={rootRef} enabled={!multiple} />
   </ul>;
 }
 
@@ -588,13 +657,16 @@ export interface SegmentedProps extends Omit<HTMLAttributes<HTMLDivElement>, "de
   onChange?: (value: SegmentedValue) => void;
 }
 
-/** 分段选择组件。 */
+/** 分段选择组件；普通形态的选中背景以 260ms 平滑移动并适配选项尺寸，快速切换从当前位置接续。纵向与横向共用行为，值及回调立即更新；首次定位、尺寸变化及减少动态效果时直接对齐，zigzag 保留其折线与形变过渡。 */
 export function Segmented({ options, value, defaultValue, variant = "default", shape = "capsule", size: sizeProp, block = false, vertical = false, disabled = false, onChange, className = "", onKeyDown, ...props }: SegmentedProps) {
   const size = useControlSize(sizeProp);
+  const rootRef = useRef<HTMLDivElement>(null);
   const normalized = useMemo(() => options.map((option) => typeof option === "object" ? option : { label: option, value: option }), [options]);
+  const zigzag = variant === "zigzag" && !vertical && normalized.length === 2;
   const [current, setCurrent] = useControllableState<SegmentedValue | undefined>({ value, defaultValue: defaultValue ?? normalized[0]?.value, onChange: (next) => next !== undefined && onChange?.(next) });
   function keyboard(event: KeyboardEvent<HTMLDivElement>) {
     onKeyDown?.(event);
+    if (event.defaultPrevented || disabled) return;
     if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
     event.preventDefault();
     const enabled = normalized.filter((option) => !option.disabled);
@@ -602,9 +674,10 @@ export function Segmented({ options, value, defaultValue, variant = "default", s
     const next = event.key === "ArrowRight" || event.key === "ArrowDown" ? enabled[(index + 1) % enabled.length] : enabled[(index - 1 + enabled.length) % enabled.length];
     if (next) setCurrent(next.value);
   }
-  return <div className={`sia-segmented sia-segmented--${size}${variant === "zigzag" && !vertical && normalized.length === 2 ? ` sia-segmented--zigzag sia-segmented--shape-${shape}` : ""}${block ? " sia-segmented--block" : ""}${vertical ? " sia-segmented--vertical" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()} role="radiogroup" onKeyDown={keyboard} {...withTitleTooltip(props)}>
-    {normalized.map((option) => <button type="button" role="radio" aria-checked={option.value === current} {...withTitleTooltip({ title: option.title })} className={option.value === current ? "is-selected" : ""} disabled={disabled || option.disabled} key={option.value} onClick={() => setCurrent(option.value)}>
+  return <div ref={rootRef} className={`sia-segmented sia-segmented--${size}${zigzag ? ` sia-segmented--zigzag sia-segmented--shape-${shape}` : ""}${block ? " sia-segmented--block" : ""}${vertical ? " sia-segmented--vertical" : ""}${disabled ? " is-disabled" : ""} ${className}`.trim()} role="radiogroup" onKeyDown={keyboard} {...withTitleTooltip(props)}>
+    {normalized.map((option) => <button data-segmented-key={JSON.stringify(option.value)} type="button" role="radio" aria-checked={option.value === current} {...withTitleTooltip({ title: option.title })} className={option.value === current ? "is-selected" : ""} disabled={disabled || option.disabled} key={option.value} onClick={() => setCurrent(option.value)}>
       {option.icon}<span>{option.label ?? option.value}</span>
     </button>)}
+    {!zigzag && <SegmentedSelectionMotion rootRef={rootRef} enabled />}
   </div>;
 }

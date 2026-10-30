@@ -1,9 +1,16 @@
+import { initializeDefaultScrollbars } from "./components/FloatingScrollbarProvider";
+
+// 浏览器入口默认接管滚动容器，服务端导入不访问 DOM。
+initializeDefaultScrollbars();
+
 import "./styles.css";
 import "./components-extra.css";
 export { Toolbar } from "./components/Toolbar";
 export type { ToolbarItem, ToolbarProps } from "./components/Toolbar";
 
 export { Button } from "./components/Button";
+export { Skeleton } from "./components/Skeleton";
+export type { SkeletonProps } from "./components/Skeleton";
 export type { ButtonProps, ButtonSize, ButtonVariant } from "./components/Button";
 export { Card } from "./components/Card";
 export type { CardAccent, CardProps } from "./components/Card";
@@ -40,3 +47,7 @@ export type { MessageConfig, MessageHandle, MessageKey, MessageType } from "./co
 // 结果展示同时提供完整入口和轻量入口，业务不再依赖其他组件库。
 export { Result } from "./components/Result";
 export type { ResultProps, ResultStatus } from "./components/Result";
+
+// 轻量入口也可显式暂停默认接管或指定滚动容器。
+export { FloatingScrollbarProvider } from "./components/FloatingScrollbarProvider";
+export type { FloatingScrollbarProviderProps } from "./components/FloatingScrollbarProvider";

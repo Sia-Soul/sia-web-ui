@@ -58,6 +58,8 @@ const apiRows = [
 export function ButtonPage() {
   const [tab, setTab] = useState<"examples" | "api">("examples");
   const [size, setSize] = useState<ButtonSize>("medium");
+  // 次数立即更新，用于对照点击回调与回弹动画互不等待。
+  const [clickCount, setClickCount] = useState(0);
 
   return (
     <>
@@ -99,6 +101,14 @@ export function ButtonPage() {
             <Button danger icon={<Icon name="trash" size={16} />}>删除</Button>
             <Button variant="primary" danger>确认删除</Button>
             <Button disabled>禁用按钮</Button>
+          </Space>
+        </DemoCard>
+
+        <DemoCard title="点击弹性反馈" description="点击后先轻微缩小，再弹起回稳，整段 320ms；可连续点击，操作立即执行。键盘 Enter、空格和触摸激活使用相同反馈，系统减少动态效果时跳过动画。" code={'<Button variant="primary" onClick={() => setCount(count => count + 1)}>点击体验回弹</Button>'}>
+          <Space wrap className="button-bounce-demo">
+            <Button variant="primary" onClick={() => setClickCount(count => count + 1)}>点击体验回弹</Button>
+            <Button aria-label="点赞回弹" icon={<Icon name="heart" />} onClick={() => setClickCount(count => count + 1)} />
+            <span aria-live="polite">已点击 {clickCount} 次</span>
           </Space>
         </DemoCard>
 

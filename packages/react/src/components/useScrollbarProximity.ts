@@ -3,9 +3,13 @@ import { useEffect } from "react";
 let users = 0;
 let cleanup: (() => void) | undefined;
 
-// Share one passive proximity detector, including tables rendered without a provider.
+// 表格和自动接管共享一份被动指针监听器，最后一个使用者卸载时释放。
 export function useScrollbarProximity() {
-  useEffect(() => {
+  useEffect(acquireScrollbarProximity, []);
+}
+
+/** 注册共享滚动条邻近检测，返回释放函数；首次注册才绑定监听器。 */
+export function acquireScrollbarProximity() {
     if (users++ === 0) {
       let frame = 0;
       let x = -Infinity;
@@ -49,5 +53,4 @@ export function useScrollbarProximity() {
       };
     }
     return () => { if (--users === 0) { cleanup?.(); cleanup = undefined; } };
-  }, []);
 }

@@ -9,6 +9,11 @@ use tauri::{AppHandle, Manager};
 #[derive(Default)]
 pub struct BrowserThemeStore(Arc<AtomicBool>);
 
+/// 原生弹出菜单读取与外壳一致的主题，避免继承系统的不同颜色设置。
+pub fn is_dark(app: &AppHandle) -> bool {
+    app.state::<BrowserThemeStore>().0.load(Ordering::SeqCst)
+}
+
 /// 在 UI 线程读取最新主题并更新 Profile；调用方等待成功后再导航，避免错误页先使用旧主题。
 #[cfg(windows)]
 pub async fn apply_browser_theme(app: &AppHandle, webview: &tauri::Webview) -> Result<(), String> {

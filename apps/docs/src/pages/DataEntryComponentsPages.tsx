@@ -1,4 +1,5 @@
 import { FloatingPlaceholderDemo } from "./FloatingPlaceholderDemo";
+import { DisabledControlsDemo } from "./DisabledControlsDemo";
 import { FormSizeDemo } from "./FormSizeDemo";
 import formSizeCode from "./FormSizeDemo.tsx?raw";
 import { useState } from "react";
@@ -79,7 +80,8 @@ export function CheckboxPage() {
   const allOptions = ["查看", "编辑", "管理"];
   const [selected, setSelected] = useState<readonly CheckboxValue[]>(["查看"]);
   const allChecked = selected.length === allOptions.length;
-  return <DocPage eyebrow="组件 / 数据录入 / Checkbox" title="Checkbox 多选框" description="在一组独立选项中选择零项、多项或全部。" name="Checkbox" apiRows={[
+  // 文档说明与共享小控件回弹时长保持一致，文字不参与图形缩放。
+  return <DocPage eyebrow="组件 / 数据录入 / Checkbox" title="Checkbox 多选框" description="在一组独立选项中选择零项、多项或全部；点击图形以 360ms 明显回弹，勾选柔和显隐，文字保持稳定。" name="Checkbox" apiRows={[
     { property: "size", description: "图形尺寸为 14 / 16 / 18px；支持 Form、Group 继承及单项覆盖", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
     { property: "checked / defaultChecked", description: "受控或默认选中状态", type: "boolean", defaultValue: "false" },
     { property: "shape / Group.shape", description: "square 圆角方框、circle 圆形；单项继承分组，可显式覆盖，仍支持多选和半选", type: "'square' | 'circle'", defaultValue: "'square'" },
@@ -321,6 +323,9 @@ export function FormPage() {
     <DemoCard title="统一组件尺寸" description="输入、选择、日期、按钮、颜色与分段控件统一为 22 / 30 / 38px，日期和时间文字为 12 / 13 / 16px；Checkbox 和 Radio 图形为 14 / 16 / 18px，标准 Switch 高度为 16 / 22 / 28px，Rate 星形为 15 / 20 / 25px。多行文本保留多行高度。支持 Form 继承、组尺寸和组件单独覆盖，切换尺寸不丢失已输入内容。" code={formSizeCode}>
       <FormSizeDemo />
     </DemoCard>
+    <DemoCard title="柔和的禁用配色" description="禁用输入类控件使用独立的背景与边框颜色；可切换禁用状态及页面主题，查看直接禁用、Form 继承禁用和浮动标签的效果。" code={'<Input disabled defaultValue="商品名称" />\n<Select disabled options={options} />\n<Form disabled><Form.Item label="名称"><Input /></Form.Item></Form>'}>
+      <DisabledControlsDemo />
+    </DemoCard>
     <DemoCard title="统一浮动标签" description="空值时显示占位文字，聚焦、展开或已有值时浮到边框；可填入示例值，再清空检查所有组件。范围日期合并显示两端标签，范围时间分别显示。" code={`<Form placeholderMode="floating" layout="vertical">
   <Form.Item name="name"><Input placeholder="姓名" /></Form.Item>
   <Form.Item name="type"><Select options={options} placeholder="业务类型" /></Form.Item>
@@ -371,14 +376,14 @@ export default function Demo() {
 
 export function RadioPage() {
   const [value, setValue] = useState("daily");
-  return <DocPage eyebrow="组件 / 数据录入 / Radio" title="Radio 单选框" description="在一组互斥选项中选择一个值，支持按钮形态。" name="Radio" apiRows={[
+  return <DocPage eyebrow="组件 / 数据录入 / Radio" title="Radio 单选框" description="普通单选点击图形回弹；实心按钮的选中背景像液体一样经沙漏细颈流入目标项，文字保持稳定，状态和回调立即更新。" name="Radio" apiRows={[
     { property: "size", description: "图形尺寸为 14 / 16 / 18px，按钮形态高度为 22 / 30 / 38px；支持 Form、Group 继承及单项覆盖", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
     { property: "value / checked", description: "选项值与选中状态", type: "string | number / boolean", defaultValue: "-" },
     { property: "Radio.Group", description: "统一管理互斥值", type: "value / options / onChange", defaultValue: "-" },
     { property: "optionType", description: "普通或按钮形态", type: "'default' | 'button'", defaultValue: "'default'" },
-    { property: "buttonStyle", description: "按钮选中样式", type: "'outline' | 'solid'", defaultValue: "'outline'" },
+    { property: "buttonStyle", description: "outline 描边及小幅回弹；solid 实心背景以 280ms 液体沙漏形变流入目标，左右切换等时长，连续操作接续当前轮廓", type: "'outline' | 'solid'", defaultValue: "'outline'" },
   ]}>
-    <DemoCard title="普通与按钮单选" description={`当前周期：${value}`} code={radioCode}>
+    <DemoCard title="普通与按钮单选" description={`当前周期：${value}。点击下方实心按钮可体验蓝色液体经过细颈流入目标；也可用方向键切换。`} code={radioCode}>
       <Radio.Group value={value} onChange={(next) => setValue(String(next))}>
         <Radio value="daily">每天</Radio><Radio value="weekly">每周</Radio><Radio value="monthly">每月</Radio>
       </Radio.Group>

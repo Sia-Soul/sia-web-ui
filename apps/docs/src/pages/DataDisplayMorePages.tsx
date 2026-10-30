@@ -124,7 +124,7 @@ export function ImagePage() {
     { property: "ImagePreview.onOpenChange", description: "遮罩、关闭按钮或 Esc 触发的状态变化", type: "(open: boolean) => void", defaultValue: "-" },
     { property: "width / height", description: "继承原生图片尺寸属性", type: "number | string", defaultValue: "-" },
   ]}>
-    <DemoCard title="点击预览" description="鼠标移入图片显示实色预览遮罩，遮罩、占位层和图片始终使用相同圆角。" code={`<Image
+    <DemoCard title="点击预览" description="鼠标移入图片显示实色预览遮罩，遮罩、占位层和图片始终使用相同圆角；预览层以 180ms 淡入，关闭沿原轨迹淡出后卸载。" code={`<Image
   width={420}
   style={{ borderRadius: 24 }}
   src={imageSrc}

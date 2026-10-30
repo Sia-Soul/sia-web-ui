@@ -118,7 +118,7 @@ function leafPaths(options: readonly CascaderOption[], fields: Required<Cascader
   return result;
 }
 
-/** 级联选择组件。 */
+/** 级联选择组件；弹层宽度由当前展开的菜单列及搜索栏决定，每列最小宽度为 170px，不跟随输入框预留空白子级区域；展开子项后才增加对应列，分隔线仅显示在相邻列之间。 */
 export function Cascader({
   options, value, defaultValue, size: sizeProp, multiple = false, showSearch = false, allowClear = true, changeOnSelect = false,
   expandTrigger = "click", placeholder = "请选择", placeholderMode, disabled = false, fieldNames, displayRender, loadData, onChange, className = "", ...props

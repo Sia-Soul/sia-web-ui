@@ -6,6 +6,7 @@ import { Tooltip } from "./FloatingDisplay";
 import { Input } from "./Input";
 import { FloatingScrollbarProvider } from "./FloatingScrollbarProvider";
 import { Icon } from "./Icon";
+import { normalizeSelectionValues } from "./selectionValues";
 
 /** Selection的值类型。 */
 export type SelectionValue = string | number;
@@ -30,7 +31,7 @@ export interface SelectionOption {
 export interface SelectionPanelProps {
   /** 可供用户选择的候选项列表。 */
   options: readonly SelectionOption[];
-  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
+  /** 当前已选值，需在 onChange 中同步更新；未匹配 options 的空字符串或纯空格不计入选择，数字 0 和显式空值选项仍有效。 */
   value: readonly SelectionValue[];
   /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange: (values: SelectionValue[]) => void;
@@ -65,7 +66,7 @@ export interface SelectionPanelProps {
    */
   showActions?: boolean;
   /**
-   * 是否将不在 options 中的已选值作为自定义选项展示。
+   * 是否将不在 options 中的已选值作为自定义选项展示；空字符串和纯空格不会生成自定义选项。
    * @defaultValue true
    */
   includeUnknownValues?: boolean;
@@ -106,9 +107,11 @@ export interface SelectionPanelProps {
 }
 
 /** 可嵌入下拉或弹窗的分组选择面板，长列表按行虚拟化。 */
-export function SelectionPanel({ options, value, onChange, multiple = false, allowDeselect = false, disabled = false, loading = false,
+export function SelectionPanel({ options, value: rawValue, onChange, multiple = false, allowDeselect = false, disabled = false, loading = false,
   showSearch = true, showActions = true, includeUnknownValues = true, searchValue, onSearch, selectedOnly = false, showValue = false,
   displayField = "label", columns = 1, maxHeight = 250, autoFocusSearch = false, groupCheckable = false }: SelectionPanelProps) {
+  // 独立面板也需归一化，以保证选中数量、批量操作和自定义选项使用同一组值。
+  const value = useMemo(() => normalizeSelectionValues(rawValue, options), [rawValue, options]);
   const [localSearch, setLocalSearch] = useState("");
   const search = searchValue ?? localSearch;
   const [scrollTop, setScrollTop] = useState(0);

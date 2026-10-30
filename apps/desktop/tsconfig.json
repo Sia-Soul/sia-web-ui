@@ -3,6 +3,8 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tsbuildinfo",
     "noEmit": true,
+    // 桌面项目直接检查框架源码，允许共享图表模块使用显式 .ts 导入；此配置不输出 JS。
+    "allowImportingTsExtensions": true,
     "baseUrl": ".",
     "paths": {
       "@sia.soul/sia-react-ui": ["../../packages/react/src/index.ts"]

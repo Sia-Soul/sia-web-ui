@@ -6,6 +6,7 @@ import { Badge } from "./DataDisplay";
 import type { BadgeProps } from "./DataDisplay";
 import { Tooltip } from "./FloatingDisplay";
 import { useControllableState } from "./shared";
+import { useOverlayMotion } from "./overlayMotion";
 import "../float-button.css";
 
 /** 浮动按钮的外形。 */
@@ -80,7 +81,7 @@ export interface FloatButtonGroupProps extends Omit<HTMLAttributes<HTMLDivElemen
    * @defaultValue "top"
    */
   placement?: "top" | "bottom" | "left" | "right";
-  /** 是否打开；传入后由外部控制显示状态。 */
+  /** 是否打开；传入后由外部控制显示状态。菜单展开 260ms，以缩放淡入、弹大回收后归位表现果冻弹性；收起 140ms，无回弹缩小淡出，保留原有面板外观；结束后卸载，减少动态效果时直接切换。 */
   open?: boolean;
   /**
    * 非受控模式下的初始打开状态。
@@ -96,6 +97,9 @@ function FloatButtonGroup({ shape = "circle", type = "default", icon, closeIcon,
   const [visible, setVisible] = useControllableState({ value: open, defaultValue: defaultOpen, onChange: onOpenChange });
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  // 菜单保留到收起动画结束，静态按钮组不播放入退场动效。
+  const motion = useOverlayMotion(!trigger || visible, listRef, "popup", placement, true, undefined, !!trigger);
   const id = useId();
   useEffect(() => {
     if (!trigger || !visible) return;
@@ -114,7 +118,7 @@ function FloatButtonGroup({ shape = "circle", type = "default", icon, closeIcon,
         onKeyDown?.(event);
         if (!event.defaultPrevented && trigger && event.key === "Escape") { setVisible(false); triggerRef.current?.focus(); }
       }}>
-      {!trigger || visible ? <div id={id} className="sia-float-button-group__list">{children}</div> : null}
+      {motion.present ? <div ref={listRef} id={id} className="sia-float-button-group__list" aria-hidden={!!trigger && !visible || undefined} {...(trigger && !visible ? { inert: "" } : {})} style={{ animation: "none", transformOrigin: placement === "top" ? "bottom center" : placement === "bottom" ? "top center" : placement === "left" ? "right center" : "left center" }}>{children}</div> : null}
       {trigger ? <FloatButtonRoot ref={triggerRef} type={type} icon={visible ? closeIcon ?? <Icon name="close" size={20} /> : icon ?? <Icon name="plus" size={20} />}
         tooltip={tooltip} aria-label={visible ? "收起悬浮菜单" : "展开悬浮菜单"} aria-expanded={visible} aria-controls={visible ? id : undefined}
         onClick={() => setVisible(!visible)} /> : null}
@@ -139,6 +143,8 @@ export interface FloatButtonBackTopProps extends FloatButtonProps {
 }
 function FloatButtonBackTop({ target, visibilityHeight = 400, behavior = "smooth", onClick, icon, tooltip = "返回顶部", ...props }: FloatButtonBackTopProps) {
   const [visible, setVisible] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const motion = useOverlayMotion(visible, buttonRef, "fade");
   useEffect(() => {
     const element = target ? target() : window;
     if (!element) return;
@@ -147,8 +153,9 @@ function FloatButtonBackTop({ target, visibilityHeight = 400, behavior = "smooth
     element.addEventListener("scroll", update, { passive: true });
     return () => element.removeEventListener("scroll", update);
   }, [target, visibilityHeight]);
-  if (!visible) return null;
-  return <FloatButtonRoot {...props} tooltip={tooltip} icon={icon ?? <Icon name="arrow-up" size={20} />} onClick={(event) => {
+  if (!motion.present) return null;
+  // 退场仅阻止交互，不切换 disabled 配色，避免淡出起点突然变暗。
+  return <FloatButtonRoot {...props} ref={buttonRef} {...(!visible ? { inert: "", "aria-hidden": true } : {})} tooltip={tooltip} icon={icon ?? <Icon name="arrow-up" size={20} />} onClick={(event) => {
     onClick?.(event);
     if (event.defaultPrevented) return;
     const element = target ? target() : window;
@@ -159,5 +166,5 @@ function FloatButtonBackTop({ target, visibilityHeight = 400, behavior = "smooth
 export const FloatButton = Object.assign(FloatButtonRoot, {
   /** 组合多个子项并统一管理布局或选择状态。 */
   Group: FloatButtonGroup,
-  /** 滚动超过指定距离后显示的返回顶部按钮。 */
+  /** 滚动超过指定距离后以 180ms 淡入的返回顶部按钮；回到阈值内按同一轨迹反向淡出，减少动态效果时直接切换。 */
   BackTop: FloatButtonBackTop });

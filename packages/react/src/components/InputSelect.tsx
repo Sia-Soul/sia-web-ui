@@ -8,6 +8,7 @@ import { Input } from "./Input";
 import { Modal } from "./Modal";
 import { PopupPortal } from "./PopupPortal";
 import { SelectionPanel } from "./SelectionPanel";
+import { normalizeSelectionValues } from "./selectionValues";
 import type { SelectionOption, SelectionValue } from "./SelectionPanel";
 import type { ControlSize, ControlStatus } from "./shared";
 
@@ -15,9 +16,9 @@ import type { ControlSize, ControlStatus } from "./shared";
 export interface InputSelectProps {
   /** 可供用户选择的候选项列表。 */
   options: readonly SelectionOption[];
-  /** 当前值；作为受控属性时，需要在变更回调中同步更新。 */
+  /** 当前值；受控时需在 onChange 中同步更新。null 表示未选择；未匹配 options 的空字符串或纯空格不计入选择，数字 0 和显式空值选项仍有效。 */
   value?: SelectionValue | readonly SelectionValue[] | null;
-  /** 非受控模式的初始值，仅在初始化时使用。 */
+  /** 非受控模式的初始值，仅在初始化时使用；未匹配 options 的空字符串或纯空格按未选择处理，保留数字 0 和显式空值选项。 */
   defaultValue?: SelectionValue | readonly SelectionValue[];
   /** 值发生变化时调用；参数为新值及类型声明中列出的关联信息。 */
   onChange?: (value: SelectionValue | SelectionValue[] | undefined) => void;
@@ -97,7 +98,7 @@ export interface InputSelectProps {
   onOpenChange?: (open: boolean) => void;
 }
 
-/** 输入选择组合控件组件。 */
+/** 输入选择组合控件；下拉面板背景与文字跟随当前主题，支持直接输入及从候选项选择。 */
 export const InputSelect = forwardRef<HTMLInputElement, InputSelectProps>(function InputSelect({ options, value, defaultValue, onChange,
   multiple = false, displayField = "label", showValue = false, placeholder = "请选择", placeholderMode, size: sizeProp, status,
   disabled = false, loading = false, allowClear = true, hideSearch, inputMaxLength, parseInput,
@@ -105,7 +106,8 @@ export const InputSelect = forwardRef<HTMLInputElement, InputSelectProps>(functi
   const size = useControlSize(sizeProp);
   const [internal, setInternal] = useState(defaultValue);
   const current = value !== undefined ? value : internal;
-  const values = current == null ? [] : Array.isArray(current) ? current : [current];
+  // 输入回显、下拉列表和弹窗计数共用空值规则，避免空白自定义项占据选中位置。
+  const values = normalizeSelectionValues(current == null ? [] : Array.isArray(current) ? current : [current], options);
   const text = values.map(item => displayField === "label" ? String(options.find(option => option.optionType !== "divider" && option.value === item)?.label ?? item) : String(item)).join(",");
   const [draft, setDraft] = useState(text);
   useEffect(() => { setDraft(text); }, [text, current]);

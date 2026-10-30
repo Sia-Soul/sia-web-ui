@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, FloatingScrollbarProvider, Icon, Input, ThemeSwitch, applySiaTheme } from "@sia.soul/sia-react-ui";
+import { Button, FloatingScrollbarProvider, Icon, ThemeSwitch, applySiaTheme } from "@sia.soul/sia-react-ui";
+import { DocsSearch } from "./DocsSearch";
 import { Navigate, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { SiaMark } from "./Icons";
+// 品牌首页独立于文档侧栏布局，组件路由仍使用原有导航。
+import { HomePage } from "./pages/HomePage";
 import { OverlayScrollArea } from "./OverlayScrollArea";
 import { PageContextMenu } from "./PageContextMenu";
-import { navGroups, navIconForPath, navItems } from "./navigation";
+import { navItems } from "./navigation";
+import { DocsSidebarMenu } from "./DocsSidebarMenu";
 import { ButtonPage } from "./pages/ButtonPage";
 import { FloatButtonPage } from "./pages/FloatButtonPage";
 import { TypographyPage } from "./pages/TypographyPage";
@@ -59,21 +63,19 @@ function ScrollToTop({ scrollRef }: { scrollRef: React.RefObject<HTMLElement> })
 export default function App() {
   const location = useLocation();
   const [dark, setDark] = useState(false);
+  // 标题栏等组件也可切换文档主题，页面顶部入口同步显示实际状态。
+  useEffect(() => {
+    const root = document.documentElement;
+    const syncTheme = () => setDark(root.dataset.siaTheme === "dark");
+    syncTheme();
+    const observer = new MutationObserver(syncTheme);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-sia-theme"] });
+    return () => observer.disconnect();
+  }, []);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [floatingScrollbarEnabled, setFloatingScrollbarEnabled] = useState(true);
   const contentScrollRef = useRef<HTMLElement>(null);
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => Object.fromEntries(
-    navGroups.map((group) => [group.title, group.defaultOpen === true || group.items.some((item) => item.path === location.pathname || item.children?.some(child=>child.path===location.pathname))]),
-  ));
-  const [chartsOpen,setChartsOpen]=useState(location.pathname.startsWith("/components/chart"));
-  useEffect(()=>{
-    if(location.pathname.startsWith("/components/chart")){
-      setChartsOpen(true);
-      setOpenGroups(current=>({...current,"数据展示":true}));
-    }
-  },[location.pathname]);
-
   const appClass = useMemo(() => `docs-app${collapsed ? " is-collapsed" : ""}${mobileOpen ? " is-mobile-open" : ""}`, [collapsed, mobileOpen]);
   const currentItem = navItems.find((item) => item.path === location.pathname);
 
@@ -83,9 +85,8 @@ export default function App() {
     applySiaTheme(next ? "dark" : "light");
   }
 
-  function toggleGroup(title: string) {
-    setOpenGroups((groups) => ({ ...groups, [title]: !groups[title] }));
-  }
+  // 根路径作为公开首页；主题状态与文档页面共享。
+  if (location.pathname === "/") return <HomePage dark={dark} onToggleTheme={toggleTheme} />;
 
   return (
     <div className={appClass}>
@@ -93,15 +94,11 @@ export default function App() {
       <PageContextMenu />
       <ScrollToTop scrollRef={contentScrollRef} />
       <header className="topbar">
-        <NavLink className="brand" to="/introduction"><SiaMark /><strong>Sia Web UI</strong></NavLink>
+        {/* 品牌返回首页；页面入口统一由侧栏和搜索提供。 */}
+        <NavLink className="brand" to="/"><SiaMark /><strong>Sia Web UI</strong></NavLink>
         <button className="icon-button desktop-only" aria-label={collapsed ? "展开侧边栏" : "收起侧边栏"} onClick={() => setCollapsed((value) => !value)}><Icon name="menu" /></button>
         <button className="icon-button mobile-only" aria-label="打开侧边栏" onClick={() => setMobileOpen(true)}><Icon name="menu" /></button>
-        <Input className="search" size="large" placeholderMode="default" prefix={<Icon name="search" />} suffix={<kbd>⌘ K</kbd>} placeholder="搜索组件、文档、设计令牌..." aria-label="搜索文档" />
-        <nav className="topnav" aria-label="顶部导航">
-          <NavLink to="/introduction"><Icon name="book" />文档</NavLink>
-          <NavLink to="/components/button"><Icon name="component" />组件</NavLink>
-          <NavLink to="/design/tokens"><Icon name="token" />设计令牌</NavLink>
-        </nav>
+        <DocsSearch />
         <ThemeSwitch checked={dark} onCheckedChange={toggleTheme} lightLabel="切换到暗色" darkLabel="切换到亮色" />
         <a className="icon-button github" href="https://github.com" aria-label="GitHub"><Icon name="github" /></a>
         <Button variant="primary" className="create-button">创建项目</Button>
@@ -109,24 +106,8 @@ export default function App() {
 
       <aside className="sidebar">
         <div className="mobile-sidebar-head"><strong>组件导航</strong><button className="icon-button" onClick={() => setMobileOpen(false)} aria-label="关闭侧边栏">×</button></div>
-        <OverlayScrollArea as="nav" className="sidebar-scroll-area" viewportClassName="sidebar-nav" aria-label="组件目录">
-          {navGroups.map((group) => {
-            const isOpen = openGroups[group.title] ?? false;
-            return <div className="nav-group" key={group.title}>
-              <button className="nav-title" type="button" aria-expanded={isOpen} onClick={() => toggleGroup(group.title)}>
-                <span>{group.title}</span><Icon name={isOpen ? "chevron-down" : "chevron-right"} size={14} />
-              </button>
-              {isOpen ? <div className="nav-items">
-                {group.items.map((item) => item.children ? <div key={item.path} className="nav-subgroup">
-                  <Button variant="text" className={`nav-chart-parent${location.pathname.startsWith(item.path)?" is-current":""}`} aria-label={item.label} aria-expanded={!collapsed && chartsOpen} aria-controls="chart-category-navigation" onClick={()=>{if(collapsed){setCollapsed(false);setChartsOpen(true);}else setChartsOpen(value=>!value);}}><span className="nav-item-icon"><Icon name={navIconForPath(item.path)} size={16} /></span><span>{item.label}</span><Icon name={chartsOpen?"chevron-down":"chevron-right"} size={14}/></Button>
-                  {chartsOpen?<div id="chart-category-navigation" className="nav-children">{item.children.map(child=><NavLink end key={child.path} to={child.path} onClick={()=>setMobileOpen(false)}><span className="nav-item-icon"><Icon name={navIconForPath(child.path)} size={14} /></span><span>{child.label}</span></NavLink>)}</div>:null}
-                </div> : <NavLink key={item.path} to={item.path} onClick={() => setMobileOpen(false)}>
-                  <span className="nav-item-icon"><Icon name={navIconForPath(item.path)} size={16} /></span><span>{item.label}</span>
-                </NavLink>)}
-              </div> : null}
-            </div>;
-          })}
-        </OverlayScrollArea>
+        {/* 左侧目录复用框架 Menu，移动端展开时始终显示完整名称。 */}
+        <DocsSidebarMenu collapsed={collapsed && !mobileOpen} onNavigate={() => setMobileOpen(false)} />
         <button className="collapse-action" onClick={() => setCollapsed((value) => !value)}><Icon name="arrow-left" /><span>收起侧边栏</span></button>
       </aside>
       <button className="sidebar-backdrop" aria-label="关闭侧边栏" onClick={() => setMobileOpen(false)} />

@@ -17,7 +17,7 @@ use windows::{
 const MAX_ICON_BYTES: usize = 256 * 1024;
 
 /// 读取内核已解码的 PNG，不在外壳请求需要分组 Cookie 的原始图标地址。
-unsafe fn png_data_url(stream: Option<IStream>) -> windows::core::Result<String> {
+pub(crate) unsafe fn png_data_url(stream: Option<IStream>) -> windows::core::Result<String> {
     let Some(stream) = stream else {
         return Ok(String::new());
     };

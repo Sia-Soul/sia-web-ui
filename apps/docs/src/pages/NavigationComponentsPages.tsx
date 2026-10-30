@@ -26,6 +26,8 @@ export default function Demo() {
   return <Menu mode="inline" items={items} defaultSelectedKeys={["dashboard"]} />;
 }`;
 export function MenuPage() {
+  const [selected, setSelected] = useState(["overview"]);
+  const slidingItems = [{ key: "overview", label: "概览", icon: <Icon name="home" /> }, { key: "projects", label: "项目管理", icon: <Icon name="folder" /> }, { key: "settings", label: "偏好设置", icon: <Icon name="settings" /> }];
   return <ComponentDocPage eyebrow="组件 / 导航 / Menu" title="Menu 菜单" description="组织页面和功能入口，支持横向、纵向、内嵌、折叠与多级结构。" name="Menu" apiRows={[
     { property: "items", description: "菜单、分组、分割线与子菜单数据", type: "MenuItem[]", defaultValue: "[]" },
     { property: "mode", description: "菜单布局模式", type: "vertical | horizontal | inline", defaultValue: "vertical" },
@@ -33,7 +35,18 @@ export function MenuPage() {
     { property: "multiple / selectable", description: "多选和是否可选择", type: "boolean", defaultValue: "false / true" },
     { property: "inlineCollapsed", description: "收起内嵌菜单", type: "boolean", defaultValue: "false" },
   ]}>
-    <DemoCard title="内嵌多级菜单" description="子菜单、选中状态和危险操作均由 items 描述。" code={menuCode}>
+    <DemoCard title="选中背景滑动" description="单选菜单的背景在同层选项间平滑移动，文字和选中事件立即更新。可连续点击观察转向，横向、纵向和网格布局共用相同行为。" code={'<Menu items={items} selectedKeys={selected} onSelect={({ selectedKeys }) => setSelected(selectedKeys)} />'}>
+      {/* 共享受控值，直接对照四种布局和深色主题下的背景移动。 */}
+      <Space direction="vertical" style={{ width: "100%" }}>
+        <Menu className="menu-slide-horizontal" mode="horizontal" items={slidingItems} selectedKeys={selected} onSelect={({ selectedKeys }) => setSelected(selectedKeys)} />
+        <Space wrap align="start">
+          <Menu className="menu-slide-vertical" style={{ width: 220 }} items={slidingItems} selectedKeys={selected} onSelect={({ selectedKeys }) => setSelected(selectedKeys)} />
+          <Menu className="menu-slide-dark" theme="dark" mode="inline" style={{ width: 220 }} items={slidingItems} selectedKeys={selected} onSelect={({ selectedKeys }) => setSelected(selectedKeys)} />
+          <Menu className="menu-slide-grid" mode="grid" style={{ width: 280 }} items={slidingItems} selectedKeys={selected} onSelect={({ selectedKeys }) => setSelected(selectedKeys)} />
+        </Space>
+      </Space>
+    </DemoCard>
+    <DemoCard title="内嵌多级菜单" description="子菜单、选中状态和危险操作均由 items 描述。目录按实际内容高度展开；本站左侧导航也使用 Menu，复用分类、折叠和选中动效。" code={menuCode}>
       <div style={{ width: 280 }}><Menu mode="inline" items={menuItems} defaultSelectedKeys={["dashboard"]} defaultOpenKeys={["product"]} /></div>
     </DemoCard>
     <DemoCard title="顶部导航" description="同一份数据切换为横向模式。" code={`<Menu mode="horizontal" items={items} defaultSelectedKeys={["dashboard"]} />`}>
@@ -214,7 +227,7 @@ export default function Demo() {
 }`;
 export function SegmentedPage() {
   const [value, setValue] = useState<SegmentedValue>("list");
-  return <ComponentDocPage eyebrow="组件 / 数据展示 / Segmented" title="Segmented 分段控制器" description="在少量互斥选项之间即时切换视图或状态。" name="Segmented" apiRows={[
+  return <ComponentDocPage eyebrow="组件 / 数据展示 / Segmented" title="Segmented 分段控制器" description="在少量互斥选项之间切换视图或状态；普通形态的选中背景以 260ms 平滑滑动，快速切换从当前位置接续。" name="Segmented" apiRows={[
     { property: "size", description: "small / medium / large 高度为 22 / 30 / 38px；默认继承 Form，组件自身 size 优先", type: "'small' | 'medium' | 'large'", defaultValue: "'medium'" },
     { property: "shape", description: "zigzag 外形：胶囊、直角矩形或主题圆角矩形；选中块平滑放大 4% 并还原", type: "'capsule' | 'rectangle' | 'rounded'", defaultValue: "'capsule'" },
     { property: "variant", description: "default 圆角分段；slash 横向闪电折线分隔，选中侧高亮；纵向时回退默认样式", type: "'default' | 'zigzag'", defaultValue: "'default'" },

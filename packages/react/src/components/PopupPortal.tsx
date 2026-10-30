@@ -2,15 +2,25 @@ import { withTitleTooltip } from "./titleTooltip";
 import { forwardRef, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties, ForwardedRef, HTMLAttributes, RefObject } from "react";
 import { createPortal } from "react-dom";
+import { useOverlayMotion } from "./overlayMotion";
 
+/** 弹出方位与对齐边，空间不足时自动翻转到可用一侧。 */
 export type PopupPortalPlacement = "bottom-start" | "bottom-end" | "top-start" | "top-end" | "right-start" | "right-end" | "left-start" | "left-end";
 
+/** 页面级弹出层的定位与生命周期配置。 */
 export interface PopupPortalProps extends HTMLAttributes<HTMLDivElement> {
+  /** 定位锚点，跟随其位置和布局尺寸。 */
   anchorRef: RefObject<HTMLElement | null>;
+  /** 是否打开，默认 true；关闭后保留节点直到退出动画完成。 */
   open?: boolean;
+  /** 首选方向及对齐边，默认 bottom-start。 */
   placement?: PopupPortalPlacement;
+  /** 与锚点的距离，单位 CSS px，默认 6。 */
   offset?: number;
+  /** 与视口边缘的最小距离，单位 CSS px，默认 8。 */
   viewportPadding?: number;
+  /** 真实开合动画完成后通知最终状态；被反向打断的阶段不通知。 */
+  afterOpenChange?: (open: boolean) => void;
 }
 
 type PopupPosition = {
@@ -31,7 +41,7 @@ function clamp(value: number, min: number, max: number) {
 }
 
 /**
- * 页面级弹层容器。使用 fixed + Portal 避开父容器 overflow，并跟随锚点滚动和缩放。
+ * 页面级弹层容器。使用 fixed + Portal 避开父容器 overflow，并跟随锚点滚动和缩放。打开为 260ms 缩放淡入、弹大回收后归位的果冻动效，关闭为 140ms 无回弹缩小淡出；快速切换从当前画面接续，最终外观沿用组件样式。
  */
 export const PopupPortal = forwardRef<HTMLDivElement, PopupPortalProps>(function PopupPortal(
   {
@@ -40,6 +50,7 @@ export const PopupPortal = forwardRef<HTMLDivElement, PopupPortalProps>(function
     placement = "bottom-start",
     offset = 6,
     viewportPadding = 8,
+    afterOpenChange,
     className = "",
     style,
     children,
@@ -49,9 +60,10 @@ export const PopupPortal = forwardRef<HTMLDivElement, PopupPortalProps>(function
 ) {
   const popupRef = useRef<HTMLDivElement | null>(null);
   const [position, setPosition] = useState<PopupPosition>();
+  const motion = useOverlayMotion(open, popupRef, "popup", position?.placement ?? placement, !!position, afterOpenChange);
 
   useLayoutEffect(() => {
-    if (!open || typeof document === "undefined") {
+    if (!motion.present || typeof document === "undefined") {
       setPosition(undefined);
       return;
     }
@@ -60,7 +72,8 @@ export const PopupPortal = forwardRef<HTMLDivElement, PopupPortalProps>(function
       const popup = popupRef.current;
       if (!anchor || !popup) return;
       const anchorRect = anchor.getBoundingClientRect();
-      const popupRect = popup.getBoundingClientRect();
+      // 定位使用未缩放的布局尺寸，避免回弹缩放导致翻转判断和坐标抖动。
+      const popupRect = { width: popup.offsetWidth, height: popup.offsetHeight };
       const viewportWidth = document.documentElement.clientWidth;
       const viewportHeight = document.documentElement.clientHeight;
       let resolvedPlacement = placement;
@@ -117,19 +130,26 @@ export const PopupPortal = forwardRef<HTMLDivElement, PopupPortalProps>(function
     };
 
     update();
-    window.addEventListener("resize", update);
-    window.addEventListener("scroll", update, true);
-    const observer = new ResizeObserver(update);
+    let frame = 0;
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(() => { frame = 0; update(); });
+    };
+    window.addEventListener("resize", schedule);
+    window.addEventListener("scroll", schedule, true);
+    window.addEventListener("sia-overlay-motion-end", schedule);
+    const observer = new ResizeObserver(schedule);
     if (anchorRef.current) observer.observe(anchorRef.current);
     if (popupRef.current) observer.observe(popupRef.current);
     return () => {
-      window.removeEventListener("resize", update);
-      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("scroll", schedule, true);
+      window.removeEventListener("sia-overlay-motion-end", schedule);
+      cancelAnimationFrame(frame);
       observer.disconnect();
     };
-  }, [anchorRef, offset, open, placement, viewportPadding]);
+  }, [anchorRef, offset, motion.present, placement, viewportPadding]);
 
-  if (!open || typeof document === "undefined") return null;
+  if (!motion.present || typeof document === "undefined") return null;
   return createPortal(
     <div
       ref={(node) => {
@@ -139,6 +159,8 @@ export const PopupPortal = forwardRef<HTMLDivElement, PopupPortalProps>(function
       className={`sia-popup-portal ${className}`.trim()}
       data-sia-popup-layer=""
       data-placement={position?.placement ?? placement}
+      data-state={motion.closing ? "closing" : "open"}
+      aria-hidden={motion.closing || undefined}
       style={{
         ...style,
         "--sia-popup-anchor-width": `${position?.anchorWidth ?? anchorRef.current?.getBoundingClientRect().width ?? 0}px`,
@@ -146,6 +168,12 @@ export const PopupPortal = forwardRef<HTMLDivElement, PopupPortalProps>(function
         top: position?.top ?? 0,
         left: position?.left ?? 0,
         visibility: position ? "visible" : "hidden",
+        animation: "none",
+        pointerEvents: motion.closing ? "none" : style?.pointerEvents,
+        // 以靠近触发器的边缘中心为缩放原点，业务显式原点优先。
+        transformOrigin: style?.transformOrigin ?? ((position?.placement ?? placement).startsWith("left") ? "right center"
+          : (position?.placement ?? placement).startsWith("right") ? "left center"
+          : (position?.placement ?? placement).startsWith("top") ? "center bottom" : "center top"),
       } as CSSProperties}
       {...withTitleTooltip(props)}
     >

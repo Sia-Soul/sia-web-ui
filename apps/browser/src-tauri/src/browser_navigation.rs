@@ -58,6 +58,8 @@ pub async fn attach(app: &AppHandle, view: &tauri::Webview, tab_id: String, grou
             let core = unsafe { view.controller().CoreWebView2()? };
             let navigation = Arc::new(Mutex::new(Navigation::default()));
             app.state::<States>().0.lock().unwrap_or_else(|e| e.into_inner()).insert(tab_id.clone(), navigation.clone());
+            let menu_app = app.raw().clone();
+            let menu_label = crate::browser_label(&tab_id);
             let emit = Rc::new(move |url: String, loading: Option<bool>, cancelled: bool| {
                 emit_browser_event(&app, BrowserEvent {
                     tab_id: tab_id.clone(), group_id: group_id.clone(),
@@ -76,6 +78,7 @@ pub async fn attach(app: &AppHandle, view: &tauri::Webview, tab_id: String, grou
                     let url = CoTaskMemPWSTR::from(raw).to_string();
                     // 初始空白页与协议策略拒绝的导航不属于可展示的网页导航。
                     if url == "about:blank" || cancelled.as_bool() { return Ok(()); }
+                    crate::browser_web_menu::dismiss_view(&menu_app, menu_label.clone());
                     start_state.lock().unwrap_or_else(|e| e.into_inner()).start(id, url.clone());
                     start_emit(url, Some(true), false);
                 }

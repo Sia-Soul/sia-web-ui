@@ -1,3 +1,7 @@
+import { OverlayContentSkeleton } from "./OverlayContentSkeleton";
+import { useOverlayExitPlaceholder } from "./useOverlayExitPlaceholder";
+import { Skeleton } from "./Skeleton";
+import { useOverlayMotion } from "./overlayMotion";
 import { withTitleTooltip } from "./titleTooltip";
 import { forwardRef, useEffect, useId, useRef, useState } from "react";
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
@@ -15,11 +19,15 @@ export type ModalActionResult = void | boolean | Promise<void | boolean>;
 
 /** 模态框的属性配置。 */
 export interface ModalProps extends Omit<HTMLAttributes<HTMLDivElement>, "title" | "onSubmit"> {
-  /** 是否显示对话框 */
+  /** 是否显示对话框；打开为 240ms 弹性入场，关闭为 160ms 无回弹退场，结束后卸载。快速切换从当前画面接续，系统减少动态效果时直接切换。 */
   open: boolean;
+  /** 是否在入场完成后才挂载正文，默认 false，立即挂载；设为 true 时等待入场完成。关闭时正文卸载并由等高骨架占位，随外壳完成退场。仅延后子组件挂载，不会延后父组件已执行的数据计算。 */
+  deferContent?: boolean;
+  /** 入场等待及关闭退场期间的正文占位，未传时入场显示两列六行静态骨架，关闭时按已显示的可见控件和文字行生成近似布局骨架（最多 80 块），尚未挂载正文时沿用入场骨架；占位阶段裁剪溢出且不显示滚动条，正文就绪后恢复滚动。配合固定高度可避免尺寸变化，入场时仅 deferContent=true 生效，关闭时始终生效；传 null 可关闭占位内容。 */
+  loadingFallback?: ReactNode;
   /**
    * 打开时自动聚焦正文中首个可用输入组件，跳过隐藏、禁用和只读字段；尊重内容自身已设置的焦点。
-   * 无可用输入组件或设置为 false 时，使用默认首个可聚焦元素。仅在打开时执行，不等待异步加载的字段；异步内容可在加载完成后自行聚焦。
+   * 无可用输入组件或设置为 false 时，使用默认首个可聚焦元素。在正文挂载后执行；deferContent=true 时等待入场完成后挂载的正文，不等待后续异步加载字段。
    * @defaultValue true
    */
   autoFocus?: boolean;
@@ -100,7 +108,7 @@ export interface ModalProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"
   onCancel?: () => void;
   /** 打开状态变化回调 */
   onOpenChange?: (open: boolean) => void;
-  /** 动画完成后触发，适用于聚焦内容和释放外部挂载点。 */
+  /** 真实动画完成后触发；true 时正文已提交（包括 deferContent 延后正文），false 时面板已卸载。快速反向会取消未完成的回调，不等待后续异步数据。 */
   afterOpenChange?: (open: boolean) => void;
 }
 
@@ -116,7 +124,6 @@ export interface OverlayApiHandle<T> {
 }
 
 const modalHandles = new Set<OverlayApiHandle<ModalOpenConfig>>();
-const MODAL_MOTION_DURATION = 220;
 
 // 提示状态优先使用框架实心图标；关闭及加载等操作图标保持各自语义。
 const typeIcons: Partial<Record<ModalType, ReactNode>> = {
@@ -130,6 +137,8 @@ const typeIcons: Partial<Record<ModalType, ReactNode>> = {
 const ModalRoot = forwardRef<HTMLDivElement, ModalProps>(function Modal(
   {
     open,
+    deferContent = false,
+    loadingFallback,
     autoFocus = true,
     title,
     children,
@@ -161,35 +170,14 @@ const ModalRoot = forwardRef<HTMLDivElement, ModalProps>(function Modal(
   forwardedRef,
 ) {
   const localRef = useRef<HTMLDivElement | null>(null);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
   const titleId = useId();
   const [submitting, setSubmitting] = useState(false);
-  const [rendered, setRendered] = useState(open);
-  const [closing, setClosing] = useState(false);
-  const afterOpenChangeRef = useRef(afterOpenChange);
-  afterOpenChangeRef.current = afterOpenChange;
+  const motion = useOverlayMotion(open, localRef, "modal", "bottom", true, afterOpenChange);
+  const { present: rendered, closing } = motion;
+  const bodyReady = !closing && (!deferContent || motion.settled);
+  const exitPlaceholder = useOverlayExitPlaceholder(open, rendered, localRef, bodyRef, bodyReady && loadingFallback === undefined);
   const submitLock = useRef(false);
-
-  useEffect(() => {
-    if (!open || !rendered) return undefined;
-    const timer = window.setTimeout(() => afterOpenChangeRef.current?.(true), MODAL_MOTION_DURATION);
-    return () => window.clearTimeout(timer);
-  }, [open, rendered]);
-
-  useEffect(() => {
-    if (open) {
-      setRendered(true);
-      setClosing(false);
-      return undefined;
-    }
-    if (!rendered) return undefined;
-    setClosing(true);
-    const timer = window.setTimeout(() => {
-      setRendered(false);
-      setClosing(false);
-      afterOpenChangeRef.current?.(false);
-    }, MODAL_MOTION_DURATION);
-    return () => window.clearTimeout(timer);
-  }, [open, rendered]);
 
   function setRef(node: HTMLDivElement | null) {
     localRef.current = node;
@@ -204,7 +192,7 @@ const ModalRoot = forwardRef<HTMLDivElement, ModalProps>(function Modal(
   }
 
   async function handleOk() {
-    if (submitLock.current || confirmLoading) return;
+    if (!bodyReady || submitLock.current || confirmLoading) return;
     submitLock.current = true;
     if (!onOk) {
       onOpenChange?.(false);
@@ -228,7 +216,7 @@ const ModalRoot = forwardRef<HTMLDivElement, ModalProps>(function Modal(
     }
   }
 
-  useOverlayLifecycle(rendered, localRef, requestClose, keyboard, autoFocus);
+  useOverlayLifecycle(rendered, localRef, requestClose, keyboard, autoFocus, bodyReady);
   if (!rendered) return null;
 
   const mergedStyle = {
@@ -236,7 +224,7 @@ const ModalRoot = forwardRef<HTMLDivElement, ModalProps>(function Modal(
     ...style,
     "--sia-modal-width": typeof width === "number" ? `${width}px` : width,
   } as CSSProperties;
-  const loading = submitting || confirmLoading;
+  const loading = submitting || confirmLoading || !bodyReady;
   const defaultFooter = <>
     {showCancel ? <Button {...cancelButtonProps} onClick={requestClose} disabled={loading || cancelButtonProps?.disabled}>{cancelText}</Button> : null}
     <Button variant="primary" {...okButtonProps} onClick={handleOk} loading={loading}>{okText}</Button>
@@ -246,6 +234,7 @@ const ModalRoot = forwardRef<HTMLDivElement, ModalProps>(function Modal(
     <div
       className={`sia-modal-root${centered ? " sia-modal-root--centered" : ""}`}
       data-state={closing ? "closing" : "open"}
+      data-content-pending={!bodyReady || undefined}
       style={{ zIndex }}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && maskClosable) requestClose();
@@ -254,7 +243,7 @@ const ModalRoot = forwardRef<HTMLDivElement, ModalProps>(function Modal(
       <div
         ref={setRef}
         className={`sia-modal sia-modal--${type} ${className}`.trim()}
-        style={mergedStyle}
+        style={{ ...mergedStyle, ...exitPlaceholder.panelStyle, animation: "none" }}
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
@@ -268,8 +257,8 @@ const ModalRoot = forwardRef<HTMLDivElement, ModalProps>(function Modal(
           </div>
           {closable ? <button type="button" className="sia-modal__close" aria-label="关闭对话框" onClick={requestClose}><Icon name="close" size={17} /></button> : null}
         </div>
-        {children !== undefined ? <div className="sia-modal__body" style={height !== undefined ? { flex: 1, minHeight: 0, overflow: "auto" } : undefined}>{children}</div> : null}
-        {footer !== null ? <div className="sia-modal__footer" style={height !== undefined ? { flexShrink: 0 } : undefined}>{footer === undefined && footerExtra != null ? <div style={{ marginRight: "auto" }}>{footerExtra}</div> : null}{footer ?? defaultFooter}</div> : null}
+        {children !== undefined || closing && exitPlaceholder.hadBody ? <div ref={bodyRef} className={`sia-modal__body${deferContent && bodyReady ? " sia-overlay-body--ready" : ""}`} aria-busy={!bodyReady} style={{ ...(height !== undefined ? { flex: 1, minHeight: 0, overflow: "auto" } : {}), ...exitPlaceholder.bodyStyle }}>{bodyReady ? children : loadingFallback !== undefined ? loadingFallback : closing && exitPlaceholder.layout ? <OverlayContentSkeleton layout={exitPlaceholder.layout} /> : <Skeleton />}</div> : null}
+        {footer !== null && (bodyReady || closing && motion.entered || footer === undefined) ? <div className="sia-modal__footer" style={height !== undefined ? { flexShrink: 0 } : undefined}>{footer === undefined && footerExtra != null ? <div style={{ marginRight: "auto" }}>{footerExtra}</div> : null}{footer ?? defaultFooter}</div> : null}
       </div>
     </div>
   </OverlayPortal>;
@@ -348,7 +337,7 @@ function preset(type: Exclude<ModalType, "default">, defaults: Partial<ModalOpen
   });
 }
 
-/** 模态框组件。 */
+/** 弹性入场、快速无回弹退场的模态框，支持正文延后挂载、输入自动聚焦及声明式/命令式调用。 */
 export const Modal = Object.assign(ModalRoot, {
   /** 直接打开实例，返回更新和关闭句柄；关闭动画完成后先调用 afterOpenChange(false)，再卸载实例。 */
   open: openModal,

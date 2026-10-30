@@ -10,6 +10,7 @@ import type { DropdownMenuProps } from "./Dropdown";
 import { Icon } from "./Icon";
 import { useControllableState } from "./shared";
 import { isAnchorBehindOverlay, subscribeOverlayLayers } from "./Overlay";
+import { useOverlayMotion } from "./overlayMotion";
 
 /** 气泡十二个方向；start/end 为对应边的起点/终点对齐，同时支持 topLeft、leftTop 等驼峰别名。 */
 export type FloatingPlacement = "top" | "top-start" | "top-end" | "bottom" | "bottom-start" | "bottom-end" | "left" | "left-start" | "left-end" | "right" | "right-start" | "right-end"
@@ -80,7 +81,7 @@ function normalizeFloatingPlacement(placement: FloatingPlacement): FloatingPlace
   return aliases[placement] ?? placement;
 }
 
-function resolveFloatingPosition(trigger: DOMRect, overlay: DOMRect, placement: FloatingPlacement, pointAtCenter: boolean, adjust: boolean): FloatingPosition {
+function resolveFloatingPosition(trigger: DOMRect, overlay: Pick<DOMRect, "width" | "height">, placement: FloatingPlacement, pointAtCenter: boolean, adjust: boolean): FloatingPosition {
   const viewportWidth = document.documentElement.clientWidth;
   const viewportHeight = document.documentElement.clientHeight;
   let resolvedPlacement = normalizeFloatingPlacement(placement);
@@ -142,10 +143,12 @@ function Floating({
   const triggers = Array.isArray(trigger) ? trigger : [trigger];
   const [visible, setVisible] = useControllableState({ value: open, defaultValue: defaultOpen, onChange: onOpenChange });
   const [position, setPosition] = useState<FloatingPosition>();
+  // 表单错误提示已有两秒展示和避让渐隐，保持其独立显示规则。
+  const motion = useOverlayMotion(!!visible, overlayRef, "tooltip", "bottom", !!position, undefined, !overlayClassName.includes("sia-form-item__error-popover"));
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
   // 挂到弹层根节点而非动画面板，既保留 fixed 的视口定位，又让气泡受父弹层堆叠上下文约束。
   useLayoutEffect(() => {
-    if (!visible) return;
+    if (!motion.present) return;
     setPortalContainer(rootRef.current?.closest<HTMLElement>(".sia-modal-root, .sia-drawer-root") ?? document.body);
   });
   const setVisibleRef = useRef(setVisible);
@@ -188,7 +191,7 @@ function Floating({
     return () => document.removeEventListener("pointerdown", close);
   }, [triggers.join("|"), visible]);
   useLayoutEffect(() => {
-    if (!visible) {
+    if (!motion.present) {
       setPosition(undefined);
       return;
     }
@@ -203,33 +206,38 @@ function Floating({
       const anchor = getAnchor();
       if (anchor) {
         const rect = anchor.getBoundingClientRect();
-        const next = resolveFloatingPosition(rect, overlayRef.current.getBoundingClientRect(), placement, typeof arrow === "object" && !!arrow.pointAtCenter, autoAdjustOverflow);
+        const next = resolveFloatingPosition(rect, { width: overlayRef.current.offsetWidth, height: overlayRef.current.offsetHeight }, placement, typeof arrow === "object" && !!arrow.pointAtCenter, autoAdjustOverflow);
         next.hidden = isFloatingAnchorHidden(anchor, rect) || isAnchorBehindOverlay(anchor);
-        setPosition(next);
+        setPosition(current => current && current.top === next.top && current.left === next.left && current.placement === next.placement && current.hidden === next.hidden && current.arrowX === next.arrowX && current.arrowY === next.arrowY ? current : next);
       }
     };
     update();
     // 校验气泡是受控常显，不能只靠鼠标移出关闭；跟随模态栈隐藏而不清除业务校验错误。
-    const unsubscribeLayers = subscribeOverlayLayers(update);
-    window.addEventListener("resize", update);
-    window.addEventListener("scroll", update, true);
+    let frame = 0;
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; update(); }); };
+    const unsubscribeLayers = subscribeOverlayLayers(schedule);
+    window.addEventListener("resize", schedule);
+    window.addEventListener("scroll", schedule, true);
     // 弹框/抽屉的 transform 动画不会触发 ResizeObserver，结束后重新校准锚点可见性和视口坐标。
-    window.addEventListener("animationend", update, true);
-    window.addEventListener("transitionend", update, true);
-    const observer = new ResizeObserver(update);
+    window.addEventListener("animationend", schedule, true);
+    window.addEventListener("transitionend", schedule, true);
+    window.addEventListener("sia-overlay-motion-end", schedule);
+    const observer = new ResizeObserver(schedule);
     if (rootRef.current) observer.observe(rootRef.current);
     const anchor = getAnchor();
     if (anchor) observer.observe(anchor);
     if (overlayRef.current) observer.observe(overlayRef.current);
     return () => {
-      window.removeEventListener("resize", update);
-      window.removeEventListener("scroll", update, true);
-      window.removeEventListener("animationend", update, true);
-      window.removeEventListener("transitionend", update, true);
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("scroll", schedule, true);
+      window.removeEventListener("animationend", schedule, true);
+      window.removeEventListener("transitionend", schedule, true);
+      window.removeEventListener("sia-overlay-motion-end", schedule);
+      cancelAnimationFrame(frame);
       observer.disconnect();
       unsubscribeLayers();
     };
-  }, [children, content, placement, visible, portalContainer, autoAdjustOverflow, typeof arrow === "object" && arrow.pointAtCenter]);
+  }, [children, content, placement, motion.present, portalContainer, autoAdjustOverflow, typeof arrow === "object" && arrow.pointAtCenter]);
   useEffect(() => () => {
     clearTimers();
     if (activeTooltipClose === closeSelfRef.current) activeTooltipClose = undefined;
@@ -240,12 +248,14 @@ function Floating({
     ...(triggers.includes("click") ? { onClick: (event: React.MouseEvent) => { triggerElementRef.current = event.currentTarget; children.props.onClick?.(event); if (visible) closeNow(); else openNow(); } } : {}),
     "aria-describedby": visible ? contentId : undefined,
   });
-  const overlay = visible && content !== null && content !== undefined && typeof document !== "undefined"
+  const overlay = motion.present && content !== null && content !== undefined && typeof document !== "undefined"
     ? createPortal(
       <span
         ref={overlayRef}
         id={contentId}
         role={role}
+        data-state={motion.closing ? "closing" : "open"}
+        aria-hidden={motion.closing || undefined}
         data-custom-color={color ? "" : undefined}
         className={`sia-floating__overlay sia-floating__overlay--${position?.placement ?? normalizeFloatingPlacement(placement)} ${overlayClassName}`.trim()}
         style={{
@@ -255,6 +265,8 @@ function Floating({
           top: position?.top ?? 0,
           left: position?.left ?? 0,
           visibility: position && !position.hidden ? "visible" : "hidden",
+          animation: "none",
+          pointerEvents: motion.closing ? "none" : undefined,
         } as CSSProperties}
         onMouseEnter={triggers.includes("hover") ? () => show() : undefined}
         onMouseLeave={triggers.includes("hover") ? () => hide(mouseLeaveDelay) : undefined}
@@ -272,7 +284,7 @@ function Floating({
   </>;
 }
 
-/** 文字提示组件。 */
+/** 弹性回弹展示的文字提示，退场完成后卸载；系统减少动态效果时直接切换。 */
 export function Tooltip(props: TooltipProps) { return <Floating {...props} content={props.title} />; }
 
 /** 气泡卡片的属性配置。 */
@@ -284,7 +296,7 @@ export interface PopoverProps extends Omit<TooltipProps, "title"> {
   /** 需要显示的内容，支持文本或 React 节点。 */
   content?: ReactNode;
 }
-/** 气泡卡片组件。 */
+/** 弹性回弹开合的气泡卡片，退场期间不再响应指针操作。 */
 export function Popover({ title, content, contentSize = "default", trigger = "click", overlayClassName = "", ...props }: PopoverProps) {
   return <Floating {...props} trigger={trigger} role="dialog" overlayClassName={`sia-popover${contentSize === "wide" ? " sia-popover--wide" : ""} ${overlayClassName}`.trim()} content={<>{title ? <strong className="sia-popover__title">{title}</strong> : null}<span className="sia-popover__content">{content}</span></>} />;
 }

@@ -1,3 +1,4 @@
+import { OverlayMotionDemo } from "./OverlayMotionDemo";
 import { useEffect, useRef, useState } from "react";
 import { Button, Input, Modal, Space, message } from "@sia.soul/sia-react-ui";
 import { ApiTable } from "./ApiTable";
@@ -46,6 +47,8 @@ export default function Demo() {
 }`;
 
 const apiRows = [
+  { property: "deferContent", description: "入场完成后挂载正文；关闭时卸载正文并用等高骨架占位。父组件已执行的计算不受影响；默认 false 为立即挂载。", type: "boolean", defaultValue: "false" },
+  { property: "loadingFallback", description: "自定义入场和退场占位；未传时入场为默认骨架，退场按已显示的可见控件和文字行生成近似骨架，保持尺寸且无滚动条；null 关闭占位。", type: "ReactNode", defaultValue: "静态骨架" },
   { property: "open", description: "是否显示对话框", type: "boolean", defaultValue: "false" },
   { property: "autoFocus", description: "打开时优先聚焦正文首个可用输入组件，跳过隐藏、禁用及只读字段；false 使用默认焦点。异步加载的字段需自行聚焦。", type: "boolean", defaultValue: "true" },
   { property: "title", description: "标题", type: "ReactNode", defaultValue: "-" },
@@ -99,6 +102,7 @@ export function ModalPage() {
     <PageHeader eyebrow="组件 / 反馈 / Modal" title="Modal 对话框" description="在当前流程上方承载任务，支持声明式使用与静态 API 调用；提示与确认类型默认采用实心状态图标。正文默认字号为 13px，子元素可通过自身字号样式覆盖。" />
     <DocsTabs activeKey={tab} onChange={setTab} />
     {tab === "examples" ? <div className="demo-stack">
+      <OverlayMotionDemo />
       <DemoCard title="基础对话框" description="打开后默认聚焦正文首个可用输入组件，可直接输入；支持遮罩、Esc、焦点管理和异步确认。" code={basicCode}>
         <Space wrap><Button variant="primary" onClick={() => setOpen(true)}>打开基础 Modal</Button></Space>
       </DemoCard>

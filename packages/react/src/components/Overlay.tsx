@@ -58,13 +58,14 @@ function firstModalInput(panel: HTMLElement) {
     && getComputedStyle(element).visibility === "visible");
 }
 
-/** 管理弹层滚动锁、键盘循环与焦点归还；autoFocusInput 默认 false，为 true 时首次聚焦优先选择 Modal 正文中的可用字段。 */
+/** 管理弹层滚动锁、键盘循环与焦点归还；autoFocusInput 默认 false，为 true 时优先选择 Modal 正文字段；contentReady 默认 true，延后正文就绪前仅聚焦面板。 */
 export function useOverlayLifecycle(
   open: boolean,
   panelRef: RefObject<HTMLElement>,
   onRequestClose: () => void,
   keyboard = true,
   autoFocusInput = false,
+  contentReady = true,
 ) {
   const overlayIdRef = useRef(Symbol("sia-overlay"));
   const closeRef = useRef(onRequestClose);
@@ -78,15 +79,6 @@ export function useOverlayLifecycle(
     overlayPanels.set(overlayId, panelRef);
     overlayListeners.forEach(listener => listener());
     const unlockBody = lockBodyScroll();
-    const focusTimer = window.setTimeout(() => {
-      const panel = panelRef.current;
-      if (!panel || overlayStack.at(-1) !== overlayId) return;
-      // 尊重内容自身的 autoFocus 或业务已设置的焦点，嵌套弹层仅由最上层接管。
-      if (panel.contains(document.activeElement) && document.activeElement !== panel) return;
-      const [firstFocusable] = focusableElements(panel);
-      const input = autoFocusInput ? firstModalInput(panel) : undefined;
-      (input ?? firstFocusable ?? panel).focus({ preventScroll: true });
-    }, 0);
 
     function handleKeyDown(event: KeyboardEvent) {
       if (overlayStack.at(-1) !== overlayId) return;
@@ -115,7 +107,6 @@ export function useOverlayLifecycle(
 
     document.addEventListener("keydown", handleKeyDown);
     return () => {
-      window.clearTimeout(focusTimer);
       document.removeEventListener("keydown", handleKeyDown);
       const index = overlayStack.lastIndexOf(overlayId);
       if (index >= 0) overlayStack.splice(index, 1);
@@ -125,6 +116,19 @@ export function useOverlayLifecycle(
       previouslyFocused?.focus({ preventScroll: true });
     };
   }, [keyboard, open, panelRef, autoFocusInput]);
+
+  useEffect(() => {
+    if (!open) return;
+    const timer = window.setTimeout(() => {
+      const panel = panelRef.current;
+      if (!panel || overlayStack.at(-1) !== overlayIdRef.current) return;
+      // 正文尚未挂载时先聚焦面板；用户已主动移到其他控件则不抢回焦点。
+      if (panel.contains(document.activeElement) && document.activeElement !== panel) return;
+      const first = contentReady ? (autoFocusInput ? firstModalInput(panel) : undefined) ?? focusableElements(panel)[0] : undefined;
+      (first ?? panel).focus({ preventScroll: true });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [open, panelRef, autoFocusInput, contentReady]);
 }
 
 export function OverlayPortal({ children, container }: { children: ReactNode; container?: OverlayContainer }) {

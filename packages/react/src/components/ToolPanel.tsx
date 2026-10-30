@@ -78,7 +78,7 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-/** 工具面板组件。 */
+/** 可折叠、可调整宽度的工具面板；活动栏仅纵向滚动，收起后保留入口和已挂载内容状态。 */
 export function ToolPanel({
   title,
   icon,
@@ -119,7 +119,9 @@ export function ToolPanel({
       if (!rail || !indicator) return;
       const active = rail.querySelector<HTMLButtonElement>('.sia-tool-panel__activity.is-active');
       if (!active) {
+        // 清除上一次激活位置，避免不可见指示器撑开已收起的活动栏。
         indicator.style.visibility = "hidden";
+        indicator.style.transform = "none";
         delete indicator.dataset.ready;
         return;
       }

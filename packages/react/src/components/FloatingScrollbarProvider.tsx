@@ -2,13 +2,13 @@
 
 import { useEffect } from "react";
 import type { RefObject } from "react";
-import { useScrollbarProximity } from "./useScrollbarProximity";
+import { acquireScrollbarProximity } from "./useScrollbarProximity";
 import { registerFloatingScrollbar, setFloatingScrollbarDragging } from "./floatingScrollbarOwnership";
 
 /** 浮动滚动条接入组件的属性配置。 */
 export interface FloatingScrollbarProviderProps {
   /**
-   * 是否禁用交互。
+   * 是否停止本 Provider 的接管；全局 Provider 为 true 时暂停默认全局接管，恢复原生滚动条。
    * @defaultValue false
    */
   disabled?: boolean;
@@ -41,16 +41,23 @@ function isRootScroller(target: HTMLElement) {
 function canScroll(target: HTMLElement, axis: ScrollAxis) {
   if (target.matches(".sia-table__viewport, [data-sia-native-scrollbar]")) return false;
   if (isRootScroller(target)) {
+    // 弹层锁定页面滚动时同步撤下根轨道，避免遮罩上出现无法操作的滚动条。
+    const rootStyle = getComputedStyle(target);
+    const bodyStyle = getComputedStyle(document.body);
+    const overflow = axis === "horizontal" ? [rootStyle.overflowX, bodyStyle.overflowX] : [rootStyle.overflowY, bodyStyle.overflowY];
+    if (overflow.some(value => value === "hidden" || value === "clip")) return false;
     return axis === "horizontal"
       ? target.scrollWidth > target.clientWidth + 1
       : target.scrollHeight > target.clientHeight + 1;
   }
   const style = getComputedStyle(target);
   const overflow = axis === "horizontal" ? style.overflowX : style.overflowY;
+  // 非滚动容器无需读取布局尺寸，避免扫描普通文本和图标时强制布局。
+  if (!scrollableOverflow.has(overflow)) return false;
   const hasOverflow = axis === "horizontal"
     ? target.scrollWidth > target.clientWidth + 1
     : target.scrollHeight > target.clientHeight + 1;
-  return hasOverflow && scrollableOverflow.has(overflow);
+  return hasOverflow;
 }
 
 function visibleRect(target: HTMLElement) {
@@ -104,12 +111,40 @@ function createTrack(axis: ScrollAxis) {
   return { track, thumb };
 }
 
-/** 为页面或指定容器接入浮动滚动条；悬停、滚动或拖动时显示，离开且停止交互后隐藏，不占用布局宽度。轨道保留滚动容器的交互归属，供菜单判断内部操作；布局变化重新发现容器，定尺寸脱离文档流元素的定位变化仅复核相关子树与祖先。 */
+/** 为页面或指定容器接入不占布局空间的浮动滚动条，悬停、滚动和拖动时显示，离开后自动隐藏；默认入口自动启用，显式全局 Provider 可暂停接管。原生标记只跳过容器自身，内部滚动容器仍独立接管；Table 视口保留其专用轨道。 */
 export function FloatingScrollbarProvider({ disabled = false, targetRef }: FloatingScrollbarProviderProps) {
-  useScrollbarProximity();
   useEffect(() => {
-    if (disabled) return;
+    if (targetRef) return disabled ? undefined : startFloatingScrollbars(targetRef);
+    const token = Symbol();
+    globalProviders.set(token, !disabled);
+    syncDefaultScrollbars();
+    return () => { globalProviders.delete(token); syncDefaultScrollbars(); };
+  }, [disabled, targetRef]);
+  return null;
+}
 
+// 全局入口只启动一个观察器；显式禁用优先，卸载后恢复框架默认策略。
+let automatic = false;
+let stopGlobal: (() => void) | undefined;
+const globalProviders = new Map<symbol, boolean>();
+function syncDefaultScrollbars() {
+  if (typeof document === "undefined" || !document.body) return;
+  const enabled = (automatic || globalProviders.size > 0) && ![...globalProviders.values()].includes(false);
+  if (enabled && !stopGlobal) stopGlobal = startFloatingScrollbars();
+  if (!enabled && stopGlobal) { stopGlobal(); stopGlobal = undefined; }
+}
+
+/** 初始化浏览器默认浮动滚动条，供发布入口调用；服务端不读取 DOM，重复调用不会创建额外观察器。 */
+export function initializeDefaultScrollbars() {
+  if (typeof document === "undefined" || automatic) return;
+  automatic = true;
+  if (document.body) syncDefaultScrollbars();
+  else document.addEventListener("DOMContentLoaded", syncDefaultScrollbars, { once: true });
+}
+
+// 只在真实溢出时创建轨道，按帧合并发现与定位；显式单容器接管沿用相同生命周期。
+function startFloatingScrollbars(targetRef?: RefObject<HTMLElement | null>) {
+    const releaseProximity = acquireScrollbarProximity();
     const layer = document.createElement("div");
     layer.className = "sia-floating-scrollbar-layer";
     layer.setAttribute("aria-hidden", "true");
@@ -350,8 +385,8 @@ export function FloatingScrollbarProvider({ disabled = false, targetRef }: Float
 
     const scanTargets = () => {
       scanFrame = 0;
-      // 表格视口拥有独立滚动条，不扫描其数万单元格；原生滚动区域同样由自身负责。
-      const managedSelector = ".sia-table__viewport, [data-sia-native-scrollbar], .sia-scrollbar-track, .sia-floating-scrollbar-layer";
+      // 表格视口保留专用轨道；原生标记只影响自身，不能跳过内部独立滚动区域。
+      const managedSelector = ".sia-table__viewport, .sia-scrollbar-track, .sia-floating-scrollbar-layer";
       const discovered = new Set<HTMLElement>();
       if (!targetRef) {
         const roots = fullScan ? [document.body] : [...dirtyStyles].filter(node => node.isConnected);
@@ -370,11 +405,14 @@ export function FloatingScrollbarProvider({ disabled = false, targetRef }: Float
         .filter((target): target is HTMLElement => target instanceof HTMLElement);
       const nextTargets = new Set<HTMLElement>();
 
+      // 先批量读取，再创建轨道；隐藏原生滚动条会改变布局，不能与候选测量交错。
       candidates.forEach((target) => {
         if (canScroll(target, "horizontal") || canScroll(target, "vertical")) {
           nextTargets.add(target);
-          if (entries.has(target) || !target.hasAttribute("data-sia-floating-scrollbar")) addTarget(target);
         }
+      });
+      nextTargets.forEach(target => {
+        if (entries.has(target) || !target.hasAttribute("data-sia-floating-scrollbar")) addTarget(target);
       });
       entries.forEach((_entry, target) => {
         if (!target.isConnected || ((fullScan || candidates.includes(target)) && !nextTargets.has(target))) removeTarget(target);
@@ -397,7 +435,36 @@ export function FloatingScrollbarProvider({ disabled = false, targetRef }: Float
       let relevant = false;
       for (const mutation of mutations) {
         const target = mutation.target instanceof Element ? mutation.target : mutation.target.parentElement;
-        if (!target || layer.contains(target) || target.closest(".sia-table__viewport, [data-sia-native-scrollbar], .sia-scrollbar-track")) continue;
+        if (!target || layer.contains(target) || target.closest(".sia-table__viewport, .sia-scrollbar-track, .sia-floating-scrollbar-layer")) continue;
+        if (mutation.type === "childList") {
+          const changed = [...mutation.addedNodes, ...mutation.removedNodes];
+          // 其他局部 Provider 的轨道挂载在 body 下，不影响业务布局，也不能触发整页重扫。
+          if (changed.length && changed.every(node => node instanceof Element && node.matches(".sia-floating-scrollbar-layer, .sia-scrollbar-track"))) continue;
+          // fixed Portal 的挂载和移除只影响自身及根滚动范围；失联轨道仍由 scanTargets 清理。
+          if (target === document.body && changed.length && changed.every(node => node instanceof HTMLElement && node.matches(".sia-popup-portal"))) {
+            changed.forEach(node => { if (node instanceof HTMLElement && node.isConnected) dirtyStyles.add(node); });
+            relevant = true;
+            continue;
+          }
+        }
+        const popup = target.closest<HTMLElement>(".sia-popup-portal");
+        if (popup) {
+          // 弹层定位、选中项及局部内容更新不改变背景页面的文档流。
+          dirtyStyles.add(popup);
+          relevant = true;
+          continue;
+        }
+        if (mutation.type === "attributes" && mutation.attributeName === "class" && target instanceof HTMLElement && target.matches(".sia-select")) {
+          const oldClasses = new Set((mutation.oldValue ?? "").split(/\s+/).filter(Boolean));
+          const newClasses = new Set(target.classList);
+          const changed = [...new Set([...oldClasses, ...newClasses])].filter(name => oldClasses.has(name) !== newClasses.has(name));
+          // Select 的展开标记只改变控件反馈，列表通过 Portal 展示；其余类变更仍走完整布局检查。
+          if (changed.every(name => name === "is-open")) {
+            dirtyStyles.add(target);
+            relevant = true;
+            continue;
+          }
+        }
         relevant = true;
         // 只有定尺寸、脱离文档流元素的纯定位更新可局部处理；flex 兄弟缩放等必须全量发现。
         let positionOnly = false;
@@ -414,13 +481,14 @@ export function FloatingScrollbarProvider({ disabled = false, targetRef }: Float
       }
       if (relevant) scheduleScan(false);
     });
-    mutationObserver.observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeOldValue: true, attributeFilter: ["class", "style", "hidden"] });
+    mutationObserver.observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeOldValue: true, attributeFilter: ["class", "style", "hidden", "data-sia-native-scrollbar", "data-sia-floating-scrollbar"] });
     const onResize = () => scheduleScan();
     window.addEventListener("resize", onResize);
     window.addEventListener("scroll", scheduleUpdateAll, true);
     scheduleScan();
 
     return () => {
+      releaseProximity();
       mutationObserver.disconnect();
       resizeObserver.disconnect();
       window.removeEventListener("resize", onResize);
@@ -431,7 +499,5 @@ export function FloatingScrollbarProvider({ disabled = false, targetRef }: Float
       entries.clear();
       layer.remove();
     };
-  }, [disabled, targetRef]);
 
-  return null;
 }

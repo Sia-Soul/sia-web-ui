@@ -114,13 +114,13 @@ export interface SelectProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
   showSearch?: boolean;
   /** 在选项名称下方显示对应的 value。 */
   showValue?: boolean;
-  /** 允许将搜索框内容作为自定义选项提交。 */
+  /** 允许将面板输入框内容作为自定义选项提交，默认 false。开启时始终显示输入框，展开下拉后自动聚焦；输入后按 Enter 或点击“使用”提交，受控时通过 onChange 回填 value。 */
   allowInput?: boolean;
   /** 手动输入内容的最大长度 */
   inputMaxLength?: number;
   /**
-   * 搜索框的占位提示文字。
-   * @defaultValue "搜索选项"
+   * 面板输入框的占位提示文字；allowInput 开启时默认“输入或搜索”，否则默认“搜索选项”，显式设置优先。
+   * @defaultValue allowInput 为 true 时为 "输入或搜索"，否则为 "搜索选项"
    */
   searchPlaceholder?: string;
   /** 搜索条件变化或提交搜索时调用，具体参数见签名。 */
@@ -137,7 +137,7 @@ export interface SelectProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
   showSelectAll?: boolean;
   /** 是否显示下拉面板底部的条数统计与操作行；默认单选隐藏、多选显示，不影响弹框模式。 */
   showActions?: boolean;
-  /** 最多显示的标签数；空间不足时会继续折叠，并为 +N 预留宽度。 */
+  /** 多选标签的数量上限。默认不限制数量，按组件可用宽度自动显示并折叠为 +N；显式设置后同时受数量上限与可用宽度约束，0 表示全部折叠。 */
   maxTagCount?: number;
   /**
    * 长列表启用窗口化渲染
@@ -171,7 +171,7 @@ function defaultFilterOption(query: string, option: SelectOption) {
   return [option.label, option.value].some(value => String(value).toLowerCase().includes(keyword));
 }
 
-/** 选择器组件。下拉面板每次展开自动定位到列表顺序中的第一个已选项，支持普通和虚拟列表；未选中时从顶部显示。展开时 Escape 只收起选择器，不关闭外层弹框或抽屉。 */
+/** 选择器组件。下拉面板以 260ms 缩放淡入、弹大回收后归位，关闭为 140ms 无回弹缩小淡出；最终外观沿用组件样式，系统减少动态效果时直接显示。下拉面板每次展开自动定位到列表顺序中的第一个已选项，支持普通和虚拟列表；未选中时从顶部显示。展开时 Escape 只收起选择器，不关闭外层弹框或抽屉。 */
 export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select(
   {
     options,
@@ -192,12 +192,12 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
     showValue = false,
     allowInput = false,
     inputMaxLength,
-    searchPlaceholder = "搜索选项",
+    searchPlaceholder = allowInput ? "输入或搜索" : "搜索选项",
     onSearch,
     filterOption = defaultFilterOption,
     showSelectAll = true,
     showActions = mode === "multiple",
-    maxTagCount = 2,
+    maxTagCount,
     virtual = true,
     virtualThreshold = 100,
     listHeight = 256,
@@ -298,8 +298,11 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
   }, [open, popupMode]);
 
   useEffect(() => {
-    if (open && (showSearch || allowInput)) searchRef.current?.focus();
-  }, [allowInput, open, showSearch]);
+    if (!open || popupMode !== "dropdown" || !(showSearch || allowInput)) return;
+    // Portal 首次定位时暂时 visibility:hidden，此时 focus 会被浏览器忽略；下一帧定位完成即可输入，无需等待入场动画。
+    const frame = requestAnimationFrame(() => searchRef.current?.focus({ preventScroll: true }));
+    return () => cancelAnimationFrame(frame);
+  }, [allowInput, open, popupMode, showSearch]);
 
   useEffect(() => { if (disabled || loading) closeDropdown(); }, [disabled, loading]);
 
@@ -543,7 +546,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
         onClick={() => open ? closeDropdown() : openDropdown()}
         onKeyDown={handleTriggerKeyDown}
       >
-        {multiple && hasValue ? <OverflowTags className="sia-select__tags" tagClassName="sia-select__tag" restClassName="sia-select__tag--rest" maxCount={maxTagCount} items={selectedOptions.map(option => ({ key: `${typeof option.value}-${option.value}`, label: option.label }))} /> : <span className={`sia-select__value${hasValue ? "" : " is-placeholder"}`}>{selectedOptions[0]?.label ?? placeholder}</span>}
+        {multiple && hasValue ? <OverflowTags className="sia-select__tags" tagClassName="sia-select__tag" restClassName="sia-select__tag--rest" maxCount={maxTagCount ?? selectedOptions.length} items={selectedOptions.map(option => ({ key: `${typeof option.value}-${option.value}`, label: option.label }))} /> : <span className={`sia-select__value${hasValue ? "" : " is-placeholder"}`}>{selectedOptions[0]?.label ?? placeholder}</span>}
         {loading ? <span className="sia-select__spinner" aria-hidden="true" /> : null}
         {floating.label}
         <Icon className="sia-select__arrow" name="chevron-down" size={15} />

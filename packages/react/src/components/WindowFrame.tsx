@@ -1,5 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { withTitleTooltip } from "./titleTooltip";
+import { ThemeSwitch } from "./ThemeSwitch";
+import { applySiaTheme, type SiaThemeMode } from "../theme";
 import type {
   HTMLAttributes,
   MouseEvent as ReactMouseEvent,
@@ -71,6 +73,12 @@ export interface WindowControlsProps extends HTMLAttributes<HTMLDivElement> {
 
 /** 窗口标题栏的属性配置。 */
 export interface WindowTitleBarProps extends HTMLAttributes<HTMLElement> {
+  /** 是否在窗口控制组前显示浅色/深色切换按钮，默认 true；不受 actionsAlign 和 controls 影响。 */
+  showThemeSwitch?: boolean;
+  /** 当前主题的受控值；传入后点击仅调用 onThemeChange，由宿主更新此值并应用主题。省略时读取当前文档根节点的 data-sia-theme，未设置时为 light，点击自动切换文档主题。 */
+  theme?: SiaThemeMode;
+  /** 点击主题按钮时同步返回目标主题 light 或 dark；非受控模式在应用文档主题后调用，受控模式需由宿主回填 theme 并应用主题；外部主题变化不触发此回调。 */
+  onThemeChange?: (theme: SiaThemeMode) => void;
   /** 标题前的内容区域。 */
   leading?: ReactNode;
   /** 附加的操作按钮区域。 */
@@ -230,8 +238,11 @@ export function WindowControls({
   );
 }
 
-/** 窗口标题栏组件。 */
+/** 窗口标题栏，默认在右侧显示浅色/深色主题切换入口；支持主题受控接入与宿主窗口操作。 */
 export function WindowTitleBar({
+  showThemeSwitch = true,
+  theme,
+  onThemeChange,
   leading,
   actions,
   actionsAlign = "right",
@@ -246,6 +257,29 @@ export function WindowTitleBar({
   onMouseDown,
   ...props
 }: WindowTitleBarProps) {
+  const [documentTheme, setDocumentTheme] = useState<SiaThemeMode>("light");
+  const titleBarRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (theme !== undefined || !showThemeSwitch) return;
+    const root = titleBarRef.current?.ownerDocument.documentElement;
+    if (!root) return;
+    // 订阅已有主题入口的变化，使多个标题栏与 applySiaTheme 保持一致。
+    const syncTheme = () => setDocumentTheme(root.dataset.siaTheme === "dark" ? "dark" : "light");
+    syncTheme();
+    const observer = new MutationObserver(syncTheme);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-sia-theme"] });
+    return () => observer.disconnect();
+  }, [theme, showThemeSwitch]);
+
+  function changeTheme(checked: boolean) {
+    const nextTheme = checked ? "dark" : "light";
+    if (theme === undefined) {
+      const root = titleBarRef.current?.ownerDocument.documentElement;
+      if (root) applySiaTheme(nextTheme, root);
+      setDocumentTheme(nextTheme);
+    }
+    onThemeChange?.(nextTheme);
+  }
   // 等待真实拖动意图再交给宿主，避免静止按住时进入 Windows 非客户区等待循环。
   const cancelDrag = useRef<(() => void) | null>(null);
   useEffect(() => () => cancelDrag.current?.(), [draggable]);
@@ -300,6 +334,7 @@ export function WindowTitleBar({
 
   return (
     <header
+      ref={titleBarRef}
       className={`sia-window-titlebar ${className}`.trim()}
       data-actions-align={actionsAlign}
       onMouseDown={handleMouseDown}
@@ -310,6 +345,11 @@ export function WindowTitleBar({
       {children}
       <div className="sia-window-titlebar__drag-region" aria-hidden="true" />
       {actionsAlign === "right" ? renderedActions : null}
+      {showThemeSwitch ? (
+        <div className="sia-window-titlebar__theme" data-sia-window-no-drag="">
+          <ThemeSwitch checked={(theme ?? documentTheme) === "dark"} onCheckedChange={changeTheme} lightLabel="切换到深色主题" darkLabel="切换到浅色主题" />
+        </div>
+      ) : null}
       {renderedControls}
     </header>
   );

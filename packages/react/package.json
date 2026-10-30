@@ -11,7 +11,14 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "sideEffects": [
-    "**/*.css"
+    "**/*.css",
+    "./dist/index.*",
+    "./dist/core.*",
+    "./dist/select-date-range.*",
+    "./dist/rich-text-editor.*",
+    "./dist/markdown-editor.*",
+    "./dist/chart.*",
+    "./dist/game.*"
   ],
   "exports": {
     ".": {

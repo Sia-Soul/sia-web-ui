@@ -1,0 +1,110 @@
+/* 首页独立滚动，保持文档站固定侧栏布局不受影响；颜色继承框架主题令牌。 */
+.home-page { height: 100dvh; overflow: auto; color: var(--sia-color-text); background: var(--sia-color-surface); }
+.home-page a:focus-visible { outline: 3px solid var(--sia-color-primary); outline-offset: 5px; border-radius: 4px; }
+.home-skip { position: fixed; top: -70px; left: 16px; z-index: 100; padding: 12px; background: var(--sia-color-surface); }
+.home-skip:focus { top: 10px; }
+.home-nav { max-width: 1400px; margin: auto; height: 84px; padding: 0 48px; display: flex; align-items: center; gap: 40px; border-bottom: 1px solid var(--sia-color-border); }
+.home-brand { display: inline-flex; align-items: center; gap: 13px; white-space: nowrap; }
+.home-brand strong { font-size: 21px; letter-spacing: -.7px; }
+.home-brand > span:last-child:not(.sia-mark) { font-size: 9px; letter-spacing: 1px; border: 1px solid var(--sia-color-border); padding: 3px 5px; border-radius: 4px; color: var(--sia-color-text-secondary); }
+.home-nav nav { display: flex; gap: 28px; margin-left: auto; font-size: 13px; }
+.home-nav-actions { display: flex; align-items: center; gap: 24px; }
+.home-source { display: flex; align-items: center; gap: 5px; font-size: 13px; }
+.home-nav a:hover, .home-footer a:hover { color: var(--sia-color-primary); }
+.home-hero { max-width: 1400px; margin: auto; padding: 92px 48px 74px; display: grid; grid-template-columns: .95fr 1.15fr; align-items: center; gap: 55px; }
+.home-eyebrow { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--sia-color-primary); font-weight: 600; letter-spacing: .6px; }
+.home-eyebrow > span, .home-live-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #29b37b; }
+.home-hero h1 { font-size: clamp(40px,4.3vw,64px); line-height: 1.22; letter-spacing: -3px; margin: 25px 0; font-weight: 750; }
+.home-hero h1 em { font-style: normal; color: var(--sia-color-primary); }
+.home-hero-copy > p { color: var(--sia-color-text-secondary); font-size: 15px; line-height: 1.95; }
+.home-hero-actions { display: flex; align-items: center; gap: 13px; margin-top: 30px; }
+.home-primary-link, .home-secondary-link { display: inline-flex; align-items: center; justify-content: center; gap: 20px; min-height: 46px; padding: 0 22px; font-size: 14px; border-radius: 7px; border: 1px solid var(--sia-color-border); }
+.home-primary-link { color: white; background: var(--sia-color-primary); border-color: var(--sia-color-primary); box-shadow: 0 5px 16px rgb(22 119 255 / 16%); }
+.home-primary-link:hover { filter: brightness(1.08); }
+.home-secondary-link:hover { color: var(--sia-color-primary); border-color: currentColor; }
+.home-stack { margin-top: 30px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; color: var(--sia-color-text-secondary); font-size: 11px; }
+.home-stack i { height: 3px; width: 3px; background: var(--sia-color-border); border-radius: 50%; }
+/* 真实组件演示采用工作台外壳，窄屏保留表格内部滚动，不压缩数据列。 */
+.home-product { min-width: 0; border: 1px solid var(--sia-color-border); border-radius: 13px; box-shadow: 0 22px 70px rgb(26 65 125 / 10%); background: var(--sia-color-surface); transform: rotate(-1deg); }
+.home-product-top { display: flex; justify-content: space-between; padding: 14px 20px; font-size: 10px; color: var(--sia-color-text-secondary); border-bottom: 1px solid var(--sia-color-border); font-family: ui-monospace, monospace; }
+.home-window-dot { display: inline-block; width: 7px; height: 7px; margin-right: 12px; border-radius: 50%; background: #9db5d0; box-shadow: 11px 0 0 #d3dce6; }
+.home-product-content { padding: 23px 20px 16px; }
+.home-workspace-heading { display: flex; align-items: center; justify-content: space-between; }
+.home-small-label { color: var(--sia-color-primary); font: 600 10px/1.5 ui-monospace, monospace; letter-spacing: 1.6px; }
+.home-workspace-heading h2 { font-size: 18px; margin: 7px 0 22px; letter-spacing: -.4px; }
+.home-workspace-heading > .sia-icon { color: var(--sia-color-primary); }
+.home-preview-metrics { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; padding-bottom: 20px; }
+.home-preview-metrics > div { padding-left: 15px; border-left: 2px solid var(--sia-color-border); }
+.home-preview-metrics > div:first-child { border-color: var(--sia-color-primary); }
+.home-preview-metrics span { color: var(--sia-color-text-secondary); font-size: 11px; }
+.home-preview-metrics strong { display: block; font-size: 28px; margin-top: 5px; font-weight: 600; letter-spacing: -1px; }
+.home-preview-metrics small { font-size: 9px; color: var(--sia-color-text-secondary); margin-left: 9px; font-weight: 400; letter-spacing: 0; }
+.home-preview-metrics .home-green { color: #21976a; }
+.home-preview-toolbar { display: grid; grid-template-columns: minmax(0,1fr) 135px; gap: 12px; margin-bottom: 14px; }
+/* 演示工具栏按网格分配宽度，覆盖选择器默认最小宽度，避免溢出工作台。 */
+.home-preview-toolbar > * { min-width: 0; width: 100%; }
+.home-avatar { display: inline-grid; width: 25px; height: 25px; place-items: center; border-radius: 50%; background: var(--sia-color-control-hover); color: var(--sia-color-primary); font-size: 11px; }
+.home-product .sia-table { font-size: 12px; }
+.home-preview-bottom { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; margin-top: 15px; color: var(--sia-color-text-secondary); font-size: 10px; }
+.home-preview-bottom a { display: flex; align-items: center; gap: 6px; color: var(--sia-color-primary); }
+.home-live-dot { width: 5px; height: 5px; margin-right: 5px; }
+.home-product-caption { display: flex; justify-content: space-between; padding: 12px 20px; background: var(--sia-color-control-hover); border-radius: 0 0 13px 13px; font-size: 9px; color: var(--sia-color-text-secondary); letter-spacing: 1px; }
+.home-foundation { max-width: 1304px; margin: 0 auto; display: grid; grid-template-columns: repeat(4,1fr); border-block: 1px solid var(--sia-color-border); padding: 28px 0; }
+.home-foundation > div { padding: 0 35px; border-right: 1px solid var(--sia-color-border); }
+.home-foundation > div:last-child { border: 0; }
+.home-foundation strong { display: block; font-size: 22px; font-weight: 550; letter-spacing: -.5px; }
+.home-foundation span { display: block; margin-top: 7px; color: var(--sia-color-text-secondary); font-size: 12px; }
+.home-section { max-width: 1400px; margin: auto; padding: 85px 48px; scroll-margin-top: 20px; }
+.home-section-heading { display: flex; justify-content: space-between; align-items: end; gap: 25px; margin-bottom: 32px; }
+.home-section h2 { font-size: 33px; letter-spacing: -1px; line-height: 1.4; margin: 12px 0 0; }
+.home-section-heading p { font-size: 13px; line-height: 1.8; color: var(--sia-color-text-secondary); margin: 0; }
+.home-highlights { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 24px; }
+.home-highlights article { border-top: 2px solid var(--sia-color-border); padding: 26px 8px 0 0; }
+.home-feature-top { display: flex; align-items: center; justify-content: space-between; color: var(--sia-color-primary); }
+.home-feature-top > span { font: 12px ui-monospace, monospace; color: var(--sia-color-text-secondary); }
+.home-highlights h3 { font-size: 19px; margin: 25px 0 12px; }
+.home-highlights p { font-size: 14px; line-height: 1.9; color: var(--sia-color-text-secondary); min-height: 80px; }
+.home-highlights a { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; margin-top: 23px; }
+.home-highlights a:hover { color: var(--sia-color-primary); }
+.home-library { background: var(--sia-color-control-hover); border-radius: 20px; }
+/* 双主题容器使用框架局部令牌，始终并排对比，不受全站明暗切换影响。 */
+.home-themes { padding-top: 15px; }
+.home-theme-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; }
+.home-theme-preview { min-width: 0; color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: 14px; overflow: hidden; box-shadow: 0 12px 35px rgb(0 0 0 / 6%); }
+.home-theme-label { display: flex; align-items: center; justify-content: space-between; padding: 17px 24px; border-bottom: 1px solid var(--sia-color-border); color: var(--sia-color-text-secondary); font: 12px ui-monospace, monospace; letter-spacing: 1px; }
+.home-theme-swatch { width: 12px; height: 12px; border-radius: 50%; background: var(--sia-color-primary); box-shadow: -20px 0 0 var(--sia-color-text-secondary); }
+.home-theme-body { padding: 24px; }
+.home-theme-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 22px; }
+.home-theme-heading h3 { margin: 0 0 8px; font-size: 22px; }
+.home-theme-heading p { margin: 0; font-size: 13px; color: var(--sia-color-text-secondary); }
+.home-theme-table { margin-top: 18px; overflow: auto; }
+.home-theme-actions { margin-top: 22px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.home-theme-actions > span { margin-left: auto; font-size: 11px; color: var(--sia-color-text-secondary); }
+/* 窄屏改为上下对比，组件内容仅在预览内部滚动。 */
+@media(max-width:800px) { .home-theme-grid { grid-template-columns: 1fr; } .home-theme-body { padding: 18px; } }
+.home-inline-link { display: inline-flex; align-items: center; gap: 10px; color: var(--sia-color-primary); font-size: 13px; }
+.home-categories { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 36px; }
+.home-categories h3 { display: flex; align-items: center; gap: 10px; font-size: 15px; margin: 0 0 15px; }
+.home-categories h3 span { font-size: 10px; color: var(--sia-color-text-secondary); font-weight: 400; }
+.home-categories > div > div { display: flex; flex-wrap: wrap; gap: 7px; }
+.home-categories a { display: inline-flex; align-items: center; gap: 6px; padding: 7px 9px; border: 1px solid var(--sia-color-border); border-radius: 5px; background: var(--sia-color-surface); font-size: 11px; }
+.home-categories a > .sia-icon { opacity: .35; }
+.home-categories a:hover { color: var(--sia-color-primary); border-color: var(--sia-color-primary); }
+.home-start { display: grid; grid-template-columns: .8fr 1.2fr; gap: 80px; align-items: center; padding-block: 100px; }
+.home-start h2 { font-size: 40px; }
+.home-start > div > p { color: var(--sia-color-text-secondary); font-size: 14px; line-height: 1.9; margin: 20px 0; }
+.home-code { min-width: 0; border: 1px solid var(--sia-color-border); border-radius: 10px; overflow: hidden; }
+.home-command { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 15px 20px; border-bottom: 1px solid var(--sia-color-border); background: var(--sia-color-control-hover); }
+.home-command code { font-size: 13px; overflow: auto; white-space: nowrap; }
+.home-code-label { padding: 19px 22px 0; color: var(--sia-color-text-secondary); font-size: 11px; display: flex; justify-content: space-between; }
+.home-code pre { padding: 8px 22px 12px; overflow: auto; color: var(--sia-color-primary); font: 12px/2 ui-monospace, Consolas, monospace; }
+.home-code > p { padding: 0 22px 15px; font-size: 11px !important; margin: 0 !important; }
+.home-footer { max-width: 1304px; margin: auto; border-top: 1px solid var(--sia-color-border); padding: 30px 0; display: flex; align-items: center; gap: 30px; }
+.home-footer .sia-mark { width: 23px; height: 23px; }
+.home-footer .home-brand strong { font-size: 16px; }
+.home-footer p { color: var(--sia-color-text-secondary); font-size: 12px; }
+.home-footer > div { margin-left: auto; display: flex; gap: 20px; font-size: 12px; }
+/* 中小屏改为上下叙事；保留触摸目标和代码区域独立滚动。 */
+@media(max-width:1100px) { .home-nav { padding-inline: 28px; gap: 22px; } .home-nav nav { gap: 18px; } .home-hero { gap: 28px; padding: 65px 28px; } .home-hero h1 { font-size: 44px; } .home-wide-break { display:none; } .home-section { padding: 65px 28px; } .home-foundation,.home-footer { margin-inline: 28px; } .home-start { gap: 35px; } }
+@media(max-width:800px) { .home-nav nav { display:none; } .home-nav-actions { margin-left:auto; } .home-hero { grid-template-columns:1fr; gap:45px; } .home-hero h1 { font-size:52px; } .home-product { transform:none; } .home-foundation { grid-template-columns:repeat(2,1fr); gap:25px 0; } .home-foundation > div:nth-child(2) { border:0; } .home-section-heading { align-items:start; flex-direction:column; } .home-highlights { grid-template-columns:1fr; gap:35px; } .home-highlights p { min-height:0; } .home-categories { grid-template-columns:repeat(2,minmax(0,1fr)); } .home-start { grid-template-columns:1fr; } .home-footer { flex-wrap:wrap; } .home-footer > div { margin:0; } }
+@media(max-width:480px) { .home-nav { padding-inline:20px; height:72px; } .home-brand > span:last-child:not(.sia-mark), .home-source { display:none; } .home-hero { padding:45px 20px; } .home-hero h1 { font-size:43px; letter-spacing:-2px; } .home-hero-copy > p { font-size:14px; } .home-section { padding:55px 20px; } .home-section h2 { font-size:28px; } .home-preview-metrics small { display:block; margin:5px 0 0; } .home-product-content { padding:18px 12px; } .home-workspace-heading h2 { font-size:16px; } .home-foundation > div { padding-inline:12px; } .home-foundation strong { font-size:18px; } .home-categories { grid-template-columns:1fr; } .home-command { padding-inline:12px; } .home-command code { font-size:11px; } .home-footer { gap:14px; } .home-footer p { width:100%; } }

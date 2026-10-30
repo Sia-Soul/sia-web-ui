@@ -141,7 +141,6 @@ function DropdownInternal({
   const openTimerRef = useRef<number | undefined>(undefined);
   const closeTimerRef = useRef<number | undefined>(undefined);
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
-  const [mounted, setMounted] = useState(open ?? defaultOpen);
   const [contextPoint, setContextPoint] = useState<{ x: number; y: number }>();
   const visible = open ?? internalOpen;
   const triggerSet = new Set(trigger);
@@ -160,7 +159,7 @@ function DropdownInternal({
     const observer = new ResizeObserver(syncFontSize);
     observer.observe(target);
     return () => observer.disconnect();
-  });
+  }, [visible, children]);
 
   function clearTimer(ref: typeof openTimerRef) {
     if (ref.current === undefined) return;
@@ -191,19 +190,6 @@ function DropdownInternal({
     clearTimer(closeTimerRef);
     closeTimerRef.current = window.setTimeout(() => updateOpen(false, "trigger"), Math.max(0, closeDelay));
   }
-
-  useEffect(() => {
-    if (visible) {
-      setMounted(true);
-      return undefined;
-    }
-    const timer = window.setTimeout(() => setMounted(false), 160);
-    return () => window.clearTimeout(timer);
-  }, [visible]);
-
-  useEffect(() => {
-    if (!visible && !mounted) setContextPoint(undefined);
-  }, [mounted, visible]);
 
   useEffect(() => () => clearTimers(), []);
 
@@ -239,14 +225,14 @@ function DropdownInternal({
   }, [visible]);
 
   useEffect(() => {
-    if (!visible || !mounted || !autoFocus) return undefined;
+    if (!visible || !autoFocus) return undefined;
     const frame = window.requestAnimationFrame(() => {
       popupRef.current?.querySelector<HTMLElement>(
         "[data-sia-dropdown-autofocus], input:not(:disabled), textarea:not(:disabled), .sia-menu__item:not(:disabled)",
       )?.focus();
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [autoFocus, mounted, visible]);
+  }, [autoFocus, visible]);
 
   function handleMenuClick(info: MenuClickInfo) {
     info.domEvent.stopPropagation();
@@ -341,7 +327,9 @@ function DropdownInternal({
       key={contextPoint ? `context-${contextPoint.x}-${contextPoint.y}` : "trigger"}
       ref={popupRef}
       anchorRef={contextPoint ? contextAnchorRef : popupAnchorRef ?? rootRef}
-      open={mounted}
+      open={visible}
+      // 定位锚点保留到真实退场完成，不能按旧固定计时提前切换 Portal key。
+      afterOpenChange={(nextOpen) => { if (!nextOpen) setContextPoint(undefined); }}
       placement={contextPoint ? "bottom-start" : placementMap[placement]}
       offset={contextPoint ? 2 : 6}
       className={`sia-dropdown__popup${visible ? " is-open" : " is-closing"}${arrow ? " sia-dropdown__popup--arrow" : ""}${pointAtCenter ? " sia-dropdown__popup--arrow-center" : ""} ${popupClassName}`.trim()}
@@ -416,7 +404,7 @@ function DropdownButton({
   </span>;
 }
 
-/** 下拉菜单组件。 */
+/** 下拉菜单组件；面板以 260ms 缩放淡入并果冻回弹，关闭为 140ms 无回弹缩小淡出；退出完成后释放定位锚点，系统减少动态效果时直接完成。 */
 export const Dropdown = Object.assign(DropdownRoot, {
   /** 组合主操作按钮与下拉菜单的按钮组件。 */
   Button: DropdownButton });

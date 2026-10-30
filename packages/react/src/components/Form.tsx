@@ -28,7 +28,7 @@ export interface SwitchProps extends Omit<InputHTMLAttributes<HTMLInputElement>,
   onCheckedChange?: (checked: boolean) => void;
 }
 
-/** 开关组件。 */
+/** 开关组件；标准样式在深色主题关闭时使用 #333335 轨道与 #8b90a0 圆球，开启时使用主题色轨道与白色圆球。滑块以 220ms 位移回弹切换，按下时标准圆球等比例放大至 1.35 倍，分段滑块为 1.16 倍，松开后恢复；禁用时不响应按压，系统减少动态效果时直接更新。 */
 export const Switch = forwardRef<HTMLInputElement, SwitchProps>(function Switch(
   {
     label,
@@ -43,6 +43,23 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(function Switch(
   },
   ref,
 ) {
+  const trackRef = useRef<HTMLSpanElement>(null);
+  // 只在轨道尺寸变化时测量行程；切换和按压均使用 transform，避免逐帧修改布局。
+  useLayoutEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const updateTravel = () => {
+      const thumb = track.querySelector<HTMLElement>(".sia-switch__thumb");
+      if (!thumb) return;
+      const travel = variant === "segmented" ? track.clientWidth / 2 - 3 : track.clientWidth - thumb.offsetWidth - 4;
+      const value = `${Math.max(0, travel)}px`;
+      if (track.style.getPropertyValue("--sia-switch-travel") !== value) track.style.setProperty("--sia-switch-travel", value);
+    };
+    updateTravel();
+    const observer = new ResizeObserver(updateTravel);
+    observer.observe(track);
+    return () => observer.disconnect();
+  }, [variant, sizeProp]);
   const size = useControlSize(sizeProp);
   const hasContent = checkedContent !== undefined || uncheckedContent !== undefined;
   const checkedVisual = checkedContent ?? (variant === "segmented" ? "开" : null);
@@ -56,6 +73,7 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(function Switch(
     <label className={`sia-switch-wrap sia-switch-wrap--${size} ${className}`.trim()}>
       <input ref={ref} type="checkbox" role="switch" className="sia-switch-input" onChange={handleChange} {...withTitleTooltip(props)} />
       <span
+        ref={trackRef}
         className={`sia-switch sia-switch--${variant}${variant === "standard" && hasContent ? " sia-switch--with-content" : ""}`}
         aria-hidden="true"
       >

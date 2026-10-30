@@ -1,0 +1,42 @@
+/* 仅覆盖浮层外轮廓；主题变量未设置时保留各组件原来的浅色边框。 */
+.sia-select__dropdown.sia-select__dropdown,
+.sia-rich-text-editor__link-popup.sia-rich-text-editor__link-popup,
+.sia-floating-panel.sia-floating-panel,
+.sia-color-picker__popup.sia-color-picker__popup,
+.sia-time-panel.sia-time-panel,
+.sia-date-panel.sia-date-panel,
+.sia-tree-select__dropdown.sia-tree-select__dropdown,
+.sia-menu__popup.sia-menu__popup,
+.sia-dropdown__popup.sia-dropdown__popup,
+.sia-cascader__popup.sia-cascader__popup,
+.sia-notification__notice.sia-notification__notice,
+.sia-tour__panel.sia-tour__panel,
+.sia-input-select__popup.sia-input-select__popup {
+  border-color: var(--sia-overlay-border-color, var(--sia-color-border));
+}
+/* 气泡箭头与外框共享颜色，避免三角两侧断开；保留各方向的边框宽度。 */
+.sia-floating__overlay.sia-popover.sia-popover {
+  --sia-floating-arrow-border: var(--sia-overlay-border-color, var(--sia-color-border));
+}
+.sia-dropdown__popup.sia-dropdown__popup--arrow::before {
+  border-color: var(--sia-overlay-border-color, var(--sia-color-border));
+}
+/* Message 的背景伪元素负责弹性动画，边框跟随背景而非文字容器。 */
+/* 只为消息和通知映射语义色；普通提示及 loading 继续使用默认蓝色外框。 */
+.sia-message--success, .sia-notification__notice--success {
+  --sia-overlay-border-color: var(--sia-feedback-success-border);
+}
+.sia-message--warning, .sia-notification__notice--warning {
+  --sia-overlay-border-color: var(--sia-feedback-warning-border);
+}
+.sia-message--error, .sia-notification__notice--error {
+  --sia-overlay-border-color: var(--sia-feedback-error-border);
+}
+.sia-message.sia-message::before {
+  border-color: var(--sia-overlay-border-color, rgb(0 0 0 / 6%));
+}
+/* 浅色 Drawer 保持无边框；暗色用内描边，避免改变正文可用尺寸。 */
+.sia-drawer.sia-drawer {
+  outline: 1px solid var(--sia-overlay-border-color, transparent);
+  outline-offset: -1px;
+}

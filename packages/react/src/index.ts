@@ -1,3 +1,8 @@
+import { initializeDefaultScrollbars } from "./components/FloatingScrollbarProvider";
+
+// 浏览器入口默认接管滚动容器，服务端导入不访问 DOM。
+initializeDefaultScrollbars();
+
 import "./styles.css";
 import "./components-extra.css";
 export { CursorPreview } from "./components/CursorPreview";
@@ -8,6 +13,8 @@ export { Toolbar } from "./components/Toolbar";
 export type { ToolbarItem, ToolbarProps } from "./components/Toolbar";
 
 export { Alert } from "./components/Alert";
+export { Skeleton } from "./components/Skeleton";
+export type { SkeletonProps } from "./components/Skeleton";
 export type { AlertProps, AlertStatus } from "./components/Alert";
 export { Menu, Segmented, Steps } from "./components/Navigation";
 export type { MenuClickInfo, MenuItem, MenuMode, MenuProps, MenuTheme, SegmentedOption, SegmentedProps, SegmentedValue, StepItem, StepsProps, StepStatus } from "./components/Navigation";

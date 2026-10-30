@@ -4,9 +4,9 @@
 .sia-floating-placeholder { position: absolute; z-index: 20; top: var(--sia-placeholder-idle-top, 50%); left: 7px; box-sizing: border-box; max-width: calc(100% - 42px); overflow: hidden; padding-inline: 4px; color: var(--sia-color-text-secondary); background: transparent; pointer-events: none; opacity: .65; font: 400 var(--sia-font-size-small)/1 system-ui, sans-serif; text-overflow: ellipsis; white-space: nowrap; transform: translateY(-50%); transform-origin: left center; transition: top 160ms ease, color 160ms ease, background-color 160ms ease, opacity 160ms ease, transform 160ms ease; }
 .sia-placeholder-floating:focus-within > .sia-floating-placeholder,
 .sia-placeholder-floating--filled > .sia-floating-placeholder,
-.sia-placeholder-floating--active > .sia-floating-placeholder { top: 0; background: var(--sia-color-surface); opacity: 1; transform: translateY(-50%) scale(.85); }
+.sia-placeholder-floating--active > .sia-floating-placeholder { top: 0; color: var(--sia-floating-label-color, var(--sia-color-text-secondary)); background: var(--sia-color-surface); opacity: 1; transform: translateY(-50%) scale(.85); }
 .sia-placeholder-floating:focus-within > .sia-floating-placeholder,
-.sia-placeholder-floating--active > .sia-floating-placeholder { color: var(--sia-color-primary); }
+.sia-placeholder-floating--active > .sia-floating-placeholder { color: var(--sia-color-primary-text); }
 .sia-placeholder-floating.sia-time-picker > input::placeholder,
 .sia-placeholder-floating > input::placeholder,
 .sia-placeholder-floating > textarea::placeholder { color: transparent; }
@@ -14,9 +14,10 @@
 .sia-placeholder-floating > .sia-picker__trigger .is-placeholder,
 .sia-placeholder-floating > .sia-tree-select__value .sia-tree-select__placeholder,
 .sia-placeholder-floating > .sia-cascader__value .sia-cascader__placeholder { color: transparent; }
+/* 禁用时浮动标签底色与控件一致，避免边框开口处残留较深色块。 */
 .sia-placeholder-floating.is-disabled > .sia-floating-placeholder,
 .sia-placeholder-floating:disabled > .sia-floating-placeholder,
-fieldset:disabled .sia-placeholder-floating > .sia-floating-placeholder { background: var(--sia-color-control-hover); }
+fieldset:disabled .sia-placeholder-floating > .sia-floating-placeholder { background: var(--sia-color-control-disabled); }
 .sia-form-item--error .sia-placeholder-floating > .sia-floating-placeholder,
 .sia-select--error .sia-placeholder-floating > .sia-floating-placeholder,
 .sia-tree-select--error .sia-placeholder-floating > .sia-floating-placeholder,
@@ -40,7 +41,7 @@ fieldset:disabled .sia-placeholder-floating > .sia-floating-placeholder { backgr
 @media (prefers-reduced-motion: reduce) { .sia-floating-placeholder { transition: none; } }
 
 .sia-rich-text-editor.sia-placeholder-floating > .sia-rich-text-editor__toolbar { border-start-start-radius: inherit; border-start-end-radius: inherit; }
-fieldset:disabled .sia-input-control__floating-placeholder, fieldset:disabled .sia-input-number__floating-placeholder { background: var(--sia-color-control-hover); }
+fieldset:disabled .sia-input-control__floating-placeholder, fieldset:disabled .sia-input-number__floating-placeholder { background: var(--sia-color-control-disabled); }
 
 .sia-picker-range-control__field { position: relative; display: flex; align-items: center; flex: 1; min-width: 0; height: 100%; }
 /* 共用 3px 底线覆盖原边框，不占布局空间；端点切换时在实际输入区域间滑动。 */
@@ -55,4 +56,4 @@ fieldset:disabled .sia-input-control__floating-placeholder, fieldset:disabled .s
 .sia-picker-range-control__field.sia-placeholder-floating--active > .sia-floating-placeholder { max-width: calc(100% / .85); }
 .sia-picker--error .sia-picker-range-control__field > .sia-floating-placeholder { color: var(--sia-color-error); }
 .sia-picker--warning .sia-picker-range-control__field > .sia-floating-placeholder { color: var(--sia-color-warning); }
-.sia-picker.is-disabled .sia-picker-range-control__field > .sia-floating-placeholder { background: var(--sia-color-control-hover); }
+.sia-picker.is-disabled .sia-picker-range-control__field > .sia-floating-placeholder { background: var(--sia-color-control-disabled); }

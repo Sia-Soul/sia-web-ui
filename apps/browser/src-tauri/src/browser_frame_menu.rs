@@ -1,14 +1,14 @@
-//! 为内核默认菜单补充框架刷新；直接定位文档对象，不按 URL 或跨进程坐标猜测。
+//! 为内核菜单补充框架刷新，再交给展示方；直接定位文档对象，不按 URL 或跨进程坐标猜测。
 use serde_json::{json, Value};
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     collections::HashMap,
     rc::Rc,
     sync::atomic::{AtomicU64, Ordering},
 };
 use webview2_com::{
     AddScriptToExecuteOnDocumentCreatedCompletedHandler, CoTaskMemPWSTR,
-    ContextMenuRequestedEventHandler, CustomItemSelectedEventHandler,
+    ContextMenuRequestedEventHandler, CustomItemSelectedEventHandler, NavigationStartingEventHandler,
     ExecuteScriptCompletedHandler, FrameChildFrameCreatedEventHandler, FrameCreatedEventHandler,
     FrameDestroyedEventHandler, Microsoft::Web::WebView2::Win32::*,
 };
@@ -17,10 +17,16 @@ use windows::core::{Interface, BOOL, HSTRING, PWSTR};
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
 type Frames = Rc<RefCell<HashMap<u64, ICoreWebView2Frame2>>>;
 
-/// 菜单请求仅在 UI 线程持有 COM 对象；超时恢复默认菜单，不等待网页进程。
+/// 接收完整内核菜单与延迟句柄；展示方必须在选择或取消后完成句柄。
+pub type MenuPresenter = Rc<dyn Fn(ICoreWebView2ContextMenuRequestedEventArgs, ICoreWebView2Deferral)>;
+
+/// 菜单请求仅在 UI 线程持有 COM 对象；超时展示现有菜单，不等待网页进程。
 struct Request {
     args: ICoreWebView2ContextMenuRequestedEventArgs,
-    deferral: ICoreWebView2Deferral,
+    deferral: Option<ICoreWebView2Deferral>,
+    presenter: Option<MenuPresenter>,
+    generation: Rc<Cell<u64>>,
+    expected_generation: u64,
     environment: ICoreWebView2Environment9,
     key: String,
     remaining: usize,
@@ -29,7 +35,17 @@ struct Request {
 impl Drop for Request {
     fn drop(&mut self) {
         unsafe {
-            let _ = self.deferral.Complete();
+            if let Some(deferral) = self.deferral.take() {
+                // 新右键请求到达后，旧框架查询不得重新弹出菜单。
+                if self.generation.get() != self.expected_generation {
+                    let _ = self.args.SetHandled(true);
+                    let _ = deferral.Complete();
+                } else if let Some(present) = &self.presenter {
+                    present(self.args.clone(), deferral);
+                } else {
+                    let _ = deferral.Complete();
+                }
+            }
         }
     }
 }
@@ -104,7 +120,7 @@ unsafe fn append_reload(
     items.InsertValueAtIndex(position, &item)
 }
 
-/// 收齐框架标记后才显示命令；模糊命中或超时均保留原生菜单。
+/// 收齐框架标记后才显示命令；模糊命中或超时均保留原有菜单项。
 fn answered(id: u64, frame: ICoreWebView2Frame2, value: Option<Value>) {
     let completed = REQUESTS.with(|requests| {
         let mut requests = requests.borrow_mut();
@@ -134,11 +150,13 @@ fn answered(id: u64, frame: ICoreWebView2Frame2, value: Option<Value>) {
     }
 }
 
-/// 首次导航前安装默认菜单扩展；ready 仅在文档监听脚本注册完成后回调。
+/// 首次导航前安装菜单扩展；presenter 接管最终菜单，省略时保留内核绘制。
+/// ready 仅在文档监听脚本注册完成后回调，安装错误通过回调返回。
 pub fn install(
     core: &ICoreWebView2,
     environment: &ICoreWebView2Environment,
     app: tauri::AppHandle,
+    presenter: Option<MenuPresenter>,
     ready: impl FnOnce(windows::core::Result<()>) + 'static,
 ) -> windows::core::Result<()> {
     let environment: ICoreWebView2Environment9 = environment.cast()?;
@@ -152,23 +170,34 @@ pub fn install(
         Ok(())
     }));
     let menu_key = key.clone();
+    let generation = Rc::new(Cell::new(0u64));
+    let navigation_generation = generation.clone();
+    let navigation = NavigationStartingEventHandler::create(Box::new(move |_, _| {
+        navigation_generation.set(navigation_generation.get() + 1);
+        Ok(())
+    }));
     let handler = ContextMenuRequestedEventHandler::create(Box::new(move |_, args| unsafe {
         let Some(args) = args else {
             return Ok(());
         };
+        generation.set(generation.get() + 1);
         let mut main = BOOL(0);
         args.ContextMenuTarget()?
             .IsRequestedForMainFrame(&mut main)?;
-        if main.as_bool() {
-            return Ok(());
-        }
         let frames: Vec<_> = frames.borrow().values().cloned().collect();
-        if frames.is_empty() {
+        if main.as_bool() || frames.is_empty() {
+            if let Some(present) = &presenter {
+                let deferral = args.GetDeferral()?;
+                present(args, deferral);
+            }
             return Ok(());
         }
         let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
         let request = Request {
-            deferral: args.GetDeferral()?,
+            deferral: Some(args.GetDeferral()?),
+            presenter: presenter.clone(),
+            generation: generation.clone(),
+            expected_generation: generation.get(),
             args,
             environment: environment.clone(),
             key: menu_key.clone(),
@@ -216,6 +245,7 @@ pub fn install(
         }));
     let mut token = 0;
     unsafe {
+        core.add_NavigationStarting(&navigation, &mut token)?;
         core.cast::<ICoreWebView2_4>()?
             .add_FrameCreated(&created, &mut token)?;
         core.cast::<ICoreWebView2_11>()?
@@ -225,7 +255,7 @@ pub fn install(
 }
 
 /// 安装失败或超过三秒仍未完成时返回错误，不阻塞标签页首次导航。
-pub async fn attach(view: &tauri::Webview) -> Result<(), String> {
+pub async fn attach(view: &tauri::Webview, presenter: impl FnOnce() -> MenuPresenter + Send + 'static) -> Result<(), String> {
     use tauri::Manager;
     let app = view.app_handle().clone();
     let (send, receive) = tokio::sync::oneshot::channel();
@@ -233,7 +263,7 @@ pub async fn attach(view: &tauri::Webview) -> Result<(), String> {
         let send = Rc::new(RefCell::new(Some(send)));
         let completed = send.clone();
         let result = unsafe { platform.controller().CoreWebView2() }.and_then(|core| {
-            install(&core, &platform.environment(), app, move |result| {
+            install(&core, &platform.environment(), app, Some(presenter()), move |result| {
                 if let Some(send) = completed.borrow_mut().take() {
                     let _ = send.send(result.map_err(|error| error.to_string()));
                 }

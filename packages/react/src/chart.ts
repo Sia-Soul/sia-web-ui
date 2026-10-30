@@ -1,3 +1,8 @@
+import { initializeDefaultScrollbars } from "./components/FloatingScrollbarProvider";
+
+// 浏览器入口默认接管滚动容器，服务端导入不访问 DOM。
+initializeDefaultScrollbars();
+
 import "./chart.css";
 export {ChartWhirlingLoading} from './components/ChartWhirlingLoading';
 export type {ChartWhirlingLoadingProps} from './components/ChartWhirlingLoading';

@@ -13,6 +13,7 @@ export default function Demo() {
   return <>
     <Switch checked={enabled} onCheckedChange={setEnabled} label={enabled ? "已开启" : "已关闭"} />
     <Switch defaultChecked label="默认开启" />
+    <Switch label="默认关闭" />
     <Switch disabled label="禁用" />
   </>;
 }`;
@@ -65,10 +66,11 @@ export function SwitchPage() {
       <PageHeader eyebrow="组件 / 数据录入 / Switch" title="Switch 开关" description="在两个互斥状态之间即时切换，支持普通、图标和文字样式。" />
       <DocsTabs activeKey={tab} onChange={setTab} />
       {tab === "examples" ? <div className="demo-stack">
-        <DemoCard title="基础开关" description="支持受控、非受控、标签和禁用状态。" code={basicCode}>
+        <DemoCard title="基础开关" description="支持受控、非受控、标签和禁用状态；深色主题关闭时采用深灰轨道与灰蓝圆球，开启时采用主题色轨道与白色圆球。按住圆球放大至 1.35 倍，保持完整圆形，松开后回弹恢复。" code={basicCode}>
           <div className="component-demo">
             <Switch aria-label="基础开关" checked={enabled} onCheckedChange={setEnabled} label={enabled ? "已开启" : "已关闭"} />
             <Switch aria-label="默认开启的开关" defaultChecked label="默认开启" />
+            <Switch aria-label="默认关闭的开关" label="默认关闭" />
             <Switch aria-label="禁用的开关" disabled label="禁用" />
           </div>
         </DemoCard>

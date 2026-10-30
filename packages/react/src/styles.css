@@ -1,4 +1,5 @@
 @import "./focus.css";
+@import "./overlay-borders.css";
 @import "./floating-placeholder.css";
 @import "./control-sizes.css";
 
@@ -12,15 +13,40 @@
   --sia-color-primary-text-active: #0958d9;
   --sia-color-primary-light: #e6f4ff;
   --sia-color-text: #1f1f1f;
+  /* 实色图标内部符号颜色（CSS 颜色，无单位），浅色默认白色；图标局部覆盖优先于祖先主题。 */
+  --sia-icon-contrast: #ffffff;
   --sia-color-text-secondary: #666666;
+  /* 浮起标签的静止文字色（CSS 颜色，无单位），浅色沿用次要文字色；组件局部覆盖优先。 */
+  --sia-floating-label-color: var(--sia-color-text-secondary);
   --sia-color-text-tertiary: #8c8c8c;
   --sia-color-background: #f5f7fa;
   --sia-color-surface: #ffffff;
   --sia-color-border: #d9d9d9;
+  /* 表单静止边框（CSS 颜色，无单位），浅色继承通用边框；组件局部变量覆盖优先。 */
+  --sia-control-border-color: var(--sia-color-border);
+  /* Alert 边框混合比例，无单位百分比；浅色 100% 保留原状态边框，局部覆盖优先。 */
+  --sia-alert-border-strength: 100%;
+  /* 浮层外框颜色（CSS 颜色，无单位）；浅色 initial 使各组件沿用自身默认值，局部覆盖优先于祖先主题。 */
+  --sia-overlay-border-color: initial;
+  /* 消息状态外框（CSS 颜色，无单位）；浅色 initial 保留原边框，节点局部覆盖优先于主题。 */
+  --sia-feedback-success-border: initial;
+  --sia-feedback-warning-border: initial;
+  --sia-feedback-error-border: initial;
+  /* 模态框外边框（CSS 颜色，无单位），浅色默认 6% 黑色；组件局部值优先于容器和主题值。 */
+  --sia-modal-border-color: rgb(0 0 0 / 6%);
+  /* 表格网格、外框及工具栏分隔线颜色（CSS 颜色，无单位），浅色默认 #EFF2F6；组件局部覆盖优先于祖先容器和主题值。 */
+  --sia-table-border-color: #EFF2F6;
+  /* 禁用输入类控件的背景与边框颜色（CSS 颜色、无单位），浅色默认 #fdfdfd / #f0f0f0；组件局部覆盖优先于祖先及主题值。 */
+  --sia-color-control-disabled: #fdfdfd;
+  --sia-color-border-disabled: #f0f0f0;
   /* Card 标题分割线颜色（无单位）：浅色默认约 #f0f0f0；容器或卡片可覆盖此变量，卡片局部值优先。 */
   --sia-card-header-border-color: color-mix(in srgb, var(--sia-color-border) 40%, var(--sia-color-surface));
   --sia-color-control-hover: #fafafa;
   --sia-color-control-active: #f0f0f0;
+  /** 标准 Switch 关闭态轨道色（CSS 颜色，无单位），浅色默认 #8c8c8c；组件局部覆盖优先于祖先及主题值。 */
+  --sia-switch-track-off: #8c8c8c;
+  /** 标准 Switch 关闭态圆球色（CSS 颜色，无单位），浅色默认 #ffffff；组件局部覆盖优先于祖先及主题值。 */
+  --sia-switch-thumb-off: #ffffff;
   --sia-color-focus-ring: rgb(22 119 255 / 22%);
   --sia-color-success: #52c41a;
   --sia-color-warning: #faad14;
@@ -39,6 +65,8 @@
   --sia-control-font-size: 13px;
   --sia-font-size-large: 18px;
   --sia-shadow-popup: 0 4px 12px rgb(0 0 0 / 22%);
+  /** 通知阴影（CSS box-shadow）：浅色默认 0 3px 10px / 10% 黑色，长度单位 px；通知节点的局部值优先于祖先及主题值，全局通知可在 html 上覆盖。 */
+  --sia-shadow-notification: 0 3px 10px rgb(0 0 0 / 10%);
   --sia-scroll-overflow: auto;
   --sia-scrollbar-thumb: rgb(82 82 82 / 68%);
   --sia-scrollbar-thumb-hover: rgb(64 64 64 / 82%);
@@ -53,17 +81,43 @@
   --sia-color-primary-text-active: #4d94f0;
   --sia-color-primary-light: #15345b;
   --sia-color-text: #ebebeb;
+  /* 暗色实色图标主体随文字变亮，内部细节使用深色以保持可辨识度。 */
+  --sia-icon-contrast: #1f1f1f;
   --sia-color-text-secondary: #a6a6a6;
+  /* 暗色已浮起标签默认 #d6d6d6，与未浮起占位文字区分；聚焦和校验色优先。 */
+  --sia-floating-label-color: #d6d6d6;
   --sia-color-text-tertiary: #7d7d7d;
   --sia-color-background: #141414;
   --sia-color-surface: #1f1f1f;
   --sia-color-border: #424242;
+  /* 暗色表单静止边框默认 #595959，略亮于通用分隔线；不替换焦点、校验和禁用状态色。 */
+  --sia-control-border-color: #595959;
+  /* 暗色 Alert 状态边框保留 28% 原色，与表面色混合以降低对比度。 */
+  --sia-alert-border-strength: 28%;
+  /* 暗色浮层外框将主题蓝混入 14% 白色，默认约 #5798ea；仅影响轮廓和箭头。 */
+  --sia-overlay-border-color: color-mix(in srgb, var(--sia-color-primary-hover) 86%, white);
+  /* 暗色消息边框按状态区分：成功绿、警告橙、错误红；与蓝色外框一致混入 14% 白色。 */
+  --sia-feedback-success-border: color-mix(in srgb, var(--sia-color-success) 86%, white);
+  --sia-feedback-warning-border: color-mix(in srgb, #fa8c16 86%, white);
+  --sia-feedback-error-border: color-mix(in srgb, var(--sia-color-error) 86%, white);
+  /* Modal 与其他浮层共用蓝色外框；组件局部覆盖仍优先。 */
+  --sia-modal-border-color: var(--sia-overlay-border-color);
+  /* 深色表格以低对比度 #363636 分隔内容，避免浅色网格抢夺视觉焦点；覆盖优先级同浅色主题。 */
+  --sia-table-border-color: #363636;
+  /* 深色禁用色小幅提亮为 #303030 / #494949，保留轮廓；覆盖优先级同浅色主题。 */
+  --sia-color-control-disabled: #303030;
+  --sia-color-border-disabled: #494949;
   /* 深色主题保留完整边框对比度，默认 #424242；局部覆盖规则与浅色主题一致。 */
   --sia-card-header-border-color: var(--sia-color-border);
   --sia-color-control-hover: #2d2d2d;
   --sia-color-control-active: #383838;
+  /** 深色标准 Switch 关闭态采用深灰轨道与灰蓝圆球，默认 #333335 / #8b90a0；均为无单位 CSS 颜色，组件局部值优先。 */
+  --sia-switch-track-off: #333335;
+  --sia-switch-thumb-off: #8b90a0;
   --sia-color-focus-ring: rgb(60 135 230 / 28%);
   --sia-shadow-popup: 0 4px 12px rgb(0 0 0 / 50%);
+  /** 深色通知阴影默认 0 3px 10px / 24% 黑色，长度单位 px；保留悬浮层次，覆盖优先级同浅色主题。 */
+  --sia-shadow-notification: 0 3px 10px rgb(0 0 0 / 24%);
   --sia-scrollbar-thumb: rgb(174 174 174 / 62%);
   --sia-scrollbar-thumb-hover: rgb(205 205 205 / 78%);
 }
@@ -144,8 +198,11 @@
   transition: color 160ms ease, background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 120ms ease;
 }
 
+/* 默认和虚线按钮沿用表单静止边框：暗色 #595959；低优先级保持交互、危险和禁用样式不变。 */
+.sia-button:where(.sia-button--default, .sia-button--dashed):where(:not(:disabled):not(.sia-button--danger)) { border-color: var(--sia-control-border-color, var(--sia-color-border)); }
 .sia-button:hover:not(:disabled) { color: var(--sia-color-primary-text-hover); border-color: var(--sia-color-primary-hover); }
-.sia-button:active:not(:disabled) { color: var(--sia-color-primary-text-active); border-color: var(--sia-color-primary-active); transform: translateY(1px); }
+/* 点击位移统一交给 Button 的回弹动画，避免释放鼠标时叠加 1px 跳动。 */
+.sia-button:active:not(:disabled) { color: var(--sia-color-primary-text-active); border-color: var(--sia-color-primary-active); }
 .sia-button:focus-visible { outline: none; }
 .sia-button:disabled { cursor: not-allowed; opacity: 0.5; }
 .sia-button--primary { color: #fff; background: var(--sia-color-primary); border-color: var(--sia-color-primary); }
@@ -179,7 +236,7 @@
 .sia-field__hint { color: var(--sia-color-text-secondary); font-size: 12px; }
 .sia-field__hint--warning { color: #d48806; }
 .sia-field__hint--error { color: var(--sia-color-error); }
-.sia-input-control { display: inline-flex; align-items: center; gap: 8px; width: 100%; height: var(--sia-control-height); padding: 0 11px; color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: var(--sia-radius); transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease; }
+.sia-input-control { display: inline-flex; align-items: center; gap: 8px; width: 100%; height: var(--sia-control-height); padding: 0 11px; color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid var(--sia-control-border-color, var(--sia-color-border)); border-radius: var(--sia-radius); transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease; }
 .sia-input-control:hover:not(.is-disabled) { border-color: var(--sia-color-primary-hover); }
 .sia-input-control:focus-within:not(.is-disabled) { border-color: var(--sia-color-primary); }
 .sia-input-control--small { height: var(--sia-control-height-small); padding-inline: 7px; }
@@ -188,7 +245,7 @@
 .sia-input-control--error { border-color: var(--sia-color-error); }
 .sia-input-control--error:hover:not(.is-disabled) { border-color: var(--sia-color-error); }
 .sia-input-control--error:focus-within:not(.is-disabled) { border-color: var(--sia-color-error); }
-.sia-input-control.is-disabled { color: var(--sia-color-text-secondary); cursor: not-allowed; background: var(--sia-color-control-hover); }
+.sia-input-control.is-disabled { color: var(--sia-color-text-secondary); cursor: not-allowed; background: var(--sia-color-control-disabled); border-color: var(--sia-color-border-disabled); }
 .sia-input-control__affix { display: inline-flex; align-items: center; flex: 0 0 auto; color: var(--sia-color-text-secondary); }
 /* 计数仅按实际文字宽度占位，不伸展或预留固定字符数；抵消一半容器 gap，使左侧间距为 4px。 */
 .sia-input-control > .sia-input-control__count { flex: 0 0 auto; width: max-content; min-width: 0; max-width: none; margin: 0 0 0 -4px; padding: 0; color: var(--sia-color-text-secondary); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -215,21 +272,21 @@
 .sia-input-number--small .sia-input-number__floating-placeholder { left: 3px; max-width: calc(100% - 3px); }
 .sia-input-control--large .sia-input-control__floating-placeholder, .sia-input-number--large .sia-input-number__floating-placeholder { font-size: var(--sia-font-size); }
 .sia-input-number--large .sia-input-number__floating-placeholder { left: 7px; max-width: calc(100% - 7px); }
-.sia-input-select.is-open .sia-input-control--floating .sia-input-control__floating-placeholder, .sia-input-control--floating:focus-within .sia-input-control__floating-placeholder, .sia-input-control--floating.is-filled .sia-input-control__floating-placeholder, .sia-input-number--floating:focus-within .sia-input-number__floating-placeholder, .sia-input-number--floating.is-filled .sia-input-number__floating-placeholder { top: 0; color: var(--sia-color-text-secondary); background: var(--sia-color-surface); opacity: 1; transform: translateY(-50%) scale(0.85); }
-.sia-input-control--floating:focus-within .sia-input-control__floating-placeholder, .sia-input-number--floating:focus-within .sia-input-number__floating-placeholder { color: var(--sia-color-primary); }
+.sia-input-select.is-open .sia-input-control--floating .sia-input-control__floating-placeholder, .sia-input-control--floating:focus-within .sia-input-control__floating-placeholder, .sia-input-control--floating.is-filled .sia-input-control__floating-placeholder, .sia-input-number--floating:focus-within .sia-input-number__floating-placeholder, .sia-input-number--floating.is-filled .sia-input-number__floating-placeholder { top: 0; color: var(--sia-floating-label-color, var(--sia-color-text-secondary)); background: var(--sia-color-surface); opacity: 1; transform: translateY(-50%) scale(0.85); }
+.sia-input-control--floating:focus-within .sia-input-control__floating-placeholder, .sia-input-number--floating:focus-within .sia-input-number__floating-placeholder { color: var(--sia-color-primary-text); }
 .sia-input-control--floating.sia-input-control--warning:focus-within .sia-input-control__floating-placeholder, .sia-input-number--floating.sia-input-number--warning:focus-within .sia-input-number__floating-placeholder { color: var(--sia-color-warning); }
 .sia-input-control--floating.sia-input-control--error:focus-within .sia-input-control__floating-placeholder, .sia-input-number--floating.sia-input-number--error:focus-within .sia-input-number__floating-placeholder { color: var(--sia-color-error); }
-.sia-input-control--floating.is-disabled .sia-input-control__floating-placeholder, .sia-input-number--floating.is-disabled .sia-input-number__floating-placeholder { background: var(--sia-color-control-hover); }
+.sia-input-control--floating.is-disabled .sia-input-control__floating-placeholder, .sia-input-number--floating.is-disabled .sia-input-number__floating-placeholder { background: var(--sia-color-control-disabled); }
 .sia-input:disabled { color: var(--sia-color-text-secondary); cursor: not-allowed; }
 
-.sia-textarea-control { position: relative; display: block; width: 100%; min-height: 88px; overflow: hidden; color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: var(--sia-radius); transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease; }
+.sia-textarea-control { position: relative; display: block; width: 100%; min-height: 88px; overflow: hidden; color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid var(--sia-control-border-color, var(--sia-color-border)); border-radius: var(--sia-radius); transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease; }
 .sia-textarea-control:hover:not(.is-disabled) { border-color: var(--sia-color-primary-hover); }
 .sia-textarea-control:focus-within:not(.is-disabled) { border-color: var(--sia-color-primary); }
 .sia-textarea-control--warning { border-color: var(--sia-color-warning); }
 .sia-textarea-control--error { border-color: var(--sia-color-error); }
 .sia-textarea-control--error:hover:not(.is-disabled) { border-color: var(--sia-color-error); }
 .sia-textarea-control--error:focus-within:not(.is-disabled) { border-color: var(--sia-color-error); }
-.sia-textarea-control.is-disabled { color: var(--sia-color-text-secondary); cursor: not-allowed; background: var(--sia-color-control-hover); }
+.sia-textarea-control.is-disabled { color: var(--sia-color-text-secondary); cursor: not-allowed; background: var(--sia-color-control-disabled); border-color: var(--sia-color-border-disabled); }
 /* 多行正文默认 14px，独立于全局 13px 小字号；显式尺寸类仍可覆盖。 */
 .sia-textarea { display: block; width: 100%; min-height: inherit; padding: 8px 11px 26px; resize: vertical; color: inherit; font: 400 14px/1.6 system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; background: transparent; border: 0; outline: 0; }
 .sia-textarea::placeholder { color: var(--sia-color-text-secondary); opacity: 0.65; }
@@ -240,7 +297,7 @@
 .sia-rich-text-editor { --sia-rich-text-min-height: 150px; min-height: 0; display: flex; flex-direction: column; overflow: hidden; color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: var(--sia-radius); transition: border-color 160ms ease, box-shadow 160ms ease; }
 .sia-rich-text-editor:hover:not(.is-disabled) { border-color: var(--sia-color-primary-hover); }
 .sia-rich-text-editor:focus-within:not(.is-disabled) { border-color: var(--sia-color-primary); }
-.sia-rich-text-editor.is-disabled { color: var(--sia-color-text-secondary); background: var(--sia-color-control-hover); }
+.sia-rich-text-editor.is-disabled { color: var(--sia-color-text-secondary); background: var(--sia-color-control-disabled); border-color: var(--sia-color-border-disabled); }
 .sia-rich-text-editor__toolbar { position: relative; z-index: 2; display: flex; min-height: 44px; align-items: flex-start; justify-content: space-between; gap: 6px 10px; padding: 5px 8px; background: var(--sia-color-surface); border-bottom: 1px solid var(--sia-color-border); }
 .sia-rich-text-editor__toolbar-main { min-width: 0; display: flex; align-items: center; flex: 1; flex-wrap: wrap; gap: 2px; }
 .sia-rich-text-editor__toolbar small { display: inline-flex; flex-shrink: 0; align-items: center; gap: 5px; color: var(--sia-color-text-secondary); white-space: nowrap; }
@@ -321,7 +378,7 @@
 .sia-editor-control__loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 9px; color: var(--sia-color-text-secondary); background: var(--sia-color-surface); font-size: 12px; }
 .sia-editor-control__loading span { width: 14px; height: 14px; border: 2px solid var(--sia-color-border); border-top-color: var(--sia-color-primary); border-radius: 50%; animation: sia-spin 700ms linear infinite; }
 
-.sia-input-number { display: inline-flex; align-items: center; width: 160px; height: var(--sia-control-height); overflow: hidden; color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: var(--sia-radius); transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease; }
+.sia-input-number { display: inline-flex; align-items: center; width: 160px; height: var(--sia-control-height); overflow: hidden; color: var(--sia-color-text); background: var(--sia-color-surface); border: 1px solid var(--sia-control-border-color, var(--sia-color-border)); border-radius: var(--sia-radius); transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease; }
 .sia-input-number--floating { overflow: visible; }
 .sia-input-number:hover:not(.is-disabled) { border-color: var(--sia-color-primary-hover); }
 .sia-input-number:focus-within:not(.is-disabled) { border-color: var(--sia-color-primary); }
@@ -331,7 +388,7 @@
 .sia-input-number--error { border-color: var(--sia-color-error); }
 .sia-input-number--error:hover:not(.is-disabled) { border-color: var(--sia-color-error); }
 .sia-input-number--error:focus-within:not(.is-disabled) { border-color: var(--sia-color-error); }
-.sia-input-number.is-disabled { color: var(--sia-color-text-secondary); cursor: not-allowed; background: var(--sia-color-control-hover); }
+.sia-input-number.is-disabled { color: var(--sia-color-text-secondary); cursor: not-allowed; background: var(--sia-color-control-disabled); border-color: var(--sia-color-border-disabled); }
 .sia-input-number__input-wrap { position: relative; align-self: stretch; flex: 1 1 auto; min-width: 0; }
 .sia-input-number > input, .sia-input-number__input-wrap > input { box-sizing: border-box; min-width: 0; flex: 1; width: 100%; height: 100%; padding: 0 10px; color: inherit; font: 400 var(--sia-font-size-small)/1 system-ui, sans-serif; background: transparent; border: 0; outline: 0; }
 .sia-input-number--small > input, .sia-input-number--small .sia-input-number__input-wrap > input { padding-inline: 7px; font-size: 12px; }
@@ -350,7 +407,7 @@
 .sia-input-number__controls button:disabled { cursor: not-allowed; opacity: 0.35; }
 
 .sia-select { position: relative; display: inline-block; width: 220px; color: var(--sia-color-text); font: 400 var(--sia-font-size-small)/1.5 system-ui, sans-serif; }
-.sia-select__trigger { display: flex; align-items: center; gap: 8px; width: 100%; height: var(--sia-control-height); padding: 0 10px; overflow: hidden; color: inherit; cursor: pointer; background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: var(--sia-radius); text-align: left; transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease; }
+.sia-select__trigger { display: flex; align-items: center; gap: 8px; width: 100%; height: var(--sia-control-height); padding: 0 10px; overflow: hidden; color: inherit; cursor: pointer; background: var(--sia-color-surface); border: 1px solid var(--sia-control-border-color, var(--sia-color-border)); border-radius: var(--sia-radius); text-align: left; transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease; }
 .sia-select__trigger:hover:not(:disabled) { border-color: var(--sia-color-primary-hover); }
 .sia-select__trigger:focus-visible, .sia-select.is-open > .sia-select__trigger { outline: none; border-color: var(--sia-color-primary); }
 .sia-select--small > .sia-select__trigger { height: var(--sia-control-height-small); padding-inline: 7px; font-size: 12px; }
@@ -360,7 +417,7 @@
 .sia-select--error:not(.is-disabled) > .sia-select__trigger:hover { border-color: var(--sia-color-error); }
 .sia-select--error:not(.is-disabled) > .sia-select__trigger:focus-visible,
 .sia-select--error.is-open:not(.is-disabled) > .sia-select__trigger { border-color: var(--sia-color-error); }
-.sia-select.is-disabled > .sia-select__trigger { color: var(--sia-color-text-secondary); cursor: not-allowed; background: var(--sia-color-control-hover); }
+.sia-select.is-disabled > .sia-select__trigger { color: var(--sia-color-text-secondary); cursor: not-allowed; background: var(--sia-color-control-disabled); border-color: var(--sia-color-border-disabled); }
 .sia-select__value { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sia-select__value.is-placeholder { color: var(--sia-color-text-secondary); opacity: 0.7; }
 .sia-overflow-tags { position: relative; display: flex; align-items: center; flex: 1; min-width: 0; gap: 4px; overflow: hidden; white-space: nowrap; }
@@ -379,7 +436,7 @@
 .sia-select__spinner { flex: 0 0 auto; width: 14px; height: 14px; border: 2px solid var(--sia-color-primary); border-right-color: transparent; border-radius: 50%; animation: sia-spin 700ms linear infinite; }
 .sia-select__dropdown { display: flex; flex-direction: column; width: max-content; min-width: min(max(90px, var(--sia-popup-anchor-width, 0px)), calc(100vw - 16px)); padding: 4px; background: var(--sia-color-surface); border: 1px solid var(--sia-color-border); border-radius: 8px; box-shadow: var(--sia-shadow-popup); }
 .sia-select__dropdown--empty { width: var(--sia-popup-anchor-width); }
-.sia-select__search { flex-shrink: 0; display: flex; align-items: center; gap: 7px; height: 32px; margin-bottom: 4px; padding: 0 9px; color: var(--sia-color-text-secondary); border: 1px solid var(--sia-color-border); border-radius: var(--sia-radius); }
+.sia-select__search { flex-shrink: 0; display: flex; align-items: center; gap: 7px; height: 32px; margin-bottom: 4px; padding: 0 9px; color: var(--sia-color-text-secondary); border: 1px solid var(--sia-control-border-color, var(--sia-color-border)); border-radius: var(--sia-radius); }
 .sia-select__search:focus-within { color: var(--sia-color-primary-text); border-color: var(--sia-color-primary); }
 .sia-select__search input { min-width: 0; flex: 1; color: var(--sia-color-text); background: transparent; border: 0; outline: 0; font-size: 13px; }
 .sia-select__input-option { display: flex; width: 100%; min-height: 34px; align-items: center; gap: 7px; margin-bottom: 4px; padding: 6px 10px; color: var(--sia-color-primary-text); cursor: pointer; background: var(--sia-color-control-active); border: 0; border-radius: var(--sia-radius); text-align: left; }
@@ -394,18 +451,21 @@
 .sia-select__virtual-space { position: relative; min-height: 1px; }
 .sia-select__option { box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 34px; padding: 6px 10px; cursor: pointer; background-clip: padding-box; border-block: 1px solid transparent; border-radius: var(--sia-radius); }
 .sia-select__option.is-active { background-color: var(--sia-color-control-hover); }
-.sia-select__option.is-selected { color: var(--sia-color-primary, #1677ff); font-weight: 500; background-color: var(--sia-color-primary-bg, #eaf4ff); }
+/* 选中项沿用主题的浅强调底色与可读文字色，避免深色主题回退成浅蓝色块。 */
+.sia-select__option.is-selected { color: var(--sia-color-primary-text); font-weight: 500; background-color: var(--sia-color-primary-bg, var(--sia-color-primary-light)); }
 .sia-select__option.is-disabled { color: var(--sia-color-text-secondary); cursor: not-allowed; opacity: 0.55; background-color: transparent; }
 .sia-select__empty { display: grid; place-items: center; min-height: 72px; color: var(--sia-color-text-secondary); }
 
 .sia-switch-wrap { position: relative; display: inline-flex; align-items: center; gap: 8px; color: var(--sia-color-text); font: 400 var(--sia-font-size-small)/1 system-ui, sans-serif; cursor: pointer; }
 .sia-switch-input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .sia-switch { position: relative; flex: 0 0 auto; overflow: hidden; border-radius: 999px; transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease; }
-.sia-switch--standard { display: inline-grid; place-items: center; width: var(--sia-switch-width, 44px); height: var(--sia-switch-height, 22px); color: #fff; background-color: #8c8c8c; }
+.sia-switch--standard { display: inline-grid; place-items: center; width: var(--sia-switch-width, 44px); height: var(--sia-switch-height, 22px); color: #fff; background-color: var(--sia-switch-track-off); }
 /* 标准开关使用轻柔投影区分白色圆点与轨道，避免深色硬边。 */
-.sia-switch__thumb { position: absolute; z-index: 1; top: 2px; left: 2px; width: calc(var(--sia-switch-height, 22px) - 4px); height: calc(var(--sia-switch-height, 22px) - 4px); background-color: #fff; border-radius: 999px; box-shadow: 0 2px 4px rgb(0 35 11 / 20%); transition: left 160ms ease, width 160ms ease; }
+.sia-switch__thumb { position: absolute; z-index: 1; top: 2px; left: 2px; width: calc(var(--sia-switch-height, 22px) - 4px); height: calc(var(--sia-switch-height, 22px) - 4px); background-color: #fff; border-radius: 999px; box-shadow: 0 2px 4px rgb(0 35 11 / 20%); transition: transform 220ms cubic-bezier(.22, 1.4, .36, 1), background-color 160ms ease; }
+/* 关闭态圆球跟随主题，切换到开启态时平滑恢复白色，与主题色轨道保持对比。 */
+.sia-switch-input:not(:checked) + .sia-switch--standard .sia-switch__thumb { background-color: var(--sia-switch-thumb-off); }
 .sia-switch-input:checked + .sia-switch--standard { background-color: var(--sia-color-primary); }
-.sia-switch-input:checked + .sia-switch--standard .sia-switch__thumb { left: calc(100% - var(--sia-switch-height, 22px) + 2px); }
+.sia-switch-input:checked + .sia-switch--standard .sia-switch__thumb { transform: translateX(var(--sia-switch-travel, 22px)); }
 .sia-switch--with-content { width: auto; min-width: calc(var(--sia-switch-width, 44px) + 14px); padding: 0 8px 0 calc(var(--sia-switch-height, 22px) + 2px); }
 .sia-switch-input:checked + .sia-switch--with-content { padding-right: calc(var(--sia-switch-height, 22px) + 2px); padding-left: 8px; }
 .sia-switch__content { position: relative; z-index: 0; display: grid; place-items: center; min-height: 100%; white-space: nowrap; }
@@ -415,7 +475,7 @@
 .sia-switch-input:checked + .sia-switch .sia-switch__content-item--checked { opacity: 1; }
 .sia-switch--segmented { display: inline-grid; grid-template-columns: repeat(2, minmax(34px, 1fr)); width: max-content; min-width: 74px; height: var(--sia-switch-segmented-height, 30px); padding: 2px; color: var(--sia-color-text-secondary); background-color: var(--sia-color-surface); border: 1px solid var(--sia-color-border); box-shadow: 0 1px 4px rgb(0 0 0 / 18%); }
 .sia-switch--segmented .sia-switch__thumb { top: 2px; left: 2px; width: calc(50% - 3px); height: calc(var(--sia-switch-segmented-height, 30px) - 6px); background-color: var(--sia-color-primary); box-shadow: 0 1px 3px rgb(22 119 255 / 40%); }
-.sia-switch-input:checked + .sia-switch--segmented .sia-switch__thumb { left: calc(50% - 1px); }
+.sia-switch-input:checked + .sia-switch--segmented .sia-switch__thumb { transform: translateX(var(--sia-switch-travel, 34px)); }
 .sia-switch__segment { position: relative; z-index: 2; display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: calc(var(--sia-switch-segmented-height, 30px) - 6px); padding-inline: 9px; white-space: nowrap; transition: color 160ms ease; }
 .sia-switch-input:not(:checked) + .sia-switch--segmented .sia-switch__segment--unchecked,
 .sia-switch-input:checked + .sia-switch--segmented .sia-switch__segment--checked { color: #fff; }
@@ -451,12 +511,11 @@
 .sia-modal, .sia-modal *, .sia-drawer, .sia-drawer *, .sia-message, .sia-message * { box-sizing: border-box; }
 /* 遮罩使用独立合成层的透明度动画，避免背景色重绘落后于弹窗位移；层级限定在当前弹框内。 */
 .sia-modal-root { position: fixed; inset: 0; display: grid; align-items: start; justify-items: center; overflow: var(--sia-scroll-overflow, auto); padding: 10vh 16px 32px; color: var(--sia-color-text); isolation: isolate; }
-.sia-modal-root::before { content: ""; position: fixed; inset: 0; z-index: 0; background: rgb(0 0 0 / 45%); animation: sia-modal-mask-in 220ms ease both; will-change: opacity; }
+/* 遮罩的开合时长与面板一致：Modal 240ms，Drawer 320ms。 */
+.sia-modal-root::before { content: ""; position: fixed; inset: 0; z-index: 0; background: rgb(0 0 0 / 45%);  will-change: opacity; }
 .sia-modal-root--centered { align-items: center; padding-block: 24px; }
-.sia-modal { position: relative; z-index: 1; width: min(var(--sia-modal-width), calc(100vw - 32px)); overflow: hidden; background: var(--sia-color-surface); border: 1px solid rgb(0 0 0 / 6%); border-radius: calc(var(--sia-radius) + 4px); box-shadow: var(--sia-shadow-popup); outline: none; animation: sia-modal-slide-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both; will-change: transform, opacity; }
+.sia-modal { position: relative; z-index: 1; width: min(var(--sia-modal-width), calc(100vw - 32px)); overflow: hidden; background: var(--sia-color-surface); border: 1px solid var(--sia-modal-border-color, rgb(0 0 0 / 6%)); border-radius: calc(var(--sia-radius) + 4px); box-shadow: var(--sia-shadow-popup); outline: none;   }
 .sia-modal-root[data-state="closing"] { pointer-events: none; }
-.sia-modal-root[data-state="closing"]::before { animation: sia-modal-mask-out 220ms ease both; }
-.sia-modal-root[data-state="closing"] .sia-modal { animation: sia-modal-slide-out 220ms cubic-bezier(0.4, 0, 1, 1) both; }
 .sia-modal__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; min-height: 58px; padding: 18px 20px 12px; }
 .sia-modal__heading { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: var(--sia-font-size-large); line-height: 1.35; }
 .sia-modal__type-icon { display: inline-flex; flex: 0 0 auto; color: var(--sia-color-primary-text); }
@@ -474,23 +533,18 @@
 .sia-modal__footer { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 20px 18px; }
 
 .sia-drawer-root { position: fixed; inset: 0; color: var(--sia-color-text); }
-.sia-drawer__mask { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; cursor: default; background: rgb(0 0 0 / 45%); border: 0; animation: sia-drawer-mask-in 200ms ease both; }
-.sia-drawer { position: absolute; display: flex; flex-direction: column; translate: var(--sia-drawer-push-x, 0) var(--sia-drawer-push-y, 0); background: var(--sia-color-surface); box-shadow: var(--sia-shadow-popup); outline: none; transition: translate 400ms cubic-bezier(.22, 1, .36, 1), box-shadow 280ms ease; will-change: translate, transform; }
+.sia-drawer__mask { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; cursor: default; background: rgb(0 0 0 / 45%); border: 0;  }
+.sia-drawer { position: absolute; display: flex; flex-direction: column; translate: var(--sia-drawer-push-x, 0) var(--sia-drawer-push-y, 0); background: var(--sia-color-surface); box-shadow: var(--sia-shadow-popup); outline: none; transition: translate 360ms cubic-bezier(.2, .8, .2, 1);  }
 .sia-drawer--right[data-push-depth]:not([data-push-depth="0"]) { box-shadow: -6px 0 16px rgb(15 23 42 / 34%); }
 .sia-drawer--left[data-push-depth]:not([data-push-depth="0"]) { box-shadow: 6px 0 16px rgb(15 23 42 / 34%); }
 .sia-drawer--top[data-push-depth]:not([data-push-depth="0"]) { box-shadow: 0 6px 16px rgb(15 23 42 / 34%); }
 .sia-drawer--bottom[data-push-depth]:not([data-push-depth="0"]) { box-shadow: 0 -6px 16px rgb(15 23 42 / 34%); }
 .sia-drawer--left, .sia-drawer--right { top: 0; bottom: 0; width: min(var(--sia-drawer-size), 100vw); }
-.sia-drawer--left { left: 0; animation: sia-drawer-left-motion 400ms cubic-bezier(.22, 1, .36, 1) both; }
-.sia-drawer--right { right: 0; animation: sia-drawer-right-motion 400ms cubic-bezier(.22, 1, .36, 1) both; }
+.sia-drawer--left { left: 0;  }
+.sia-drawer--right { right: 0;  }
 .sia-drawer--top, .sia-drawer--bottom { right: 0; left: 0; height: min(var(--sia-drawer-size), 100vh); }
-.sia-drawer--top { top: 0; animation: sia-drawer-top-motion 400ms cubic-bezier(.22, 1, .36, 1) both; }
-.sia-drawer--bottom { bottom: 0; animation: sia-drawer-bottom-motion 400ms cubic-bezier(.22, 1, .36, 1) both; }
-.sia-drawer-root[data-state="closing"] .sia-drawer__mask { animation: sia-drawer-mask-out 400ms cubic-bezier(.22, 1, .36, 1) both; }
-.sia-drawer-root[data-state="closing"] .sia-drawer--left { animation: sia-drawer-left-out 400ms cubic-bezier(.22, 1, .36, 1) both; }
-.sia-drawer-root[data-state="closing"] .sia-drawer--right { animation: sia-drawer-right-out 400ms cubic-bezier(.22, 1, .36, 1) both; }
-.sia-drawer-root[data-state="closing"] .sia-drawer--top { animation: sia-drawer-top-out 400ms cubic-bezier(.22, 1, .36, 1) both; }
-.sia-drawer-root[data-state="closing"] .sia-drawer--bottom { animation: sia-drawer-bottom-out 400ms cubic-bezier(.22, 1, .36, 1) both; }
+.sia-drawer--top { top: 0;  }
+.sia-drawer--bottom { bottom: 0;  }
 .sia-drawer__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 58px; padding: 14px 18px; border-bottom: 1px solid var(--sia-color-border); }
 .sia-drawer__heading { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .sia-drawer__heading strong { font-size: var(--sia-font-size-large); }
@@ -502,7 +556,9 @@
 .sia-message-root { position: fixed; z-index: 1100; inset: 18px 0 auto; display: flex; justify-content: center; pointer-events: none; }
 .sia-message-list { display: flex; align-items: center; flex-direction: column; gap: 10px; width: min(100%, 520px); padding-inline: 16px; }
 /* 消息正文默认使用 14px，避免全局字号或业务页面字号影响提示文字。 */
-.sia-message { font-size: 14px; display: flex; align-items: center; gap: 9px; min-height: 42px; max-width: 100%; padding: 9px 14px; color: var(--sia-color-text); pointer-events: auto; background: var(--sia-color-surface); border: 1px solid rgb(0 0 0 / 6%); border-radius: calc(var(--sia-radius) + 2px); box-shadow: var(--sia-shadow-popup); animation: sia-message-pop-in 200ms cubic-bezier(.22, 1, .36, 1) both; will-change: transform, opacity; }
+.sia-message { position: relative; isolation: isolate; font-size: 14px; display: flex; align-items: center; gap: 9px; min-height: 42px; max-width: 100%; padding: 9px 14px; color: var(--sia-color-text); pointer-events: auto; background: transparent; border: 1px solid transparent; border-radius: calc(var(--sia-radius) + 2px); box-shadow: none;   }
+/* 背景独立承载缩放，正文继承的只有外层位移和透明度；伪元素不改变内容尺寸与点击区域。 */
+.sia-message::before { content: ""; position: absolute; inset: -1px; z-index: -1; box-sizing: border-box; pointer-events: none; background: var(--sia-color-surface); border: 1px solid rgb(0 0 0 / 6%); border-radius: inherit; box-shadow: var(--sia-shadow-popup); }
 .sia-message__icon { display: inline-flex; flex: 0 0 auto; color: var(--sia-color-primary-text); }
 .sia-message--success .sia-message__icon { color: var(--sia-color-success); }
 .sia-message--warning .sia-message__icon { color: var(--sia-color-warning); }
@@ -570,12 +626,12 @@
 /* 仅设置说明容器颜色，嵌套按钮及标签保留各自的语义色。 */
 .sia-alert__content > span { color: var(--sia-color-text-secondary); }
 .sia-alert__action { margin-left: auto; }
-.sia-alert--info { background: #e6f4ff; border-color: #91caff; }
-.sia-alert--success { background: #f6ffed; border-color: #b7eb8f; }
+.sia-alert--info { background: #e6f4ff; border-color: color-mix(in srgb, #91caff var(--sia-alert-border-strength, 100%), var(--sia-color-surface)); }
+.sia-alert--success { background: #f6ffed; border-color: color-mix(in srgb, #b7eb8f var(--sia-alert-border-strength, 100%), var(--sia-color-surface)); }
 .sia-alert--success .sia-alert__icon { color: var(--sia-color-success); }
-.sia-alert--warning { background: #fffbe6; border-color: #ffe58f; }
+.sia-alert--warning { background: #fffbe6; border-color: color-mix(in srgb, #ffe58f var(--sia-alert-border-strength, 100%), var(--sia-color-surface)); }
 .sia-alert--warning .sia-alert__icon { color: var(--sia-color-warning); }
-.sia-alert--error { background: #fff2f0; border-color: #ffccc7; }
+.sia-alert--error { background: #fff2f0; border-color: color-mix(in srgb, #ffccc7 var(--sia-alert-border-strength, 100%), var(--sia-color-surface)); }
 .sia-alert--error .sia-alert__icon { color: var(--sia-color-error); }
 [data-sia-theme="dark"] .sia-alert { background: var(--sia-color-control-hover); }
 
@@ -980,25 +1036,22 @@
 @keyframes sia-icon-spin { to { transform: rotate(360deg); } }
 @keyframes sia-icon-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.55; transform: scale(0.88); } }
 @keyframes sia-wave { 0% { opacity: 1; transform: translate(-50%, -50%) scale(0); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(18); } }
-@keyframes sia-modal-mask-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes sia-modal-mask-out { from { opacity: 1; } to { opacity: 0; } }
-@keyframes sia-modal-slide-in { from { opacity: 0; transform: translateY(-48px); } }
-@keyframes sia-modal-slide-out { to { opacity: 0; transform: translateY(-48px); } }
-@keyframes sia-drawer-mask-in { from { opacity: 0; } }
-@keyframes sia-drawer-mask-out { to { opacity: 0; } }
-@keyframes sia-drawer-left-motion { from { transform: translateX(-100%); } to { transform: translateX(0); } }
-@keyframes sia-drawer-left-out { from { transform: translateX(0); } to { transform: translateX(-100%); } }
-@keyframes sia-drawer-right-motion { from { transform: translateX(100%); } to { transform: translateX(0); } }
-@keyframes sia-drawer-right-out { from { transform: translateX(0); } to { transform: translateX(100%); } }
-@keyframes sia-drawer-top-motion { from { transform: translateY(-100%); } to { transform: translateY(0); } }
-@keyframes sia-drawer-top-out { from { transform: translateY(0); } to { transform: translateY(-100%); } }
-@keyframes sia-drawer-bottom-motion { from { transform: translateY(100%); } to { transform: translateY(0); } }
-@keyframes sia-drawer-bottom-out { from { transform: translateY(0); } to { transform: translateY(100%); } }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 @media (max-width: 900px) { .sia-drawer[data-push-depth]:not([data-push-depth="0"]) { translate: 0 0; } }
-@keyframes sia-message-pop-in {
-  from { opacity: 0; transform: translate3d(0, -8px, 0); }
-  to { opacity: 1; transform: translate3d(0, 0, 0); }
-}
+
 @media (max-width: 650px) { .sia-modal-root { padding: 16px 12px; } .sia-modal { width: min(var(--sia-modal-width), calc(100vw - 24px)); } .sia-modal__header { padding-inline: 16px; } .sia-modal__body { padding-inline: 16px; } .sia-modal__footer { flex-wrap: wrap; padding-inline: 16px; } .sia-modal__footer .sia-button { flex: 1 1 110px; } }
 @media (prefers-reduced-motion: reduce) { .sia-button, .sia-input-control, .sia-input-control__clear, .sia-input-control__floating-placeholder, .sia-input-number, .sia-input-number__floating-placeholder, .sia-select__trigger, .sia-select__arrow, .sia-select__clear, .sia-switch, .sia-switch__thumb, .sia-switch__content-item, .sia-switch__segment, .sia-theme-switch, .sia-theme-switch__selection, .sia-theme-switch__icon, .sia-drawer { transition: none; } .sia-button::after, .sia-icon--spin, .sia-icon--pulse, .sia-modal-root::before, .sia-modal, .sia-drawer, .sia-drawer__mask, .sia-message { animation: none !important; } .sia-modal-root[data-state="closing"] { visibility: hidden; } }
 
@@ -1178,14 +1231,14 @@
 .sia-tabs__more > .sia-button.is-active { color: var(--sia-color-primary); background: var(--sia-color-primary-light); }
 
 /* 数字区间使用单一外框与等分输入，宽度由容器决定，查询布局自动占两列。 */
-.sia-number-range { display: inline-flex; align-items: center; box-sizing: border-box; width: 100%; min-width: 0; height: var(--sia-control-height); border: 1px solid var(--sia-color-border); border-radius: var(--sia-radius); background: var(--sia-color-surface); color: var(--sia-color-text); }
+.sia-number-range { display: inline-flex; align-items: center; box-sizing: border-box; width: 100%; min-width: 0; height: var(--sia-control-height); border: 1px solid var(--sia-control-border-color, var(--sia-color-border)); border-radius: var(--sia-radius); background: var(--sia-color-surface); color: var(--sia-color-text); }
 .sia-number-range--small { height: var(--sia-control-height-small); }
 .sia-number-range--large { height: var(--sia-control-height-large); }
 .sia-number-range:hover:not(.is-disabled) { border-color: var(--sia-color-primary-hover); }
 .sia-number-range:focus-within:not(.is-disabled) { border-color: var(--sia-color-primary); }
 .sia-number-range--warning { border-color: var(--sia-color-warning); }
 .sia-number-range--error, .sia-number-range--error:hover:not(.is-disabled), .sia-number-range--error:focus-within:not(.is-disabled) { border-color: var(--sia-color-error); }
-.sia-number-range.is-disabled { background: var(--sia-color-control-hover); color: var(--sia-color-text-secondary); cursor: not-allowed; }
+.sia-number-range.is-disabled { background: var(--sia-color-control-disabled); border-color: var(--sia-color-border-disabled); color: var(--sia-color-text-secondary); cursor: not-allowed; }
 .sia-number-range > .sia-input-number { flex: 1 1 0; width: 0; min-width: 0; height: 100%; border: 0; background: transparent; box-shadow: none; }
 /* 仅弱化数字区间分隔符，不影响公共图标和其他控件的对比度。 */
 .sia-number-range__separator { flex: 0 0 auto; color: var(--sia-color-text-secondary); opacity: 0.65; }
@@ -1217,3 +1270,25 @@
 .sia-sortable-list--vertical .is-drop-before::before { left: 0; right: 0; top: -9px; height: 2px; }
 .sia-sortable-list--vertical .is-drop-after::after { left: 0; right: 0; bottom: -9px; height: 2px; }
 .sia-popover.sia-popover--wide { width: 760px; max-width: calc(100vw - 32px); }
+
+/* 骨架仅绘制静态色块，随主题适配；正文就绪只做一次透明度过渡，不叠加布局动画。 */
+.sia-skeleton__block { display: block; min-width: 0; border-radius: var(--sia-radius); background: var(--sia-color-control-active); }
+/* 骨架是布局预览，不可滚动；同时阻止原生及全局浮动滚动条接管，正文就绪后恢复原有溢出规则。 */
+.sia-modal__body[aria-busy="true"], .sia-drawer__body[aria-busy="true"] { min-height: 0; overflow: hidden !important; }
+.sia-modal-root[data-content-pending="true"] { overflow: hidden; }
+.sia-overlay-body--ready { animation: sia-overlay-content-ready 100ms ease-out both; }
+@keyframes sia-overlay-content-ready { from { opacity: .55; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .sia-overlay-body--ready { animation: none; } }
+.sia-drawer-root[data-state="closing"] { pointer-events: none; }
+
+/* 标准开关圆球按压时等比例放大至 1.35 倍，分段滑块保持 1.16 倍；缩放与位移合成，不改变轨道及周围文字布局；禁用状态不响应。
+   --sia-switch-travel 为内部滑块行程（px），未测量时标准/分段默认 22px/34px；组件按轨道尺寸写入行内值，优先于继承或普通样式覆盖。 */
+.sia-switch-wrap:active .sia-switch-input:not(:disabled) + .sia-switch .sia-switch__thumb { transform: scale(1.16); }
+.sia-switch-wrap:active .sia-switch-input:checked:not(:disabled) + .sia-switch .sia-switch__thumb { transform: translateX(var(--sia-switch-travel, 22px)) scale(1.16); }
+/* 圆球可轻微超出轨道边缘，按压和回弹过程中均保持完整圆形，避免被裁成扁圆。 */
+.sia-switch--standard { overflow: visible; }
+.sia-switch-wrap:active .sia-switch-input:not(:disabled) + .sia-switch--standard .sia-switch__thumb { transform: scale(1.35); }
+.sia-switch-wrap:active .sia-switch-input:checked:not(:disabled) + .sia-switch--standard .sia-switch__thumb { transform: translateX(var(--sia-switch-travel, 22px)) scale(1.35); }
+
+/* 查询字段退场时以容器为定位参照，保留画面但不参与收起后的布局。 */
+.sia-query-form__fields { position: relative; }

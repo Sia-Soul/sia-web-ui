@@ -3,9 +3,10 @@ import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
 import { PopupPortal } from "./PopupPortal";
 
-const documents = new WeakSet<Document>();
+// 标记挂在文档上并使用跨模块共享的 Symbol，热更新和多个打包入口不能重复注册全局监听。
+const installedKey = Symbol.for("sia.ui.titleTooltip.installed");
 
-/** 将原生 title 转为框架提示数据，保留其他属性且不增加布局包裹元素。鼠标悬停或键盘聚焦 600ms 后显示；鼠标点击产生的焦点不会保留提示，移出、点击、滚动或窗口失焦时关闭。无 title 时原样返回，服务端渲染时不安装 DOM 事件。 */
+/** 将原生 title 转为框架提示数据，保留其他属性且不增加布局包裹元素。同一文档的组件及框架副本共用一个提示服务和提示层。鼠标悬停或键盘聚焦 600ms 后显示；鼠标点击产生的焦点不会保留提示，移出、点击、滚动或窗口失焦时沿入场轨迹以 320ms 反播关闭，减少动态效果时直接关闭。无 title 时原样返回，服务端渲染时不安装 DOM 事件。 */
 export function withTitleTooltip<T>(props: T): T {
   if (!props || typeof props !== "object" || !("title" in props)) return props;
   const { title, ...rest } = props as T & { title?: unknown };
@@ -14,8 +15,9 @@ export function withTitleTooltip<T>(props: T): T {
 }
 
 function installTitleTooltips(doc: Document) {
-  if (documents.has(doc)) return;
-  documents.add(doc);
+  const owner = doc as Document & { [installedKey]?: boolean };
+  if (owner[installedKey]) return;
+  owner[installedKey] = true;
   let hovered: Element | null = null;
   let focused: Element | null = null;
   // 鼠标点击也会触发 focusin，必须与键盘焦点区分，否则移出后会被 focused 再次唤起。
@@ -54,8 +56,11 @@ function installTitleTooltips(doc: Document) {
       if (ids.length) active.setAttribute("aria-describedby", ids.join(" "));
       else active.removeAttribute("aria-describedby");
     }
+    // 保留已有锚点和文字直到退场完成；新提示到来时旧完成回调不能清掉新内容。
+    const closing = active;
     active = null;
-    root?.render(null);
+    if (closing && root) root.render(<PopupPortal anchorRef={{ current: closing as HTMLElement }} open={false} placement="top-start"
+      id={tooltipId} role="tooltip" className="sia-title-tooltip" afterOpenChange={opened => { if (!opened && !active) root?.render(null); }}>{closing.getAttribute("data-sia-title")}</PopupPortal>);
   };
   const render = () => {
     const text = active?.getAttribute("data-sia-title");

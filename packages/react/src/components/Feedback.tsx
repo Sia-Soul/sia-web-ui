@@ -8,6 +8,7 @@ import { Icon } from "./Icon";
 import type { FloatingPlacement, TooltipProps } from "./FloatingDisplay";
 import { Popover } from "./FloatingDisplay";
 import { useControllableState } from "./shared";
+import { useOverlayMotion } from "./overlayMotion";
 
 /** 气泡确认的属性配置。 */
 export interface PopconfirmProps {
@@ -254,18 +255,20 @@ export interface SpinProps extends HTMLAttributes<HTMLDivElement> {
    */
   fullscreen?: boolean;
 }
-/** 加载指示器组件。 */
+/** 加载指示器组件；等待 delay 后以 180ms 淡入，停止时沿相同轨迹反向淡出并卸载，减少动态效果时直接切换。 */
 export function Spin({ spinning = true, size = "default", tip, indicator, delay = 0, fullscreen = false, className = "", children, ...props }: SpinProps) {
   const [visible, setVisible] = useState(delay === 0 && spinning);
+  const motionRef = useRef<HTMLDivElement>(null);
+  const motion = useOverlayMotion(visible, motionRef, "fade");
   useEffect(() => {
     if (!spinning) { setVisible(false); return; }
     const timer = window.setTimeout(() => setVisible(true), delay);
     return () => window.clearTimeout(timer);
   }, [delay, spinning]);
-  const spinner = visible ? <div className={`sia-spin sia-spin--${size}`} role="status" aria-live="polite">{indicator ?? <span className="sia-spin__indicator"><i /><i /><i /><i /></span>}{tip ? <span className="sia-spin__tip">{tip}</span> : null}</div> : null;
-  if (fullscreen) return visible && typeof document !== "undefined" ? createPortal(<div className="sia-spin-fullscreen">{spinner}</div>, document.body) : null;
+  const spinner = motion.present ? <div ref={!fullscreen && !children ? motionRef : undefined} className={`sia-spin sia-spin--${size}`} role="status" aria-live="polite">{indicator ?? <span className="sia-spin__indicator"><i /><i /><i /><i /></span>}{tip ? <span className="sia-spin__tip">{tip}</span> : null}</div> : null;
+  if (fullscreen) return motion.present && typeof document !== "undefined" ? createPortal(<div ref={motionRef} className="sia-spin-fullscreen" style={{ pointerEvents: visible ? undefined : "none" }}>{spinner}</div>, document.body) : null;
   if (!children) return <div className={`sia-spin-wrap ${className}`.trim()} {...withTitleTooltip(props)}>{spinner}</div>;
-  return <div className={`sia-spin-container${visible ? " is-spinning" : ""} ${className}`.trim()} {...withTitleTooltip(props)}>{children}{visible ? <div className="sia-spin-mask">{spinner}</div> : null}</div>;
+  return <div className={`sia-spin-container${visible ? " is-spinning" : ""} ${className}`.trim()} {...withTitleTooltip(props)}>{children}{motion.present ? <div ref={motionRef} className="sia-spin-mask" style={{ pointerEvents: visible ? undefined : "none" }}>{spinner}</div> : null}</div>;
 }
 
 /** 水印文字的字体、颜色和对齐配置。 */
@@ -368,10 +371,10 @@ export interface NotificationConfig {
   role?: string;
   /** 点击时触发，参数为当前点击事件或项目上下文。 */
   onClick?: () => void;
-  /** 请求关闭时触发的回调。 */
+  /** 请求关闭时同步触发一次，通知在弹性回弹退场完成后移除；重复关闭不重复触发。 */
   onClose?: () => void;
 }
-type NotificationEntry = NotificationConfig & { key: string | number };
+type NotificationEntry = NotificationConfig & { key: string | number; closing?: boolean };
 const notificationListeners = new Set<(entries: NotificationEntry[]) => void>();
 let notificationEntries: NotificationEntry[] = [];
 let notificationSeed = 0;
@@ -380,19 +383,32 @@ const notificationTimers = new Map<string | number, number>();
 function emitNotifications() { notificationListeners.forEach((listener) => listener([...notificationEntries])); }
 function closeNotification(key: string | number) {
   const entry = notificationEntries.find((item) => item.key === key);
-  notificationEntries = notificationEntries.filter((item) => item.key !== key);
+  if (!entry || entry.closing) return;
+  notificationEntries = notificationEntries.map(item => item.key === key ? { ...item, closing: true } : item);
   window.clearTimeout(notificationTimers.get(key)); notificationTimers.delete(key); emitNotifications(); entry?.onClose?.();
+}
+/** 通知正文保留至退场结束；同 key 重开时由动效层取消旧退场。 */
+function NotificationNotice({ item }: { item: NotificationEntry }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const motion = useOverlayMotion(!item.closing, ref, "message");
+  useEffect(() => {
+    if (motion.present || !item.closing) return;
+    notificationEntries = notificationEntries.filter(candidate => candidate.key !== item.key || !candidate.closing);
+    emitNotifications();
+  }, [motion.present, item.key, item.closing]);
+  if (!motion.present) return null;
+  return <div ref={ref} style={{ animation: "none", pointerEvents: item.closing ? "none" : undefined }} aria-hidden={item.closing || undefined} className={`sia-notification__notice sia-notification__notice--${item.type ?? "info"}`} role={item.role ?? "alert"} onClick={item.onClick}>
+    <span className="sia-notification__icon">{item.icon ?? <Icon name={item.type === "success" ? "circle-check" : item.type === "warning" ? "warning" : item.type === "error" ? "circle-close" : "info"} variant="filled" />}</span>
+    <div><strong>{item.message}</strong>{item.description ? <p>{item.description}</p> : null}{item.btn}</div>
+    <button type="button" aria-label="关闭通知" onClick={(event) => { event.stopPropagation(); closeNotification(item.key); }}>{item.closeIcon ?? <Icon name="close" size={14} />}</button>
+  </div>;
 }
 function NotificationHost() {
   const [entries, setEntries] = useState(notificationEntries);
   useEffect(() => { notificationListeners.add(setEntries); return () => { notificationListeners.delete(setEntries); }; }, []);
   const placements: NotificationPlacement[] = ["topLeft", "topRight", "bottomLeft", "bottomRight"];
   return <>{placements.map((placement) => <div className={`sia-notification sia-notification--${placement}`} key={placement}>
-    {entries.filter((item) => (item.placement ?? "topRight") === placement).map((item) => <div className={`sia-notification__notice sia-notification__notice--${item.type ?? "info"}`} role={item.role ?? "alert"} key={item.key} onClick={item.onClick}>
-      <span className="sia-notification__icon">{item.icon ?? <Icon name={item.type === "success" ? "circle-check" : item.type === "warning" ? "warning" : item.type === "error" ? "circle-close" : "info"} variant="filled" />}</span>
-      <div><strong>{item.message}</strong>{item.description ? <p>{item.description}</p> : null}{item.btn}</div>
-      <button type="button" aria-label="关闭通知" onClick={(event) => { event.stopPropagation(); closeNotification(item.key); }}>{item.closeIcon ?? <Icon name="close" size={14} />}</button>
-    </div>)}
+    {entries.filter((item) => (item.placement ?? "topRight") === placement).map((item) => <NotificationNotice item={item} key={item.key} />)}
   </div>)}</>;
 }
 function ensureNotificationHost() {
@@ -417,7 +433,7 @@ function openNotification(config: NotificationConfig): {
   if ((config.duration ?? 4.5) > 0) notificationTimers.set(key, window.setTimeout(() => closeNotification(key), (config.duration ?? 4.5) * 1000));
   return { key, close: () => closeNotification(key) };
 }
-/** 全局通知 API，支持标题、说明、自定义操作和关闭管理。 */
+/** 全局通知 API，支持标题、说明、自定义操作及弹性回弹开合；退场完成后移除通知。 */
 export const notification = {
   /** 直接打开实例，返回可用于更新或关闭的操作句柄。 */
   open: openNotification,
@@ -495,17 +511,19 @@ export interface TourProps {
   /** 流程完成或表单校验通过并提交时调用。 */
   onFinish?: () => void;
 }
-/** 操作引导组件。 */
+/** 操作引导组件；整体以 180ms 淡入，关闭时按相同轨迹反播后卸载，减少动态效果时直接切换。 */
 export function Tour({ open = false, steps, current, defaultCurrent = 0, mask = true, closable = true, disabledInteraction = false, onChange, onClose, onFinish }: TourProps) {
   const [index, setIndex] = useControllableState({ value: current, defaultValue: defaultCurrent, onChange });
   const [, force] = useState(0);
+  const motionRef = useRef<HTMLDivElement>(null);
+  const motion = useOverlayMotion(open, motionRef, "fade");
   useEffect(() => {
     if (!open) return;
     const update = () => force((value) => value + 1);
     window.addEventListener("resize", update); window.addEventListener("scroll", update, true);
     return () => { window.removeEventListener("resize", update); window.removeEventListener("scroll", update, true); };
   }, [open]);
-  if (!open || !steps[index] || typeof document === "undefined") return null;
+  if (!motion.present || !steps[index] || typeof document === "undefined") return null;
   const step = steps[index];
   const target = typeof step.target === "function" ? step.target() : step.target;
   const rect = target?.getBoundingClientRect();
@@ -515,7 +533,7 @@ export function Tour({ open = false, steps, current, defaultCurrent = 0, mask = 
       : placement.startsWith("top") ? { top: rect.top - 14, left: rect.left + rect.width / 2, transform: "translate(-50%, -100%)" }
         : placement === "left" ? { top: rect.top + rect.height / 2, left: rect.left - 14, transform: "translate(-100%, -50%)" }
           : { top: rect.top + rect.height / 2, left: rect.right + 14, transform: "translateY(-50%)" };
-  return createPortal(<div className="sia-tour" role="dialog" aria-modal="true">
+  return createPortal(<div ref={motionRef} className="sia-tour" role="dialog" aria-modal="true" {...(!open ? { inert: "" } : {})}>
     {mask && !rect ? <div className="sia-tour__mask" /> : null}
     {rect ? <div className="sia-tour__target" style={{ top: rect.top - 5, left: rect.left - 5, width: rect.width + 10, height: rect.height + 10, pointerEvents: disabledInteraction ? "auto" : "none", boxShadow: mask ? "0 0 0 5px var(--sia-color-surface), 0 0 0 9999px rgb(0 0 0 / 46%)" : "0 0 0 5px var(--sia-color-surface)" }} /> : null}
     <div className="sia-tour__panel" style={panelStyle}>

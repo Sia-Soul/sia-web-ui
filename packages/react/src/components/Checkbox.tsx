@@ -1,4 +1,5 @@
 import { withTitleTooltip } from "./titleTooltip";
+import { usePressFeedback } from "./usePressFeedback";
 import { ControlSizeContext, useControlSize } from "./shared";
 import type { ControlSize } from "./shared";
 import { createContext, forwardRef, useContext, useEffect, useId, useMemo, useRef } from "react";
@@ -95,6 +96,8 @@ const CheckboxRoot = forwardRef<HTMLInputElement, CheckboxProps>(function Checkb
   // 形状继承仅作用于当前分组，单项覆盖不改变选择值或原生输入语义。
   const shape = shapeProp ?? group?.shape ?? "square";
   const localRef = useRef<HTMLInputElement | null>(null);
+  const controlRef = useRef<HTMLSpanElement>(null);
+  const press = usePressFeedback();
   const fallbackId = useId();
   const grouped = group !== null && value !== undefined;
   const currentChecked = grouped ? group.values.includes(value) : checked;
@@ -120,13 +123,17 @@ const CheckboxRoot = forwardRef<HTMLInputElement, CheckboxProps>(function Checkb
       disabled={disabled || group?.disabled}
       checked={currentChecked}
       defaultChecked={grouped ? undefined : defaultChecked}
+      onClick={event => {
+        props.onClick?.(event);
+        if (!event.defaultPrevented && !event.currentTarget.disabled) press(controlRef.current);
+      }}
       aria-checked={indeterminate ? "mixed" : currentChecked}
       onChange={(event) => {
         if (grouped) group.toggle(value, event.currentTarget.checked);
         onChange?.(event.currentTarget.checked, event);
       }}
     />
-    <span className="sia-checkbox__control" aria-hidden="true"><span /></span>
+    <span ref={controlRef} className="sia-checkbox__control" aria-hidden="true"><span /></span>
     {children !== undefined ? <span className="sia-checkbox__label">{children}</span> : null}
   </label>;
 });
@@ -179,7 +186,7 @@ function CheckboxGroup({
   </CheckboxGroupContext.Provider></ControlSizeContext.Provider>;
 }
 
-/** 复选框组件。 */
+/** 复选框组件；有效点击以 360ms 等比缩放图形并回弹，标签文字保持原比例，勾选与回调立即更新。支持方形、圆形及半选，禁用或系统减少动态效果时跳过回弹。 */
 export const Checkbox = Object.assign(CheckboxRoot, {
   /** 组合多个子项并统一管理布局或选择状态。 */
   Group: CheckboxGroup });

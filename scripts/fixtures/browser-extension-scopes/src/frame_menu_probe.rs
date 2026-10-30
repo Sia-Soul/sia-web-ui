@@ -82,6 +82,7 @@ fn main() {
                     &core,
                     &platform.environment(),
                     install_app,
+                    None, // 此探针直接验证内核命令，生产环境另由框架浮层展示。
                     move |result| {
                         result.unwrap();
                         navigate

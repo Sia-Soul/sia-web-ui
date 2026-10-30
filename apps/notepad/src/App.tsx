@@ -2204,6 +2204,8 @@ export default function App() {
 
   const titleBar = (
     <WindowTitleBar
+      // 已有主题入口负责保存应用设置，避免重复显示默认按钮。
+      showThemeSwitch={false}
       className="notepad-titlebar"
       leading={(
         <div className="notepad-brand" aria-label="Sia 记事本">

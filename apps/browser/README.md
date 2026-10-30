@@ -169,3 +169,12 @@ WebView2 没有公开的停靠 API，此处使用 Windows 子窗口接入，未�
 下载终态通过事件即时更新，并在有未结束任务时每秒串行核对内核状态。内核快照确认完成后，列表显示“已完成 / 打开文件”，移除行背景和工具栏进度；字节达到 100% 不代表内核收尾完成。原生句柄释放后仍可补取终态快照，统计字段读取失败不会吞掉终态，旧进度不能覆盖完成状态。`scripts/test-browser-download-completion.cjs` 覆盖完成通知漏送、100% 但仍传输中、终态后迟到进度及工具栏同步。
 
 Windows 网页导航使用 WebView2 的 NavigationStarting / NavigationCompleted 编号关联：发起请求即显示 loading，旧请求被新导航替代后的结束事件不覆盖地址；重定向保留同编号的最新目标，失败时保留本次输入地址，hash/history 同文档跳转单独同步地址。`scripts/test-browser-address-navigation-native.cjs` 使用本地慢响应、断开连接和重定向验证真实回车导航。
+
+
+### 网页右键菜单外观
+
+网页右键菜单使用 SiaWebUI Menu 与浏览器共用浮层展示，采用单层轻阴影，并随外壳切换浅色/深色主题。菜单内容递归读取 WebView2，包括链接、图片、编辑命令、禁用/勾选状态、快捷键、扩展 PNG 图标及子菜单；选中后将命令编号交回内核执行。框架定位完成后再补入“刷新框架”，不重载主页面。
+
+菜单支持上下键选择、右键展开、左键返回和 Enter 执行。点击外部、Escape、导航或关闭网页都会结束对应内核菜单请求；请求编号按窗口校验，旧浮层的迟到操作不能执行新菜单命令。原生窗口关闭系统阴影，仅保留 CSS 阴影及已有的可见区域命中处理。
+
+真实运行回归：先执行 `pnpm --filter @sia-ui/browser tauri:build:bin`，再执行 `node scripts/test-browser-web-context-native.cjs <包含 playwright 的 node_modules 绝对路径>`。测试使用独立资料和本地网页，验证框架菜单、轻阴影、普通刷新、iframe 精确刷新、链接菜单、悬停子菜单、取消重开、导航清理和主题。
