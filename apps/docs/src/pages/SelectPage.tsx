@@ -255,7 +255,7 @@ export function SelectPage() {
           <output aria-label="扩展确认结果" style={{ display: "block", overflowWrap: "anywhere" }}>{extraResult}</output>
           <Select aria-label="弹框单选框架" popupMode="modal" options={frameworkOptions} placeholder="弹框单选" modalConfig={{ title: "选择前端框架" }} />
         </DemoCard>
-        <DemoCard title="允许输入自定义选项" description="展开后自动聚焦面板输入框，可直接键入；按 Enter 或点击“使用”提交自定义值。已选标签默认按组件宽度自动折叠，空间充足时全部显示。" code={customInputCode}>
+        <DemoCard title="允许输入自定义选项" description="展开后自动聚焦面板输入框，可直接键入；按 Enter 或点击“使用”提交自定义值。标签数量按组件宽度自动折叠，长标签会利用剩余空间显示更多文字。" code={customInputCode}>
           <div className="component-demo component-demo--column">
             <Select
               className="large-select-demo"

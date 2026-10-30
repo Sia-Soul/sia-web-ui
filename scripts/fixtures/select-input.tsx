@@ -16,6 +16,10 @@ function Fixture() {
       searchPlaceholder="输入技术名称" />
     <div id="limited-select" style={{width:600}}><Select style={{width:'100%'}} mode="multiple" maxTagCount={1}
       options={[{label:'React',value:'React'},{label:'Vue',value:'Vue'}]} defaultValue={['React','Vue']} /></div>
+    {/* 长标签应利用剩余空间，普通短标签保持内容宽度。 */}
+    <div id="long-select" style={{width:600}}><Select style={{width:'100%'}} mode="multiple"
+      options={['短标签','Svelte','Vue','阿萨德发生的发生的发生的发生的发生的发生的发生的发生'].map(value=>({value,label:value}))}
+      defaultValue={['短标签','Svelte','Vue','阿萨德发生的发生的发生的发生的发生的发生的发生的发生']} /></div>
     {/* 外部操作放在浮层覆盖范围之外，模拟真实的点击离开。 */}
     <button id="outside" style={{position:'fixed',right:20,top:20}}>其他操作</button>
   </div>;

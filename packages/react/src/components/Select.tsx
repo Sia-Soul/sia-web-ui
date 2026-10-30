@@ -137,7 +137,7 @@ export interface SelectProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
   showSelectAll?: boolean;
   /** 是否显示下拉面板底部的条数统计与操作行；默认单选隐藏、多选显示，不影响弹框模式。 */
   showActions?: boolean;
-  /** 多选标签的数量上限。默认不限制数量，按组件可用宽度自动显示并折叠为 +N；显式设置后同时受数量上限与可用宽度约束，0 表示全部折叠。 */
+  /** 多选标签的数量上限。默认不限制数量，按组件可用宽度自动显示并折叠为 +N，长标签利用剩余空间后才省略文字；显式设置后同时受数量上限与可用宽度约束，0 表示全部折叠。 */
   maxTagCount?: number;
   /**
    * 长列表启用窗口化渲染
@@ -546,7 +546,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
         onClick={() => open ? closeDropdown() : openDropdown()}
         onKeyDown={handleTriggerKeyDown}
       >
-        {multiple && hasValue ? <OverflowTags className="sia-select__tags" tagClassName="sia-select__tag" restClassName="sia-select__tag--rest" maxCount={maxTagCount ?? selectedOptions.length} items={selectedOptions.map(option => ({ key: `${typeof option.value}-${option.value}`, label: option.label }))} /> : <span className={`sia-select__value${hasValue ? "" : " is-placeholder"}`}>{selectedOptions[0]?.label ?? placeholder}</span>}
+        {multiple && hasValue ? <OverflowTags expandToFit className="sia-select__tags" tagClassName="sia-select__tag" restClassName="sia-select__tag--rest" maxCount={maxTagCount ?? selectedOptions.length} items={selectedOptions.map(option => ({ key: `${typeof option.value}-${option.value}`, label: option.label }))} /> : <span className={`sia-select__value${hasValue ? "" : " is-placeholder"}`}>{selectedOptions[0]?.label ?? placeholder}</span>}
         {loading ? <span className="sia-select__spinner" aria-hidden="true" /> : null}
         {floating.label}
         <Icon className="sia-select__arrow" name="chevron-down" size={15} />

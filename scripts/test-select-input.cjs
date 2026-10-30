@@ -16,6 +16,20 @@ const {chromium}=require(path.join(process.env.USERPROFILE,'.cache/codex-runtime
   const page=await browser.newPage();
   for(const reducedMotion of ['no-preference','reduce']){
    await page.emulateMedia({reducedMotion});await page.goto(`http://127.0.0.1:${server.address().port}`);
+   await page.evaluate(theme=>document.documentElement.dataset.siaTheme=theme,reducedMotion==='reduce'?'light':'dark');
+   const longTag=page.locator('#long-select .sia-select__tags > .sia-select__tag').last();
+   assert.ok(await longTag.evaluate(node=>node.getBoundingClientRect().width)>200,'长标签应利用剩余宽度，而不是固定截断在 112px');
+   const shortTag=page.locator('#long-select .sia-select__tags > .sia-select__tag').first();
+   const shortWidth=await shortTag.evaluate(node=>node.getBoundingClientRect().width);
+   await page.locator('#long-select').evaluate(node=>node.style.width='280px');
+   await page.waitForTimeout(80);
+   assert.equal(await shortTag.evaluate(node=>node.getBoundingClientRect().width),shortWidth,'长标签不能挤压短标签');
+   assert.ok(await page.locator('#long-select .sia-select__tags').evaluate(node=>Array.from(node.children).filter(child=>!child.classList.contains('sia-overflow-tags__measure')).every(child=>child.getBoundingClientRect().right<=node.getBoundingClientRect().right+1)),'标签和 +N 不溢出');
+   await page.locator('#long-select').evaluate(node=>node.style.width='600px');
+   await page.waitForTimeout(80);
+   assert.ok(await longTag.evaluate(node=>node.getBoundingClientRect().width)>200,'重新放宽恢复长标签宽度');
+   fs.mkdirSync('logs',{recursive:true});
+   await page.locator('#long-select').screenshot({path:`logs/select-long-tag-${reducedMotion==='reduce'?'light':'dark'}.png`});
    const trigger=page.getByRole('combobox',{name:'自定义技术栈'});
    await trigger.click();await page.waitForTimeout(80);
    assert.equal(await page.locator('.sia-select__search input').evaluate(node=>node===document.activeElement),true,'打开后搜索框必须自动获取焦点');
