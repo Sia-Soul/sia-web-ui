@@ -105,6 +105,31 @@ export default function Demo() {
   </>;
 }`;
 
+// 单选输入示例保留 null 清空语义，展示候选选择与自定义输入共用一个受控值。
+const singleInputCode = `import { useState } from "react";
+import { Select } from "@sia.soul/sia-react-ui";
+import type { SelectValue } from "@sia.soul/sia-react-ui";
+
+export default function Demo() {
+  const [value, setValue] = useState<SelectValue | null>(null);
+  return <Select
+    mode="single"
+    options={[
+      { label: "React", value: "react" },
+      { label: "Vue", value: "vue" },
+      { label: "Svelte", value: "svelte" },
+      { label: "Angular（暂不可用）", value: "angular", disabled: true },
+    ]}
+    value={value}
+    // 清空时保留 null，不转换成字符串。
+    onChange={(next) => setValue(Array.isArray(next) ? next[0] ?? null : next)}
+    allowInput
+    inputMaxLength={20}
+    allowClear
+    placeholder="选择或输入前端框架"
+  />;
+}`;
+
 const customInputCode = `import { useState } from "react";
 import { Select } from "@sia.soul/sia-react-ui";
 
@@ -180,6 +205,7 @@ export function SelectPage() {
   const [value, setValue] = useState<SelectValue | null>("react");
   const [members, setMembers] = useState<SelectValue[]>(["member-2", "member-8"]);
   const [customValues, setCustomValues] = useState<SelectValue[]>(["React"]);
+  const [singleInputValue, setSingleInputValue] = useState<SelectValue | null>(null);
   const [dialogValues, setDialogValues] = useState<SelectValue[]>(["react"]);
   const [extraValues, setExtraValues] = useState({ action: "add", remark: "" });
   const [extraResult, setExtraResult] = useState("");
@@ -254,6 +280,23 @@ export function SelectPage() {
             }} />
           <output aria-label="扩展确认结果" style={{ display: "block", overflowWrap: "anywhere" }}>{extraResult}</output>
           <Select aria-label="弹框单选框架" popupMode="modal" options={frameworkOptions} placeholder="弹框单选" modalConfig={{ title: "选择前端框架" }} />
+        </DemoCard>
+        <DemoCard title="单选可输入" description="可以选择已有框架，也可以在“输入或搜索”中键入自定义名称，按 Enter 或点击“使用”提交。单选确认后自动收起，清空后恢复未选择状态。" code={singleInputCode}>
+          <div className="component-demo component-demo--column">
+            <Select
+              className="large-select-demo"
+              aria-label="单选选择或输入前端框架"
+              mode="single"
+              options={frameworkOptions}
+              value={singleInputValue}
+              onChange={(nextValue) => setSingleInputValue(asSingleValue(nextValue))}
+              allowInput
+              inputMaxLength={20}
+              allowClear
+              placeholder="选择或输入前端框架"
+            />
+            <output className="demo-result" aria-label="单选输入当前值">当前值：{singleInputValue ?? "（未选择）"}</output>
+          </div>
         </DemoCard>
         <DemoCard title="允许输入自定义选项" description="展开后自动聚焦面板输入框，可直接键入；按 Enter 或点击“使用”提交自定义值。标签数量按组件宽度自动折叠，长标签会利用剩余空间显示更多文字。" code={customInputCode}>
           <div className="component-demo component-demo--column">
