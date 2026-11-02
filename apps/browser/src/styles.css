@@ -85,6 +85,12 @@ body.browser-tab-panel-document__body,
 /* 菜单窗口禁用退场动画时也立即隐藏关闭层，避免卸载等待期间遮挡当前菜单。 */
 .browser-menu-document .sia-menu__popup.is-closing { display: none; }
 
+/* 原生菜单按完整表面裁剪；CSS animation:none 无法禁用 WAAPI，需覆盖其缩放和透明度，避免回传入场中间尺寸。 */
+.browser-menu-document .sia-menu__popup.is-open {
+  transform: none !important;
+  opacity: 1 !important;
+}
+
 /* 面板开关保持即时响应，仅下载项的短暂提示层允许播放淡出动画。 */
 .browser-menu-document *:not(.browser-download-entry__highlight),
 .browser-menu-document *::before,

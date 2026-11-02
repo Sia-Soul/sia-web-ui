@@ -55,6 +55,8 @@ export default function BrowserFloatingHost({ payload, children }: {
     });
     mutations.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['style', 'class', 'hidden'] });
     window.addEventListener('resize', schedule);
+    // WAAPI 完成不会触发 ResizeObserver；结束后再次核对原生绘制边界。
+    window.addEventListener('sia-overlay-motion-end', schedule);
     document.addEventListener('scroll', schedule, true);
     // 隐藏的原生窗口可能暂停动画帧，首轮直接测量，与只读气泡采用相同的就绪显示方式。
     report();
@@ -63,6 +65,7 @@ export default function BrowserFloatingHost({ payload, children }: {
       resize.disconnect();
       mutations.disconnect();
       window.removeEventListener('resize', schedule);
+      window.removeEventListener('sia-overlay-motion-end', schedule);
       document.removeEventListener('scroll', schedule, true);
     };
   }, [payload.hitRegionRevision]);

@@ -115,10 +115,9 @@ pub fn presenter(app: tauri::AppHandle, label: String) -> crate::browser_frame_m
             let entries = items(session.args.MenuItems().map_err(|e| e.to_string())?, id, &mut session.commands, 0).map_err(|e| e.to_string())?;
             let mut point = windows::Win32::Foundation::POINT::default();
             session.args.Location(&mut point).map_err(|e| e.to_string())?;
-            let scale = view.window().scale_factor().map_err(|e| e.to_string())?;
-            // Location 是 WebView 客户区坐标；按窗口缩放转为浮层使用的逻辑像素。
+            // Location 已是相对 WebView 的逻辑坐标；浮层定位统一转换到物理像素，不能在这里再次除以 DPI。
             let height = (14.0 + entries.iter().map(|item| if item["type"] == "divider" { 9.0 } else { 40.0 }).sum::<f64>()).min(640.0);
-            let bounds = FloatingWindowBounds { x: point.x as f64 / scale, y: point.y as f64 / scale, width: 286.0, height };
+            let bounds = FloatingWindowBounds { x: point.x as f64, y: point.y as f64, width: 286.0, height };
             session.args.SetHandled(true).map_err(|e| e.to_string())?;
             floating_windows::show_menu(&context, &context.window_state::<BrowserMenuStore>(),
                 json!({"kind":"web-context","nativeRequestId":id,"darkMode":crate::browser_theme::is_dark(&app),"items":entries}), label.clone(), bounds)?;

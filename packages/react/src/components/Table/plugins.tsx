@@ -2885,9 +2885,16 @@ function ColumnSettingPanel<T extends Record<string, unknown>>({
     fixed: TableFixed | undefined;
     offsets: Record<string, number>;
   } | null>(null);
+  const syncedDraft = useRef({ open: false, signature: "" });
   useEffect(() => {
-    cancelDrag.current?.();
-    if (open) setDraft(orderColumnSettings(items));
+    // 表格聚焦、滚动或尺寸变化会重新生成等值配置；仅打开或配置实际改变时同步，保留未应用草稿。
+    const signature = JSON.stringify(items);
+    const changed = signature !== syncedDraft.current.signature;
+    if (open !== syncedDraft.current.open || changed) cancelDrag.current?.();
+    if (open && (!syncedDraft.current.open || changed)) {
+      setDraft(orderColumnSettings(items));
+    }
+    syncedDraft.current = { open, signature };
   }, [items, open]);
   useEffect(() => () => cancelDrag.current?.(), []);
   const labels = new Map(
@@ -3176,7 +3183,7 @@ function ColumnSettingPanel<T extends Record<string, unknown>>({
 
 const columnSettingLoadTokens = new WeakMap<object, symbol>();
 
-/** 创建表格列设置和持久化插件。将返回值加入 Table 的 plugins 后生效；序号和勾选附加列不显示在设置中，不参与业务列排序、显隐、固定位置与宽度配置，旧存储中的附加列配置会被忽略。动态分组展开时自动补齐新叶子列，收起时保留子列设置供再次展开恢复。 */
+/** 创建表格列设置和持久化插件。将返回值加入 Table 的 plugins 后生效；序号和勾选附加列不显示在设置中，不参与业务列排序、显隐、固定位置与宽度配置，旧存储中的附加列配置会被忽略。动态分组展开时自动补齐新叶子列，收起时保留子列设置供再次展开恢复。面板草稿在父级重渲染、聚焦、滚动或尺寸变化时保留；重新打开或外部配置实际变化时同步保存值。 */
 export function createColumnSettingPlugin<T extends Record<string, unknown>>(
   options: TableColumnSettingPluginOptions<T> = {},
 ): TablePlugin<T, ColumnSettingState, TableColumnSettingApi> {
