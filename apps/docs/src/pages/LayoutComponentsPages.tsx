@@ -51,7 +51,7 @@ export function FlexPage() {
       { property: "wrap", description: "是否允许换行", type: "boolean | CSS flex-wrap", defaultValue: "false" },
     ]}
   >
-    <DemoCard title="原生排序、尺寸与任务浮层" description="框架负责通用交互和外观，业务只传递数据、顺序回调和任务进度。" code={nativeLayoutCode}><NativeLayoutDemo /></DemoCard>
+    <DemoCard title="原生排序、尺寸与任务浮层" description="拖动手柄实时预览顺序，相邻项平滑让位；松手吸附后提交，Esc 或列表外松手取消，输入草稿保留。" code={nativeLayoutCode}><NativeLayoutDemo /></DemoCard>
     <DemoCard title="对齐、换行与间距" description="Flex 直接控制子元素布局，不会为每个子元素增加包装节点。" code={flexCode}>
       <Flex wrap gap="medium" align="center" justify="space-between" className="layout-demo-surface">
         <Button variant="primary">主要操作</Button>

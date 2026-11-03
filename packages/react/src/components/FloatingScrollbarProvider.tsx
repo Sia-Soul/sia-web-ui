@@ -111,7 +111,7 @@ function createTrack(axis: ScrollAxis) {
   return { track, thumb };
 }
 
-/** 为页面或指定容器接入不占布局空间的浮动滚动条，悬停、滚动和拖动时显示，离开后自动隐藏；默认入口自动启用，显式全局 Provider 可暂停接管。原生标记只跳过容器自身，内部滚动容器仍独立接管；Table 视口保留其专用轨道。 */
+/** 为页面或指定容器接入不占布局空间的浮动滚动条，悬停、滚动和拖动时显示，离开后自动隐藏；框架弹层动画结束后自动校准位置，无需滚动触发。默认入口自动启用，显式全局 Provider 可暂停接管。原生标记只跳过容器自身，内部滚动容器仍独立接管；Table 视口保留其专用轨道。 */
 export function FloatingScrollbarProvider({ disabled = false, targetRef }: FloatingScrollbarProviderProps) {
   useEffect(() => {
     if (targetRef) return disabled ? undefined : startFloatingScrollbars(targetRef);
@@ -485,6 +485,8 @@ function startFloatingScrollbars(targetRef?: RefObject<HTMLElement | null>) {
     const onResize = () => scheduleScan();
     window.addEventListener("resize", onResize);
     window.addEventListener("scroll", scheduleUpdateAll, true);
+    // WAAPI 的缩放和位移不触发 ResizeObserver；结束时按最终矩形重新定位独立 Portal 中的轨道。
+    window.addEventListener("sia-overlay-motion-end", scheduleUpdateAll);
     scheduleScan();
 
     return () => {
@@ -493,6 +495,7 @@ function startFloatingScrollbars(targetRef?: RefObject<HTMLElement | null>) {
       resizeObserver.disconnect();
       window.removeEventListener("resize", onResize);
       window.removeEventListener("scroll", scheduleUpdateAll, true);
+      window.removeEventListener("sia-overlay-motion-end", scheduleUpdateAll);
       if (scanFrame) window.cancelAnimationFrame(scanFrame);
       if (updateFrame) window.cancelAnimationFrame(updateFrame);
       entries.forEach((entry) => entry.cleanup());

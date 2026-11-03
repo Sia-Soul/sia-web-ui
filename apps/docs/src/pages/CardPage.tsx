@@ -89,7 +89,7 @@ export function CardPage() {
       <DemoCard title="无边框卡片" description="bordered={false} 移除外边框，正文内边距为上下 8px、左右 0；标题分割线仍保留，可通过 bodyStyle 自定义正文间距。" code={'<Card bordered={false} title="无边框卡片" description="正文上下留白 8px，左右无内边距。">这里是卡片内容。</Card>'}>
         <Card bordered={false} title="无边框卡片" description="正文上下留白 8px，左右无内边距。">这里是卡片内容。</Card>
       </DemoCard>
-      <DemoCard title="整卡选择与悬浮操作" description="选中时右上角显示三角勾选标记，重复点击取消选择；详情按钮不改变选中状态。" code={'<Card selectable selected={selected} onSelectedChange={setSelected} hoverActions={<Button>查看详情</Button>}>接口内容</Card>'}>
+      <DemoCard title="整卡选择与悬浮操作" description="悬停加深底色，按下时进一步加深并轻微缩小；选中时右上角显示三角勾选标记，重复点击取消选择；详情按钮不改变选中状态或触发整卡按压。" code={'<Card selectable selected={selected} onSelectedChange={setSelected} hoverActions={<Button>查看详情</Button>}>接口内容</Card>'}>
         <Card selectable selected={selected} onSelectedChange={setSelected} aria-label="示例接口"
           hoverActions={<Button variant="link" onClick={() => setDetailCount(count => count + 1)}>查看详情</Button>}>
           <p>合作关系查询接口</p><p>点击卡片选中，再次点击取消。</p><p>详情查看次数：{detailCount}</p>

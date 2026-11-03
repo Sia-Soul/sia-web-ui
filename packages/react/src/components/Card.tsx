@@ -21,7 +21,7 @@ export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
   /** 主体之外的补充内容或操作区。 */
   extra?: ReactNode;
   /**
-   * 点击卡片非交互区域切换选中，支持 Enter 和空格键；选中时显示主题色浅背景及右上角三角勾选标记。
+   * 点击卡片非交互区域切换选中，支持 Enter 和空格键；悬停时底色加深，鼠标按下时进一步加深并缩小至 98%，内部独立控件不触发整卡按压。选中时显示主题色浅背景及右上角三角勾选标记；禁用时不显示交互反馈，减少动态效果时仅保留颜色反馈。
    * @defaultValue false
    */
   selectable?: boolean;
@@ -46,7 +46,7 @@ export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
   disabled?: boolean;
   /** 用户切换选中时通知新的布尔状态；禁用时不触发。 */
   onSelectedChange?: (selected: boolean) => void;
-  /** 点击卡片非交互区域或聚焦卡片后按 Enter/空格时执行；提供后使用按钮语义和框架交互样式。disabled 为 true 或 selectable 为 true 时不触发，内部按钮、链接及表单控件保持独立操作。 */
+  /** 点击卡片非交互区域或聚焦卡片后按 Enter/空格时执行；提供后使用按钮语义，悬停混入主题色，鼠标按下加深并缩小至 98%，键盘聚焦显示轮廓。减少动态效果时保留颜色反馈并取消缩放和过渡。disabled 为 true 或 selectable 为 true 时不触发，内部按钮、链接及表单控件保持独立操作。 */
   onAction?: () => void;
   /** 鼠标移入或键盘聚焦卡片时从底部滑入的操作区；触屏设备始终显示。 */
   hoverActions?: ReactNode;

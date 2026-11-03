@@ -7,7 +7,10 @@ const packageRoot = path.resolve(__dirname, '../packages/react');
 const filename = path.join(packageRoot, '__api-doc-consumer__.tsx').replaceAll('\\', '/');
 // 上传新增的命令式句柄、OSS 配置及自定义渲染同样从发布产物检查悬停。
 // 通用布局能力从发布入口验证，避免页面被迫重新实现内部行为。
-const source = `import { createWorksheetPlugin, type TableWorksheetApi, type TableWorksheetPluginOptions } from '@sia.soul/sia-react-ui';
+const source = `import type { VirtualGridProps } from '@sia.soul/sia-react-ui';
+declare const virtualGrid: VirtualGridProps<{ id: string }>;
+virtualGrid.rowHeight; virtualGrid.onLoadMore;
+import { createWorksheetPlugin, type TableWorksheetApi, type TableWorksheetPluginOptions } from '@sia.soul/sia-react-ui';
 declare const worksheetApi: TableWorksheetApi<Record<string, unknown>>;
 declare const worksheetOptions: TableWorksheetPluginOptions<Record<string, unknown>>;
 createWorksheetPlugin;
@@ -79,6 +82,12 @@ import type { MenuItem, MenuProps } from '@sia.soul/sia-react-ui';
 // 网格模式与热点标注必须从发布入口提供可读的中文说明。
 declare const gridMenu: MenuProps;
 gridMenu.mode;
+// 视频预览组件的默认行为必须保留在发布后的编辑器提示中。
+import type { VideoProps } from '@sia.soul/sia-react-ui';
+declare const videoPreview: VideoProps;
+videoPreview.controls;
+videoPreview.muted;
+videoPreview.playsInline;
 gridMenu.gridColumns;
 gridMenu.interactionCursor;
 // 自动定位的触发时机和保留手动滚动语义必须保留到发布声明。
@@ -370,6 +379,7 @@ cases.push(['gridMenu.mode', '双列圆角卡片'], ['cursorPreview.showHotspot'
 cases.push(['appliedMenuItem.applied', '浏览选中'], ['appliedMenuItem.appliedLabel', '当前使用'], ['appliedMenuItem.iconSize', 'px']);
 cases.push(['desktopWindow.textSelectable', '输入框']);
 cases.push(['windowControls.maximized', '叠放方框']);
+cases.push(['videoPreview.controls', '默认 true'], ['videoPreview.muted', '默认 false'], ['videoPreview.playsInline', '默认 true']);
 // 重内容延后挂载和占位说明必须保留在发布声明。
 cases.push(['skeletonPreview.rows', '默认 6']);
 cases.push(['skeletonPreview.columns', '默认 2']);
@@ -414,6 +424,8 @@ cases.push(['emptyInputSelect.value', '空字符串']);
 cases.push(['inputFocusModal.open', '160ms'], ['deferredDrawer.open', '180ms']);
 cases.push(['emptySelectionPanel.includeUnknownValues', '纯空格']);
 cases.push(['animatedAlert.afterClose', '180ms'], ['animatedPanel.open', '反播'], ['animatedFloatGroup.open', '保留原有面板外观']);
+// 虚拟列表的固定高度及触底去重约束须在业务编辑器中可见。
+cases.push(['virtualGrid.rowHeight', '固定高度'], ['virtualGrid.onLoadMore', '只通知一次']);
 for(const[needle,expected]of cases){const offset=needle.includes('.')?needle.lastIndexOf('.')+1:0;const pos=source.indexOf(needle)+offset+1;const info=service.getQuickInfoAtPosition(filename,pos);const text=ts.displayPartsToString(info?.documentation);assert(text.includes(expected),`${needle}: expected ${expected}, got ${JSON.stringify(text)}`);console.log(`PASS hover ${needle}: ${text.slice(0,70)}`);}
 for(const entry of ['index.d.ts','index.d.cts']){
   const text=fs.readFileSync(path.join(packageRoot,'dist',entry),'utf8');assert(text.includes('底部已保存快捷查询标签'));assert(text.includes('@defaultValue'));assert(!text.includes('\uFFFD'),'UTF-8 replacement character found');

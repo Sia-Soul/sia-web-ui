@@ -132,6 +132,9 @@ export { SIA_THEME, applySiaTheme } from "./theme";
 export { Breadcrumb } from "./components/Breadcrumb";
 export type { BreadcrumbProps, BreadcrumbItem } from "./components/Breadcrumb";
 export { Typography } from "./components/Typography";
+// 媒体预览通过框架入口复用，ref 支持业务接入屏幕共享流。
+export { Video } from "./components/Video";
+export type { VideoProps } from "./components/Video";
 export type { TypographyProps, TypographyTitleProps, TypographyLinkProps, TypographyType } from "./components/Typography";
 export { FloatButton } from "./components/FloatButton";
 export type { FloatButtonProps, FloatButtonGroupProps, FloatButtonBackTopProps, FloatButtonShape } from "./components/FloatButton";
@@ -154,3 +157,7 @@ export type { NumberRangeProps, NumberRangeValue } from "./components/NumberRang
 // 结果展示同时提供完整入口和轻量入口，业务不再依赖其他组件库。
 export { Result } from "./components/Result";
 export type { ResultProps, ResultStatus } from "./components/Result";
+
+// 虚拟网格通过框架入口供大目录及滚动加载场景复用。
+export { VirtualGrid } from "./components/VirtualGrid";
+export type { VirtualGridProps } from "./components/VirtualGrid";

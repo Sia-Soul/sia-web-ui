@@ -19,7 +19,7 @@ export function NativeLayoutDemo() {
       <Popover contentSize="wide" title="宽内容预览" content="气泡使用框架宽内容预设，窄视口保持安全边距。"><Button>查看宽内容</Button></Popover>
     </Space>
     <div role="status" aria-label="当前顺序">{items.join("、")}</div>
-    {/* 标题手柄与默认手柄共享排序逻辑，输入框不参与拖动。 */}
+    {/* 手柄拖动实时预览并平滑让位，松手后才提交顺序；Esc 取消，输入草稿保持。 */}
     <SortableList items={items} onOrderChange={setItems} disabled={disabled} direction={vertical ? "vertical" : "horizontal"} handlePlacement={customHandle ? "custom" : "before"} handleContent={customHandle ? key => `项目 ${key}` : undefined} renderItem={(key, _, handle) => <Card title={customHandle ? handle : `项目 ${key}`}><Input aria-label={`项目 ${key} 输入`} defaultValue={String(key)} /></Card>} />
     {/* 示例外层明确尺寸；框架监听缩放，子内容不反向撑高容器。 */}
     <div style={{ width: wide ? 480 : 360, height: 120 }}><AutoSizer>{size => <output aria-label="实测尺寸">{Math.round(size.width)} × {Math.round(size.height)}</output>}</AutoSizer></div>

@@ -1,0 +1,9 @@
+/* 视频完整适配容器；业务可通过 className 或 style 调整尺寸和圆角。 */
+.sia-video {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  background: var(--sia-color-surface);
+  border-radius: var(--sia-radius, 8px);
+}
