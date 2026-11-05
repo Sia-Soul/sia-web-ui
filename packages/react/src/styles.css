@@ -1270,6 +1270,8 @@
 /* 排序手柄与业务内容分离，水平/垂直布局共用插入位置提示。 */
 .sia-sortable-list { position: relative; display: flex; gap: 16px; overflow: auto; min-width: 0; padding: 4px; }
 .sia-sortable-list--vertical { flex-direction: column; }
+/* 换行排序按每行最高条目计算行高，条目顶部对齐以保持预览和 flex 布局一致。 */
+.sia-sortable-list--wrap { flex-wrap: wrap; align-items: flex-start; align-content: flex-start; }
 .sia-sortable-list__item { position: relative; flex-shrink: 0; min-width: 0; }
 .sia-sortable-list__item.is-dragging { z-index: 2; filter: drop-shadow(0 6px 8px rgb(0 0 0 / 16%)); }
 /* 原节点跟随指针，虚线槽展示松手位置；预览不参与布局和表单注册。 */

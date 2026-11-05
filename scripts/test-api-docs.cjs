@@ -7,7 +7,12 @@ const packageRoot = path.resolve(__dirname, '../packages/react');
 const filename = path.join(packageRoot, '__api-doc-consumer__.tsx').replaceAll('\\', '/');
 // 上传新增的命令式句柄、OSS 配置及自定义渲染同样从发布产物检查悬停。
 // 通用布局能力从发布入口验证，避免页面被迫重新实现内部行为。
-const source = `import type { VirtualGridProps } from '@sia.soul/sia-react-ui';
+const source = `import type { ChooseBoxProps, ChooseBoxSource, ChooseBoxEntry } from '@sia.soul/sia-react-ui';
+// 文件夹句柄和受控提交语义需在发布后的悬停提示中保留。
+declare const chooseBox: ChooseBoxProps; chooseBox.onChange; chooseBox.kind;
+declare const chooseSource: ChooseBoxSource; chooseSource.authorize;
+declare const chooseEntry: ChooseBoxEntry; chooseEntry.path;
+import type { VirtualGridProps } from '@sia.soul/sia-react-ui';
 declare const virtualGrid: VirtualGridProps<{ id: string }>;
 virtualGrid.rowHeight; virtualGrid.onLoadMore;
 import { createWorksheetPlugin, type TableWorksheetApi, type TableWorksheetPluginOptions } from '@sia.soul/sia-react-ui';
@@ -126,6 +131,7 @@ sortableProps.onOrderChange;
 sortableProps.handlePlacement;
 sortableProps.handleContent;
 sortableProps.renderItem;
+sortableProps.wrap;
 declare const widePopoverProps: PopoverProps;
 widePopoverProps.contentSize;
 import type { ResultProps } from "@sia.soul/sia-react-ui";
@@ -314,6 +320,7 @@ const errors=service.getSemanticDiagnostics(filename).filter(d=>d.category===ts.
 assert.equal(errors.length,0,ts.formatDiagnosticsWithColorAndContext(errors,{getCurrentDirectory:()=>packageRoot,getCanonicalFileName:f=>f,getNewLine:()=> '\n'}));
 // 行状态须保留主题和交互优先级的编辑器说明。
 const cases=[['tableProps.rowStatus','悬停和勾选反馈优先'],['showSettings', '两行'],['savedQueries', '业务方'],['onSaveQuery','快照'],['allowClear','清空'],['modalThreshold','阈值'],['Modal.open','打开'],['message.success','成功'],['Form.useForm','表单实例'],['createColumnSettingPlugin({','列设置'],['adapter.save','保存'],['chart.barCategoryGap','间距'],['selection.maxHeight','像素'],['selection.extraValues','浅拷贝'],['selection.onConfirm','取消'],['queryProps.fieldWidth','列间距'],['tableProps.cellSelection','单元格选择'],['tableProps.showIndex','序号列']];
+cases.push(['chooseBox.onChange', '取消'], ['chooseBox.kind', 'directory'], ['chooseSource.authorize', '取消返回 null'], ['chooseEntry.path', '不能视为本机绝对路径']);
 cases.push(['inputNumberProps.formatter', '原始草稿'], ['inputNumberProps.parser', '不经过 parser']);
 cases.push(['adaptiveSelect.allowInput', '自动聚焦'], ['adaptiveSelect.searchPlaceholder', '输入或搜索'], ['adaptiveSelect.maxTagCount', '默认不限制数量']);
   cases.push(['queryProps.defaultCollapsed', '达到 3 行'], ['queryProps.defaultCollapsed', '用户手动切换']);
@@ -426,6 +433,8 @@ cases.push(['emptySelectionPanel.includeUnknownValues', '纯空格']);
 cases.push(['animatedAlert.afterClose', '180ms'], ['animatedPanel.open', '反播'], ['animatedFloatGroup.open', '保留原有面板外观']);
 // 虚拟列表的固定高度及触底去重约束须在业务编辑器中可见。
 cases.push(['virtualGrid.rowHeight', '固定高度'], ['virtualGrid.onLoadMore', '只通知一次']);
+// 换行排序公开属性必须在发布包悬停中解释方向约束。
+cases.push(['sortableProps.wrap', '自动换行']);
 for(const[needle,expected]of cases){const offset=needle.includes('.')?needle.lastIndexOf('.')+1:0;const pos=source.indexOf(needle)+offset+1;const info=service.getQuickInfoAtPosition(filename,pos);const text=ts.displayPartsToString(info?.documentation);assert(text.includes(expected),`${needle}: expected ${expected}, got ${JSON.stringify(text)}`);console.log(`PASS hover ${needle}: ${text.slice(0,70)}`);}
 for(const entry of ['index.d.ts','index.d.cts']){
   const text=fs.readFileSync(path.join(packageRoot,'dist',entry),'utf8');assert(text.includes('底部已保存快捷查询标签'));assert(text.includes('@defaultValue'));assert(!text.includes('\uFFFD'),'UTF-8 replacement character found');

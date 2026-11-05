@@ -1424,3 +1424,47 @@ button.sia-treemap__tile:focus-visible,
 .sia-checkbox__input:indeterminate + .sia-checkbox__control span { transform: none; }
 .sia-radio--button { transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease; }
 @media (prefers-reduced-motion: reduce) { .sia-checkbox__control span, .sia-radio--button { transition: none; } }
+
+/* ChooseBox 使用主题令牌；目录区独立滚动，窄窗口保留可操作的目录树与工具栏。 */
+.sia-choose-box { position: relative; display: inline-flex; width: 100%; min-width: 0; }
+.sia-choose-box__trigger.sia-button { width: 100%; min-width: 0; justify-content: flex-start; padding-inline: 10px; gap: 8px; }
+/* 仅文字槽参与伸缩；Icon 自身也是 span，不能用通用 span 选择器分配剩余空间。 */
+.sia-choose-box__trigger.sia-button > span:not(.sia-button__icon) { flex: 1; min-width: 0; text-align: left; }
+.sia-choose-box__trigger.sia-button > .sia-button__icon { flex: 0 0 16px; width: 16px; color: var(--sia-color-text-secondary); }
+.sia-choose-box__value { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sia-choose-box--clearable .sia-choose-box__trigger.sia-button > span:not(.sia-button__icon) { padding-right: 26px; }
+.sia-choose-box__placeholder { color: var(--sia-color-text-secondary); }
+.sia-choose-box__clear.sia-button { position: absolute; right: 32px; top: 2px; width: 22px; min-width: 0; height: calc(100% - 4px); padding: 0; color: var(--sia-color-text-tertiary); border: 0; }
+.sia-choose-box__toolbar, .sia-choose-box__path, .sia-choose-box__bottom, .sia-choose-box__selection-tools { display: flex; align-items: center; gap: 8px; }
+.sia-choose-box__toolbar { flex-wrap: wrap; margin-bottom: 12px; }
+.sia-choose-box__toolbar > .sia-select { width: 118px; }
+.sia-choose-box__path { margin-bottom: 12px; }
+.sia-choose-box__path > :first-child { flex: 2; min-width: 0; }
+.sia-choose-box__path > :last-child { flex: 1; min-width: 0; }
+.sia-choose-box__body { display: grid; grid-template-columns: 230px minmax(0, 1fr); height: min(430px, 52vh); border: 1px solid var(--sia-color-border); border-radius: var(--sia-radius); overflow: hidden; }
+.sia-choose-box__tree { padding: 8px; overflow: auto; border-right: 1px solid var(--sia-color-border); background: color-mix(in srgb, var(--sia-color-control-hover) 55%, var(--sia-color-surface)); color: var(--sia-color-text); }
+.sia-choose-box__content { min-width: 0; overflow: auto; padding: 12px; background: var(--sia-color-surface); color: var(--sia-color-text); }
+.sia-choose-box__selection-tools { min-height: 30px; margin-bottom: 10px; flex-wrap: wrap; }
+.sia-choose-box__entries { display: grid; gap: 8px; align-content: start; }
+.sia-choose-box__entries--grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+.sia-choose-box__entry { position: relative; min-width: 0; padding: 5px; border: 1px solid transparent; border-radius: var(--sia-radius); }
+.sia-choose-box__entry.is-selected { background: var(--sia-color-primary-light); border-color: var(--sia-color-primary); }
+/* 选中背景由条目容器统一绘制，避免内部按钮悬停时盖住主题选中色。 */
+.sia-choose-box__entry.is-selected .sia-choose-box__item.sia-button { color: var(--sia-color-primary-text); background: transparent; }
+.sia-choose-box__entry > .sia-checkbox { position: absolute; top: 5px; left: 5px; z-index: 1; }
+.sia-choose-box__item.sia-button { width: 100%; height: auto; min-height: 90px; padding: 16px 6px 8px; }
+.sia-choose-box__item.sia-button > span { display: flex; flex-direction: column; gap: 8px; align-items: center; width: 100%; min-width: 0; }
+.sia-choose-box__item.sia-button > span > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 图标使用主题前景色；深色主题自动切换为更明亮的蓝色，保持目录辨识度。 */
+.sia-choose-box__item .is-directory { color: var(--sia-color-primary-text); }
+.sia-choose-box__entries--list { grid-template-columns: minmax(0, 1fr); }
+.sia-choose-box__entries--list .sia-choose-box__entry { display: flex; align-items: center; }
+.sia-choose-box__entries--list .sia-choose-box__entry > .sia-checkbox { position: static; margin-right: 8px; }
+.sia-choose-box__entries--list .sia-choose-box__item.sia-button { min-height: 32px; padding: 4px; }
+.sia-choose-box__entries--list .sia-choose-box__item.sia-button > span { flex-direction: row; }
+.sia-choose-box__bottom { margin-top: 12px; min-height: 30px; }
+.sia-choose-box__bottom > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--sia-color-text-secondary); }
+.sia-choose-box__bottom > .sia-select { width: 200px; }
+.sia-choose-box__error { color: var(--sia-color-error); padding: 8px 0; }
+.sia-choose-box__empty { color: var(--sia-color-text-secondary); text-align: center; padding-block: 45px; }
+@media (max-width: 600px) { .sia-choose-box__body { grid-template-columns: 135px minmax(0, 1fr); } .sia-choose-box__path { flex-wrap: wrap; } .sia-choose-box__bottom { flex-wrap: wrap; } }

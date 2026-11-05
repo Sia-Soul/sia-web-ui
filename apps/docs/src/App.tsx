@@ -36,6 +36,7 @@ import { MessagePage } from "./pages/MessagePage";
 import { ModalPage } from "./pages/ModalPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { SelectPage } from "./pages/SelectPage";
+import { ChooseBoxPage } from "./pages/ChooseBoxPage";
 import { SwitchPage } from "./pages/SwitchPage";
 import { TabsPage } from "./pages/TabsPage";
 import { TagPage } from "./pages/TagPage";
@@ -160,6 +161,7 @@ export default function App() {
             <Route path="/components/message" element={<MessagePage />} />
             <Route path="/components/modal" element={<ModalPage />} />
             <Route path="/components/select" element={<SelectPage />} />
+            <Route path="/components/choose-box" element={<ChooseBoxPage />} />
             <Route path="/components/segmented" element={<SegmentedPage />} />
             <Route path="/components/switch" element={<SwitchPage />} />
             <Route path="/components/tabs" element={<TabsPage />} />

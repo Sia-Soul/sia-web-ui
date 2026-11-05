@@ -13,6 +13,7 @@ import {
 } from "@sia.soul/sia-react-ui";
 import SiaEditor from "./features/editor/SiaEditor";
 import ProjectsPage from "./features/projects/ProjectsPage";
+import { ChooseBoxDemo } from "./ChooseBoxDemo";
 import WorkItemsPage from "./features/work-items/WorkItemsPage";
 
 interface RuntimeInfo {
@@ -185,6 +186,7 @@ export default function App() {
           </div>
 
           <div className="content-grid">
+            {activeSection === "components" && <ChooseBoxDemo />}
             <Card title="创建项目" description="这是直接来自 @sia.soul/sia-react-ui 的 Input、Button 和 Card。" accent="primary">
               <div className="project-form">
                 <Input

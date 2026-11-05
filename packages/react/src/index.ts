@@ -74,6 +74,10 @@ export { buildFlatTree } from "./components/flatTree";
 export type { FlatTreeOptions, FlatTreeNode } from "./components/flatTree";
 export type { TreeSelectNode, TreeSelectProps, TreeSelectValue } from "./components/TreeSelect";
 export { Upload } from "./components/Upload";
+export { ChooseBox } from "./components/ChooseBox";
+export type { ChooseBoxProps } from "./components/ChooseBox";
+export { createBrowserChooseBoxSource, createTauriChooseBoxSource } from "./components/chooseBoxSource";
+export type { ChooseBoxEntry, ChooseBoxSource, ChooseBoxInvoke } from "./components/chooseBoxSource";
 // 上传扩展类型与主组件使用同一发布入口，业务方可配置 OSS 和命令式操作。
 export type { UploadChangeInfo, UploadDraggerProps, UploadFile, UploadFileStatus, UploadProps, UploadRequestOptions, UploadHttpRequest, UploadRequestHandle, UploadRejectInfo, UploadRef, UploadItemActions } from "./components/Upload";
 export { Input } from "./components/Input";

@@ -2,6 +2,7 @@ use serde::Serialize;
 use tauri::Manager;
 
 mod database;
+mod choose_box;
 mod documents;
 mod projects;
 mod work_items;
@@ -34,6 +35,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             runtime_info,
+            choose_box::choose_box_roots,
+            choose_box::choose_box_read_directory,
             database::database_info,
             documents::get_document,
             documents::save_document,

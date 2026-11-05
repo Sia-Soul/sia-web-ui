@@ -92,6 +92,11 @@ h1 { margin: 0; font-size: clamp(32px, 3.3vw, 42px); line-height: 1.2; letter-sp
 .demo-card { overflow: hidden; }
 .demo-card > .sia-card__body { padding: 0; }
 .demo-card__preview { position: relative; padding: var(--sia-spacing); }
+/* ChooseBox 示例采用对齐的标签行；窄屏改为上下排列，保留输入区可用宽度。 */
+.choose-box-demo.sia-space { width: 100%; padding-block: 4px; }
+.choose-box-demo__row { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 12px; align-items: center; min-width: 0; }
+.choose-box-demo__row > span { font-size: var(--sia-font-size); color: var(--sia-color-text-secondary); }
+@media (max-width: 600px) { .choose-box-demo__row { grid-template-columns: minmax(0, 1fr); gap: 6px; } }
 .dropdown-context-demo { display: grid; width: min(420px, 100%); min-height: 92px; place-items: center; color: var(--sia-color-text-secondary); background: var(--sia-color-control-hover); border: 1px dashed var(--sia-color-border); border-radius: var(--sia-radius); user-select: none; }
 .demo-card__divider { margin: 0; }
 .demo-card__actions { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 5px 16px; }

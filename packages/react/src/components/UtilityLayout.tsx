@@ -70,11 +70,13 @@ export interface SortableListProps {
   onOrderChange: (items: SortableKey[]) => void;
   /** 排列及拖动轴；按轴移动至少 4px 开始预览，相邻项以 180ms 让位，靠近列表滚动边缘自动滚动。仅由手柄发起，不影响内部输入；减少动态效果时相邻项直接定位。@defaultValue "horizontal" */
   direction?: "horizontal" | "vertical";
+  /** 横向列表按容器宽度自动换行，拖动时同时预览横纵位置；方向键左右移动一项。vertical 时忽略。@defaultValue false */
+  wrap?: boolean;
   /** 禁止拖放和键盘排序，不禁用条目内部业务控件。@defaultValue false */
   disabled?: boolean;
 }
 /** 拖放与键盘共用受控顺序；指针预览不重挂载内容，也不改变 renderItem 的业务索引。 */
-export function SortableList({ items, renderItem, onOrderChange, direction = "horizontal", disabled = false, handlePlacement = "before", handleContent }: SortableListProps) {
+export function SortableList({ items, renderItem, onOrderChange, direction = "horizontal", wrap = false, disabled = false, handlePlacement = "before", handleContent }: SortableListProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const placeholderRef = useRef<HTMLDivElement>(null);
   const latest = useRef({ items, onOrderChange });
@@ -86,10 +88,12 @@ export function SortableList({ items, renderItem, onOrderChange, direction = "ho
     const root = rootRef.current;
     if (!root) return;
     const horizontal = direction === "horizontal";
+    const wrapping = horizontal && wrap;
     let session: {
       key: SortableKey; pointer: number; handle: HTMLButtonElement; keys: SortableKey[];
       nodes: HTMLElement[]; rects: DOMRect[]; from: number; to: number;
       start: number; clientX: number; clientY: number; scroll: number; active: boolean;
+      startX: number; startY: number; scrollX: number; scrollY: number;
     } | null = null;
     let frame = 0;
     let settling: Animation | null = null;
@@ -119,6 +123,25 @@ export function SortableList({ items, renderItem, onOrderChange, direction = "ho
       return offsets;
     };
     const transform = (offset: number) => horizontal ? `translate3d(${offset}px, 0, 0)` : `translate3d(0, ${offset}px, 0)`;
+    // 按 flex 换行规则模拟最终位置；只变换原节点，不重排 DOM，避免编辑中的输入丢失焦点和草稿。
+    const wrappedOffsets = (s: NonNullable<typeof session>) => {
+      const indices = s.keys.map((_, index) => index);
+      indices.splice(s.from, 1); indices.splice(s.to, 0, s.from);
+      const style = getComputedStyle(root);
+      const gapX = parseFloat(style.columnGap) || 0, gapY = parseFloat(style.rowGap) || 0;
+      const width = root.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0);
+      const first = s.rects[0];
+      let x = 0, y = 0, height = 0;
+      const offsets = s.rects.map(() => ({ x: 0, y: 0 }));
+      indices.forEach(index => {
+        const rect = s.rects[index];
+        if (x > 0 && x + rect.width > width + .5) { x = 0; y += height + gapY; height = 0; }
+        offsets[index] = { x: first.left + x - rect.left, y: first.top + y - rect.top };
+        x += rect.width + gapX; height = Math.max(height, rect.height);
+      });
+      return offsets;
+    };
+    const vectorTransform = (point: { x: number; y: number }) => `translate3d(${point.x}px, ${point.y}px, 0)`;
     const paint = () => {
       const s = session;
       if (!s || !s.active || settling) return;
@@ -126,6 +149,28 @@ export function SortableList({ items, renderItem, onOrderChange, direction = "ho
       const coordinate = horizontal ? s.clientX : s.clientY;
       const scroll = horizontal ? root.scrollLeft : root.scrollTop;
       const origin = s.rects[s.from];
+      if (wrapping) {
+        // 不允许拖动变换撑大内容边界，防止边缘自动滚动无限扩展。
+        const dx = Math.max(Math.min(...s.rects.map(r => r.left)) - origin.left, Math.min(Math.max(...s.rects.map(r => r.right)) - origin.right, s.clientX - s.startX + root.scrollLeft - s.scrollX));
+        const dy = Math.max(Math.min(...s.rects.map(r => r.top)) - origin.top, Math.min(Math.max(...s.rects.map(r => r.bottom)) - origin.bottom, s.clientY - s.startY + root.scrollTop - s.scrollY));
+        // 初始槽位作为稳定命中区域，避免动画中的邻项反复改变落点。
+        const cx = origin.left + origin.width / 2 + dx, cy = origin.top + origin.height / 2 + dy;
+        let distance = Infinity;
+        s.rects.forEach((rect, index) => {
+          const next = Math.pow(cx - rect.left - rect.width / 2, 2) + Math.pow(cy - rect.top - rect.height / 2, 2);
+          if (next < distance) { distance = next; s.to = index; }
+        });
+        const offsets = wrappedOffsets(s);
+        s.nodes.forEach((node, index) => { node.style.transform = vectorTransform(index === s.from ? { x: dx, y: dy } : offsets[index]); });
+        const preview = placeholderRef.current;
+        if (preview) {
+          preview.hidden = false;
+          preview.style.width = `${origin.width}px`; preview.style.height = `${origin.height}px`;
+          preview.style.left = `${origin.left - bounds.left + s.scrollX + offsets[s.from].x}px`;
+          preview.style.top = `${origin.top - bounds.top + s.scrollY + offsets[s.from].y}px`;
+        }
+        return;
+      }
       const first = s.rects[0];
       const last = s.rects[s.rects.length - 1];
       // 限制在原内容范围内，避免变换撑大滚动宽度后边缘自动滚动无限延伸。
@@ -151,16 +196,17 @@ export function SortableList({ items, renderItem, onOrderChange, direction = "ho
       const s = session;
       if (!s || !s.active || settling) return;
       const bounds = root.getBoundingClientRect();
-      const point = horizontal ? s.clientX : s.clientY;
-      const start = horizontal ? bounds.left : bounds.top;
-      const end = horizontal ? bounds.right : bounds.bottom;
-      const crossInside = horizontal ? s.clientY >= bounds.top && s.clientY <= bounds.bottom : s.clientX >= bounds.left && s.clientX <= bounds.right;
+      const scrollHorizontal = horizontal && !wrapping;
+      const point = scrollHorizontal ? s.clientX : s.clientY;
+      const start = scrollHorizontal ? bounds.left : bounds.top;
+      const end = scrollHorizontal ? bounds.right : bounds.bottom;
+      const crossInside = scrollHorizontal ? s.clientY >= bounds.top && s.clientY <= bounds.bottom : s.clientX >= bounds.left && s.clientX <= bounds.right;
       // 靠近容器边缘自动滚动，按帧时间计算速度，快慢刷新率保持一致。
       const edge = 44;
       const speed = !crossInside || point < start || point > end ? 0 : point < start + edge ? -Math.min(1, (start + edge - point) / edge) : point > end - edge ? Math.min(1, (point - end + edge) / edge) : 0;
       const distance = speed * Math.min(32, time - (lastTime || time)) * .65;
       lastTime = time;
-      if (horizontal) root.scrollLeft += distance; else root.scrollTop += distance;
+      if (scrollHorizontal) root.scrollLeft += distance; else root.scrollTop += distance;
       paint(); frame = requestAnimationFrame(tick);
     };
     startRef.current = (event, key, handle) => {
@@ -171,6 +217,7 @@ export function SortableList({ items, renderItem, onOrderChange, direction = "ho
       const nodes = Array.from(root.children).filter(node => node.getAttribute("role") === "listitem") as HTMLElement[];
       session = { key, pointer: event.pointerId, handle, keys, nodes, rects: nodes.map(node => node.getBoundingClientRect()), from, to: from,
         start: horizontal ? event.clientX : event.clientY, clientX: event.clientX, clientY: event.clientY,
+        startX: event.clientX, startY: event.clientY, scrollX: root.scrollLeft, scrollY: root.scrollTop,
         scroll: horizontal ? root.scrollLeft : root.scrollTop, active: false };
       handle.setPointerCapture(event.pointerId);
     };
@@ -178,7 +225,7 @@ export function SortableList({ items, renderItem, onOrderChange, direction = "ho
       const s = session;
       if (!s || settling || event.pointerId !== s.pointer) return;
       s.clientX = event.clientX; s.clientY = event.clientY;
-      if (!s.active && Math.abs((horizontal ? event.clientX : event.clientY) - s.start) >= 4) {
+      if (!s.active && (wrapping ? Math.hypot(event.clientX - s.startX, event.clientY - s.startY) : Math.abs((horizontal ? event.clientX : event.clientY) - s.start)) >= 4) {
         s.active = true;
         root.classList.add("is-sorting");
         s.nodes[s.from].classList.add("is-dragging");
@@ -204,7 +251,7 @@ export function SortableList({ items, renderItem, onOrderChange, direction = "ho
       // 原节点吸附到预览槽后才提交一次；不复制表单，避免重复注册和丢失输入状态。
       if (reduced()) { finish(); return; }
       const node = s.nodes[s.from];
-      settling = node.animate([{ transform: node.style.transform }, { transform: transform(displacement(s)[s.from]) }], { duration: 160, easing: "cubic-bezier(.2,.8,.2,1)", fill: "forwards" });
+      settling = node.animate([{ transform: node.style.transform }, { transform: wrapping ? vectorTransform(wrappedOffsets(s)[s.from]) : transform(displacement(s)[s.from]) }], { duration: 160, easing: "cubic-bezier(.2,.8,.2,1)", fill: "forwards" });
       settling.finished.then(finish, () => {});
     };
     const escape = (event: KeyboardEvent) => { if (event.key === "Escape" && session) { event.preventDefault(); event.stopPropagation(); clear(); } };
@@ -225,8 +272,8 @@ export function SortableList({ items, renderItem, onOrderChange, direction = "ho
       window.removeEventListener("blur", clear); window.removeEventListener("resize", clear);
       root.removeEventListener("lostpointercapture", cancelPointer); root.removeEventListener("click", cancelClick, true);
     };
-  }, [disabled, direction, signature]);
-  return <div ref={rootRef} className={`sia-sortable-list sia-sortable-list--${direction}`} role="list">
+  }, [disabled, direction, wrap, signature]);
+  return <div ref={rootRef} className={`sia-sortable-list sia-sortable-list--${direction}${wrap && direction === "horizontal" ? " sia-sortable-list--wrap" : ""}`} role="list">
     <div ref={placeholderRef} className="sia-sortable-list__placeholder" aria-hidden="true" hidden />
     {items.map((key, index) => {
       const handle = <button type="button" className={`sia-sortable-list__handle${handlePlacement === "custom" ? " sia-sortable-list__handle--custom" : ""}`} disabled={disabled} aria-label={`调整第 ${index + 1} 项顺序`} title="拖动排序，或使用方向键移动"

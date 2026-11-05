@@ -45,6 +45,23 @@ export function IconPage() {
           ))}
         </Space>
       </DemoCard>
+      {/* 文件系列同时展示轮廓与实心版本，检查真实圆弧和小尺寸辨识度。 */}
+      <DemoCard title="圆角文件图标" description="文件外框、折页和文件夹标签使用真实圆弧；ChooseBox 与其他组件共用这些图标。" code={'<Icon name="file" size={24} />\n<Icon name="folder" size={24} />\n<Icon name="folder" variant="filled" size={24} />'}>
+        <Space direction="vertical" align="start" size={20}>
+          {[16, 24, 32].map(size => <Space key={size} size={20} wrap><span>{size}px</span>
+            {(["file", "folder", "folder-plus", "file-plus", "file-check", "file-warning", "file-spreadsheet"] as const).map(name => <Icon key={name} name={name} size={size} title={name} />)}
+            <Icon name="file" variant="filled" size={size} title="实心文件" /><Icon name="folder" variant="filled" size={size} title="实心文件夹" />
+          </Space>)}
+        </Space>
+      </DemoCard>
+      {/* 并排检查内部符号留白及同系列主体比例，切换主题时沿用当前页面主题。 */}
+      <DemoCard title="圆角轮廓与内部对齐" description="加号、勾号按内容区居中；音量开关保持主体一致。对比三种尺寸下的留白、圆角和描边。" code={'<Icon name="folder-plus" size={24} />\n<Icon name="square-check" size={24} />\n<Icon name="camera" size={24} />'}>
+        <Space direction="vertical" align="start" size={20}>
+          {[16, 24, 32].map(size => <Space key={size} size={20} wrap><span>{size}px</span>
+            {(["folder-plus", "tab-plus", "file-check", "square-check", "clipboard-check", "shield-check", "camera", "printer", "book", "mobile", "volume-up", "volume-off"] as const).map(name => <Icon key={name} name={name} size={size} title={name} />)}
+          </Space>)}
+        </Space>
+      </DemoCard>
       <IconGallery />
       {/* 语义色使用主题变量，图标颜色不影响相邻说明文字。 */}
       <DemoCard title="语义颜色" description="tone 默认继承文字颜色；primary、success、warning、danger 跟随主题。" code={'<Icon name="shop" tone="primary" />'}>
