@@ -141,10 +141,12 @@ function Floating({
   const leaveTimer = useRef<number>();
   const contentId = useId();
   const triggers = Array.isArray(trigger) ? trigger : [trigger];
+  // 无提示内容不产生空壳气泡；数字 0 等有效内容仍可正常显示。
+  const hasContent = content !== null && content !== undefined && typeof content !== "boolean" && !(typeof content === "string" && content.trim() === "");
   const [visible, setVisible] = useControllableState({ value: open, defaultValue: defaultOpen, onChange: onOpenChange });
   const [position, setPosition] = useState<FloatingPosition>();
   // 表单错误提示已有两秒展示和避让渐隐，保持其独立显示规则。
-  const motion = useOverlayMotion(!!visible, overlayRef, "tooltip", "bottom", !!position, undefined, !overlayClassName.includes("sia-form-item__error-popover"));
+  const motion = useOverlayMotion(!!visible && hasContent, overlayRef, "tooltip", "bottom", !!position, undefined, !overlayClassName.includes("sia-form-item__error-popover"));
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
   // 挂到弹层根节点而非动画面板，既保留 fixed 的视口定位，又让气泡受父弹层堆叠上下文约束。
   useLayoutEffect(() => {
@@ -157,6 +159,7 @@ function Floating({
   if (!closeSelfRef.current) closeSelfRef.current = () => setVisibleRef.current(false);
   const exclusiveTooltip = role === "tooltip" && triggers.includes("hover");
   function openNow() {
+    if (!hasContent) return;
     if (exclusiveTooltip && activeTooltipClose !== closeSelfRef.current) {
       activeTooltipClose?.();
       activeTooltipClose = closeSelfRef.current;
@@ -248,7 +251,7 @@ function Floating({
     ...(triggers.includes("click") ? { onClick: (event: React.MouseEvent) => { triggerElementRef.current = event.currentTarget; children.props.onClick?.(event); if (visible) closeNow(); else openNow(); } } : {}),
     "aria-describedby": visible ? contentId : undefined,
   });
-  const overlay = motion.present && content !== null && content !== undefined && typeof document !== "undefined"
+  const overlay = motion.present && hasContent && typeof document !== "undefined"
     ? createPortal(
       <span
         ref={overlayRef}

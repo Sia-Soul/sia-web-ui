@@ -142,7 +142,7 @@ export interface TableEditableCellConfig<T> {
   label: ReactNode;
   /** 该项目对应的数据值，用于标识、选择或计算。 */
   value: string | number }[];
-  /** 自定义单元格编辑控件。 */
+    /** 自定义单元格编辑控件。save 写回并结束编辑，cancel 只结束编辑；点击编辑器及其 React Portal 之外会结束编辑，不自动写回未提交草稿。持续编辑可由工作表 editCell 即时写回。 */
   editRender?: (record: T, save: (value: unknown) => void, cancel: () => void) => ReactNode;
   /** 判断当前单元格是否允许编辑。 */
   canEdit?: (record: T) => boolean;
@@ -252,6 +252,8 @@ export interface TablePlugin<T, S = unknown, Api = unknown> {
   onCellMouseLeave?: (row: TableRow<T>, column: TableColumn<T>, context: TablePluginContext<T, S>) => void;
   /** 点击单元格时调用。 */
   onCellClick?: (row: TableRow<T>, column: TableColumn<T>, event: ReactMouseEvent<HTMLTableCellElement>, context: TablePluginContext<T, S>) => void;
+  /** 双击整个单元格时调用，包含文本以外的留白区域。 */
+  onCellDoubleClick?: (row: TableRow<T>, column: TableColumn<T>, event: ReactMouseEvent<HTMLTableCellElement>, context: TablePluginContext<T, S>) => void;
   /** 指针在单元格按下时调用。 */
   onCellPointerDown?: (row: TableRow<T>, column: TableColumn<T>, event: ReactPointerEvent<HTMLTableCellElement>, context: TablePluginContext<T, S>) => void;
   /** 指针在单元格移动时调用。 */

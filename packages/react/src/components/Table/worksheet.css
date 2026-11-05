@@ -21,6 +21,8 @@
   background: var(--sia-color-primary);
   cursor: crosshair;
   z-index: 2;
+  /* 多格选区禁用内容区交互以方便框选，填充柄仍须作为独立操作入口接收鼠标。 */
+  pointer-events: auto;
 }
 .sia-table__worksheet-fill-preview {
   box-shadow: inset 0 0 0 1px var(--sia-color-primary);

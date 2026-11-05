@@ -521,6 +521,17 @@ export function createWorksheetPlugin<T extends Record<string, unknown>>(
     id: "worksheet",
     order: 71,
     initialState: { editing: null, revision: 0 },
+    // 工作表复用编辑插件的整格双击命中规则，同时解除撤销/替换数据后的编辑抑制。
+    onCellDoubleClick(row, column, event, current) {
+      remember(current);
+      createEditablePlugin<T>({ trigger: "doubleClick" }).onCellDoubleClick?.(row, column, event, {
+        ...current,
+        setState: (next) => {
+          suppressEditing = false;
+          current.setState((previous) => ({ ...previous, ...(typeof next === "function" ? next(previous) : next) }));
+        },
+      });
+    },
     transformColumns(input, current) {
       remember(current);
       const epoch = editEpoch;

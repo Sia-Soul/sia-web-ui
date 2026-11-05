@@ -157,6 +157,7 @@ interface BodyRowProps<T> {
   onCellMouseEnter: (column: TableColumn<T>) => void;
   onCellMouseLeave: (column: TableColumn<T>) => void;
   onCellClick: (column: TableColumn<T>, event: ReactMouseEvent<HTMLTableCellElement>) => void;
+  onCellDoubleClick: (column: TableColumn<T>, event: ReactMouseEvent<HTMLTableCellElement>) => void;
   onCellContextMenu: (column: TableColumn<T>, event: ReactMouseEvent<HTMLTableCellElement>) => void;
   onCellPointerDown: (column: TableColumn<T>, event: ReactPointerEvent<HTMLTableCellElement>) => void;
   onCellPointerMove: (column: TableColumn<T>, event: ReactPointerEvent<HTMLTableCellElement>) => void;
@@ -185,6 +186,7 @@ const TableBodyRow = memo(function TableBodyRow<T>({
   onCellMouseEnter,
   onCellMouseLeave,
   onCellClick,
+  onCellDoubleClick,
   onCellContextMenu,
   onCellPointerDown,
   onCellPointerMove,
@@ -238,6 +240,7 @@ const TableBodyRow = memo(function TableBodyRow<T>({
             onMouseEnter={() => onCellMouseEnter(column)}
             onMouseLeave={() => onCellMouseLeave(column)}
             onClick={(event) => onCellClick(column, event)}
+            onDoubleClick={(event) => onCellDoubleClick(column, event)}
             onContextMenu={(event) => onCellContextMenu(column, event)}
             onPointerDown={(event) => onCellPointerDown(column, event)}
             onPointerMove={(event) => onCellPointerMove(column, event)}
@@ -1034,6 +1037,10 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
                 }}
                 onCellClick={(column, event) => {
                   for (const plugin of sortedPlugins) plugin.onCellClick?.(row, column, event, getContext(plugin));
+                }}
+                // 编辑插件接收 td 的完整命中区域，不依赖内容高度或内边距。
+                onCellDoubleClick={(column, event) => {
+                  for (const plugin of sortedPlugins) plugin.onCellDoubleClick?.(row, column, event, getContext(plugin));
                 }}
                 onCellContextMenu={(column, event) => {
                   onCellContextMenu?.(row.record, column, row.sourceIndex, event);

@@ -2353,10 +2353,8 @@ function EditableTableCell<T extends Record<string, unknown>>({
   value,
   record,
   content,
-  onStart,
   onSave,
   onCancel,
-  trigger,
   showEditIcon,
 }: {
   active: boolean;
@@ -2364,10 +2362,8 @@ function EditableTableCell<T extends Record<string, unknown>>({
   value: unknown;
   record: T;
   content: ReactNode;
-  onStart: () => void;
   onSave: (value: unknown) => Promise<boolean>;
   onCancel: () => void;
-  trigger: "click" | "doubleClick";
   showEditIcon: boolean;
 }) {
   const config =
@@ -2376,6 +2372,8 @@ function EditableTableCell<T extends Record<string, unknown>>({
   const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
+  // React 捕获链覆盖属于编辑器的 Portal；不能把下拉弹层中的点击误判为外部操作。
+  const ownedEvents = useRef(new WeakSet<Event>());
   const editValueRef = useRef(value);
   const savingRef = useRef(false);
   const saveRef = useRef<(nextValue?: unknown) => Promise<void>>(
@@ -2417,28 +2415,28 @@ function EditableTableCell<T extends Record<string, unknown>>({
   saveRef.current = save;
 
   useEffect(() => {
-    if (!active || config.type === "select" || config.type === "custom") return;
+    if (!active) return;
     const handleOutsidePointerDown = (event: PointerEvent) => {
       const target = event.target;
-      if (!(target instanceof Node) || editorRef.current?.contains(target))
+      if (!(target instanceof Node) || ownedEvents.current.has(event) || editorRef.current?.contains(target))
         return;
-      void saveRef.current();
+      // 自定义控件通过 save 或工作表 API 写回；退出时不能用旧 value 覆盖它的最新结果。
+      if (config.type === "custom" || config.type === "select") onCancel();
+      else void saveRef.current();
     };
-    document.addEventListener("pointerdown", handleOutsidePointerDown, true);
+    // 冒泡阶段晚于 React 捕获标记，兼容挂载在 body 的选择器弹层。
+    document.addEventListener("pointerdown", handleOutsidePointerDown);
     return () =>
       document.removeEventListener(
         "pointerdown",
         handleOutsidePointerDown,
-        true,
       );
-  }, [active, config.type]);
+  }, [active, config.type, onCancel]);
 
   if (!active)
     return (
       <div
         className="sia-table__editable-display"
-        onClick={trigger === "click" ? onStart : undefined}
-        onDoubleClick={trigger === "doubleClick" ? onStart : undefined}
       >
         <span>{content}</span>
         {showEditIcon && <Icon name="edit" size={13} />}
@@ -2498,7 +2496,8 @@ function EditableTableCell<T extends Record<string, unknown>>({
     );
   }
   return (
-    <div ref={editorRef} className="sia-table__editor">
+    <div ref={editorRef} className={`sia-table__editor${config.type === "custom" ? " sia-table__editor--custom" : ""}`}
+      onPointerDownCapture={(event) => ownedEvents.current.add(event.nativeEvent)}>
       {editor}
     </div>
   );
@@ -2509,10 +2508,21 @@ export function createEditablePlugin<T extends Record<string, unknown>>(
   options: TableEditablePluginOptions<T> = {},
 ): TablePlugin<T, EditableState, TableEditableApi> {
   const trigger = options.trigger ?? "click";
+  // 图片预览、按钮、输入框及行高/填充柄保留自身操作，不借其点击启动编辑。
+  const startCellEdit = (row: TableRow<T>, column: TableColumn<T>, event: React.MouseEvent<HTMLTableCellElement>, context: TablePluginContext<T, EditableState>) => {
+    const config = typeof column.editable === "object" ? column.editable : undefined;
+    if (!column.editable || config?.canEdit?.(row.record) === false) return;
+    // 内嵌表格的单元格事件不应启动外层单元格编辑。
+    if (event.target instanceof Element && event.target.closest('td') !== event.currentTarget) return;
+    if (event.target instanceof Element && event.target.closest('button,a,input,textarea,select,[role="button"],[role="combobox"],.sia-table__editor,.sia-table__worksheet-handle,.sia-table__row-resize-handle')) return;
+    context.setState({ editing: { rowKey: row.key, columnKey: column.key } });
+  };
   return {
     id: "editable",
     order: 70,
     initialState: { editing: null },
+    onCellClick: trigger === "click" ? startCellEdit : undefined,
+    onCellDoubleClick: trigger === "doubleClick" ? startCellEdit : undefined,
     transformColumns(columns, context) {
       return mapTableLeafColumns(columns, (column) => {
         if (!column.editable) return column;
@@ -2538,13 +2548,7 @@ export function createEditablePlugin<T extends Record<string, unknown>>(
                 value={value}
                 record={record}
                 content={content}
-                trigger={trigger}
                 showEditIcon={options.showEditIcon ?? true}
-                onStart={() =>
-                  context.setState({
-                    editing: { rowKey: info.row.key, columnKey: column.key },
-                  })
-                }
                 onCancel={() =>
                   context.setState((state) =>
                     state.editing?.rowKey === info.row.key &&
