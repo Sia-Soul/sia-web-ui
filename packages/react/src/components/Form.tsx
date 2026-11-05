@@ -499,6 +499,9 @@ function FormRoot({
       labels.forEach(label => {
         if (!observed.has(label)) { resizeObserver.observe(label); observed.add(label); }
         if (label.getClientRects().length) width = Math.max(width, label.offsetWidth);
+        // 两行标签按整块高度居中；单行标签仍沿用首行对齐，避免改变多行控件布局。
+        const multiline = label.getBoundingClientRect().height > parseFloat(getComputedStyle(label).lineHeight) * 1.5;
+        label.closest('.sia-form-item')?.classList.toggle('sia-form-item--multiline-label', multiline);
       });
       const value = `${Math.ceil(width)}px`;
       if (root.style.getPropertyValue("--sia-form-auto-label-width") !== value) root.style.setProperty("--sia-form-auto-label-width", value);
@@ -534,7 +537,7 @@ function FormRoot({
 export interface FormItemProps {
   /** 绑定到表单值的字段名或嵌套路径，例如 ["user", "name"]。 */
   name?: NamePath;
-  /** 字段标签，支持文本或 React 节点；横向及行内布局未指定标签列宽时，与同一 Form 内最宽的可见标签对齐，测量包含必填标记。未渲染标签时，控件占据表单项整行宽度。 */
+  /** 字段标签，支持文本或 React 节点；默认最大宽度 180px（包含必填标记），文案自动换行并在超过两行时省略，悬停显示全文；必填星号与整块文案垂直居中。横向布局的两行标签作为整体与控件垂直居中；横向及行内布局按同一 Form 内最宽可见标签对齐，无标签时控件占整行。 */
   label?: ReactNode;
   /** 横向表单中标签与内容的垂直对齐：start 对齐首行控件，center 将标签与整个内容区居中，适合只读文字和多行信息。纵向、行内、窄屏堆叠及 noStyle 布局不受影响。
    * @defaultValue "start"
@@ -737,7 +740,8 @@ function FormItem({
   // 只以控件区域为悬停入口，透明气泡不拦截下一行的鼠标事件。
   const inputWrap = <div className="sia-form-item__input-wrap" onMouseEnter={() => setErrorHovered(true)} onMouseLeave={() => setErrorHovered(false)}>{content}</div>;
   return <div ref={itemRef} className={`sia-form-item${align === "center" ? " sia-form-item--align-center" : ""}${status ? ` sia-form-item--${status}` : ""} ${className}`.trim()} data-sia-form-field={key || undefined}>
-    {label ? <div id={labelId} className="sia-form-item__label"><span className="sia-form-item__label-content">{ruleRequired ? <span className="sia-form-item__required-mark" aria-hidden="true">*</span> : null}{label}</span></div> : null}
+    {/* 星号独立于截断文案布局，保持整体居中和完整必填标记；全文仍作为控件无障碍名称。 */}
+    {label ? <div id={labelId} className="sia-form-item__label"><Tooltip title={label}><span className="sia-form-item__label-content">{ruleRequired ? <span className="sia-form-item__required-mark" aria-hidden="true">*</span> : null}<span className="sia-form-item__label-text">{label}</span></span></Tooltip></div> : null}
     <div className="sia-form-item__control">
       <Tooltip
         title={hasError ? <span ref={errorContentRef} id={errorId} className="sia-form-item__error-content">

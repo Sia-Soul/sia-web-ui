@@ -57,6 +57,9 @@
   /* 只读文字与多行信息可选择整行居中；保留普通输入和纵向表单原有首行对齐。 */
   .sia-form--horizontal .sia-form-item--align-center { align-items: center; }
   .sia-form--horizontal .sia-form-item--align-center > .sia-form-item__label { padding-top: 0; }
+  /* 长标签换行后以整块文字和控件居中，不沿用单行文字的顶部补偿。 */
+  .sia-form--horizontal .sia-form-item--multiline-label { align-items: center; }
+  .sia-form--horizontal .sia-form-item--multiline-label > .sia-form-item__label { padding-top: 0; }
   .sia-form--horizontal .sia-form-item--align-center > .sia-form-item__control > .sia-floating > .sia-form-item__input-wrap { display: flex; flex-direction: column; justify-content: center; min-height: var(--sia-form-row-height); }
 }
 .sia-form.sia-form--vertical .sia-form-item__label { padding-top: 0; }

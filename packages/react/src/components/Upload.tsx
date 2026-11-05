@@ -18,7 +18,8 @@ const LIST_IGNORE = Symbol("SIA_UPLOAD_LIST_IGNORE");
 function useThumbnail(file?: UploadFile, accept?: string) {
   const [local, setLocal] = useState<string>();
   useEffect(() => {
-    if (!file?.thumbUrl && file?.originFileObj?.type.startsWith("image/")) {
+    // 历史文件经过 JSON 序列化后可能只剩普通对象，只有真实 Blob 才能创建本地缩略图。
+    if (!file?.thumbUrl && file?.originFileObj instanceof Blob && file.originFileObj.type.startsWith("image/")) {
       const url = URL.createObjectURL(file.originFileObj);
       setLocal(url);
       return () => URL.revokeObjectURL(url);

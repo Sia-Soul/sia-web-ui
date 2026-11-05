@@ -493,11 +493,14 @@ body:has(.sia-window-frame[data-sia-text-selectable="false"]) img { -webkit-user
 /* --sia-form-label-width 为标签列宽，支持 CSS 长度；未设置时使用本表单测得的最大标签宽度（px，初始 0px）。显式列宽优先于自动测量值。 */
 .sia-form-item { display: grid; grid-template-columns: var(--sia-form-label-width, var(--sia-form-auto-label-width, 0px)) minmax(0, 1fr); gap: 8px 14px; margin-bottom: 8px; color: var(--sia-color-text); }
 /* 内部测量值 --sia-form-auto-label-width 由 Form 写入，单位 px；自然宽度独立于标签列，避免测量结果被上一轮列宽限制。 */
-.sia-form-item__label-content { display: inline-block; width: max-content; }
+/* 标签总宽度最多 180px；星号与文案分别布局，让必填标记相对整块多行文案居中。 */
+.sia-form-item__label-content { display: flex; align-items: center; width: max-content; max-width: 180px; margin-left: auto; }
+/* 只有文案参与两行截断，星号不占第一行文字宽度，也不会被省略规则裁掉。 */
+.sia-form-item__label-text { display: -webkit-box; min-width: 0; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; white-space: normal; }
 /* 表单项标签默认使用 13px 字号。 */
 .sia-form-item__label { padding-top: 8px; text-align: right; font-size: 13px; line-height: 1.45; }
 /* 必填色只作用于框架生成的星号，不能匹配用户标签或 Tooltip 的 span。 */
-.sia-form-item__required-mark { margin-right: 4px; color: var(--sia-color-error); }
+.sia-form-item__required-mark { flex: none; margin-right: 4px; color: var(--sia-color-error); }
 .sia-form-item__control { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; min-width: 0; }
 /* 无标签项独占整行；否则 Grid 自动放入标签列，会把单选组和输入框挤成窄条。 */
 .sia-form-item > .sia-form-item__control:only-child { grid-column: 1 / -1; }
@@ -521,6 +524,7 @@ body:has(.sia-window-frame[data-sia-text-selectable="false"]) img { -webkit-user
 .sia-form-item__extra { color: var(--sia-color-text-secondary); font-size: 12px; }
 .sia-form--vertical .sia-form-item { grid-template-columns: minmax(0, 1fr); gap: 6px; }
 .sia-form--vertical .sia-form-item__label { padding-top: 0; text-align: left; }
+.sia-form--vertical .sia-form-item__label-content, .sia-form--inline .sia-form-item__label-content { margin-left: 0; }
 .sia-form--inline > fieldset { display: flex; align-items: start; flex-wrap: wrap; gap: 12px; }
 .sia-form--inline .sia-form-item { display: flex; align-items: start; gap: 8px; }
 .sia-form--inline .sia-form-item__label { flex: 0 0 var(--sia-form-label-width, var(--sia-form-auto-label-width, 0px)); text-align: left; }
@@ -529,6 +533,7 @@ body:has(.sia-window-frame[data-sia-text-selectable="false"]) img { -webkit-user
 @media (max-width: 650px) {
   .sia-form-item { grid-template-columns: minmax(0, 1fr); gap: 6px; }
   .sia-form-item__label { padding-top: 0; text-align: left; }
+  .sia-form-item__label-content { margin-left: 0; }
   .sia-picker-range { align-items: stretch; flex-direction: column; }
   .sia-picker-range .sia-picker { width: 100%; }
   .sia-picker-range__separator { display: none; }

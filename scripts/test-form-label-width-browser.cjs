@@ -34,7 +34,7 @@ const { chromium } = require(require('node:path').join(process.argv[2], 'playwri
     assert.equal(sizes[0].labels[0], sizes[0].labels[1]);
     assert.equal(sizes[0].labels[0], Math.max(...sizes[0].natural));
     assert(sizes[0].auto > sizes[1].auto);
-    await page.evaluate(() => window.mountForm('动态变化后更长的表单字段名称'));
+    await page.evaluate(() => window.mountForm('动态更长字段名称甲乙丙'));
     await page.waitForFunction(old => parseFloat(document.querySelector('#first').style.getPropertyValue('--sia-form-auto-label-width')) > old, sizes[0].auto);
     const bigger = (await snapshot())[0].auto;
     await page.evaluate(() => window.mountForm(null));
