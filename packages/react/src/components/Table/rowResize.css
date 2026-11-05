@@ -1,0 +1,8 @@
+/* 行高调整在首列底边提供独立命中区，不与工作表填充柄或单元格选区共用事件。 */
+/* 右侧留出工作表 12px 填充柄及边框，隐藏序号列时两个热区也不相互遮挡。 */
+.sia-table__row-resize-handle { position: absolute; z-index: 9; left: 0; right: 14px; bottom: 0; height: 5px; cursor: row-resize; touch-action: none; }
+.sia-table__row-resize-handle:hover, .sia-table__row-resize-handle:focus-visible { background: var(--sia-color-primary); outline: none; }
+/* 受控行高下多行内容在单元格内部滚动，不能撑高 tr 破坏虚拟列表累计位置。编辑器保留原定位层。 */
+.sia-table__row--height-managed > .sia-table__cell > .sia-table__cell-content:not(:has(> .sia-table__editor)) { max-height: calc(var(--sia-table-row-height) - 11px); overflow: auto; }
+.sia-table--small .sia-table__row--height-managed > .sia-table__cell > .sia-table__cell-content:not(:has(> .sia-table__editor)) { max-height: calc(var(--sia-table-row-height) - 7px); }
+.sia-table--large .sia-table__row--height-managed > .sia-table__cell > .sia-table__cell-content:not(:has(> .sia-table__editor)) { max-height: calc(var(--sia-table-row-height) - 21px); }

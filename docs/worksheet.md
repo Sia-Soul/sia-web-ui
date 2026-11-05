@@ -77,9 +77,28 @@ function ImportSheet() {
 - 外部纯文本只写入文本/数字列，不写入下拉和自定义属性组。非法数字跳过，空数字转为 `null`；文本编号保留前导零。
 - `canWrite({ record, column, value, sourceColumnKey, sourceRecord })` 在通用检查后补充业务兼容条件，例如属性组必须属于相同类目。外部文本没有来源记录。
 - `setValue(record, column, value)` 可提供组合属性的不可变写回。默认沿 `dataIndex` 路径复制嵌套对象，保留已有数组结构，并拒绝原型污染路径。
+- `isEmpty(value, record, column)` 定义双击向下填充的空值规则，例如组合属性的所有字段均为空、多选数组长度为 0。默认仍只认 `null`、`undefined` 和空字符串；该回调不改变校验或粘贴的类型转换。
 - `onOperation` 通知单格编辑、粘贴和填充结果，含 `changes` 与 `skipped`；全部跳过也通知。业务拒绝或抛错不通知。插件不自动弹出消息。
 
 ## 历史与公开句柄
+
+### 可变行高与调整
+
+Table 的 `rowHeights` 按稳定 `rowKey` 保存每行高度（px），未指定键时使用 `rowHeight`。`rowResizable` 默认关闭，启用后在首个可见单元格底边显示调整柄；上下键每次调整 10px，Esc 取消正在拖动的预览。高度下限由 `minRowHeight` 指定，不能低于当前 size 的默认高度；上限 `maxRowHeight` 默认 480px。无效高度回退，拖动时限制上下界。
+
+不传 `rowHeights` 时表格内部保存高度；传入则为受控模式，`onRowHeightChange(record, height, sourceIndex)` 在拖动结束或键盘调整时仅调用一次，调用方须同步回填。预览和取消不产生业务历史；如需撤销行高，业务记录这次回调的前后值。工作表插件的撤销仍只处理数据，不混入布局变更。
+
+多行内容在格内滚动，不撑高虚拟行。虚拟窗口、`scrollToRow` 与 `focusCell` 都使用累计高度定位，排序或筛选后按稳定键匹配。显式设置 `rowHeights` 或开启 `rowResizable` 时 Canvas 自动回退 DOM，保留虚拟化和全部交互。
+
+```tsx
+// 与款式工作表相同的 80px 默认高度、56～480px 调整范围。
+<Table rowKey="id" rowHeight={80} rowHeights={heights} rowResizable
+  minRowHeight={56} maxRowHeight={480}
+  onRowHeightChange={(row, height) => setHeights(previous => ({ ...previous, [row.id]: height }))}
+  columns={columns} dataSource={rows} />
+```
+
+可运行示例在 Table 页“工作表行高调整”。`node scripts/test-table-row-heights.cjs` 验证 500 行不同高度的定位、固定列、多行内容、拖动与键盘调整、受控回填与撤销、排序与少量数据，以及组合属性空值的填充和撤销恢复。此为框架验证，不能替代业务页面接入后的验收。
 
 通过 `table.current?.getPluginApi<TableWorksheetApi<Row>>("worksheet")` 获取：
 

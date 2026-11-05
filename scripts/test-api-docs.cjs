@@ -306,6 +306,9 @@ focusOptions.lineWidth;
 tableProps.cellSelection;
 tableProps.showIndex;
 tableProps.rowStatus;
+// 不等行高和组合属性空值语义必须随正式包提供给业务编辑器。
+tableProps.rowHeights; tableProps.rowResizable; tableProps.onRowHeightChange;
+worksheetOptions.isEmpty;
 tableProps.maxBodyHeight;
 tableProps.fillRemaining;
 declare const remaining: Exclude<NonNullable<TableProps['fillRemaining']>, boolean>;
@@ -320,6 +323,7 @@ const errors=service.getSemanticDiagnostics(filename).filter(d=>d.category===ts.
 assert.equal(errors.length,0,ts.formatDiagnosticsWithColorAndContext(errors,{getCurrentDirectory:()=>packageRoot,getCanonicalFileName:f=>f,getNewLine:()=> '\n'}));
 // 行状态须保留主题和交互优先级的编辑器说明。
 const cases=[['tableProps.rowStatus','悬停和勾选反馈优先'],['showSettings', '两行'],['savedQueries', '业务方'],['onSaveQuery','快照'],['allowClear','清空'],['modalThreshold','阈值'],['Modal.open','打开'],['message.success','成功'],['Form.useForm','表单实例'],['createColumnSettingPlugin({','列设置'],['adapter.save','保存'],['chart.barCategoryGap','间距'],['selection.maxHeight','像素'],['selection.extraValues','浅拷贝'],['selection.onConfirm','取消'],['queryProps.fieldWidth','列间距'],['tableProps.cellSelection','单元格选择'],['tableProps.showIndex','序号列']];
+cases.push(['tableProps.rowHeights', '受控行高'], ['tableProps.rowResizable', '键盘上下键'], ['tableProps.onRowHeightChange', '撤销历史'], ['worksheetOptions.isEmpty', '组合属性']);
 cases.push(['chooseBox.onChange', '取消'], ['chooseBox.kind', 'directory'], ['chooseSource.authorize', '取消返回 null'], ['chooseEntry.path', '不能视为本机绝对路径']);
 cases.push(['inputNumberProps.formatter', '原始草稿'], ['inputNumberProps.parser', '不经过 parser']);
 cases.push(['adaptiveSelect.allowInput', '自动聚焦'], ['adaptiveSelect.searchPlaceholder', '输入或搜索'], ['adaptiveSelect.maxTagCount', '默认不限制数量']);

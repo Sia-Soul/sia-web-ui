@@ -1,5 +1,7 @@
 // 工作表示例与源码同时展示，便于业务按公开插件能力接入。
 import { WorksheetDemo } from "./WorksheetDemo";
+import { TableRowHeightDemo } from "./TableRowHeightDemo";
+import rowHeightCode from "./TableRowHeightDemo.tsx?raw";
 import worksheetCode from "./WorksheetDemo.tsx?raw";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
@@ -977,6 +979,7 @@ export function TablePage() {
         <Table className="table-demo" rowKey="id" columns={basicColumns} dataSource={treeData} plugins={treePlugins} height={330} />
       </DemoCard>
       <DemoCard title="工作表编辑、填充与历史" description="复用 Sia 工作表插件，单元格编辑和整批操作统一撤销恢复；只读、禁用字段和不兼容类型会被跳过。" code={worksheetCode}><WorksheetDemo /></DemoCard>
+      <DemoCard title="工作表行高调整" description="按行键保存高度，500 行虚拟滚动与按行定位使用同一高度模型。" code={rowHeightCode}><TableRowHeightDemo /></DemoCard>
       <DemoCard title="Excel 式单元格选择" description="单击选中单元格，同一单元格内拖动可选择文字，跨单元格拖动切换为矩形框选。Ctrl+C 优先复制选中文字，否则复制单元格选区；点击列头可选择整列。" code={cellSelectionCode}>
         <p style={{ marginTop: 0 }}>当前已选 {selectedCellCount} 个单元格</p>
         <Table className="table-demo cell-selection-table-demo" rowKey="id" columns={basicColumns} dataSource={basicData} plugins={cellSelectionPlugins} height={350} />

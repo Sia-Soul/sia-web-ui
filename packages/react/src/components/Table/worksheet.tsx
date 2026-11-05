@@ -435,30 +435,37 @@ export function createWorksheetPlugin<T extends Record<string, unknown>>(
       area && target >= 0 && fill(area, target, sourceCells(area), increment)
     );
   }
-  function fillDown() {
+  function fillDownValues() {
     const area = bounds();
     if (!area) return false;
     const cells = sourceCells(area);
+    // 组合属性和多选数组由业务提供空值语义；普通单元格保持原默认判定。
+    const empty = options.isEmpty ?? isEmpty;
+    const cols = columns().slice(area.left, area.right + 1);
     if (
-      !cells.some((row) =>
-        row.some((cell) => cell.kind !== "readonly" && !isEmpty(cell.value))
+      !cells.some((row, index) =>
+        row.some((cell, columnIndex) => cell.kind !== "readonly" && !empty(cell.value, context.rows[area.top + index].record, cols[columnIndex]))
       )
     )
       return false;
-    const cols = columns().slice(area.left, area.right + 1);
     let target = area.bottom;
     for (let r = area.bottom + 1; r < context.rows.length; r++) {
       if (
         cols.some(
           (column) =>
             editable(context.rows[r].record, column) &&
-            !isEmpty(valueAt(r, column))
+            !empty(valueAt(r, column), context.rows[r].record, column)
         )
       )
         break;
       target = r;
     }
     return fill(area, target, cells);
+  }
+  function fillDown() {
+    // 自定义判空属于业务回调，失败时与其余写入回调一致：不提交部分数据或历史。
+    try { return fillDownValues(); }
+    catch (error) { options.onError?.(error); return false; }
   }
   function pointTarget() {
     if (!drag || !root) return;

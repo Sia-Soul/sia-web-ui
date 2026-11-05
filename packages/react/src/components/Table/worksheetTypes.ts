@@ -50,6 +50,8 @@ export interface TableWorksheetPluginOptions<T> {
   canWrite?: (context: TableWorksheetValueContext<T>) => boolean;
   /** 自定义不可变写回，适用于组合属性；默认按 column.dataIndex 路径复制嵌套对象。 */
   setValue?: (record: T, column: TableColumn<T>, value: unknown) => T;
+  /** 双击填充柄时判断起始值与后续单元格是否为空；参数为值、当前记录及列，返回 true 视为空。默认仅 null、undefined、空字符串为空；可为多选数组或组合属性定义空值。只影响向下填充的起止位置，不改变必填校验、编辑和粘贴的类型转换；抛错时通过 onError 通知并取消整次填充。 */
+  isEmpty?: (value: unknown, record: T, column: TableColumn<T>) => boolean;
   /** 历史记录上限，单位为整次操作；默认 100，最小 1。 */
   historyLimit?: number;
   /** 是否显示撤销和恢复按钮，默认 true；关闭后仍可通过快捷键与 API 操作。 */

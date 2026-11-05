@@ -4149,67 +4149,67 @@
     "props": [
       {
         "name": "source",
-        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:36",
+        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:37",
         "supplement": null
       },
       {
         "name": "kind",
-        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:36",
+        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:37",
         "supplement": null
       },
       {
         "name": "multiple",
-        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:36",
+        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:37",
         "supplement": null
       },
       {
         "name": "value",
-        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:43",
+        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:44",
         "supplement": null
       },
       {
         "name": "defaultValue",
-        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:36",
+        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:37",
         "supplement": null
       },
       {
         "name": "onChange",
-        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:43",
+        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:44",
         "supplement": null
       },
       {
         "name": "disabled",
-        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:46",
+        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:47",
         "supplement": null
       },
       {
         "name": "placeholder",
-        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:36",
+        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:37",
         "supplement": null
       },
       {
         "name": "allowClear",
-        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:43",
+        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:44",
         "supplement": null
       },
       {
         "name": "accept",
-        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:43",
+        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:44",
         "supplement": null
       },
       {
         "name": "title",
-        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:36",
+        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:37",
         "supplement": null
       },
       {
         "name": "size",
-        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:43",
+        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:44",
         "supplement": null
       },
       {
         "name": "onError",
-        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:43",
+        "example": "apps/docs/src/pages/ChooseBoxPage.tsx:44",
         "supplement": null
       }
     ]
@@ -4814,7 +4814,7 @@
     "props": [
       {
         "name": "tone",
-        "example": "apps/docs/src/pages/IconPage.tsx:51",
+        "example": "apps/docs/src/pages/IconPage.tsx:68",
         "supplement": null
       },
       {
@@ -6104,22 +6104,22 @@
     "props": [
       {
         "name": "dataSource",
-        "example": "apps/docs/src/pages/TablePage.tsx:47",
+        "example": "apps/docs/src/pages/TablePage.tsx:49",
         "supplement": "apps/docs/src/pages/examples/FormExamples.tsx:25"
       },
       {
         "name": "columns",
-        "example": "apps/docs/src/pages/TablePage.tsx:47",
+        "example": "apps/docs/src/pages/TablePage.tsx:49",
         "supplement": "apps/docs/src/pages/examples/FormExamples.tsx:25"
       },
       {
         "name": "rowKey",
-        "example": "apps/docs/src/pages/TablePage.tsx:342",
+        "example": "apps/docs/src/pages/TablePage.tsx:344",
         "supplement": "apps/docs/src/pages/examples/FormExamples.tsx:25"
       },
       {
         "name": "plugins",
-        "example": "apps/docs/src/pages/TablePage.tsx:47",
+        "example": "apps/docs/src/pages/TablePage.tsx:49",
         "supplement": null
       },
       {
@@ -6134,17 +6134,17 @@
       },
       {
         "name": "height",
-        "example": "apps/docs/src/pages/TablePage.tsx:342",
+        "example": "apps/docs/src/pages/TablePage.tsx:344",
         "supplement": "apps/docs/src/pages/examples/FormExamples.tsx:25"
       },
       {
         "name": "maxBodyHeight",
-        "example": "apps/docs/src/pages/TablePage.tsx:951",
+        "example": "apps/docs/src/pages/TablePage.tsx:953",
         "supplement": null
       },
       {
         "name": "fillRemaining",
-        "example": "apps/docs/src/pages/TablePage.tsx:47",
+        "example": "apps/docs/src/pages/TablePage.tsx:49",
         "supplement": null
       },
       {
@@ -6154,7 +6154,7 @@
       },
       {
         "name": "size",
-        "example": "apps/docs/src/pages/TablePage.tsx:945",
+        "example": "apps/docs/src/pages/TablePage.tsx:947",
         "supplement": null
       },
       {
@@ -6164,12 +6164,12 @@
       },
       {
         "name": "rowBordered",
-        "example": "apps/docs/src/pages/TablePage.tsx:967",
+        "example": "apps/docs/src/pages/TablePage.tsx:969",
         "supplement": null
       },
       {
         "name": "columnBordered",
-        "example": "apps/docs/src/pages/TablePage.tsx:967",
+        "example": "apps/docs/src/pages/TablePage.tsx:969",
         "supplement": null
       },
       {
@@ -6184,7 +6184,7 @@
       },
       {
         "name": "virtual",
-        "example": "apps/docs/src/pages/TablePage.tsx:342",
+        "example": "apps/docs/src/pages/TablePage.tsx:344",
         "supplement": null
       },
       {
@@ -6199,12 +6199,37 @@
       },
       {
         "name": "rowHeight",
-        "example": "apps/docs/src/pages/TablePage.tsx:342",
+        "example": "apps/docs/src/pages/TablePage.tsx:344",
+        "supplement": null
+      },
+      {
+        "name": "rowHeights",
+        "example": "apps/docs/src/pages/TableRowHeightDemo.tsx:20",
+        "supplement": null
+      },
+      {
+        "name": "rowResizable",
+        "example": "apps/docs/src/pages/TableRowHeightDemo.tsx:20",
+        "supplement": null
+      },
+      {
+        "name": "minRowHeight",
+        "example": "apps/docs/src/pages/TableRowHeightDemo.tsx:20",
+        "supplement": null
+      },
+      {
+        "name": "maxRowHeight",
+        "example": "apps/docs/src/pages/TableRowHeightDemo.tsx:20",
+        "supplement": null
+      },
+      {
+        "name": "onRowHeightChange",
+        "example": "apps/docs/src/pages/TableRowHeightDemo.tsx:20",
         "supplement": null
       },
       {
         "name": "overscan",
-        "example": "apps/docs/src/pages/TablePage.tsx:342",
+        "example": "apps/docs/src/pages/TablePage.tsx:344",
         "supplement": null
       },
       {
@@ -6244,7 +6269,7 @@
       },
       {
         "name": "rowStatus",
-        "example": "apps/docs/src/pages/TablePage.tsx:951",
+        "example": "apps/docs/src/pages/TablePage.tsx:953",
         "supplement": null
       },
       {

@@ -4,6 +4,9 @@ import { TableCellContent } from "./TableCellContent";
 import { useRemainingHeight } from "./useRemainingHeight";
 import { TableCanvasLayer } from "./TableCanvasLayer";
 import { createRowIdentity } from "./rowIdentity";
+import { createRowHeightLayout } from "./rowHeights";
+import { RowResizeHandle } from "./RowResizeHandle";
+import "./rowResize.css";
 import "./canvas.css";
 import "./cellFocus.css";
 import { playCellFocusGlow } from "./cellFocus";
@@ -143,6 +146,8 @@ interface BodyRowProps<T> {
   rightFixedEdgeKey?: string;
   striped: boolean;
   rowHeight: number;
+  managedHeight: boolean;
+  resize?: { min: number; max: number; onPreview: (height: number | null) => void; onCommit: (height: number) => void };
   className: string;
   onClick: () => void;
   onDoubleClick: () => void;
@@ -169,6 +174,8 @@ const TableBodyRow = memo(function TableBodyRow<T>({
   rightFixedEdgeKey,
   striped,
   rowHeight,
+  managedHeight,
+  resize,
   className,
   onClick,
   onDoubleClick,
@@ -182,13 +189,14 @@ const TableBodyRow = memo(function TableBodyRow<T>({
   onCellPointerDown,
   onCellPointerMove,
 }: BodyRowProps<T>) {
+  const resizeColumnKey = resize ? columns.find(column => !getCellProps(column).hidden)?.key : undefined;
   return (
     <tr
       // 稳定行标识用于工作表填充在虚拟滚动后定位当前可见行。
       data-row-key={String(row.key)}
       data-canvas-row-index={canvas ? rowIndex : undefined}
-      className={`sia-table__row${striped && rowIndex % 2 === 1 ? " sia-table__row--striped" : ""} ${className}`.trim()}
-      style={{ height: rowHeight }}
+      className={`sia-table__row${managedHeight ? " sia-table__row--height-managed" : ""}${striped && rowIndex % 2 === 1 ? " sia-table__row--striped" : ""} ${className}`.trim()}
+      style={{ height: rowHeight, "--sia-table-row-height": `${rowHeight}px` } as CSSProperties}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onMouseEnter={onMouseEnter}
@@ -242,6 +250,7 @@ const TableBodyRow = memo(function TableBodyRow<T>({
                 ? pluginCellProps.content
                 : column.render ? column.render(value, row.record, row.sourceIndex, { row, rowIndex, column }) : value as ReactNode}
             </TableCellContent> : null}
+            {resize && column.key === resizeColumnKey ? <RowResizeHandle height={rowHeight} {...resize} /> : null}
           </td>
         );
       })}
@@ -271,6 +280,11 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     renderMode = "dom",
     virtualThreshold = 100,
     rowHeight = SIZE_ROW_HEIGHT[size],
+    rowHeights,
+    rowResizable = false,
+    minRowHeight,
+    maxRowHeight,
+    onRowHeightChange,
     overscan = 6,
     stickyHeader = true,
     resizable = true,
@@ -286,6 +300,20 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     style,
     ...htmlProps
   } = props;
+  // 行高使用稳定行键保存；受控值优先，拖动中的预览只影响布局，不提前通知业务历史。
+  const [localRowHeights, setLocalRowHeights] = useState<Record<string, number>>({});
+  const [rowHeightPreview, setRowHeightPreview] = useState<{ key: string; height: number } | null>(null);
+  const configuredRowHeights = rowHeights ?? localRowHeights;
+  const effectiveRowHeights = useMemo(() => rowHeightPreview
+    ? { ...configuredRowHeights, [rowHeightPreview.key]: rowHeightPreview.height }
+    : configuredRowHeights, [configuredRowHeights, rowHeightPreview]);
+  const resizeMin = Math.max(SIZE_ROW_HEIGHT[size], Number.isFinite(minRowHeight) ? minRowHeight! : SIZE_ROW_HEIGHT[size]);
+  const resizeMax = Math.max(resizeMin, Number.isFinite(maxRowHeight) ? maxRowHeight! : 480);
+  const managedRowHeights = rowHeights !== undefined || rowResizable || Object.keys(localRowHeights).length > 0;
+  const commitRowHeight = useCallback((row: TableRow<T>, height: number) => {
+    if (rowHeights === undefined) setLocalRowHeights(previous => ({ ...previous, [String(row.key)]: height }));
+    onRowHeightChange?.(row.record, height, row.sourceIndex);
+  }, [rowHeights, onRowHeightChange]);
   const rootRef = useRef<HTMLDivElement>(null);
   // 显式高度保持旧优先级；未指定时由框架统一测量剩余空间。
   const remainingHeight = useRemainingHeight(rootRef, height == null && tableHeight == null ? fillRemaining : false);
@@ -571,14 +599,15 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
   const rightFixedEdgeKey = leafColumns.find((column) => normalizeFixed(column.fixed) === "right")?.key;
 
   // 按筛选、分页及树展开后的实际渲染行数兜底，超过 100 行时不允许配置关闭窗口化。
-  const canvas = renderMode === "canvas" && !sortedPlugins.some(plugin => plugin.disableVirtual);
+  const canvas = renderMode === "canvas" && !managedRowHeights && !sortedPlugins.some(plugin => plugin.disableVirtual);
   const shouldVirtualize = canvas || pipeline.rows.length > 100
     || ((virtual ?? pipeline.rows.length >= virtualThreshold) && !sortedPlugins.some((plugin) => plugin.disableVirtual));
   // 筛选或替换数据后旧滚动位置可能超过新列表；先限制窗口起点，避免占位行撑高少量结果或空表。
-  const firstVisibleIndex = Math.min(Math.floor(scrollTop / rowHeight), Math.max(0, pipeline.rows.length - Math.ceil(viewportHeight / rowHeight)));
+  const rowLayout = createRowHeightLayout(pipeline.rows, rowHeight, effectiveRowHeights, SIZE_ROW_HEIGHT[size]);
+  const windowTop = Math.min(scrollTop, Math.max(0, rowLayout.total - viewportHeight));
+  const firstVisibleIndex = rowLayout.indexAt(windowTop);
   const startIndex = shouldVirtualize ? Math.max(0, firstVisibleIndex - overscan) : 0;
-  const visibleCount = shouldVirtualize ? Math.ceil(viewportHeight / rowHeight) + overscan * 2 : pipeline.rows.length;
-  const endIndex = shouldVirtualize ? Math.min(pipeline.rows.length, startIndex + visibleCount) : pipeline.rows.length;
+  const endIndex = shouldVirtualize ? Math.min(pipeline.rows.length, rowLayout.indexAt(windowTop + viewportHeight) + overscan + 1) : pipeline.rows.length;
   const renderedRows = pipeline.rows.slice(startIndex, endIndex);
   // 仅为横向可见列挂载交互组件，固定列始终保留。
   const visibleColumns = new Set<string>();
@@ -588,12 +617,13 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     if (normalizeFixed(column.fixed) || (columnLeft + width >= scrollLeft && columnLeft <= scrollLeft + viewportWidth)) visibleColumns.add(column.key);
     columnLeft += width;
   }
-  const topSpacer = shouldVirtualize ? startIndex * rowHeight : 0;
-  const bottomSpacer = shouldVirtualize ? Math.max(0, (pipeline.rows.length - endIndex) * rowHeight) : 0;
+  const topSpacer = shouldVirtualize ? rowLayout.offsets[startIndex] : 0;
+  const bottomSpacer = shouldVirtualize ? rowLayout.total - rowLayout.offsets[endIndex] : 0;
   // 虚拟窗口移动时复用仍可见行的元素与事件闭包；数据、插件或列布局变化必须失效。
   const rowElements = useMemo(() => new Map<React.Key, ReactElement>(), [
     dataSource, baseColumns, sortedPlugins, pluginStates, autoColumnWidths,
     viewportWidth, rowHeight, striped, rowClassName, rowStatus, getRowKey,
+    effectiveRowHeights, managedRowHeights, rowResizable, resizeMin, resizeMax, commitRowHeight,
     canvas, scrollLeft,
     onRowClick, onRowDoubleClick, onCellContextMenu,
   ]);
@@ -631,10 +661,10 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
   const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     const element = event.currentTarget;
     // 同一行区间内无需重新渲染整张表，横向滚动也不应重建单元格。
-    if (shouldVirtualize) setScrollTop(previous => Math.floor(previous / rowHeight) === Math.floor(element.scrollTop / rowHeight) ? previous : element.scrollTop);
+    if (shouldVirtualize) setScrollTop(previous => managedRowHeights || Math.floor(previous / rowHeight) !== Math.floor(element.scrollTop / rowHeight) ? element.scrollTop : previous);
     if (canvas) setScrollLeft(element.scrollLeft);
     updateScrollMetrics();
-  }, [canvas, shouldVirtualize, rowHeight, updateScrollMetrics]);
+  }, [canvas, shouldVirtualize, rowHeight, managedRowHeights, updateScrollMetrics]);
 
   const handleScrollbarPointerDown = useCallback((axis: "x" | "y", event: React.PointerEvent<HTMLDivElement>, track = event.currentTarget) => {
     const element = scrollRef.current;
@@ -698,8 +728,8 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
       // 已挂载行使用实际尺寸，虚拟窗口外的行使用框架自身的行高模型，业务无需猜测像素。
       const row = Array.from(table.tBodies[0]?.rows ?? []).find(element => element.dataset.rowKey === String(key));
       const headerHeight = table.tHead?.offsetHeight ?? headerRows.length * rowHeight;
-      const top = row ? row.getBoundingClientRect().top - viewport.getBoundingClientRect().top - viewport.clientTop + viewport.scrollTop : headerHeight + index * rowHeight;
-      const height = row?.offsetHeight ?? rowHeight;
+      const top = row ? row.getBoundingClientRect().top - viewport.getBoundingClientRect().top - viewport.clientTop + viewport.scrollTop : headerHeight + rowLayout.offsets[index];
+      const height = row?.offsetHeight ?? rowLayout.sizes[index];
       const headerInset = stickyHeader ? headerHeight : 0;
       const footerInset = table.tFoot?.offsetHeight ?? 0;
       const visibleTop = viewport.scrollTop + headerInset;
@@ -783,7 +813,7 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
     requestCount: async (model) => { await (pluginApisRef.current.pagination as any)?.requestCount?.(model); },
     };
     return api;
-  }, [dataSource.length, pipeline.columns, pipeline.rows, headerRows.length, rowHeight, stickyHeader, shouldVirtualize, updateScrollMetrics, leafColumns, columnWidths, left, right, canvas]);
+  }, [dataSource.length, pipeline.columns, pipeline.rows, headerRows.length, rowHeight, rowLayout, stickyHeader, shouldVirtualize, updateScrollMetrics, leafColumns, columnWidths, left, right, canvas]);
 
   const coreContext: TablePluginContext<T, undefined> = {
     pluginId: "core",
@@ -976,7 +1006,13 @@ function TableInner<T extends Record<string, unknown>>(props: TableProps<T>, ref
                 leftFixedEdgeKey={leftFixedEdgeKey}
                 rightFixedEdgeKey={rightFixedEdgeKey}
                 striped={striped}
-                rowHeight={rowHeight}
+                rowHeight={rowLayout.sizes[rowIndex]}
+                managedHeight={managedRowHeights}
+                resize={rowResizable ? {
+                  min: resizeMin, max: resizeMax,
+                  onPreview: height => setRowHeightPreview(height === null ? null : { key: String(row.key), height }),
+                  onCommit: height => commitRowHeight(row, height),
+                } : undefined}
                 className={`${statusClass} ${pluginClasses} ${customClass}`.trim()}
                 onClick={() => {
                   for (const plugin of sortedPlugins) plugin.onRowClick?.(row, getContext(plugin));

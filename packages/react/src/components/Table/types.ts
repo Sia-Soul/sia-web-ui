@@ -336,12 +336,22 @@ export interface TableProps<T extends Record<string, unknown> = Record<string, u
   striped?: boolean;
   /** 是否启用窗口化渲染；未指定时按 virtualThreshold 判断。筛选、分页及树展开后的实际展示行数超过 100 时强制启用，优先于 false 和插件的 disableVirtual。 */
   virtual?: boolean;
-  /** 内容渲染方式，默认 dom；canvas 使用画布绘制文本，并保留可见交互组件及 DOM 单元格语义。Canvas 强制固定行高和行虚拟化；不支持虚拟化的插件自动回退 DOM。 */
+  /** 内容渲染方式，默认 dom；canvas 使用画布绘制文本，并保留可见交互组件及 DOM 单元格语义。Canvas 强制固定行高和行虚拟化；不支持虚拟化的插件、rowHeights 或 rowResizable 会自动回退 DOM。 */
   renderMode?: "dom" | "canvas";
   /** 自动启用虚拟滚动的展示行数阈值（含该值），默认 100；仅在未指定 virtual 时使用，实际展示超过 100 行始终强制启用。 */
   virtualThreshold?: number;
   /** 行高度，单位为 px，虚拟滚动用其计算行位置；默认随 size 取 small 28、medium 36、large 46。自定义内容应适配行高，避免撑高后导致虚拟滚动位置偏差。 */
   rowHeight?: number;
+  /** 按行唯一键指定受控行高，单位 px；未提供的键使用 rowHeight。非有限或非正数回退默认行高，最小为 size 对应默认高度。排序和筛选后仍按键对应；设置后 Canvas 回退 DOM。内容超过高度时在格内滚动，需使用稳定且字符串化后唯一的 rowKey。 */
+  rowHeights?: Readonly<Record<string, number>>;
+  /** 是否在每行首个可见单元格底边显示行高拖动柄，默认 false；启用后 Canvas 回退 DOM。键盘上下键每次调整 10px，Esc 取消拖动。未传 rowHeights 时由表格内部保存，否则通过 onRowHeightChange 同步回填。 */
+  rowResizable?: boolean;
+  /** 用户调整行高的下限，单位 px，默认 size 对应的默认高度（28/36/46）；不能小于该值，非有限值回退默认值。不影响显式 rowHeights。 */
+  minRowHeight?: number;
+  /** 用户调整行高的上限，单位 px，默认 480；不能小于 minRowHeight，非有限值回退默认值。不影响显式 rowHeights。 */
+  maxRowHeight?: number;
+  /** 拖动结束或键盘调整后调用一次，参数为原始记录、新行高（px）及原始数据索引；拖动预览、取消或值未变化时不调用。受控 rowHeights 须同步回填，可将此事件纳入业务撤销历史。 */
+  onRowHeightChange?: (record: T, height: number, index: number) => void;
   /** 虚拟列表在可视区域前后额外渲染的数量。 */
   overscan?: number;
   /** 滚动时是否固定表头。 */
