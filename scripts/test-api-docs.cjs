@@ -47,6 +47,7 @@ fillForm.onFinish;
 fillForm.onFinishFailed;
 declare const imageGroup: ImagePreviewGroupProps; imageGroup.children;
 declare const previewNavigation: ImagePreviewProps; previewNavigation.onCurrentChange;
+declare const previewOriginal: ImagePreviewProps; previewOriginal.originalSrc;
 declare const externalValidationField: FormFieldData;
 externalValidationField.errors;
 import type { FormItemProps } from '@sia.soul/sia-react-ui';
@@ -277,6 +278,8 @@ selection.maxHeight;
 selection.extraValues;
 selection.onConfirm;
 declare const queryProps: QueryFormProps;
+// 接口错误的反馈职责必须在公开声明中明确。
+queryProps.onError;
 queryProps.collapsed;
 queryProps.fieldWidth;
   // 默认折叠阈值和手动选择优先级必须出现在发布后的悬停说明中。
@@ -413,6 +416,8 @@ cases.push(['centeredFormItem.align', '整个内容区居中']);
 cases.push(['semanticIcon.tone', '图标语义色']);
 // 外部字段错误回填与清除语义须完整保留到业务端悬停提示。
 cases.push(['fillForm.fill', '剩余高度'], ['imageGroup.children', '不加入分组'], ['previewNavigation.onCurrentChange', '序号']);
+// 原图配置须在发布声明中保留按需加载和失败重试语义。
+cases.push(['previewOriginal.originalSrc', '失败']);
 cases.push(['importSteps.labelPlacement', '图标右侧'], ['tableProps.maxBodyHeight', '自然高度']);
 cases.push(['importUpload.acceptMode', '完整失败明细']);
 cases.push(['externalValidationForm.setFields', '不触发'], ['externalValidationField.errors', '空数组']);
@@ -428,7 +433,7 @@ cases.push(['focusOptions.color', '#fa8c16'], ['focusOptions.speed', '速度倍�
 cases.push(['editableOptions.showEditIcon', '默认 true']);
 // 必填和校验外观必须通过正式发布声明提供中文业务语义。
 cases.push(['headerColumn.required', '不自动校验'], ['headerColumn.invalid', '不改变行高']);
-cases.push(['queryProps.collapsed', '240ms']);
+cases.push(['queryProps.collapsed', '240ms'], ['queryProps.onError', '不渲染接口异常']);
 cases.push(['animatedRadio.buttonStyle', '液体轮廓']);
 cases.push(['emptyInputSelect.value', '空字符串']);
 // 面板快速关闭是成对时长规则的明确例外，发布声明必须告知业务。

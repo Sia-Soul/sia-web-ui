@@ -59,7 +59,7 @@ export interface DatePickerProps extends SharedDatePickerProps {
   /** 非受控模式的初始值，仅在初始化时使用。 */
   defaultValue?: DatePickerValue;
   /**
-   * 日期粒度
+   * 日期粒度；year 展示十年一页的年份网格，点击年份回传 YYYY，支持翻页、多选与确认。
    * @defaultValue "date"
    */
   picker?: DatePickerType;
@@ -280,8 +280,10 @@ export function DatePicker({
   function isDisabled(day: string) {
     const minimum = minDate ?? props.min;
     const maximum = maxDate ?? props.max;
-    if (minimum && day < String(minimum).slice(0, 10)) return true;
-    if (maximum && day > String(maximum).slice(0, 10)) return true;
+    // 年份按整年比较边界，年内最小/最大日期不应禁用整个边界年份。
+    const length = picker === "year" ? 4 : 10;
+    if (minimum && day.slice(0, length) < String(minimum).slice(0, length)) return true;
+    if (maximum && day.slice(0, length) > String(maximum).slice(0, length)) return true;
     return disabledDate?.(day, { type: "date" }) ?? false;
   }
 
@@ -371,14 +373,31 @@ export function DatePicker({
           }}>{preset.label}</button>)}
         </aside> : null}
         <section className="sia-date-panel__calendar">
-          <CalendarHeader
+          {/* 年份粒度直接选择年份，不再以日历点选后截取年份代替。 */}
+          {picker === "year" ? <>
+            <div className="sia-date-panel__header">
+              <span className="sia-date-panel__nav"><button type="button" aria-label="上十年" onClick={() => setViewMonth(addMonths(viewMonth, -120))}><Icon name="chevron-left" size={15} /></button></span>
+              <strong>{Math.floor(viewMonth.getFullYear() / 10) * 10}年 — {Math.floor(viewMonth.getFullYear() / 10) * 10 + 9}年</strong>
+              <span className="sia-date-panel__nav"><button type="button" aria-label="下十年" onClick={() => setViewMonth(addMonths(viewMonth, 120))}><Icon name="chevron-right" size={15} /></button></span>
+            </div>
+            <div className="sia-date-panel__years">
+              {Array.from({ length: 10 }, (_, index) => {
+                const year = String(Math.floor(viewMonth.getFullYear() / 10) * 10 + index);
+                const day = `${year}-01-01`;
+                const selected = selectedDates.some(value => value.slice(0, 4) === year);
+                return <span key={year} className={`sia-date-panel__cell${selected ? " is-selected" : ""}${year === String(new Date().getFullYear()) ? " is-today" : ""}`}>
+                  <button type="button" aria-label={`${year}年`} aria-pressed={selected} disabled={isDisabled(day)} onClick={() => selectDate(day)}>{year}</button>
+                </span>;
+              })}
+            </div>
+          </> : <><CalendarHeader
             month={viewMonth}
             onPreviousYear={() => setViewMonth(addMonths(viewMonth, -12))}
             onPreviousMonth={() => setViewMonth(addMonths(viewMonth, -1))}
             onNextMonth={() => setViewMonth(addMonths(viewMonth, 1))}
             onNextYear={() => setViewMonth(addMonths(viewMonth, 12))}
           />
-          <CalendarMonth month={viewMonth} selectedDates={selectedDates} disabledDate={isDisabled} onSelect={selectDate} />
+          <CalendarMonth month={viewMonth} selectedDates={selectedDates} disabledDate={isDisabled} onSelect={selectDate} /></>}
         </section>
         {showTime ? <TimePanel value={draftTime} showSecond={showSecond} onChange={(next) => {
           setDraftTime(next);

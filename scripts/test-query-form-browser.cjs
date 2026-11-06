@@ -18,8 +18,13 @@ const {chromium} = require(require('node:path').join(process.argv[2], 'playwrigh
   await page.waitForFunction(()=>document.querySelector('[aria-label="查询结果说明"]').textContent.includes('已查询 2 次'));
   assert((await result.innerText()).includes('reset，共 3 条'));
   await query.getByRole('textbox',{name:'备注',exact:true}).fill('保留条件');
+  const expandedFields=await query.locator('.sia-query-form__field:visible').count();
   await query.getByRole('button',{name:'收起',exact:true}).click();
-  assert((await query.locator('.sia-query-form__field:visible').count()) <= 3);
+  // 收起数量随容器宽度自适应；等待布局动画完成，检查实际减少且保持单行。
+  await page.waitForFunction(count=>{
+    const fields=[...document.querySelector('.sia-query-form').querySelectorAll('.sia-query-form__field')].filter(el=>el.getClientRects().length);
+    return fields.length<count && new Set(fields.map(el=>Math.round(el.getBoundingClientRect().top))).size===1;
+  },expandedFields);
   await query.getByRole('button',{name:'展开',exact:true}).click();
   assert.equal(await query.getByRole('textbox',{name:'备注',exact:true}).inputValue(),'保留条件');
   const tag=query.getByLabel('已保存快捷查询').locator('.sia-tag').first();
@@ -36,7 +41,8 @@ const {chromium} = require(require('node:path').join(process.argv[2], 'playwrigh
   await dialog.waitFor({state:'hidden'});
   const saved=query.getByLabel('已保存快捷查询').locator('.sia-tag').filter({hasText:'成都查询'});
   await saved.waitFor();
-  await saved.getByRole('button',{name:'移除标签'}).click();
+  // 标签关闭按钮按设计在悬停后出现，再执行真实点击。
+  await saved.hover();await saved.getByRole('button',{name:'移除标签'}).click();
   await saved.waitFor({state:'detached'});
   assert((await result.innerText()).includes('已查询 3 次'));
   await query.getByRole('textbox',{name:'品牌方名称',exact:true}).fill('办公');

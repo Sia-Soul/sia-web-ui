@@ -97,7 +97,7 @@ export interface TableColumn<T = Record<string, unknown>> {
   ellipsis?: boolean;
   /** 数据单元格是否使用 Sia Tooltip 显示完整文本；默认 false，不生成浏览器原生 title。列头仅在文字实际省略时提示完整标题，不受此属性影响。 */
   showTitle?: boolean;
-  /** 是否允许该列排序；配合排序插件显示按钮，依次切换升序、降序、未排序，当前排序方向以高亮单箭头显示。 */
+  /** 是否允许该列排序；配合排序插件常显排序按钮，按钮参与表头布局并保留独立宽度；依次切换升序、降序、未排序；当前排序方向始终以高亮单箭头显示。 */
   sortable?: boolean;
   /** 是否允许该列筛选。 */
   filterable?: boolean;
@@ -338,7 +338,7 @@ export interface TableProps<T extends Record<string, unknown> = Record<string, u
   striped?: boolean;
   /** 是否启用窗口化渲染；未指定时按 virtualThreshold 判断。筛选、分页及树展开后的实际展示行数超过 100 时强制启用，优先于 false 和插件的 disableVirtual。 */
   virtual?: boolean;
-  /** 内容渲染方式，默认 dom；canvas 使用画布绘制文本，并保留可见交互组件及 DOM 单元格语义。Canvas 强制固定行高和行虚拟化；不支持虚拟化的插件、rowHeights 或 rowResizable 会自动回退 DOM。 */
+  /** 内容渲染方式，默认 dom；canvas 使用画布绘制文本，并保留可见交互组件及 DOM 单元格语义。普通文本在指针进入或按下时按需提供原生文字选区，横向滚轮与画布同步移动。Canvas 强制固定行高和行虚拟化；不支持虚拟化的插件、rowHeights 或 rowResizable 会自动回退 DOM。 */
   renderMode?: "dom" | "canvas";
   /** 自动启用虚拟滚动的展示行数阈值（含该值），默认 100；仅在未指定 virtual 时使用，实际展示超过 100 行始终强制启用。 */
   virtualThreshold?: number;

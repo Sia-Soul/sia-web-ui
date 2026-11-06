@@ -132,7 +132,7 @@ export interface QueryFormProps<T extends FormValues = FormValues> extends Omit<
   }) => void | Promise<void>;
   /** 删除已保存快捷项时调用，query 为被删除的完整快捷项。业务方负责持久化并更新 savedQueries；失败保留该项，删除操作不会触发查询。 */
   onRemoveQuery?: (query: QueryFormShortcut<T>) => void | Promise<void>;
-  /** 查询、保存或删除失败时调用。error 为原始异常，operation 为 search、save 或 remove；组件同时显示错误提示。 */
+  /** 查询、保存或删除失败时调用，error 为原始异常，operation 为 search、save 或 remove。组件结束等待并保留条件/草稿，不渲染接口异常或额外弹出消息；错误展示由业务回调或统一请求层负责。未提供回调时也不展示接口异常。快捷查询名称为空等本地校验仍显示。 */
   onError?: (error: unknown, operation: "search" | "save" | "remove") => void;
   /**
    * 查询按钮文案。
@@ -205,7 +205,6 @@ export function QueryForm<T extends FormValues = FormValues>({
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState("");
   const [saveError, setSaveError] = useState("");
-  const [error, setError] = useState("");
   const [activeShortcut, setActiveShortcut] = useState("");
   const source = useRef<QueryFormSearchInfo>({ source: "submit" });
   const searchLock = useRef(false);
@@ -340,11 +339,10 @@ export function QueryForm<T extends FormValues = FormValues>({
     if (searchLock.current || disabled || loading) return;
     searchLock.current = true;
     setSearching(true);
-    setError("");
     try {
       await onSearch(values as T, info);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "查询失败，请重试");
+      // 请求层可能已经提示过；原始异常仅交给回调，不在查询区域重复展示。
       onError?.(reason, "search");
     } finally {
       searchLock.current = false;
@@ -363,7 +361,6 @@ export function QueryForm<T extends FormValues = FormValues>({
     if (busy) return;
     form.resetFields();
     setActiveShortcut("");
-    setError("");
     if (resetSearch) {
       source.current = { source: "reset" };
       form.submit();
@@ -384,9 +381,7 @@ export function QueryForm<T extends FormValues = FormValues>({
       await onSaveQuery({ name, values: snapshot.current });
       setSaveOpen(false);
     } catch (reason) {
-      setSaveError(
-        reason instanceof Error ? reason.message : "保存失败，请重试",
-      );
+      // 接口失败不是名称校验失败：保留弹框草稿，但不把接口文本标成字段错误。
       onError?.(reason, "save");
       return false;
     } finally {
@@ -398,12 +393,11 @@ export function QueryForm<T extends FormValues = FormValues>({
     if (!onRemoveQuery || shortcutBusy || removeLock.current) return;
     removeLock.current = true;
     setRemoving(true);
-    setError("");
     try {
       await onRemoveQuery(query);
       if (activeShortcut === `saved:${query.key}`) setActiveShortcut("");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "删除失败，请重试");
+      // 删除失败保留快捷项及选中态，由调用方处理接口错误反馈。
       onError?.(reason, "remove");
     } finally {
       removeLock.current = false;
@@ -582,11 +576,6 @@ export function QueryForm<T extends FormValues = FormValues>({
               </Tag>
             ))}{" "}
           </div>
-        ) : null}
-        {error ? (
-          <p className="sia-query-form__error" role="alert">
-            {error}
-          </p>
         ) : null}
       </Form>
       <Modal

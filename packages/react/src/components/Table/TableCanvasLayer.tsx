@@ -29,8 +29,10 @@ export function TableCanvasLayer<T>({ viewport, rows, columns, widths, rowHeight
       }
       canvas.style.width = `${width}px`; canvas.style.height = `${height}px`;
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0); ctx.clearRect(0, 0, width, height);
-      const style = getComputedStyle(scroller);
-      const foreground = style.color;
+      // 与同尺寸原生单元格使用相同字体和内边距，按需选字时位置不能跳动。
+      const style = getComputedStyle(scroller.querySelector('td[data-column-key]') ?? scroller);
+      const padding = Number.parseFloat(style.paddingLeft) || 12;
+      const foreground = getComputedStyle(scroller).color;
       // 仅检查已提交的 DOM 标记，不测量布局；空值渲染也视为就绪，避免永久显示骨架。
       const readyCells = new Map<number, Set<string>>();
       scroller.querySelectorAll<HTMLElement>("tr[data-canvas-row-index]").forEach(element => {
@@ -62,12 +64,14 @@ export function TableCanvasLayer<T>({ viewport, rows, columns, widths, rowHeight
         for (let index = first; index < last; index++) {
           const row = rows[index];
           const y = headerHeight + index * rowHeight - scroller.scrollTop + rowHeight / 2;
+          // 原生交互内容及按需激活的文字不能与画布重复绘制。
+          if (readyCells.get(index)?.has(column.key)) continue;
           if (!column.canvasRender && column.render) {
             // 快速滚动时 Canvas 先于 React 窗口到达新行，用静态灰条填补交互内容的短暂空窗。
             // 已挂载内容不遮盖，不添加动画、定时器或可点击的虚假按钮。
             if (!readyCells.get(index)?.has(column.key)) {
-              const skeletonWidth = Math.max(0, Math.min(cellWidth - 24, 120));
-              const skeletonX = column.align === "right" ? x + cellWidth - skeletonWidth - 8 : column.align === "center" ? x + (cellWidth - skeletonWidth) / 2 : x + 8;
+              const skeletonWidth = Math.max(0, Math.min(cellWidth - padding * 2, 120));
+              const skeletonX = column.align === "right" ? x + cellWidth - skeletonWidth - padding : column.align === "center" ? x + (cellWidth - skeletonWidth) / 2 : x + padding;
               ctx.save(); ctx.fillStyle = foreground; ctx.globalAlpha = 0.12;
               ctx.beginPath(); ctx.roundRect(skeletonX, y - 6, skeletonWidth, 12, 4); ctx.fill(); ctx.restore();
             }
@@ -78,7 +82,7 @@ export function TableCanvasLayer<T>({ viewport, rows, columns, widths, rowHeight
             ? column.canvasRender(value, row.record, row.sourceIndex, { row, rowIndex: index, column })
             : { text: value == null ? "" : String(value) };
           if (!content?.text) continue;
-          const available = Math.max(0, cellWidth - (content.background ? 32 : 16));
+          const available = Math.max(0, cellWidth - padding * 2 - (content.background ? 16 : 0));
           let text = content.text;
           if (ctx.measureText(text).width > available) {
             // 二分截断避免对超长 JSON/说明逐字符测量。
@@ -88,7 +92,7 @@ export function TableCanvasLayer<T>({ viewport, rows, columns, widths, rowHeight
           }
           const textWidth = ctx.measureText(text).width;
           const total = textWidth + (content.background ? 16 : 0);
-          const tx = column.align === "right" ? x + cellWidth - total - 8 : column.align === "center" ? x + (cellWidth - total) / 2 : x + 8;
+          const tx = column.align === "right" ? x + cellWidth - total - padding : column.align === "center" ? x + (cellWidth - total) / 2 : x + padding;
           if (content.background) {
             ctx.fillStyle = content.background; ctx.beginPath(); ctx.roundRect(tx, y - 12, total, 24, 4); ctx.fill();
           }
@@ -103,6 +107,21 @@ export function TableCanvasLayer<T>({ viewport, rows, columns, widths, rowHeight
     // 捕获阶段先绘制，避免 React 的可见单元格更新占用本次事件后才开始同步内容。
     const onScroll = () => { cancelAnimationFrame(frame); draw(); };
     scroller.addEventListener("scroll", onScroll, { passive: true, capture: true });
+    // 滚轮的合成线程滚动会先移动 DOM 再派发 scroll，导致视口外的 Canvas 短暂错位。
+    // 横移统一在主线程设置滚动位置并立即重绘；保留缩放和到边界后的页面滚动。
+    const onWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || !event.cancelable) return;
+      const dx = event.deltaX || (event.shiftKey ? event.deltaY : 0);
+      if (!dx) return;
+      const scale = event.deltaMode === 1 ? rowHeight : event.deltaMode === 2 ? scroller.clientWidth : 1;
+      const next = Math.max(0, Math.min(scroller.scrollWidth - scroller.clientWidth, scroller.scrollLeft + dx * scale));
+      if (next === scroller.scrollLeft) return;
+      event.preventDefault();
+      scroller.scrollLeft = next;
+      if (event.deltaX && event.deltaY) scroller.scrollTop += event.deltaY * (event.deltaMode === 2 ? scroller.clientHeight : scale);
+      onScroll();
+    };
+    scroller.addEventListener("wheel", onWheel, { passive: false });
     const resize = new ResizeObserver(schedule); resize.observe(scroller);
     // React 提交新窗口后即使滚动已停止，也必须重新绘制以清掉骨架。
     const content = new MutationObserver(schedule);
@@ -110,7 +129,7 @@ export function TableCanvasLayer<T>({ viewport, rows, columns, widths, rowHeight
     // 主题和缩放变化后重新按当前主题及像素比绘制。
     const theme = new MutationObserver(schedule); theme.observe(document.documentElement, { attributes: true });
     window.addEventListener("resize", schedule); draw();
-    return () => { cancelAnimationFrame(frame); resize.disconnect(); content.disconnect(); theme.disconnect(); scroller.removeEventListener("scroll", onScroll, true); window.removeEventListener("resize", schedule); };
+    return () => { cancelAnimationFrame(frame); resize.disconnect(); content.disconnect(); theme.disconnect(); scroller.removeEventListener("scroll", onScroll, true); scroller.removeEventListener("wheel", onWheel); window.removeEventListener("resize", schedule); };
   }, [viewport, rows, columns, widths, rowHeight, headerHeight]);
   return <canvas ref={canvasRef} aria-hidden="true" className="sia-table__canvas-layer" />;
 }

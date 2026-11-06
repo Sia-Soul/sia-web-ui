@@ -882,6 +882,13 @@ fieldset:disabled :is(.sia-select, .sia-tree-select, .sia-cascader) > :is(.sia-s
 .sia-image-preview__toolbar > .sia-button { flex: 0 1 36px; width: 36px; min-width: 0; height: 36px; padding: 0; color: #fff; }
 .sia-image-preview__toolbar > .sia-button:hover:not(:disabled) { background: rgb(255 255 255 / 16%); }
 .sia-image-preview__toolbar > .sia-button:disabled { color: rgb(255 255 255 / 30%); }
+/* 文字操作保留完整标签；窄窗口换行而不压缩图标和点击区域。 */
+.sia-image-preview__toolbar > .sia-image-preview__original { flex: 0 0 auto; width: auto; padding-inline: 12px; white-space: nowrap; }
+@media (max-width: 600px) {
+  .sia-image-preview__toolbar { width: max-content; flex-wrap: wrap; justify-content: center; }
+  .sia-image-preview__toolbar > .sia-button { flex-shrink: 0; }
+  .sia-image-preview__stage { bottom: 132px; }
+}
 .sia-image-preview__error { color: #fff; }
 
 /* Floating content, Timeline and Tree */
@@ -1473,3 +1480,7 @@ button.sia-treemap__tile:focus-visible,
 .sia-choose-box__error { color: var(--sia-color-error); padding: 8px 0; }
 .sia-choose-box__empty { color: var(--sia-color-text-secondary); text-align: center; padding-block: 45px; }
 @media (max-width: 600px) { .sia-choose-box__body { grid-template-columns: 135px minmax(0, 1fr); } .sia-choose-box__path { flex-wrap: wrap; } .sia-choose-box__bottom { flex-wrap: wrap; } }
+
+/* 年份面板复用日期选中与禁用外观，四行网格为完整年份保留点击空间。 */
+.sia-date-panel__years { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 8px; padding: 16px 12px; }
+.sia-date-panel__years .sia-date-panel__cell button { width: 64px; }

@@ -946,9 +946,9 @@
 .sia-table__checkbox { display: inline-flex; width: auto; height: auto; margin: 0; cursor: pointer; }
 .sia-table__checkbox:disabled { cursor: not-allowed; }
 .sia-table__cell--selection-action, .sia-table__cell--index-action { cursor: pointer; }
-.sia-table__sortable-header { display: flex; align-items: center; justify-content: space-between; min-width: 0; gap: 6px; }
-/* 固定按钮占位避免切换排序时列头跳动；单箭头、加粗描边和底色共同强调当前方向。 */
-.sia-table__sort-button { display: grid; align-content: center; justify-items: center; flex: 0 0 26px; width: 26px; height: 28px; padding: 0; color: var(--sia-color-text-secondary); cursor: pointer; background: transparent; border: 0; border-radius: var(--sia-radius); }
+.sia-table__sortable-header { position: relative; display: flex; align-items: center; min-width: 0; }
+/* 可排序列常显入口并参与布局，为标题和按钮分别保留空间，避免覆盖文字。 */
+.sia-table__sort-button { position: relative; flex: 0 0 26px; margin-left: 4px; display: grid; align-content: center; justify-items: center; width: 26px; height: 28px; padding: 0; color: var(--sia-color-text-secondary); cursor: pointer; background: var(--sia-color-control-hover); border: 0; border-radius: var(--sia-radius); }
 .sia-table__sort-button[data-sort-order="none"] .sia-icon { margin-block: -2px; }
 .sia-table__sort-button:not([data-sort-order="none"]) { color: var(--sia-color-primary-text); background: color-mix(in srgb, var(--sia-color-primary) 14%, var(--sia-color-surface)); }
 .sia-table__sort-button:not([data-sort-order="none"]) .sia-icon { stroke-width: 2.5; }

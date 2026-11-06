@@ -11,6 +11,7 @@ import "./canvas.css";
 import "./cellFocus.css";
 import { playCellFocusGlow } from "./cellFocus";
 import { Fragment, forwardRef, isValidElement, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactElement, ReactNode, Ref } from "react";
 import { Tooltip } from "../FloatingDisplay";
 import { Icon } from "../Icon";
@@ -191,6 +192,8 @@ const TableBodyRow = memo(function TableBodyRow<T>({
   onCellPointerDown,
   onCellPointerMove,
 }: BodyRowProps<T>) {
+  // Canvas 普通文字在指针进入时转为原生文字；每个可见行最多保留一个，兼顾局部选字和大表性能。
+  const [textColumn, setTextColumn] = useState<string>();
   const resizeColumnKey = resize ? columns.find(column => !getCellProps(column).hidden)?.key : undefined;
   return (
     <tr
@@ -231,21 +234,28 @@ const TableBodyRow = memo(function TableBodyRow<T>({
             key={column.key}
             data-column-key={column.key}
             aria-invalid={invalid || undefined}
-            data-canvas-dom-ready={canvas && (pluginCellProps.content !== undefined || (!column.canvasRender && column.render)) ? "true" : undefined}
+            data-canvas-dom-ready={canvas && (pluginCellProps.content !== undefined || (!column.canvasRender && (column.render || textColumn === column.key))) ? "true" : undefined}
             aria-label={canvas ? column.canvasRender?.(value, row.record, row.sourceIndex, { row, rowIndex, column })?.text ?? (value == null ? "" : String(value)) : undefined}
             rowSpan={pluginCellProps.rowSpan}
             colSpan={pluginCellProps.colSpan}
             className={`sia-table__cell sia-table__cell--${column.align ?? "left"}${fixed ? ` sia-table__cell--fixed sia-table__cell--fixed-${fixed}` : ""}${fixedEdgeClass}${autoWidthClass}${invalid ? " sia-table__cell--invalid" : ""}${column.ellipsis !== false ? " sia-table__cell--ellipsis" : ""} ${cellClass} ${pluginCellProps.className ?? ""}`.trim()}
             style={{ ...fixedStyle, ...pluginCellProps.style }}
-            onMouseEnter={() => onCellMouseEnter(column)}
+            onMouseEnter={() => {
+              if (canvas && !column.canvasRender && !column.render) setTextColumn(column.key);
+              onCellMouseEnter(column);
+            }}
             onMouseLeave={() => onCellMouseLeave(column)}
             onClick={(event) => onCellClick(column, event)}
             onDoubleClick={(event) => onCellDoubleClick(column, event)}
             onContextMenu={(event) => onCellContextMenu(column, event)}
-            onPointerDown={(event) => onCellPointerDown(column, event)}
+            onPointerDown={(event) => {
+              // 触摸/笔没有 hover，须在浏览器启动原生选区前同步提供文字节点。
+              if (canvas && !column.canvasRender && !column.render && textColumn !== column.key) flushSync(() => setTextColumn(column.key));
+              onCellPointerDown(column, event);
+            }}
             onPointerMove={(event) => onCellPointerMove(column, event)}
           >
-            {(!canvas || (visibleColumns.has(column.key) && (pluginCellProps.content !== undefined || (!column.canvasRender && column.render)))) ? <TableCellContent
+            {(!canvas || (visibleColumns.has(column.key) && (pluginCellProps.content !== undefined || (!column.canvasRender && (column.render || textColumn === column.key))))) ? <TableCellContent
               ellipsis={column.ellipsis !== false}
               title={column.showTitle === true && column.ellipsis !== false && typeof value === "string" ? value : undefined}
             >

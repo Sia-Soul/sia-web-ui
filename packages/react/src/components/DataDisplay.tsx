@@ -450,6 +450,8 @@ export function Collapse({ items, activeKey, defaultActiveKey = [], accordion = 
 
 /** 图片预览的属性配置。 */
 export interface ImagePreviewProps {
+  /** 原始图片地址；与 src 不同时显示“查看原图”。点击后按需加载，成功才替换预览，失败保留预览并允许重试；每次打开或切换图片重新使用 src。 */
+  originalSrc?: string;
   /** 分组中当前图片的序号，从 0 开始；与 count、onCurrentChange 一起提供时显示切换按钮。 */
   current?: number;
   /** 分组图片数量；大于 1 时允许按钮及左右方向键切换，首尾不循环。 */
@@ -469,8 +471,8 @@ export interface ImagePreviewProps {
   onOpenChange: (open: boolean) => void;
 }
 
-/** 图片预览弹层，初始按窗口适配大图，支持水平/垂直翻转、左右旋转、缩放及拖动；重新打开或更换图片时重置视图。入退场共用 180ms 淡入轨迹，关闭反播后卸载，退场期间保留图片视图；减少动态效果时直接切换。 */
-export function ImagePreview({ open, src, alt = "", onOpenChange, current = 0, count = 1, onCurrentChange }: ImagePreviewProps) {
+/** 图片预览弹层，初始按窗口适配大图，支持翻转、旋转、按钮及鼠标滚轮缩放、拖动和按需查看原图；滚轮向上放大、向下缩小，范围为适配尺寸的 0.25～8 倍。重新打开或更换图片时重置视图。入退场使用 180ms 对称淡入淡出，退场期间保留图片视图。 */
+export function ImagePreview({ open, src, originalSrc, alt = "", onOpenChange, current = 0, count = 1, onCurrentChange }: ImagePreviewProps) {
   const previewRef = useRef<HTMLDivElement>(null);
   const motion = useOverlayMotion(open, previewRef, "fade");
   const stageRef = useRef<HTMLDivElement>(null);
@@ -481,10 +483,23 @@ export function ImagePreview({ open, src, alt = "", onOpenChange, current = 0, c
   const [flip, setFlip] = useState({ x: 1, y: 1 });
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [failed, setFailed] = useState(false);
+  const [original, setOriginal] = useState<"preview" | "loading" | "loaded" | "error">("preview");
+  const displaySrc = original === "loaded" && originalSrc ? originalSrc : src;
+  // 原图按需预加载，成功前保留清晰预览；关闭或切图时忽略旧请求，失败仍可重试。
+  useEffect(() => { if (open) setOriginal("preview"); }, [open, src, originalSrc]);
+  useEffect(() => {
+    if (!open || original !== "loading" || !originalSrc) return;
+    let active = true;
+    const image = new window.Image();
+    image.onload = () => { if (active) setOriginal("loaded"); };
+    image.onerror = () => { if (active) setOriginal("error"); };
+    image.src = originalSrc;
+    return () => { active = false; image.onload = null; image.onerror = null; };
+  }, [open, original, originalSrc, src]);
   const drag = useRef<{ id: number; x: number; y: number; left: number; top: number }>();
   useOverlayLifecycle(motion.present, previewRef, () => { if (open) onOpenChange(false); });
   const reset = () => { setZoom(1); setRotation(0); setFlip({ x: 1, y: 1 }); setPan({ x: 0, y: 0 }); drag.current = undefined; };
-  useEffect(() => { if (open) { reset(); setFailed(false); } }, [open, src]);
+  useEffect(() => { if (open) { reset(); setFailed(false); } }, [open, displaySrc]);
   // 分组切换仅在预览打开时处理，不干扰底层表格的方向键操作。
   useEffect(() => {
     if (!open || !onCurrentChange || count < 2) return;
@@ -506,19 +521,32 @@ export function ImagePreview({ open, src, alt = "", onOpenChange, current = 0, c
     observer.observe(stage);
     return () => observer.disconnect();
   }, [open, src]);
-  const ready = natural.src === src && natural.width > 0 && area.width > 0 && area.height > 0 && !failed;
+  const ready = natural.src === displaySrc && natural.width > 0 && area.width > 0 && area.height > 0 && !failed;
   // 按旋转后的包围盒计算适配比例，给底部工具条和顶部关闭按钮保留独立区域。
   const sideways = Math.abs(rotation % 180) === 90;
   const fit = ready ? Math.min(1, area.width / (sideways ? natural.height : natural.width), area.height / (sideways ? natural.width : natural.height)) : 0;
   const changeZoom = (factor: number) => setZoom(value => Math.max(.25, Math.min(8, value * factor)));
+  // 使用非被动原生监听，滚轮只缩放当前预览，不滚动底层抽屉或触发浏览器缩放。
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!open || !stage) return;
+    const wheel = (event: WheelEvent) => {
+      event.preventDefault(); event.stopPropagation();
+      if (!ready || event.deltaY === 0) return;
+      const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? stage.clientHeight : 1);
+      changeZoom(Math.exp(-Math.max(-160, Math.min(160, delta)) / 500));
+    };
+    stage.addEventListener("wheel", wheel, { passive: false });
+    return () => stage.removeEventListener("wheel", wheel);
+  }, [open, ready, motion.present]);
 
   if (!motion.present || !src || typeof document === "undefined") return null;
   return createPortal(<div ref={previewRef} className="sia-image-preview" style={{ animation: "none", pointerEvents: open ? undefined : "none" }} {...(!open ? { inert: "" } : {})} role="dialog" aria-modal="true" aria-label="图片预览" tabIndex={-1} onClick={() => onOpenChange(false)}>
     <Button variant="text" className="sia-image-preview__close" aria-label="关闭预览" onClick={event => { event.stopPropagation(); onOpenChange(false); }}><Icon name="close" /></Button>
     <div ref={stageRef} className="sia-image-preview__stage">
-      {failed ? <span className="sia-image-preview__error">图片加载失败</span> : <img key={src} src={src} alt={alt} draggable={false}
+      {failed ? <span className="sia-image-preview__error">图片加载失败</span> : <img key={displaySrc} src={displaySrc} alt={alt} draggable={false}
         style={{ width: natural.width * fit, height: natural.height * fit, visibility: ready ? "visible" : "hidden", transform: `translate(${pan.x}px, ${pan.y}px) rotate(${rotation}deg) scale(${zoom * flip.x}, ${zoom * flip.y})` }}
-        onLoad={event => setNatural({ src, width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} onError={() => setFailed(true)}
+        onLoad={event => setNatural({ src: displaySrc!, width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} onError={() => setFailed(true)}
         onClick={event => event.stopPropagation()}
         onPointerDown={event => { if (event.button !== 0) return; event.preventDefault(); event.stopPropagation(); event.currentTarget.setPointerCapture(event.pointerId); drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, left: pan.x, top: pan.y }; }}
         onPointerMove={event => { const start = drag.current; if (start?.id === event.pointerId) setPan({ x: start.left + event.clientX - start.x, y: start.top + event.clientY - start.y }); }}
@@ -539,12 +567,15 @@ export function ImagePreview({ open, src, alt = "", onOpenChange, current = 0, c
       <output className="sia-image-preview__scale" aria-label="当前缩放比例" aria-live="polite">{ready ? `${Math.round(fit * zoom * 100)}%` : "—"}</output>
       <Button variant="text" title="放大" aria-label="放大" disabled={!ready || zoom >= 8} onClick={() => changeZoom(1.25)}><Icon name="zoom-in" size={20} /></Button>
       <Button variant="text" title="适应窗口" aria-label="适应窗口" disabled={!ready} onClick={reset}><Icon name="refresh" size={20} /></Button>
+      {originalSrc && originalSrc !== src && original !== "loaded" ? <Button variant="text" className="sia-image-preview__original" loading={original === "loading"} title={original === "error" ? "原图加载失败，点击重试" : "查看原图"} onClick={() => setOriginal("loading")}>查看原图</Button> : null}
     </div>
   </div>, document.body);
 }
 
 /** 图片预览的配置。 */
 export interface ImagePreviewConfig {
+  /** 按需加载的原图地址；与预览 src 不同时显示“查看原图”，支持加载状态、失败重试及预览分组。省略时不显示该入口。 */
+  originalSrc?: string;
   /** 图片或资源地址。 */
   src?: string;
   /** 是否打开；传入后由外部控制显示状态。 */
@@ -573,7 +604,7 @@ export interface ImageProps extends ImgHTMLAttributes<HTMLImageElement> {
   rootClassName?: string;
 }
 
-type GroupImage = { src: string; alt: string; element: HTMLSpanElement };
+type GroupImage = { src: string; originalSrc?: string; alt: string; element: HTMLSpanElement };
 const ImageGroupContext = createContext<{
   register: (id: string, image: GroupImage) => () => void;
   open: (id: string) => void;
@@ -603,7 +634,7 @@ export function ImagePreviewGroup({ children }: ImagePreviewGroupProps) {
   const image = entries[index]?.[1];
   useEffect(() => { if (active && index < 0) setActive(undefined); }, [active, index]);
   return <ImageGroupContext.Provider value={context}>{children}<ImagePreview
-    open={Boolean(image)} src={image?.src} alt={image?.alt} current={index} count={entries.length}
+    open={Boolean(image)} src={image?.src} originalSrc={image?.originalSrc} alt={image?.alt} current={index} count={entries.length}
     onOpenChange={open => { if (!open) setActive(undefined); }} onCurrentChange={next => setActive(entries[next]?.[0])}
   /></ImageGroupContext.Provider>;
 }
@@ -622,8 +653,9 @@ export function Image({ fallback, placeholder, preview = true, rootClassName = "
   const rootRef = useRef<HTMLSpanElement>(null);
   const grouped = Boolean(group && preview && !controlled && displaySrc);
   useEffect(() => {
-    if (grouped && group && displaySrc && rootRef.current) return group.register(groupId, { src: displaySrc, alt, element: rootRef.current });
-  }, [group, grouped, groupId, displaySrc, alt]);
+    // 分组同样保留独立预览地址和原图地址，不能用列表缩略图覆盖预览配置。
+    if (grouped && group && displaySrc && rootRef.current) return group.register(groupId, { src: config.src ?? displaySrc, originalSrc: config.originalSrc, alt, element: rootRef.current });
+  }, [group, grouped, groupId, displaySrc, config.src, config.originalSrc, alt]);
   const radius = typeof style?.borderRadius === "number" ? `${style.borderRadius}px` : style?.borderRadius;
   const rootStyle = {
     ...style,
@@ -635,6 +667,6 @@ export function Image({ fallback, placeholder, preview = true, rootClassName = "
     {/* 更新占位状态后继续通知调用方，确保图片恢复加载时预览组件能解除失败状态。 */}
     <img {...withTitleTooltip(props)} src={displaySrc} alt={alt} className={className} onLoad={event => { setLoaded(true); onLoad?.(event); }} onError={(event) => { if (!failed && fallback) setFailed(true); onError?.(event); }} />
     {preview ? <button type="button" className="sia-image__mask" aria-label="预览图片" onClick={() => setOpen(true)}>{config.mask ?? <><Icon name="eye" />预览</>}</button> : null}
-    <ImagePreview open={open} src={config.src ?? displaySrc} alt={alt} onOpenChange={setOpen} />
+    <ImagePreview open={open} src={config.src ?? displaySrc} originalSrc={config.originalSrc} alt={alt} onOpenChange={setOpen} />
   </span>;
 }

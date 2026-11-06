@@ -246,7 +246,7 @@ export function QueryFormPage() {
         },
         {
           property: "onError",
-          description: "异步查询、保存、删除失败回调，组件同时显示错误提示",
+          description: "异步查询、保存、删除失败回调；接口错误由业务或请求层提示，组件不重复展示，名称必填等本地校验保留",
           type: "(error, operation) => void",
           defaultValue: "-",
         },
